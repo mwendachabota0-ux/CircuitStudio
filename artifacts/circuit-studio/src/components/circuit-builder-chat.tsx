@@ -314,7 +314,6 @@ export function CircuitBuilderChat({
       <header className="builder-chat__header">
         <div className="builder-chat__identity">
           <div>
-            <p className="builder-chat__eyebrow">Circuit Studio / collaborator</p>
             <h2>Build through conversation</h2>
           </div>
         </div>

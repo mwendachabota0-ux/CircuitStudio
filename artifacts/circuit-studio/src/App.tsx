@@ -229,6 +229,8 @@ function SchematicViewer({ svg, onFullscreenError }: { svg: string; onFullscreen
   const viewportRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ pointerId: number; startX: number; startY: number; originX: number; originY: number; moved: boolean } | null>(null);
   const autoFitRef = useRef(true);
+  const zoomRef = useRef(1);
+  const offsetRef = useRef({ x: 0, y: 0 });
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
@@ -252,9 +254,13 @@ function SchematicViewer({ svg, onFullscreenError }: { svg: string; onFullscreen
       (viewport.clientHeight - padding) / height,
     );
     if (Number.isFinite(scale) && scale > 0) {
-      setZoom(Math.max(MIN_ZOOM, scale));
+      const nextZoom = Math.max(MIN_ZOOM, scale);
+      zoomRef.current = nextZoom;
+      setZoom(nextZoom);
     }
-    setOffset({ x: 0, y: 0 });
+    const nextOffset = { x: 0, y: 0 };
+    offsetRef.current = nextOffset;
+    setOffset(nextOffset);
     autoFitRef.current = true;
   }, []);
 
@@ -306,8 +312,43 @@ function SchematicViewer({ svg, onFullscreenError }: { svg: string; onFullscreen
 
   const changeZoom = (direction: 1 | -1) => {
     autoFitRef.current = false;
-    setZoom((current) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, current * (direction > 0 ? 1.2 : 1 / 1.2))));
+    const nextZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoomRef.current * (direction > 0 ? 1.2 : 1 / 1.2)));
+    zoomRef.current = nextZoom;
+    setZoom(nextZoom);
   };
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+
+    const handleWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      const delta = event.deltaY || event.deltaX;
+      if (!delta) return;
+
+      const currentZoom = zoomRef.current;
+      const nextZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, currentZoom * Math.exp(-delta * 0.002)));
+      if (nextZoom === currentZoom) return;
+
+      const rect = viewport.getBoundingClientRect();
+      const pointerX = event.clientX - rect.left - rect.width / 2;
+      const pointerY = event.clientY - rect.top - rect.height / 2;
+      const currentOffset = offsetRef.current;
+      const nextOffset = {
+        x: pointerX - ((pointerX - currentOffset.x) / currentZoom) * nextZoom,
+        y: pointerY - ((pointerY - currentOffset.y) / currentZoom) * nextZoom,
+      };
+
+      autoFitRef.current = false;
+      zoomRef.current = nextZoom;
+      offsetRef.current = nextOffset;
+      setZoom(nextZoom);
+      setOffset(nextOffset);
+    };
+
+    viewport.addEventListener('wheel', handleWheel, { passive: false });
+    return () => viewport.removeEventListener('wheel', handleWheel);
+  }, [svg]);
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.button !== 0 || !canvasSize.width) return;
@@ -315,8 +356,8 @@ function SchematicViewer({ svg, onFullscreenError }: { svg: string; onFullscreen
       pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
-      originX: offset.x,
-      originY: offset.y,
+      originX: offsetRef.current.x,
+      originY: offsetRef.current.y,
       moved: false,
     };
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -333,7 +374,9 @@ function SchematicViewer({ svg, onFullscreenError }: { svg: string; onFullscreen
       drag.moved = true;
       autoFitRef.current = false;
     }
-    setOffset({ x: drag.originX + deltaX, y: drag.originY + deltaY });
+    const nextOffset = { x: drag.originX + deltaX, y: drag.originY + deltaY };
+    offsetRef.current = nextOffset;
+    setOffset(nextOffset);
   };
 
   const stopPanning = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -352,10 +395,13 @@ function SchematicViewer({ svg, onFullscreenError }: { svg: string; onFullscreen
     };
     if (panByKey[event.key]) {
       autoFitRef.current = false;
-      setOffset((current) => ({
-        x: current.x + panByKey[event.key].x,
-        y: current.y + panByKey[event.key].y,
-      }));
+      const currentOffset = offsetRef.current;
+      const nextOffset = {
+        x: currentOffset.x + panByKey[event.key].x,
+        y: currentOffset.y + panByKey[event.key].y,
+      };
+      offsetRef.current = nextOffset;
+      setOffset(nextOffset);
       event.preventDefault();
     } else if (event.key === '+' || event.key === '=') {
       changeZoom(1);
@@ -376,7 +422,7 @@ function SchematicViewer({ svg, onFullscreenError }: { svg: string; onFullscreen
         data-testid="canvas-schematic"
         ref={viewportRef}
         role="region"
-        aria-label="Schematic viewer. Drag or use arrow keys to pan; use plus and minus to zoom; press zero to fit."
+        aria-label="Schematic viewer. Scroll or pinch to zoom at the pointer. Drag or use arrow keys to pan; use plus and minus to zoom; press zero to fit."
         tabIndex={0}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}

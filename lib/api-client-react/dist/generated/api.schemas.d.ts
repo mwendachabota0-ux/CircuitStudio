@@ -97,6 +97,69 @@ export interface TutorResponse {
     missingValues: string[];
     proposedEdit?: TutorProposedEdit;
 }
+export type CircuitBuildChatMessageRole = typeof CircuitBuildChatMessageRole[keyof typeof CircuitBuildChatMessageRole];
+export declare const CircuitBuildChatMessageRole: {
+    readonly user: "user";
+    readonly assistant: "assistant";
+};
+export interface CircuitBuildChatMessage {
+    role: CircuitBuildChatMessageRole;
+    /** @maxLength 3000 */
+    content: string;
+}
+export interface CircuitDesignBrief {
+    /** @maxLength 1000 */
+    goal: string;
+    /**
+       * @maxItems 12
+       * @items.maxLength 300
+       */
+    requirements: string[];
+    /**
+       * @maxItems 12
+       * @items.maxLength 300
+       */
+    assumptions: string[];
+    /**
+       * @maxItems 12
+       * @items.maxLength 300
+       */
+    openQuestions: string[];
+}
+export type CircuitBuildChatInputMode = typeof CircuitBuildChatInputMode[keyof typeof CircuitBuildChatInputMode];
+export declare const CircuitBuildChatInputMode: {
+    readonly chat: "chat";
+    readonly build: "build";
+};
+export interface CircuitBuildChatInput {
+    /**
+       * @minLength 1
+       * @maxLength 3000
+       */
+    message: string;
+    mode: CircuitBuildChatInputMode;
+    currentSpec: CircuitSpec;
+    /** @maxItems 8 */
+    history?: CircuitBuildChatMessage[];
+    brief?: CircuitDesignBrief;
+}
+export interface CircuitBuildProposal {
+    /**
+       * @minLength 1
+       * @maxLength 500
+       */
+    summary: string;
+    spec: CircuitSpec;
+}
+export interface CircuitBuildChatResponse {
+    /**
+       * @minLength 1
+       * @maxLength 3000
+       */
+    answer: string;
+    brief: CircuitDesignBrief;
+    proposal?: CircuitBuildProposal;
+}
 export interface CircuitReviewRequest {
     spec: CircuitSpec;
 }

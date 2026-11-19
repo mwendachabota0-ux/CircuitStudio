@@ -128,6 +128,49 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+  /circuits/build-chat:
+    post:
+      operationId: chatWithCircuitBuilder
+      tags: [tutor]
+      summary: Clarify circuit requirements or propose a circuit edit
+      description: Maintains a concise design brief and, in Build mode, may return a validated CircuitSpec proposal that the user must review and apply.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CircuitBuildChatInput"
+      responses:
+        "200":
+          description: Chat response, updated design brief, and optional circuit proposal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CircuitBuildChatResponse"
+        "400":
+          description: Invalid chat message, brief, or circuit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Authentication is required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "402":
+          description: Lifetime token allowance is exhausted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "503":
+          description: Gemini is unavailable or usage could not be recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
   /circuits/review:
     post:
       operationId: reviewCircuit
@@ -318,6 +361,88 @@ components:
         proposedEdit:
           $ref: "#/components/schemas/TutorProposedEdit"
       required: [answer, observed, inferred, unknowns, missingValues]
+      additionalProperties: false
+    CircuitBuildChatMessage:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+          maxLength: 3000
+      required: [role, content]
+      additionalProperties: false
+    CircuitDesignBrief:
+      type: object
+      properties:
+        goal:
+          type: string
+          maxLength: 1000
+        requirements:
+          type: array
+          maxItems: 12
+          items:
+            type: string
+            maxLength: 300
+        assumptions:
+          type: array
+          maxItems: 12
+          items:
+            type: string
+            maxLength: 300
+        openQuestions:
+          type: array
+          maxItems: 12
+          items:
+            type: string
+            maxLength: 300
+      required: [goal, requirements, assumptions, openQuestions]
+      additionalProperties: false
+    CircuitBuildChatInput:
+      type: object
+      properties:
+        message:
+          type: string
+          minLength: 1
+          maxLength: 3000
+        mode:
+          type: string
+          enum: [chat, build]
+        currentSpec:
+          $ref: "#/components/schemas/CircuitSpec"
+        history:
+          type: array
+          maxItems: 8
+          items:
+            $ref: "#/components/schemas/CircuitBuildChatMessage"
+        brief:
+          $ref: "#/components/schemas/CircuitDesignBrief"
+      required: [message, mode, currentSpec]
+      additionalProperties: false
+    CircuitBuildProposal:
+      type: object
+      properties:
+        summary:
+          type: string
+          minLength: 1
+          maxLength: 500
+        spec:
+          $ref: "#/components/schemas/CircuitSpec"
+      required: [summary, spec]
+      additionalProperties: false
+    CircuitBuildChatResponse:
+      type: object
+      properties:
+        answer:
+          type: string
+          minLength: 1
+          maxLength: 3000
+        brief:
+          $ref: "#/components/schemas/CircuitDesignBrief"
+        proposal:
+          $ref: "#/components/schemas/CircuitBuildProposal"
+      required: [answer, brief]
       additionalProperties: false
     CircuitReviewRequest:
       type: object

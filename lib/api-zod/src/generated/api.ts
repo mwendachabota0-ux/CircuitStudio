@@ -227,6 +227,187 @@ export const AskCircuitTutorResponse = zod.object({
 
 
 /**
+ * Maintains a concise design brief and, in Build mode, may return a validated CircuitSpec proposal that the user must review and apply.
+ * @summary Clarify circuit requirements or propose a circuit edit
+ */
+export const chatWithCircuitBuilderBodyMessageMax = 3000;
+
+export const chatWithCircuitBuilderBodyCurrentSpecElementsItemFromMin = 2;
+export const chatWithCircuitBuilderBodyCurrentSpecElementsItemFromMax = 2;
+
+export const chatWithCircuitBuilderBodyCurrentSpecElementsItemToMin = 2;
+export const chatWithCircuitBuilderBodyCurrentSpecElementsItemToMax = 2;
+
+export const chatWithCircuitBuilderBodyCurrentSpecElementsItemAtMin = 2;
+export const chatWithCircuitBuilderBodyCurrentSpecElementsItemAtMax = 2;
+
+export const chatWithCircuitBuilderBodyCurrentSpecElementsItemPointsItemMin = 2;
+export const chatWithCircuitBuilderBodyCurrentSpecElementsItemPointsItemMax = 2;
+
+export const chatWithCircuitBuilderBodyCurrentSpecElementsItemLabelNudgeMin = 2;
+export const chatWithCircuitBuilderBodyCurrentSpecElementsItemLabelNudgeMax = 2;
+
+export const chatWithCircuitBuilderBodyCurrentSpecElementsItemLabelAtMin = 2;
+export const chatWithCircuitBuilderBodyCurrentSpecElementsItemLabelAtMax = 2;
+
+export const chatWithCircuitBuilderBodyHistoryItemContentMax = 3000;
+
+export const chatWithCircuitBuilderBodyHistoryMax = 8;
+
+export const chatWithCircuitBuilderBodyBriefGoalMax = 1000;
+
+export const chatWithCircuitBuilderBodyBriefRequirementsItemMax = 300;
+
+export const chatWithCircuitBuilderBodyBriefRequirementsMax = 12;
+
+export const chatWithCircuitBuilderBodyBriefAssumptionsItemMax = 300;
+
+export const chatWithCircuitBuilderBodyBriefAssumptionsMax = 12;
+
+export const chatWithCircuitBuilderBodyBriefOpenQuestionsItemMax = 300;
+
+export const chatWithCircuitBuilderBodyBriefOpenQuestionsMax = 12;
+
+
+
+export const ChatWithCircuitBuilderBody = zod.object({
+  "message": zod.string().min(1).max(chatWithCircuitBuilderBodyMessageMax),
+  "mode": zod.enum(['chat', 'build']),
+  "currentSpec": zod.object({
+  "title": zod.string(),
+  "width": zod.number().optional(),
+  "height": zod.number().optional(),
+  "elements": zod.array(zod.object({
+  "type": zod.string(),
+  "id": zod.string().optional(),
+  "label": zod.string().optional(),
+  "value": zod.string().optional(),
+  "from": zod.array(zod.number()).min(chatWithCircuitBuilderBodyCurrentSpecElementsItemFromMin).max(chatWithCircuitBuilderBodyCurrentSpecElementsItemFromMax).optional(),
+  "to": zod.array(zod.number()).min(chatWithCircuitBuilderBodyCurrentSpecElementsItemToMin).max(chatWithCircuitBuilderBodyCurrentSpecElementsItemToMax).optional(),
+  "at": zod.array(zod.number()).min(chatWithCircuitBuilderBodyCurrentSpecElementsItemAtMin).max(chatWithCircuitBuilderBodyCurrentSpecElementsItemAtMax).optional(),
+  "points": zod.array(zod.array(zod.number()).min(chatWithCircuitBuilderBodyCurrentSpecElementsItemPointsItemMin).max(chatWithCircuitBuilderBodyCurrentSpecElementsItemPointsItemMax)).optional(),
+  "x": zod.number().optional(),
+  "y": zod.number().optional(),
+  "w": zod.number().optional(),
+  "h": zod.number().optional(),
+  "height": zod.number().optional(),
+  "open": zod.boolean().optional(),
+  "closed": zod.boolean().optional(),
+  "flip": zod.boolean().optional(),
+  "circle": zod.boolean().optional(),
+  "swap": zod.boolean().optional(),
+  "style": zod.string().optional(),
+  "labelPos": zod.string().optional(),
+  "labelNudge": zod.array(zod.number()).min(chatWithCircuitBuilderBodyCurrentSpecElementsItemLabelNudgeMin).max(chatWithCircuitBuilderBodyCurrentSpecElementsItemLabelNudgeMax).optional(),
+  "labelAt": zod.array(zod.number()).min(chatWithCircuitBuilderBodyCurrentSpecElementsItemLabelAtMin).max(chatWithCircuitBuilderBodyCurrentSpecElementsItemLabelAtMax).optional(),
+  "labelAnchor": zod.string().optional(),
+  "text": zod.string().optional(),
+  "anchor": zod.string().optional(),
+  "size": zod.number().optional(),
+  "bold": zod.boolean().optional(),
+  "muted": zod.boolean().optional()
+}))
+}),
+  "history": zod.array(zod.object({
+  "role": zod.enum(['user', 'assistant']),
+  "content": zod.string().max(chatWithCircuitBuilderBodyHistoryItemContentMax)
+})).max(chatWithCircuitBuilderBodyHistoryMax).optional(),
+  "brief": zod.object({
+  "goal": zod.string().max(chatWithCircuitBuilderBodyBriefGoalMax),
+  "requirements": zod.array(zod.string().max(chatWithCircuitBuilderBodyBriefRequirementsItemMax)).max(chatWithCircuitBuilderBodyBriefRequirementsMax),
+  "assumptions": zod.array(zod.string().max(chatWithCircuitBuilderBodyBriefAssumptionsItemMax)).max(chatWithCircuitBuilderBodyBriefAssumptionsMax),
+  "openQuestions": zod.array(zod.string().max(chatWithCircuitBuilderBodyBriefOpenQuestionsItemMax)).max(chatWithCircuitBuilderBodyBriefOpenQuestionsMax)
+}).optional()
+})
+
+export const chatWithCircuitBuilderResponseAnswerMax = 3000;
+
+export const chatWithCircuitBuilderResponseBriefGoalMax = 1000;
+
+export const chatWithCircuitBuilderResponseBriefRequirementsItemMax = 300;
+
+export const chatWithCircuitBuilderResponseBriefRequirementsMax = 12;
+
+export const chatWithCircuitBuilderResponseBriefAssumptionsItemMax = 300;
+
+export const chatWithCircuitBuilderResponseBriefAssumptionsMax = 12;
+
+export const chatWithCircuitBuilderResponseBriefOpenQuestionsItemMax = 300;
+
+export const chatWithCircuitBuilderResponseBriefOpenQuestionsMax = 12;
+
+export const chatWithCircuitBuilderResponseProposalSummaryMax = 500;
+
+export const chatWithCircuitBuilderResponseProposalSpecElementsItemFromMin = 2;
+export const chatWithCircuitBuilderResponseProposalSpecElementsItemFromMax = 2;
+
+export const chatWithCircuitBuilderResponseProposalSpecElementsItemToMin = 2;
+export const chatWithCircuitBuilderResponseProposalSpecElementsItemToMax = 2;
+
+export const chatWithCircuitBuilderResponseProposalSpecElementsItemAtMin = 2;
+export const chatWithCircuitBuilderResponseProposalSpecElementsItemAtMax = 2;
+
+export const chatWithCircuitBuilderResponseProposalSpecElementsItemPointsItemMin = 2;
+export const chatWithCircuitBuilderResponseProposalSpecElementsItemPointsItemMax = 2;
+
+export const chatWithCircuitBuilderResponseProposalSpecElementsItemLabelNudgeMin = 2;
+export const chatWithCircuitBuilderResponseProposalSpecElementsItemLabelNudgeMax = 2;
+
+export const chatWithCircuitBuilderResponseProposalSpecElementsItemLabelAtMin = 2;
+export const chatWithCircuitBuilderResponseProposalSpecElementsItemLabelAtMax = 2;
+
+
+
+export const ChatWithCircuitBuilderResponse = zod.object({
+  "answer": zod.string().min(1).max(chatWithCircuitBuilderResponseAnswerMax),
+  "brief": zod.object({
+  "goal": zod.string().max(chatWithCircuitBuilderResponseBriefGoalMax),
+  "requirements": zod.array(zod.string().max(chatWithCircuitBuilderResponseBriefRequirementsItemMax)).max(chatWithCircuitBuilderResponseBriefRequirementsMax),
+  "assumptions": zod.array(zod.string().max(chatWithCircuitBuilderResponseBriefAssumptionsItemMax)).max(chatWithCircuitBuilderResponseBriefAssumptionsMax),
+  "openQuestions": zod.array(zod.string().max(chatWithCircuitBuilderResponseBriefOpenQuestionsItemMax)).max(chatWithCircuitBuilderResponseBriefOpenQuestionsMax)
+}),
+  "proposal": zod.object({
+  "summary": zod.string().min(1).max(chatWithCircuitBuilderResponseProposalSummaryMax),
+  "spec": zod.object({
+  "title": zod.string(),
+  "width": zod.number().optional(),
+  "height": zod.number().optional(),
+  "elements": zod.array(zod.object({
+  "type": zod.string(),
+  "id": zod.string().optional(),
+  "label": zod.string().optional(),
+  "value": zod.string().optional(),
+  "from": zod.array(zod.number()).min(chatWithCircuitBuilderResponseProposalSpecElementsItemFromMin).max(chatWithCircuitBuilderResponseProposalSpecElementsItemFromMax).optional(),
+  "to": zod.array(zod.number()).min(chatWithCircuitBuilderResponseProposalSpecElementsItemToMin).max(chatWithCircuitBuilderResponseProposalSpecElementsItemToMax).optional(),
+  "at": zod.array(zod.number()).min(chatWithCircuitBuilderResponseProposalSpecElementsItemAtMin).max(chatWithCircuitBuilderResponseProposalSpecElementsItemAtMax).optional(),
+  "points": zod.array(zod.array(zod.number()).min(chatWithCircuitBuilderResponseProposalSpecElementsItemPointsItemMin).max(chatWithCircuitBuilderResponseProposalSpecElementsItemPointsItemMax)).optional(),
+  "x": zod.number().optional(),
+  "y": zod.number().optional(),
+  "w": zod.number().optional(),
+  "h": zod.number().optional(),
+  "height": zod.number().optional(),
+  "open": zod.boolean().optional(),
+  "closed": zod.boolean().optional(),
+  "flip": zod.boolean().optional(),
+  "circle": zod.boolean().optional(),
+  "swap": zod.boolean().optional(),
+  "style": zod.string().optional(),
+  "labelPos": zod.string().optional(),
+  "labelNudge": zod.array(zod.number()).min(chatWithCircuitBuilderResponseProposalSpecElementsItemLabelNudgeMin).max(chatWithCircuitBuilderResponseProposalSpecElementsItemLabelNudgeMax).optional(),
+  "labelAt": zod.array(zod.number()).min(chatWithCircuitBuilderResponseProposalSpecElementsItemLabelAtMin).max(chatWithCircuitBuilderResponseProposalSpecElementsItemLabelAtMax).optional(),
+  "labelAnchor": zod.string().optional(),
+  "text": zod.string().optional(),
+  "anchor": zod.string().optional(),
+  "size": zod.number().optional(),
+  "bold": zod.boolean().optional(),
+  "muted": zod.boolean().optional()
+}))
+})
+}).optional()
+})
+
+
+/**
  * Returns a concise educational review of a structurally valid draft. It does not check electrical safety or correctness.
  * @summary Review a valid circuit draft
  */

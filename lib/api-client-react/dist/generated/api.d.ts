@@ -1,5 +1,5 @@
 import type { QueryKey, UseMutationOptions, UseMutationResult, UseQueryOptions, UseQueryResult } from '@tanstack/react-query';
-import type { AiKeySelectionRequest, AiStatus, AiUsage, ApiError, CircuitPrompt, CircuitReviewRequest, CircuitReviewResponse, CircuitSpec, HealthStatus, TutorRequest, TutorResponse } from './api.schemas';
+import type { AiKeySelectionRequest, AiStatus, AiUsage, ApiError, CircuitBuildChatInput, CircuitBuildChatResponse, CircuitPrompt, CircuitReviewRequest, CircuitReviewResponse, CircuitSpec, HealthStatus, TutorRequest, TutorResponse } from './api.schemas';
 import { customFetch } from '../custom-fetch';
 import type { ErrorType, BodyType } from '../custom-fetch';
 type AwaitedInput<T> = PromiseLike<T> | T;
@@ -77,6 +77,30 @@ export declare const useAskCircuitTutor: <TError = ErrorType<ApiError>, TContext
     mutation?: UseMutationOptions<Awaited<ReturnType<typeof askCircuitTutor>>, TError, AskCircuitTutorMutationVariables, TContext>;
     request?: SecondParameter<typeof customFetch>;
 }) => UseMutationResult<Awaited<ReturnType<typeof askCircuitTutor>>, TError, AskCircuitTutorMutationVariables, TContext>;
+export declare const getChatWithCircuitBuilderUrl: () => string;
+/**
+ * Maintains a concise design brief and, in Build mode, may return a validated CircuitSpec proposal that the user must review and apply.
+ * @summary Clarify circuit requirements or propose a circuit edit
+ */
+export declare const chatWithCircuitBuilder: (circuitBuildChatInput: CircuitBuildChatInput, options?: Parameters<typeof customFetch>[1]) => Promise<CircuitBuildChatResponse>;
+export declare const getChatWithCircuitBuilderMutationKey: () => readonly ["chatWithCircuitBuilder"];
+export declare const getChatWithCircuitBuilderMutationOptions: <TError = ErrorType<ApiError>, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<Awaited<ReturnType<typeof chatWithCircuitBuilder>>, TError, ChatWithCircuitBuilderMutationVariables, TContext>;
+    request?: SecondParameter<typeof customFetch>;
+}) => UseMutationOptions<Awaited<ReturnType<typeof chatWithCircuitBuilder>>, TError, ChatWithCircuitBuilderMutationVariables, TContext>;
+export type ChatWithCircuitBuilderMutationResult = NonNullable<Awaited<ReturnType<typeof chatWithCircuitBuilder>>>;
+export type ChatWithCircuitBuilderMutationBody = BodyType<CircuitBuildChatInput>;
+export type ChatWithCircuitBuilderMutationError = ErrorType<ApiError>;
+export type ChatWithCircuitBuilderMutationVariables = {
+    data: BodyType<CircuitBuildChatInput>;
+};
+/**
+* @summary Clarify circuit requirements or propose a circuit edit
+*/
+export declare const useChatWithCircuitBuilder: <TError = ErrorType<ApiError>, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<Awaited<ReturnType<typeof chatWithCircuitBuilder>>, TError, ChatWithCircuitBuilderMutationVariables, TContext>;
+    request?: SecondParameter<typeof customFetch>;
+}) => UseMutationResult<Awaited<ReturnType<typeof chatWithCircuitBuilder>>, TError, ChatWithCircuitBuilderMutationVariables, TContext>;
 export declare const getReviewCircuitUrl: () => string;
 /**
  * Returns a concise educational review of a structurally valid draft. It does not check electrical safety or correctness.

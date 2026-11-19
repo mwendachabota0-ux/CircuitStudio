@@ -1,7 +1,8 @@
 import { GoogleGenAI } from "@google/genai";
 import { GenerateCircuitBody, GenerateCircuitResponse } from "@workspace/api-zod";
+import { getAuth } from "@clerk/express";
 import rateLimit from "express-rate-limit";
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type RequestHandler } from "express";
 
 const router: IRouter = Router();
 
@@ -12,6 +13,15 @@ const generationLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: "Please wait a moment before generating another circuit." },
 });
+
+const requireAuth: RequestHandler = (req, res, next) => {
+  const { userId } = getAuth(req);
+  if (!userId) {
+    res.status(401).json({ error: "Sign in to generate a circuit." });
+    return;
+  }
+  next();
+};
 
 const circuitSystemInstructions = `You convert plain-language circuit requests into editable JSON for the CircuitDraw schematic renderer.
 Return exactly one JSON object, with no Markdown fences, comments, or prose. The shape is:
@@ -55,6 +65,7 @@ const supportedTypes = new Set([
 
 router.post(
   "/circuits/generate",
+  requireAuth,
   generationLimiter,
   async (req, res): Promise<void> => {
     const parsed = GenerateCircuitBody.safeParse(req.body);

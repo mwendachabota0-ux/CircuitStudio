@@ -1,0 +1,1 @@
+- [Circuit Studio access](circuit-studio-access.md) — open sign-up, but require Clerk sign-in for the workbench and Gemini generation.

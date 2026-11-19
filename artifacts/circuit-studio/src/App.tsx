@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
@@ -650,6 +651,8 @@ function Studio({ userId }: { userId: string }) {
   const [libraryReady, setLibraryReady] = useState(!!window.CircuitDraw);
   const [toast, setToast] = useState('');
   const [copied, setCopied] = useState(false);
+  const [easyedaSheetOpen, setEasyedaSheetOpen] = useState(false);
+  const [easyedaSheet, setEasyedaSheet] = useState('');
   const [saveTime, setSaveTime] = useState('Saved on this account');
   const [downloadMenuOpen, setDownloadMenuOpen] = useState(false);
   const [bomVisible, setBomVisible] = useState(false);
@@ -887,6 +890,15 @@ function Studio({ userId }: { userId: string }) {
       window.setTimeout(() => setCopied(false), 1800);
     } catch { setToast('Clipboard access was blocked by this browser.'); }
   };
+  const showEasyedaSheet = () => {
+    if (!window.CircuitDraw || report.errors.length) return;
+    try {
+      setEasyedaSheet(window.CircuitDraw.buildSheet(spec));
+      setEasyedaSheetOpen(true);
+    } catch {
+      setToast('EasyEDA build sheet could not be created. Check the drawing and try again.');
+    }
+  };
   const loadExample = () => {
     acceptSpec(initialSpec);
     setPrompt('');
@@ -1073,12 +1085,29 @@ function Studio({ userId }: { userId: string }) {
         </section>
 
         <section className="export-bar" aria-label="Export circuit">
-          <div className="export-copy"><strong>Take this circuit to your next tool.</strong><span>Use the download menu for files, or copy the EasyEDA sheet.</span></div>
+          <div className="export-copy"><strong>Take this circuit to your next tool.</strong><span>Preview or copy the EasyEDA sheet, or use the download menu for files.</span></div>
           <div className="export-actions">
+            <button className="quiet-button" data-testid="button-preview-easyeda-sheet" onClick={showEasyedaSheet} disabled={!libraryReady || report.errors.length > 0}><Eye /> Show EasyEDA sheet</button>
             <button className="quiet-button" data-testid="button-copy-sheet" onClick={copySheet} disabled={!libraryReady || report.errors.length > 0}><Clipboard /> {copied ? 'Copied' : 'Copy EasyEDA sheet'}</button>
           </div>
         </section>
       </div>
+      <Dialog open={easyedaSheetOpen} onOpenChange={setEasyedaSheetOpen}>
+        <DialogContent className="easyeda-sheet-dialog" data-testid="dialog-easyeda-sheet">
+          <DialogHeader className="easyeda-sheet-header">
+            <DialogTitle className="easyeda-sheet-title">EasyEDA build sheet</DialogTitle>
+            <DialogDescription className="easyeda-sheet-description">
+              Review the generated parts and connections before copying them into EasyEDA.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="easyeda-sheet-body" role="region" aria-label="EasyEDA sheet contents" tabIndex={0} data-testid="text-easyeda-sheet">
+            <pre>{easyedaSheet}</pre>
+          </div>
+          <div className="easyeda-sheet-footer">
+            <button className="quiet-button" type="button" onClick={copySheet} disabled={!easyedaSheet}><Clipboard /> {copied ? 'Copied' : 'Copy sheet'}</button>
+          </div>
+        </DialogContent>
+      </Dialog>
       {toast && <div className="status-toast" role="status" data-testid="status-toast">{toast}</div>}
     </main>
   );

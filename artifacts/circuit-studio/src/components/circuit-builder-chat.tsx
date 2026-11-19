@@ -32,16 +32,6 @@ type ChatMode = 'chat' | 'build';
 type ThreadMessage = CircuitBuildChatMessage & { id: string; createdAt: number };
 type SavedState = { brief: CircuitDesignBrief; messages: ThreadMessage[] };
 type ValidationReport = { errors: string[]; warnings: string[] };
-type CircuitDrawApi = {
-  render: (spec: CircuitBuildChatInput['currentSpec']) => string;
-  validate: (spec: CircuitBuildChatInput['currentSpec']) => ValidationReport;
-};
-
-declare global {
-  interface Window {
-    CircuitDraw?: CircuitDrawApi;
-  }
-}
 
 const emptyBrief = (): CircuitDesignBrief => ({
   goal: '',

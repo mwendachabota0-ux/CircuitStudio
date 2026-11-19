@@ -214,7 +214,8 @@ a { color: inherit; text-decoration: none; }
 .validation-list li:last-child { border-bottom:0; }
 .validation-list li.error { color:#a4453e; }
 .validation-list li:before { content:"—";margin-right:8px;color:#bc8b5a; }
-.safety-note { margin:0 18px 15px;padding:10px 11px;border-left:2px solid #d27e53;background:#f8f3e9;color:#766958;font-size:10px;line-height:1.55; }
+.safety-note { margin:0 18px 15px;padding:11px 13px;border:1px solid #e3e9df;border-left:3px solid #a3b79f;border-radius:8px;background:#f2f5ef;color:#65746a;font-size:10px;line-height:1.65; }
+.safety-note strong { color:#496251; }
 .json-editor { display:block;width:100%;min-height:226px;resize:vertical;border:0;outline:0;padding:14px 16px;background:#f8f7f1;color:#40514c;font:11px/1.65 var(--app-font-mono);tab-size:2; }
 .editor-footer { display:flex;justify-content:space-between;align-items:center;padding:9px 13px;border-top:1px solid #e6e2d9;gap:10px; }
 .editor-status { color:#85908a;font:10px var(--app-font-mono); }
@@ -455,7 +456,7 @@ a { color: inherit; text-decoration: none; }
 .proposal-actions svg { width:14px;height:14px; }
 .proposal-applied { color:#39745d;font-size:11px; }
 .answer-disclaimer { margin:15px 0 0;color:#8a9189;font-size:10px;line-height:1.6; }
-.tutor-safety { display:block;max-width:900px;margin:17px auto 0;padding:12px 14px;border-left:2px solid #d47b50;background:#f8f3e9;color:#766958;font-size:10px;line-height:1.65; }
+.tutor-safety { display:block;max-width:900px;margin:17px auto 0;padding:12px 14px;border:1px solid #e3e9df;border-left:3px solid #a3b79f;border-radius:8px;background:#f2f5ef;color:#65746a;font-size:10px;line-height:1.7; }
 
 @media (max-width:1000px) {
   .workbench { grid-template-columns:300px minmax(0,1fr); }

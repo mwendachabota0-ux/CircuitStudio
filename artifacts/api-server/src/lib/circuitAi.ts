@@ -1,0 +1,409 @@
+import { randomUUID } from "node:crypto";
+import {
+  circuitAiReservations,
+  circuitAiUsage,
+  db,
+} from "@workspace/db";
+import { and, eq, lt, sql } from "drizzle-orm";
+import { GoogleGenAI, type GenerateContentResponse } from "@google/genai";
+
+const DEFAULT_LIFETIME_TOKEN_ALLOWANCE = 25_000;
+const MAX_CONFIGURED_KEYS = 10;
+const STALE_RESERVATION_AGE_MS = 60 * 60 * 1000;
+
+export class CircuitAiError extends Error {
+  constructor(
+    message: string,
+    readonly statusCode: number,
+  ) {
+    super(message);
+    this.name = "CircuitAiError";
+  }
+}
+
+type ConfiguredKey = { number: number; apiKey: string };
+type AiUsageSummary = {
+  tokensUsed: number;
+  tokensReserved: number;
+  lifetimeLimit: number;
+  tokensRemaining: number;
+  activeKeyNumber: number;
+  configuredKeyNumbers: number[];
+  canUseAi: boolean;
+};
+type AiStatusSummary = {
+  available: boolean;
+  canUseAi: boolean;
+  latencyMs: number;
+  checkedAt: string;
+};
+type ModelProbe = Omit<AiStatusSummary, "canUseAi">;
+
+const AI_STATUS_MODEL = "gemini-2.5-flash";
+const AI_STATUS_CACHE_TTL_MS = 15_000;
+const aiStatusCache = new Map<
+  number,
+  { expiresAt: number; result: Promise<ModelProbe> }
+>();
+
+function getLifetimeTokenAllowance(): number {
+  const raw = process.env.CIRCUIT_STUDIO_LIFETIME_TOKEN_ALLOWANCE;
+  const value = raw === undefined ? DEFAULT_LIFETIME_TOKEN_ALLOWANCE : Number(raw);
+  if (!Number.isSafeInteger(value) || value < 1) {
+    throw new Error(
+      "CIRCUIT_STUDIO_LIFETIME_TOKEN_ALLOWANCE must be a positive safe integer.",
+    );
+  }
+  return value;
+}
+
+function getConfiguredKeys(): ConfiguredKey[] {
+  const keys: ConfiguredKey[] = [];
+  for (let number = 1; number <= MAX_CONFIGURED_KEYS; number += 1) {
+    const variableName =
+      number === 1 ? "GEMINI_API_KEY" : `GEMINI_API_KEY_${number}`;
+    const apiKey = process.env[variableName]?.trim();
+    if (apiKey) keys.push({ number, apiKey });
+  }
+  return keys;
+}
+
+function usageTotal(value: unknown): number {
+  const parsed = Number(value ?? 0);
+  return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : 0;
+}
+
+async function readReservedTokens(userId: string): Promise<number> {
+  const [row] = await db
+    .select({
+      total: sql<string>`coalesce(sum(${circuitAiReservations.reservedTokens}), 0)`,
+    })
+    .from(circuitAiReservations)
+    .where(eq(circuitAiReservations.userId, userId));
+  return usageTotal(row?.total);
+}
+
+export async function getCircuitAiUsage(
+  userId: string,
+): Promise<AiUsageSummary> {
+  const keys = getConfiguredKeys();
+  const [[account], tokensReserved] = await Promise.all([
+    db
+      .select()
+      .from(circuitAiUsage)
+      .where(eq(circuitAiUsage.userId, userId))
+      .limit(1),
+    readReservedTokens(userId),
+  ]);
+  const lifetimeLimit = getLifetimeTokenAllowance();
+  const tokensUsed = usageTotal(account?.tokensUsed);
+  const tokensRemaining = Math.max(
+    0,
+    lifetimeLimit - tokensUsed - tokensReserved,
+  );
+  const activeKeyNumber =
+    keys.find((key) => key.number === account?.selectedKeyNumber)?.number ??
+    keys[0]?.number ??
+    1;
+
+  return {
+    tokensUsed,
+    tokensReserved,
+    lifetimeLimit,
+    tokensRemaining,
+    activeKeyNumber,
+    configuredKeyNumbers: keys.map((key) => key.number),
+    canUseAi: keys.length > 0 && tokensRemaining > 0,
+  };
+}
+
+async function probeConfiguredKey(key: ConfiguredKey): Promise<ModelProbe> {
+  const now = Date.now();
+  const cached = aiStatusCache.get(key.number);
+  if (cached && cached.expiresAt > now) return cached.result;
+
+  const result = (async (): Promise<ModelProbe> => {
+    const startedAt = Date.now();
+    try {
+      // This reads model metadata only. It does not send a prompt or generate
+      // content, so it does not consume input or output tokens.
+      const model = await new GoogleGenAI({ apiKey: key.apiKey }).models.get({
+        model: AI_STATUS_MODEL,
+        config: { abortSignal: AbortSignal.timeout(5_000) },
+      });
+      return {
+        available:
+          model.supportedGenerationMethods?.includes("generateContent") ?? false,
+        latencyMs: Math.max(0, Date.now() - startedAt),
+        checkedAt: new Date().toISOString(),
+      };
+    } catch {
+      return {
+        available: false,
+        latencyMs: Math.max(0, Date.now() - startedAt),
+        checkedAt: new Date().toISOString(),
+      };
+    }
+  })();
+
+  aiStatusCache.set(key.number, {
+    expiresAt: now + AI_STATUS_CACHE_TTL_MS,
+    result,
+  });
+  return result;
+}
+
+export async function getCircuitAiStatus(
+  userId: string,
+): Promise<AiStatusSummary> {
+  const [usage, keys] = await Promise.all([
+    getCircuitAiUsage(userId),
+    Promise.resolve(getConfiguredKeys()),
+  ]);
+  const activeKey = keys.find((key) => key.number === usage.activeKeyNumber);
+  if (!activeKey) {
+    return {
+      available: false,
+      canUseAi: false,
+      latencyMs: 0,
+      checkedAt: new Date().toISOString(),
+    };
+  }
+
+  const probe = await probeConfiguredKey(activeKey);
+  return { ...probe, canUseAi: usage.canUseAi };
+}
+
+export async function selectCircuitAiKey(
+  userId: string,
+  keyNumber: number,
+): Promise<AiUsageSummary> {
+  const keys = getConfiguredKeys();
+  if (!keys.some((key) => key.number === keyNumber)) {
+    throw new CircuitAiError(
+      "That Gemini key number is not configured for this app.",
+      400,
+    );
+  }
+
+  await db
+    .insert(circuitAiUsage)
+    .values({ userId, selectedKeyNumber: keyNumber })
+    .onConflictDoUpdate({
+      target: circuitAiUsage.userId,
+      set: { selectedKeyNumber: keyNumber, updatedAt: new Date() },
+    });
+
+  return getCircuitAiUsage(userId);
+}
+
+async function reserveTokens(
+  userId: string,
+  reserve: number,
+  availableKeys: ConfiguredKey[],
+): Promise<{ requestId: string; keyNumber: number }> {
+  const lifetimeLimit = getLifetimeTokenAllowance();
+  const requestId = randomUUID();
+  const firstConfiguredKey = availableKeys[0]?.number ?? 1;
+  const staleBefore = new Date(Date.now() - STALE_RESERVATION_AGE_MS);
+
+  await db
+    .delete(circuitAiReservations)
+    .where(
+      and(
+        eq(circuitAiReservations.userId, userId),
+        lt(circuitAiReservations.createdAt, staleBefore),
+      ),
+    );
+
+  return db.transaction(async (tx) => {
+    await tx
+      .insert(circuitAiUsage)
+      .values({ userId, selectedKeyNumber: firstConfiguredKey })
+      .onConflictDoNothing();
+
+    const [account] = await tx
+      .select()
+      .from(circuitAiUsage)
+      .where(eq(circuitAiUsage.userId, userId))
+      .for("update")
+      .limit(1);
+
+    if (!account) {
+      throw new CircuitAiError("Could not prepare your AI usage account.", 503);
+    }
+
+    const [reservedRow] = await tx
+      .select({
+        total: sql<string>`coalesce(sum(${circuitAiReservations.reservedTokens}), 0)`,
+      })
+      .from(circuitAiReservations)
+      .where(eq(circuitAiReservations.userId, userId));
+    const existingReserved = usageTotal(reservedRow?.total);
+    const used = usageTotal(account.tokensUsed);
+
+    if (used + existingReserved + reserve > lifetimeLimit) {
+      throw new CircuitAiError(
+        "This account has reached its lifetime AI token allowance. No tokens were reserved for this request.",
+        402,
+      );
+    }
+
+    const keyNumber =
+      availableKeys.find((key) => key.number === account.selectedKeyNumber)
+        ?.number ??
+      firstConfiguredKey;
+
+    await tx.insert(circuitAiReservations).values({
+      requestId,
+      userId,
+      reservedTokens: reserve,
+    });
+
+    return { requestId, keyNumber };
+  });
+}
+
+async function releaseReservation(requestId: string): Promise<void> {
+  await db
+    .delete(circuitAiReservations)
+    .where(eq(circuitAiReservations.requestId, requestId));
+}
+
+async function settleReservation(
+  userId: string,
+  requestId: string,
+  actualTokens: number,
+  preferredKeyNumber: number,
+  keyNumber: number,
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    const [account] = await tx
+      .select()
+      .from(circuitAiUsage)
+      .where(eq(circuitAiUsage.userId, userId))
+      .for("update")
+      .limit(1);
+    await tx
+      .update(circuitAiUsage)
+      .set({
+        tokensUsed: sql`${circuitAiUsage.tokensUsed} + ${actualTokens}`,
+        selectedKeyNumber:
+          account?.selectedKeyNumber === preferredKeyNumber
+            ? keyNumber
+            : (account?.selectedKeyNumber ?? preferredKeyNumber),
+        updatedAt: new Date(),
+      })
+      .where(eq(circuitAiUsage.userId, userId));
+    await tx
+      .delete(circuitAiReservations)
+      .where(eq(circuitAiReservations.requestId, requestId));
+  });
+}
+
+function canFallbackToAnotherKey(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const record = error as { status?: unknown; code?: unknown; message?: unknown };
+  const status = Number(record.status);
+  if (status === 429 || status === 503) return true;
+  const code = `${record.code ?? ""} ${record.message ?? ""}`.toLowerCase();
+  return /quota|rate.?limit|resource.?exhausted/.test(code);
+}
+
+function tokenReservation(
+  inputText: string,
+  maxOutputTokens: number,
+  imageTokenEstimate: number,
+): number {
+  // Reserving one token per text character plus a generous image allowance
+  // keeps concurrent requests from spending the same remaining allowance.
+  return inputText.length + imageTokenEstimate + maxOutputTokens + 512;
+}
+
+export async function generateWithAccountUsage(
+  userId: string,
+  options: {
+    inputText: string;
+    maxOutputTokens: number;
+    imageTokenEstimate?: number;
+  },
+  generate: (client: GoogleGenAI) => Promise<GenerateContentResponse>,
+): Promise<GenerateContentResponse> {
+  const keys = getConfiguredKeys();
+  if (keys.length === 0) {
+    throw new CircuitAiError(
+      "Gemini is not configured for Circuit Studio.",
+      503,
+    );
+  }
+
+  const reserve = tokenReservation(
+    options.inputText,
+    options.maxOutputTokens,
+    options.imageTokenEstimate ?? 0,
+  );
+  let reservation: { requestId: string; keyNumber: number };
+  try {
+    reservation = await reserveTokens(userId, reserve, keys);
+  } catch (error) {
+    if (error instanceof CircuitAiError) throw error;
+    throw new CircuitAiError(
+      "AI usage is temporarily unavailable. Please try again.",
+      503,
+    );
+  }
+  const orderedKeys = [
+    ...keys.filter((key) => key.number === reservation.keyNumber),
+    ...keys.filter((key) => key.number !== reservation.keyNumber),
+  ];
+
+  try {
+    for (let index = 0; index < orderedKeys.length; index += 1) {
+      const key = orderedKeys[index];
+      let response: GenerateContentResponse;
+      try {
+        response = await generate(new GoogleGenAI({ apiKey: key.apiKey }));
+      } catch (error) {
+        if (index < orderedKeys.length - 1 && canFallbackToAnotherKey(error)) {
+          continue;
+        }
+        throw new CircuitAiError(
+          "Gemini could not complete this request. Try again shortly or select another configured key.",
+          502,
+        );
+      }
+
+      const reportedTokens = response.usageMetadata?.totalTokenCount;
+      if (
+        typeof reportedTokens !== "number" ||
+        !Number.isSafeInteger(reportedTokens) ||
+        reportedTokens < 1
+      ) {
+        throw new CircuitAiError(
+          "Gemini did not return token usage, so this response could not be safely recorded.",
+          502,
+        );
+      }
+
+      await settleReservation(
+        userId,
+        reservation.requestId,
+        reportedTokens,
+        reservation.keyNumber,
+        key.number,
+      );
+      return response;
+    }
+    throw new CircuitAiError(
+      "No configured Gemini key could complete this request.",
+      502,
+    );
+  } catch (error) {
+    await releaseReservation(reservation.requestId).catch(() => undefined);
+    if (error instanceof CircuitAiError) throw error;
+    throw new CircuitAiError(
+      "AI usage could not be recorded. Please try again.",
+      503,
+    );
+  }
+}

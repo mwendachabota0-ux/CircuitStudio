@@ -1,0 +1,174 @@
+import type { QueryKey, UseMutationOptions, UseMutationResult, UseQueryOptions, UseQueryResult } from '@tanstack/react-query';
+import type { AiKeySelectionRequest, AiStatus, AiUsage, ApiError, CircuitPrompt, CircuitReviewRequest, CircuitReviewResponse, CircuitSpec, HealthStatus, TutorRequest, TutorResponse } from './api.schemas';
+import { customFetch } from '../custom-fetch';
+import type { ErrorType, BodyType } from '../custom-fetch';
+type AwaitedInput<T> = PromiseLike<T> | T;
+type Awaited<O> = O extends AwaitedInput<infer T> ? T : never;
+type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+export declare const getHealthCheckUrl: () => string;
+/**
+ * Returns server health status
+ * @summary Health check
+ */
+export declare const healthCheck: (options?: Parameters<typeof customFetch>[1]) => Promise<HealthStatus>;
+export declare const getHealthCheckQueryKey: () => readonly ["/api/healthz"];
+export declare const getHealthCheckQueryOptions: <TData = Awaited<ReturnType<typeof healthCheck>>, TError = ErrorType<unknown>>(options?: {
+    query?: UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData>;
+    request?: SecondParameter<typeof customFetch>;
+}) => UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData> & {
+    queryKey: QueryKey;
+};
+export type HealthCheckQueryResult = NonNullable<Awaited<ReturnType<typeof healthCheck>>>;
+export type HealthCheckQueryError = ErrorType<unknown>;
+/**
+ * @summary Health check
+ */
+export declare function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, TError = ErrorType<unknown>>(options?: {
+    query?: UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData>;
+    request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+};
+export declare const getGenerateCircuitUrl: () => string;
+/**
+ * Converts a natural-language circuit description into a CircuitDraw-compatible schematic specification.
+ * @summary Generate an editable circuit schematic
+ */
+export declare const generateCircuit: (circuitPrompt: CircuitPrompt, options?: Parameters<typeof customFetch>[1]) => Promise<CircuitSpec>;
+export declare const getGenerateCircuitMutationKey: () => readonly ["generateCircuit"];
+export declare const getGenerateCircuitMutationOptions: <TError = ErrorType<ApiError>, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<Awaited<ReturnType<typeof generateCircuit>>, TError, GenerateCircuitMutationVariables, TContext>;
+    request?: SecondParameter<typeof customFetch>;
+}) => UseMutationOptions<Awaited<ReturnType<typeof generateCircuit>>, TError, GenerateCircuitMutationVariables, TContext>;
+export type GenerateCircuitMutationResult = NonNullable<Awaited<ReturnType<typeof generateCircuit>>>;
+export type GenerateCircuitMutationBody = BodyType<CircuitPrompt>;
+export type GenerateCircuitMutationError = ErrorType<ApiError>;
+export type GenerateCircuitMutationVariables = {
+    data: BodyType<CircuitPrompt>;
+};
+/**
+* @summary Generate an editable circuit schematic
+*/
+export declare const useGenerateCircuit: <TError = ErrorType<ApiError>, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<Awaited<ReturnType<typeof generateCircuit>>, TError, GenerateCircuitMutationVariables, TContext>;
+    request?: SecondParameter<typeof customFetch>;
+}) => UseMutationResult<Awaited<ReturnType<typeof generateCircuit>>, TError, GenerateCircuitMutationVariables, TContext>;
+export declare const getAskCircuitTutorUrl: () => string;
+/**
+ * Returns educational guidance that separates visible evidence from inference. Optional edit proposals are validated CircuitSpecs and never applied automatically.
+ * @summary Ask for an explanation of a circuit or image
+ */
+export declare const askCircuitTutor: (tutorRequest: TutorRequest, options?: Parameters<typeof customFetch>[1]) => Promise<TutorResponse>;
+export declare const getAskCircuitTutorMutationKey: () => readonly ["askCircuitTutor"];
+export declare const getAskCircuitTutorMutationOptions: <TError = ErrorType<ApiError>, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<Awaited<ReturnType<typeof askCircuitTutor>>, TError, AskCircuitTutorMutationVariables, TContext>;
+    request?: SecondParameter<typeof customFetch>;
+}) => UseMutationOptions<Awaited<ReturnType<typeof askCircuitTutor>>, TError, AskCircuitTutorMutationVariables, TContext>;
+export type AskCircuitTutorMutationResult = NonNullable<Awaited<ReturnType<typeof askCircuitTutor>>>;
+export type AskCircuitTutorMutationBody = BodyType<TutorRequest>;
+export type AskCircuitTutorMutationError = ErrorType<ApiError>;
+export type AskCircuitTutorMutationVariables = {
+    data: BodyType<TutorRequest>;
+};
+/**
+* @summary Ask for an explanation of a circuit or image
+*/
+export declare const useAskCircuitTutor: <TError = ErrorType<ApiError>, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<Awaited<ReturnType<typeof askCircuitTutor>>, TError, AskCircuitTutorMutationVariables, TContext>;
+    request?: SecondParameter<typeof customFetch>;
+}) => UseMutationResult<Awaited<ReturnType<typeof askCircuitTutor>>, TError, AskCircuitTutorMutationVariables, TContext>;
+export declare const getReviewCircuitUrl: () => string;
+/**
+ * Returns a concise educational review of a structurally valid draft. It does not check electrical safety or correctness.
+ * @summary Review a valid circuit draft
+ */
+export declare const reviewCircuit: (circuitReviewRequest: CircuitReviewRequest, options?: Parameters<typeof customFetch>[1]) => Promise<CircuitReviewResponse>;
+export declare const getReviewCircuitMutationKey: () => readonly ["reviewCircuit"];
+export declare const getReviewCircuitMutationOptions: <TError = ErrorType<ApiError>, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<Awaited<ReturnType<typeof reviewCircuit>>, TError, ReviewCircuitMutationVariables, TContext>;
+    request?: SecondParameter<typeof customFetch>;
+}) => UseMutationOptions<Awaited<ReturnType<typeof reviewCircuit>>, TError, ReviewCircuitMutationVariables, TContext>;
+export type ReviewCircuitMutationResult = NonNullable<Awaited<ReturnType<typeof reviewCircuit>>>;
+export type ReviewCircuitMutationBody = BodyType<CircuitReviewRequest>;
+export type ReviewCircuitMutationError = ErrorType<ApiError>;
+export type ReviewCircuitMutationVariables = {
+    data: BodyType<CircuitReviewRequest>;
+};
+/**
+* @summary Review a valid circuit draft
+*/
+export declare const useReviewCircuit: <TError = ErrorType<ApiError>, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<Awaited<ReturnType<typeof reviewCircuit>>, TError, ReviewCircuitMutationVariables, TContext>;
+    request?: SecondParameter<typeof customFetch>;
+}) => UseMutationResult<Awaited<ReturnType<typeof reviewCircuit>>, TError, ReviewCircuitMutationVariables, TContext>;
+export declare const getGetAiUsageUrl: () => string;
+/**
+ * @summary Read the signed-in account's AI allowance and selected key
+ */
+export declare const getAiUsage: (options?: Parameters<typeof customFetch>[1]) => Promise<AiUsage>;
+export declare const getGetAiUsageQueryKey: () => readonly ["/api/ai/usage"];
+export declare const getGetAiUsageQueryOptions: <TData = Awaited<ReturnType<typeof getAiUsage>>, TError = ErrorType<ApiError>>(options?: {
+    query?: UseQueryOptions<Awaited<ReturnType<typeof getAiUsage>>, TError, TData>;
+    request?: SecondParameter<typeof customFetch>;
+}) => UseQueryOptions<Awaited<ReturnType<typeof getAiUsage>>, TError, TData> & {
+    queryKey: QueryKey;
+};
+export type GetAiUsageQueryResult = NonNullable<Awaited<ReturnType<typeof getAiUsage>>>;
+export type GetAiUsageQueryError = ErrorType<ApiError>;
+/**
+ * @summary Read the signed-in account's AI allowance and selected key
+ */
+export declare function useGetAiUsage<TData = Awaited<ReturnType<typeof getAiUsage>>, TError = ErrorType<ApiError>>(options?: {
+    query?: UseQueryOptions<Awaited<ReturnType<typeof getAiUsage>>, TError, TData>;
+    request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+};
+export declare const getGetAiStatusUrl: () => string;
+/**
+ * @summary Check Gemini model availability without generating content
+ */
+export declare const getAiStatus: (options?: Parameters<typeof customFetch>[1]) => Promise<AiStatus>;
+export declare const getGetAiStatusQueryKey: () => readonly ["/api/ai/status"];
+export declare const getGetAiStatusQueryOptions: <TData = Awaited<ReturnType<typeof getAiStatus>>, TError = ErrorType<ApiError>>(options?: {
+    query?: UseQueryOptions<Awaited<ReturnType<typeof getAiStatus>>, TError, TData>;
+    request?: SecondParameter<typeof customFetch>;
+}) => UseQueryOptions<Awaited<ReturnType<typeof getAiStatus>>, TError, TData> & {
+    queryKey: QueryKey;
+};
+export type GetAiStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getAiStatus>>>;
+export type GetAiStatusQueryError = ErrorType<ApiError>;
+/**
+ * @summary Check Gemini model availability without generating content
+ */
+export declare function useGetAiStatus<TData = Awaited<ReturnType<typeof getAiStatus>>, TError = ErrorType<ApiError>>(options?: {
+    query?: UseQueryOptions<Awaited<ReturnType<typeof getAiStatus>>, TError, TData>;
+    request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+};
+export declare const getSetAiKeySelectionUrl: () => string;
+/**
+ * @summary Select a configured Gemini key for this account
+ */
+export declare const setAiKeySelection: (aiKeySelectionRequest: AiKeySelectionRequest, options?: Parameters<typeof customFetch>[1]) => Promise<AiUsage>;
+export declare const getSetAiKeySelectionMutationKey: () => readonly ["setAiKeySelection"];
+export declare const getSetAiKeySelectionMutationOptions: <TError = ErrorType<ApiError>, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<Awaited<ReturnType<typeof setAiKeySelection>>, TError, SetAiKeySelectionMutationVariables, TContext>;
+    request?: SecondParameter<typeof customFetch>;
+}) => UseMutationOptions<Awaited<ReturnType<typeof setAiKeySelection>>, TError, SetAiKeySelectionMutationVariables, TContext>;
+export type SetAiKeySelectionMutationResult = NonNullable<Awaited<ReturnType<typeof setAiKeySelection>>>;
+export type SetAiKeySelectionMutationBody = BodyType<AiKeySelectionRequest>;
+export type SetAiKeySelectionMutationError = ErrorType<ApiError>;
+export type SetAiKeySelectionMutationVariables = {
+    data: BodyType<AiKeySelectionRequest>;
+};
+/**
+* @summary Select a configured Gemini key for this account
+*/
+export declare const useSetAiKeySelection: <TError = ErrorType<ApiError>, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<Awaited<ReturnType<typeof setAiKeySelection>>, TError, SetAiKeySelectionMutationVariables, TContext>;
+    request?: SecondParameter<typeof customFetch>;
+}) => UseMutationResult<Awaited<ReturnType<typeof setAiKeySelection>>, TError, SetAiKeySelectionMutationVariables, TContext>;
+export {};
+//# sourceMappingURL=api.d.ts.map

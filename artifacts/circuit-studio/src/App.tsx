@@ -11,8 +11,8 @@ import {
 } from '@workspace/api-client-react';
 import type { AiUsage, CircuitSpec as ApiCircuitSpec, TutorImageMimeType, TutorResponse } from '@workspace/api-client-react';
 import {
-  ArrowDownRight, ArrowRight, Bell, BellOff, BellRing, Check, CheckCircle2, CircuitBoard,
-  Clipboard, Code2, Download, FileCode2, Image, LoaderCircle,
+  ArrowDownRight, ArrowRight, Bell, BellOff, BellRing, Check, CheckCircle2, ChevronDown, ChevronUp, CircuitBoard,
+  Clipboard, Code2, Download, FileCode2, FileText, Image, LoaderCircle,
   TriangleAlert, ScanSearch, MoveUpRight, Maximize, Maximize2, Minimize, ZoomIn, ZoomOut,
   Bot, BookOpenCheck, CircleHelp, Eye, Lightbulb, ListChecks, MessageCircle, Send, ShieldAlert, X,
 } from 'lucide-react';
@@ -22,6 +22,13 @@ import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import exampleCircuit from './exampleCircuit.json';
+import {
+  buildBomCsv,
+  buildBomRows,
+  buildTechnicalDocumentHtml,
+  type BomMetadataField,
+  type BomOverrides,
+} from './lib/bill-of-materials';
 import { Redirect, Route, Switch, useLocation, Link, Router as WouterRouter } from 'wouter';
 
 type ValidationReport = { errors: string[]; warnings: string[] };
@@ -117,6 +124,33 @@ function readDraft(userId: string): CircuitSpec {
     }
   } catch { /* A damaged local draft should never prevent opening the workbench. */ }
   return initialSpec;
+}
+
+function readBomOverrides(userId: string): BomOverrides {
+  try {
+    const saved = localStorage.getItem(`circuit-studio-bom-v1:${userId}`);
+    if (!saved) return {};
+    const parsed: unknown = JSON.parse(saved);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+
+    const result: BomOverrides = {};
+    for (const [key, value] of Object.entries(parsed)) {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) continue;
+      const fields: Partial<Record<BomMetadataField, string>> = {};
+      for (const [field, text] of Object.entries(value)) {
+        if (
+          ['technicalName', 'manufacturer', 'mpn', 'package', 'footprint', 'specifications', 'notes'].includes(field)
+          && typeof text === 'string'
+        ) {
+          fields[field as BomMetadataField] = text;
+        }
+      }
+      result[key] = fields;
+    }
+    return result;
+  } catch {
+    return {};
+  }
 }
 
 function HomeRedirect() {
@@ -269,6 +303,7 @@ function AiStatusControls() {
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(() =>
     notificationsSupported ? Notification.permission : 'denied',
   );
+  const [permissionFeedback, setPermissionFeedback] = useState('');
 
   const state = isWorking
     ? 'working'
@@ -300,12 +335,19 @@ function AiStatusControls() {
       : Bell;
 
   const enableNotifications = async () => {
-    if (!notificationsSupported || notificationPermission !== 'default') return;
+    if (!notificationsSupported || notificationPermission === 'granted') return;
+    setPermissionFeedback('');
     try {
       const permission = await Notification.requestPermission();
       setNotificationPermission(permission);
+      setPermissionFeedback(permission === 'granted'
+        ? 'Desktop notifications enabled.'
+        : permission === 'denied'
+          ? 'Notifications are blocked in browser settings. Allow them for this site.'
+          : 'Notification permission was not changed.');
     } catch {
       setNotificationPermission('denied');
+      setPermissionFeedback('Could not request permission. Check this site’s browser settings.');
     }
   };
 
@@ -319,10 +361,11 @@ function AiStatusControls() {
         title={notificationTitle}
         data-testid="button-desktop-notifications"
         onClick={enableNotifications}
-        disabled={!notificationsSupported || notificationPermission !== 'default'}
+        disabled={!notificationsSupported || notificationPermission === 'granted'}
       >
         <NotificationIcon aria-hidden="true" />
       </button>
+      {permissionFeedback && <span className="notification-feedback" role="status">{permissionFeedback}</span>}
     </div>
   );
 }
@@ -609,6 +652,8 @@ function Studio({ userId }: { userId: string }) {
   const [copied, setCopied] = useState(false);
   const [saveTime, setSaveTime] = useState('Saved on this account');
   const [downloadMenuOpen, setDownloadMenuOpen] = useState(false);
+  const [bomVisible, setBomVisible] = useState(false);
+  const [bomOverrides, setBomOverrides] = useState<BomOverrides>(() => readBomOverrides(userId));
   const generate = useGenerateCircuit();
   const review = useReviewCircuit();
   const queryClient = useQueryClient();
@@ -641,6 +686,14 @@ function Studio({ userId }: { userId: string }) {
   }, [spec, userId]);
 
   useEffect(() => {
+    try {
+      localStorage.setItem(`circuit-studio-bom-v1:${userId}`, JSON.stringify(bomOverrides));
+    } catch {
+      // BOM edits remain usable for this session if local storage is unavailable.
+    }
+  }, [bomOverrides, userId]);
+
+  useEffect(() => {
     if (!toast) return;
     const timer = window.setTimeout(() => setToast(''), 2600);
     return () => window.clearTimeout(timer);
@@ -651,6 +704,12 @@ function Studio({ userId }: { userId: string }) {
     try { return window.CircuitDraw.validate(spec); }
     catch (error) { return { errors: [error instanceof Error ? error.message : 'Could not validate this drawing.'], warnings: [] }; }
   }, [spec, libraryReady]);
+  const bomRows = useMemo(
+    () => buildBomRows(spec.elements ?? [], bomOverrides),
+    [spec.elements, bomOverrides],
+  );
+  const bomComponentCount = bomRows.reduce((count, row) => count + row.quantity, 0);
+  const bomRowsMissingPartDetails = bomRows.filter((row) => !row.mpn || !row.footprint).length;
   const reviewSignature = JSON.stringify(spec);
   reviewDraftRef.current = reviewSignature;
   useEffect(() => {
@@ -693,6 +752,20 @@ function Studio({ userId }: { userId: string }) {
     setSpec(next);
     setJsonText(JSON.stringify(next, null, 2));
     setJsonError('');
+  };
+
+  const updateBomMetadata = (row: (typeof bomRows)[number], field: BomMetadataField, value: string) => {
+    setBomOverrides((current) => {
+      const next = { ...current };
+      for (const elementKey of row.elementKeys) {
+        const fields = { ...(next[elementKey] ?? {}) };
+        if (value) fields[field] = value;
+        else delete fields[field];
+        if (Object.keys(fields).length) next[elementKey] = fields;
+        else delete next[elementKey];
+      }
+      return next;
+    });
   };
 
   const onJsonChange = (value: string) => {
@@ -745,6 +818,31 @@ function Studio({ userId }: { userId: string }) {
   };
   const fileBase = (spec.title || 'circuit').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'circuit';
   const exportJson = () => download(`${fileBase}.json`, JSON.stringify(spec, null, 2), 'application/json');
+  const exportBomCsv = () => {
+    if (!bomRows.length) return;
+    download(`${fileBase}-bom.csv`, buildBomCsv(bomRows), 'text/csv;charset=utf-8');
+    setToast('Bill of materials downloaded.');
+  };
+  const exportTechnicalDocument = () => {
+    if (!svg || !window.CircuitDraw || report.errors.length) return;
+    try {
+      const documentHtml = buildTechnicalDocumentHtml({
+        title: spec.title || 'Untitled circuit',
+        schematicSvg: svg,
+        rows: bomRows,
+        buildSheet: window.CircuitDraw.buildSheet(spec),
+        designIntent: prompt.trim(),
+        createdAt: new Intl.DateTimeFormat(undefined, {
+          dateStyle: 'medium',
+          timeStyle: 'short',
+        }).format(new Date()),
+      });
+      download(`${fileBase}-technical-document.html`, documentHtml, 'text/html;charset=utf-8');
+      setToast('Technical document downloaded.');
+    } catch {
+      setToast('Technical document could not be created. Check the drawing and try again.');
+    }
+  };
   const exportSvg = () => {
     if (!svg) return;
     download(`${fileBase}.svg`, svg, 'image/svg+xml;charset=utf-8');
@@ -833,10 +931,13 @@ function Studio({ userId }: { userId: string }) {
               <div className="toolbar-actions">
                 <button className="toolbar-link-button" data-testid="button-load-example" onClick={loadExample} title="Load the FM transmitter example"><CircuitBoard /> Load example</button>
                 <div className="download-menu">
-                  <button className="toolbar-link-button toolbar-icon-button" type="button" aria-label="Download schematic" title="Download schematic" aria-expanded={downloadMenuOpen} aria-haspopup="menu" data-testid="button-download-menu" onClick={() => setDownloadMenuOpen((open) => !open)} disabled={!svg}><Download aria-hidden="true" /></button>
+                  <button className="toolbar-link-button toolbar-icon-button" type="button" aria-label="Open downloads" title="Downloads" aria-expanded={downloadMenuOpen} aria-haspopup="menu" data-testid="button-download-menu" onClick={() => setDownloadMenuOpen((open) => !open)} disabled={!svg && !bomRows.length}><Download aria-hidden="true" /></button>
                   {downloadMenuOpen && <div className="download-popover" role="menu">
-                    <button type="button" role="menuitem" data-testid="button-export-svg" onClick={() => { exportSvg(); setDownloadMenuOpen(false); }}><FileCode2 /> SVG vector</button>
-                    <button type="button" role="menuitem" data-testid="button-export-png-top" onClick={() => { exportPng(); setDownloadMenuOpen(false); }}><Image /> PNG image</button>
+                    <button type="button" role="menuitem" data-testid="button-export-svg" onClick={() => { exportSvg(); setDownloadMenuOpen(false); }} disabled={!svg}><FileCode2 /> SVG vector</button>
+                    <button type="button" role="menuitem" data-testid="button-export-png-top" onClick={() => { exportPng(); setDownloadMenuOpen(false); }} disabled={!svg}><Image /> PNG image</button>
+                    <div className="download-menu-divider" role="separator" />
+                    <button type="button" role="menuitem" data-testid="button-export-bom-csv" onClick={() => { exportBomCsv(); setDownloadMenuOpen(false); }} disabled={!bomRows.length}><ListChecks /> BOM CSV</button>
+                    <button type="button" role="menuitem" data-testid="button-export-technical-document" onClick={() => { exportTechnicalDocument(); setDownloadMenuOpen(false); }} disabled={!svg || report.errors.length > 0}><FileText /> Technical document</button>
                   </div>}
                 </div>
               </div>
@@ -850,6 +951,77 @@ function Studio({ userId }: { userId: string }) {
             <div className="canvas-foot"><span className="zoom-label" data-testid="status-canvas">{report.errors.length ? 'Drawing paused' : 'Vector schematic'}</span><span>Canvas {spec.width || 'auto'} × {spec.height || 'auto'}</span></div>
           </div>
         </section>
+
+        <div className="bom-toggle-row">
+          <button
+            className="toolbar-link-button"
+            type="button"
+            aria-expanded={bomVisible}
+            aria-controls="bom-content"
+            data-testid="button-toggle-bom"
+            onClick={() => setBomVisible((visible) => !visible)}
+          >
+            {bomVisible ? <ChevronUp /> : <ChevronDown />}
+            {bomVisible ? 'Hide BOM' : 'Show BOM'}
+          </button>
+          <span className="bom-summary" data-testid="text-bom-summary">
+            {bomRows.length} line items · {bomComponentCount} components
+            {bomRowsMissingPartDetails > 0 ? ` · ${bomRowsMissingPartDetails} need MPN or footprint` : ''}
+          </span>
+        </div>
+        {bomVisible && <section className="panel bom-panel" id="bom-content" aria-label="Bill of materials">
+          <div className="panel-heading bom-panel-heading">
+            <h2 className="section-title"><span className="section-icon"><ListChecks /></span>Bill of materials</h2>
+            <span className="count-badge">{bomRows.length} lines</span>
+          </div>
+          <p className="bom-description">
+            Common and technical names are listed from the drawing. Add confirmed manufacturer part numbers and PCB footprints; unspecified details are not guessed. Use the download icon above for the BOM CSV and technical document.
+          </p>
+          <div className="bom-table-wrap">
+            <table className="bom-table">
+              <thead>
+                <tr>
+                  <th>References</th>
+                  <th>Qty</th>
+                  <th>Common name</th>
+                  <th>Technical name</th>
+                  <th>Value / rating</th>
+                  <th>MPN / part number</th>
+                  <th>Footprint</th>
+                  <th>More details</th>
+                </tr>
+              </thead>
+              <tbody>
+                {bomRows.length ? bomRows.map((row) => (
+                  <tr key={row.key}>
+                    <td className="bom-references">
+                      {row.references.join(', ') || <span className="bom-missing">Needs reference</span>}
+                      {row.missingReferenceCount > 0 && row.references.length > 0 && <small>{row.missingReferenceCount} more need references</small>}
+                    </td>
+                    <td>{row.quantity}</td>
+                    <td>{row.commonName}</td>
+                    <td><input className="bom-input" aria-label={`${row.references.join(', ') || row.commonName} technical name`} value={row.technicalName} onChange={(event) => updateBomMetadata(row, 'technicalName', event.target.value)} /></td>
+                    <td>{row.value || <span className="bom-missing">Not specified</span>}</td>
+                    <td><input className="bom-input" aria-label={`${row.references.join(', ') || row.commonName} manufacturer part number`} placeholder="Not specified" value={row.mpn} onChange={(event) => updateBomMetadata(row, 'mpn', event.target.value)} /></td>
+                    <td><input className="bom-input" aria-label={`${row.references.join(', ') || row.commonName} PCB footprint`} placeholder="Not specified" value={row.footprint} onChange={(event) => updateBomMetadata(row, 'footprint', event.target.value)} /></td>
+                    <td>
+                      <details className="bom-more-details">
+                        <summary>Details</summary>
+                        <div className="bom-detail-grid">
+                          <label>Manufacturer<input className="bom-input" aria-label={`${row.commonName} manufacturer`} placeholder="Not specified" value={row.manufacturer} onChange={(event) => updateBomMetadata(row, 'manufacturer', event.target.value)} /></label>
+                          <label>Package<input className="bom-input" aria-label={`${row.commonName} package`} placeholder="Not specified" value={row.package} onChange={(event) => updateBomMetadata(row, 'package', event.target.value)} /></label>
+                          <label>Specifications<input className="bom-input" aria-label={`${row.commonName} specifications`} placeholder="Not specified" value={row.specifications} onChange={(event) => updateBomMetadata(row, 'specifications', event.target.value)} /></label>
+                          <label>Notes<input className="bom-input" aria-label={`${row.commonName} notes`} placeholder="Optional" value={row.notes} onChange={(event) => updateBomMetadata(row, 'notes', event.target.value)} /></label>
+                        </div>
+                      </details>
+                    </td>
+                  </tr>
+                )) : <tr><td colSpan={8} className="bom-empty">No supported components are listed in this schematic yet.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+          <p className="bom-footnote">BOM details are saved on this device. Verify each exact part, rating, pinout, package, and footprint against its datasheet before building.</p>
+        </section>}
 
         <section className="panel review-panel" aria-label="AI draft review">
           <div className="panel-heading"><h2 className="section-title"><span className="section-icon"><BookOpenCheck /></span>A second set of eyes</h2><span className="count-badge">Draft review</span></div>
@@ -901,10 +1073,8 @@ function Studio({ userId }: { userId: string }) {
         </section>
 
         <section className="export-bar" aria-label="Export circuit">
-          <div className="export-copy"><strong>Take this circuit to your next tool.</strong><span>SVG and PNG are drawings. The EasyEDA sheet lists parts and joined nets.</span></div>
+          <div className="export-copy"><strong>Take this circuit to your next tool.</strong><span>Use the download menu for files, or copy the EasyEDA sheet.</span></div>
           <div className="export-actions">
-            <button className="quiet-button" data-testid="button-export-svg-bottom" onClick={exportSvg} disabled={!svg}><FileCode2 /> SVG</button>
-            <button className="quiet-button" data-testid="button-export-png" onClick={exportPng} disabled={!svg}><Image /> PNG</button>
             <button className="quiet-button" data-testid="button-copy-sheet" onClick={copySheet} disabled={!libraryReady || report.errors.length > 0}><Clipboard /> {copied ? 'Copied' : 'Copy EasyEDA sheet'}</button>
           </div>
         </section>

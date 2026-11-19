@@ -5,7 +5,7 @@ import { shadcn } from '@clerk/themes';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { useGenerateCircuit } from '@workspace/api-client-react';
 import {
-  ArrowDownRight, ArrowRight, AlertTriangle, Check, CheckCircle2, CircuitBoard,
+  ArrowDownRight, ArrowRight, Check, CheckCircle2, CircuitBoard,
   Clipboard, Code2, Download, FileCode2, FileImage, LoaderCircle, RefreshCw,
   Sparkles, TriangleAlert, WandSparkles, ScanSearch, MoveUpRight,
 } from 'lucide-react';
@@ -398,8 +398,6 @@ function Studio({ userId }: { userId: string }) {
               </button>
             </div>
             <p className="quota-note">Each generation uses the quota and billing for the Gemini API key configured for this app.</p>
-            <div className="example-divider">OR BEGIN WITH THE EXAMPLE</div>
-            <div className="example-chip"><AlertTriangle aria-hidden="true" /><span>Loaded: <strong>Simple FM microphone transmitter</strong>. A useful starting point for exploring a multi-part design.</span></div>
           </div>
 
           <div className="panel canvas-panel">

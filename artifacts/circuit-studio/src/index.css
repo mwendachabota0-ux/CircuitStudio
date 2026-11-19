@@ -118,10 +118,6 @@ a { color: inherit; text-decoration: none; }
 .button-below { margin-top:auto;padding-top:12px; }
 .quota-note { color:#8a8d85;font-size:10px;line-height:1.4;margin:9px 0 0; }
 .prompt-error { color:#a4453e;font-size:12px;margin:9px 0 0;line-height:1.45; }
-.example-divider { display:flex;align-items:center;gap:10px;margin:19px 0 12px;color:#a0a69f;font:10px var(--app-font-mono); }
-.example-divider:before,.example-divider:after { content:"";height:1px;background:#e6e2d8;flex:1; }
-.example-chip { display:flex;align-items:flex-start;gap:9px;padding:10px;border:1px solid #e8e4da;border-radius:8px;background:#f7f5ee;color:#53635e;font-size:11px;line-height:1.45; }
-.example-chip svg { width:14px;height:14px;color:#d07a50;flex:none;margin-top:1px; }
 .canvas-panel { min-width:0;display:flex;flex-direction:column;overflow:hidden; }
 .canvas-toolbar { min-height:57px;display:flex;align-items:center;justify-content:space-between;padding:0 18px;border-bottom:1px solid #e6e2d9;gap:12px; }
 .canvas-name { min-width:0;display:flex;align-items:center;gap:9px; }

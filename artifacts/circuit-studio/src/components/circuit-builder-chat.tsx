@@ -49,6 +49,9 @@ const initialMessage: ThreadMessage = {
 const isStringList = (value: unknown): value is string[] =>
   Array.isArray(value) && value.every((item) => typeof item === 'string');
 
+const noteLines = (value: string): string[] =>
+  value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).slice(0, 12).map((line) => line.slice(0, 300));
+
 function readSavedState(key: string): SavedState {
   const fallback = { brief: emptyBrief(), messages: [initialMessage] };
   try {
@@ -123,6 +126,8 @@ export function CircuitBuilderChat({
   const [briefEditing, setBriefEditing] = useState(false);
   const [briefGoalDraft, setBriefGoalDraft] = useState('');
   const [briefRequirementsDraft, setBriefRequirementsDraft] = useState('');
+  const [briefAssumptionsDraft, setBriefAssumptionsDraft] = useState('');
+  const [briefOpenQuestionsDraft, setBriefOpenQuestionsDraft] = useState('');
   const [lastRequest, setLastRequest] = useState<CircuitBuildChatInput | null>(null);
   const threadEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -142,7 +147,7 @@ export function CircuitBuilderChat({
   const visibleMessages = saved.messages;
   const remaining = usageQuery.data?.tokensRemaining;
   const allowanceBlocked = usageQuery.data ? !usageQuery.data.canUseAi || remaining === 0 : false;
-  const canSend = draft.trim().length > 0 && !chatMutation.isPending && !allowanceBlocked && !proposal;
+  const canSend = draft.trim().length > 0 && !chatMutation.isPending && !allowanceBlocked && !proposal && !briefEditing;
 
   const localProposalState = useMemo(() => {
     if (!proposal) return null;
@@ -192,7 +197,7 @@ export function CircuitBuilderChat({
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const content = draft.trim();
-    if (!content || chatMutation.isPending || allowanceBlocked) return;
+    if (!content || chatMutation.isPending || allowanceBlocked || briefEditing) return;
     const intent = localModeIntent(content);
     if (proposal && !intent) return;
     setDraft('');
@@ -235,14 +240,20 @@ export function CircuitBuilderChat({
   const editBrief = () => {
     setBriefGoalDraft(saved.brief.goal);
     setBriefRequirementsDraft(saved.brief.requirements.join('\n'));
+    setBriefAssumptionsDraft(saved.brief.assumptions.join('\n'));
+    setBriefOpenQuestionsDraft(saved.brief.openQuestions.join('\n'));
     setBriefEditing(true);
   };
 
   const saveBrief = () => {
-    const requirements = briefRequirementsDraft.split('\n').map((line) => line.trim()).filter(Boolean).slice(0, 12);
     setSaved((current) => ({
       ...current,
-      brief: { ...current.brief, goal: briefGoalDraft.trim().slice(0, 1000), requirements },
+      brief: {
+        goal: briefGoalDraft.trim().slice(0, 1000),
+        requirements: noteLines(briefRequirementsDraft),
+        assumptions: noteLines(briefAssumptionsDraft),
+        openQuestions: noteLines(briefOpenQuestionsDraft),
+      },
     }));
     setBriefEditing(false);
   };
@@ -384,11 +395,11 @@ export function CircuitBuilderChat({
               placeholder={mode === 'chat' ? 'Describe what you are trying to make…' : 'What should we add or change?'}
               rows={2}
               maxLength={3000}
-              disabled={chatMutation.isPending || !!proposal}
+              disabled={chatMutation.isPending || !!proposal || briefEditing}
               data-testid="input-builder-message"
             />
             <div className="builder-chat__composer-foot">
-              <span>{proposal ? 'Apply or discard the staged proposal before sending another request' : mode === 'chat' ? 'Enter to send · Shift + Enter for a new line' : 'A proposal is staged for your review, never applied automatically'}</span>
+              <span>{briefEditing ? 'Save or cancel your notes before sending' : proposal ? 'Apply or discard the staged proposal before sending another request' : mode === 'chat' ? 'Enter to send · Shift + Enter for a new line' : 'A proposal is staged for your review, never applied automatically'}</span>
               <button type="submit" disabled={!canSend} aria-label="Send message" data-testid="button-send-builder-message">
                 {chatMutation.isPending ? <LoaderCircle className="is-spinning" aria-hidden="true" /> : <Send aria-hidden="true" />}
                 <span>{chatMutation.isPending ? 'Thinking' : 'Send'}</span>
@@ -402,14 +413,19 @@ export function CircuitBuilderChat({
             <div><p className="builder-chat__eyebrow">Working notes</p><h3>Design brief</h3></div>
             {briefEditing
               ? <button className="builder-chat__text-link" type="button" onClick={() => setBriefEditing(false)} data-testid="button-cancel-edit-brief">Cancel</button>
-              : <button className="builder-chat__text-link" type="button" onClick={editBrief} data-testid="button-edit-brief">{hasBrief ? 'Edit' : 'Add notes'}</button>}
+              : <button className="builder-chat__text-link" type="button" onClick={editBrief} disabled={chatMutation.isPending} data-testid="button-edit-brief">{hasBrief ? 'Edit' : 'Add notes'}</button>}
           </div>
+          <p className="builder-chat__brief-help">The AI updates these as you chat. They guide its next reply, and you can edit every section.</p>
           {briefEditing ? (
             <div className="builder-chat__brief-editor">
               <label htmlFor="builder-brief-goal">Goal</label>
               <textarea id="builder-brief-goal" value={briefGoalDraft} maxLength={1000} rows={3} onChange={(event) => setBriefGoalDraft(event.target.value)} data-testid="input-builder-brief-goal" placeholder="What should the circuit do?" />
               <label htmlFor="builder-brief-requirements">Requirements <span>one per line</span></label>
-              <textarea id="builder-brief-requirements" value={briefRequirementsDraft} rows={4} onChange={(event) => setBriefRequirementsDraft(event.target.value)} data-testid="input-builder-brief-requirements" placeholder="Supply, parts, constraints…" />
+              <textarea id="builder-brief-requirements" value={briefRequirementsDraft} maxLength={3600} rows={3} onChange={(event) => setBriefRequirementsDraft(event.target.value)} data-testid="input-builder-brief-requirements" placeholder="Supply, parts, constraints…" />
+              <label htmlFor="builder-brief-assumptions">Assumptions <span>one per line</span></label>
+              <textarea id="builder-brief-assumptions" value={briefAssumptionsDraft} maxLength={3600} rows={3} onChange={(event) => setBriefAssumptionsDraft(event.target.value)} data-testid="input-builder-brief-assumptions" placeholder="Choices the AI is treating as tentative…" />
+              <label htmlFor="builder-brief-open-questions">Open questions <span>one per line</span></label>
+              <textarea id="builder-brief-open-questions" value={briefOpenQuestionsDraft} maxLength={3600} rows={3} onChange={(event) => setBriefOpenQuestionsDraft(event.target.value)} data-testid="input-builder-brief-open-questions" placeholder="Details still to decide…" />
               <button className="builder-chat__brief-save" type="button" onClick={saveBrief} data-testid="button-save-brief">Save notes</button>
             </div>
           ) : hasBrief ? (
@@ -422,7 +438,7 @@ export function CircuitBuilderChat({
           ) : (
             <div className="builder-chat__brief-empty" data-testid="status-builder-brief-empty">
               <Plus aria-hidden="true" />
-              <p>A short brief keeps the important constraints close as the conversation evolves.</p>
+              <p>The AI uses these notes to keep important details in view. Add your own, or let the conversation fill them in.</p>
               <button type="button" className="builder-chat__text-link" onClick={editBrief} data-testid="button-add-brief">Add a starting note</button>
             </div>
           )}

@@ -20636,27 +20636,27 @@ var require_router = __commonJS({
     var slice = Array.prototype.slice;
     var flatten = Array.prototype.flat;
     var methods = METHODS.map((method) => method.toLowerCase());
-    module.exports = Router6;
+    module.exports = Router7;
     module.exports.Route = Route;
-    function Router6(options) {
-      if (!(this instanceof Router6)) {
-        return new Router6(options);
+    function Router7(options) {
+      if (!(this instanceof Router7)) {
+        return new Router7(options);
       }
       const opts = options || {};
-      function router6(req, res, next) {
-        router6.handle(req, res, next);
+      function router7(req, res, next) {
+        router7.handle(req, res, next);
       }
-      Object.setPrototypeOf(router6, this);
-      router6.caseSensitive = opts.caseSensitive;
-      router6.mergeParams = opts.mergeParams;
-      router6.params = {};
-      router6.strict = opts.strict;
-      router6.stack = [];
-      return router6;
+      Object.setPrototypeOf(router7, this);
+      router7.caseSensitive = opts.caseSensitive;
+      router7.mergeParams = opts.mergeParams;
+      router7.params = {};
+      router7.strict = opts.strict;
+      router7.stack = [];
+      return router7;
     }
-    Router6.prototype = function() {
+    Router7.prototype = function() {
     };
-    Router6.prototype.param = function param(name, fn) {
+    Router7.prototype.param = function param(name, fn) {
       if (!name) {
         throw new TypeError("argument name is required");
       }
@@ -20676,7 +20676,7 @@ var require_router = __commonJS({
       params.push(fn);
       return this;
     };
-    Router6.prototype.handle = function handle(req, res, callback) {
+    Router7.prototype.handle = function handle(req, res, callback) {
       if (!callback) {
         throw new TypeError("argument callback is required");
       }
@@ -20803,7 +20803,7 @@ var require_router = __commonJS({
         }
       }
     };
-    Router6.prototype.use = function use(handler) {
+    Router7.prototype.use = function use(handler) {
       let offset = 0;
       let path = "/";
       if (typeof handler !== "function") {
@@ -20836,7 +20836,7 @@ var require_router = __commonJS({
       }
       return this;
     };
-    Router6.prototype.route = function route(path) {
+    Router7.prototype.route = function route(path) {
       const route2 = new Route(path);
       const layer = new Layer(path, {
         sensitive: this.caseSensitive,
@@ -20851,7 +20851,7 @@ var require_router = __commonJS({
       return route2;
     };
     methods.concat("all").forEach(function(method) {
-      Router6.prototype[method] = function(path) {
+      Router7.prototype[method] = function(path) {
         const route = this.route(path);
         route[method].apply(route, slice.call(arguments, 1));
         return this;
@@ -21034,13 +21034,13 @@ var require_application = __commonJS({
     var compileTrust = require_utils3().compileTrust;
     var resolve = __require("node:path").resolve;
     var once = require_once();
-    var Router6 = require_router();
+    var Router7 = require_router();
     var slice = Array.prototype.slice;
     var flatten = Array.prototype.flat;
     var app2 = exports = module.exports = {};
     var trustProxyDefaultSymbol = "@@symbol:trust_proxy_default";
     app2.init = function init() {
-      var router6 = null;
+      var router7 = null;
       this.cache = /* @__PURE__ */ Object.create(null);
       this.engines = /* @__PURE__ */ Object.create(null);
       this.settings = /* @__PURE__ */ Object.create(null);
@@ -21049,13 +21049,13 @@ var require_application = __commonJS({
         configurable: true,
         enumerable: true,
         get: function getrouter() {
-          if (router6 === null) {
-            router6 = new Router6({
+          if (router7 === null) {
+            router7 = new Router7({
               caseSensitive: this.enabled("case sensitive routing"),
               strict: this.enabled("strict routing")
             });
           }
-          return router6;
+          return router7;
         }
       });
     };
@@ -21126,15 +21126,15 @@ var require_application = __commonJS({
       if (fns.length === 0) {
         throw new TypeError("app.use() requires a middleware function");
       }
-      var router6 = this.router;
+      var router7 = this.router;
       fns.forEach(function(fn2) {
         if (!fn2 || !fn2.handle || !fn2.set) {
-          return router6.use(path, fn2);
+          return router7.use(path, fn2);
         }
         debug7(".use app under %s", path);
         fn2.mountpath = path;
         fn2.parent = this;
-        router6.use(path, function mounted_app(req, res, next) {
+        router7.use(path, function mounted_app(req, res, next) {
           var orig = req.app;
           fn2.handle(req, res, function(err) {
             Object.setPrototypeOf(req, orig.request);
@@ -23723,7 +23723,7 @@ var require_express = __commonJS({
     var EventEmitter2 = __require("node:events").EventEmitter;
     var mixin = require_merge_descriptors();
     var proto = require_application();
-    var Router6 = require_router();
+    var Router7 = require_router();
     var req = require_request();
     var res = require_response();
     exports = module.exports = createApplication;
@@ -23745,8 +23745,8 @@ var require_express = __commonJS({
     exports.application = proto;
     exports.request = req;
     exports.response = res;
-    exports.Route = Router6.Route;
-    exports.Router = Router6;
+    exports.Route = Router7.Route;
+    exports.Router = Router7;
     exports.json = bodyParser.json;
     exports.raw = bodyParser.raw;
     exports.static = require_serve_static();
@@ -39384,7 +39384,7 @@ var require_micromatch = __commonJS({
 });
 
 // src/app.ts
-var import_express9 = __toESM(require_express2(), 1);
+var import_express11 = __toESM(require_express2(), 1);
 var import_cors = __toESM(require_lib3(), 1);
 var import_pino_http = __toESM(require_logger(), 1);
 
@@ -49675,7 +49675,7 @@ var getAuth = ((req, options) => {
 });
 
 // src/routes/index.ts
-var import_express8 = __toESM(require_express2(), 1);
+var import_express10 = __toESM(require_express2(), 1);
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/helpers/util.js
 var util;
@@ -53724,6 +53724,145 @@ var AskCircuitTutorResponse = objectType({
         "labelPos": stringType().optional(),
         "labelNudge": arrayType(numberType()).min(askCircuitTutorResponseProposedEditSpecElementsItemLabelNudgeMin).max(askCircuitTutorResponseProposedEditSpecElementsItemLabelNudgeMax).optional(),
         "labelAt": arrayType(numberType()).min(askCircuitTutorResponseProposedEditSpecElementsItemLabelAtMin).max(askCircuitTutorResponseProposedEditSpecElementsItemLabelAtMax).optional(),
+        "labelAnchor": stringType().optional(),
+        "text": stringType().optional(),
+        "anchor": stringType().optional(),
+        "size": numberType().optional(),
+        "bold": booleanType().optional(),
+        "muted": booleanType().optional()
+      }))
+    })
+  }).optional()
+});
+var chatWithCircuitBuilderBodyMessageMax = 3e3;
+var chatWithCircuitBuilderBodyCurrentSpecElementsItemFromMin = 2;
+var chatWithCircuitBuilderBodyCurrentSpecElementsItemFromMax = 2;
+var chatWithCircuitBuilderBodyCurrentSpecElementsItemToMin = 2;
+var chatWithCircuitBuilderBodyCurrentSpecElementsItemToMax = 2;
+var chatWithCircuitBuilderBodyCurrentSpecElementsItemAtMin = 2;
+var chatWithCircuitBuilderBodyCurrentSpecElementsItemAtMax = 2;
+var chatWithCircuitBuilderBodyCurrentSpecElementsItemPointsItemMin = 2;
+var chatWithCircuitBuilderBodyCurrentSpecElementsItemPointsItemMax = 2;
+var chatWithCircuitBuilderBodyCurrentSpecElementsItemLabelNudgeMin = 2;
+var chatWithCircuitBuilderBodyCurrentSpecElementsItemLabelNudgeMax = 2;
+var chatWithCircuitBuilderBodyCurrentSpecElementsItemLabelAtMin = 2;
+var chatWithCircuitBuilderBodyCurrentSpecElementsItemLabelAtMax = 2;
+var chatWithCircuitBuilderBodyHistoryItemContentMax = 3e3;
+var chatWithCircuitBuilderBodyHistoryMax = 8;
+var chatWithCircuitBuilderBodyBriefGoalMax = 1e3;
+var chatWithCircuitBuilderBodyBriefRequirementsItemMax = 300;
+var chatWithCircuitBuilderBodyBriefRequirementsMax = 12;
+var chatWithCircuitBuilderBodyBriefAssumptionsItemMax = 300;
+var chatWithCircuitBuilderBodyBriefAssumptionsMax = 12;
+var chatWithCircuitBuilderBodyBriefOpenQuestionsItemMax = 300;
+var chatWithCircuitBuilderBodyBriefOpenQuestionsMax = 12;
+var ChatWithCircuitBuilderBody = objectType({
+  "message": stringType().min(1).max(chatWithCircuitBuilderBodyMessageMax),
+  "mode": enumType(["chat", "build"]),
+  "currentSpec": objectType({
+    "title": stringType(),
+    "width": numberType().optional(),
+    "height": numberType().optional(),
+    "elements": arrayType(objectType({
+      "type": stringType(),
+      "id": stringType().optional(),
+      "label": stringType().optional(),
+      "value": stringType().optional(),
+      "from": arrayType(numberType()).min(chatWithCircuitBuilderBodyCurrentSpecElementsItemFromMin).max(chatWithCircuitBuilderBodyCurrentSpecElementsItemFromMax).optional(),
+      "to": arrayType(numberType()).min(chatWithCircuitBuilderBodyCurrentSpecElementsItemToMin).max(chatWithCircuitBuilderBodyCurrentSpecElementsItemToMax).optional(),
+      "at": arrayType(numberType()).min(chatWithCircuitBuilderBodyCurrentSpecElementsItemAtMin).max(chatWithCircuitBuilderBodyCurrentSpecElementsItemAtMax).optional(),
+      "points": arrayType(arrayType(numberType()).min(chatWithCircuitBuilderBodyCurrentSpecElementsItemPointsItemMin).max(chatWithCircuitBuilderBodyCurrentSpecElementsItemPointsItemMax)).optional(),
+      "x": numberType().optional(),
+      "y": numberType().optional(),
+      "w": numberType().optional(),
+      "h": numberType().optional(),
+      "height": numberType().optional(),
+      "open": booleanType().optional(),
+      "closed": booleanType().optional(),
+      "flip": booleanType().optional(),
+      "circle": booleanType().optional(),
+      "swap": booleanType().optional(),
+      "style": stringType().optional(),
+      "labelPos": stringType().optional(),
+      "labelNudge": arrayType(numberType()).min(chatWithCircuitBuilderBodyCurrentSpecElementsItemLabelNudgeMin).max(chatWithCircuitBuilderBodyCurrentSpecElementsItemLabelNudgeMax).optional(),
+      "labelAt": arrayType(numberType()).min(chatWithCircuitBuilderBodyCurrentSpecElementsItemLabelAtMin).max(chatWithCircuitBuilderBodyCurrentSpecElementsItemLabelAtMax).optional(),
+      "labelAnchor": stringType().optional(),
+      "text": stringType().optional(),
+      "anchor": stringType().optional(),
+      "size": numberType().optional(),
+      "bold": booleanType().optional(),
+      "muted": booleanType().optional()
+    }))
+  }),
+  "history": arrayType(objectType({
+    "role": enumType(["user", "assistant"]),
+    "content": stringType().max(chatWithCircuitBuilderBodyHistoryItemContentMax)
+  })).max(chatWithCircuitBuilderBodyHistoryMax).optional(),
+  "brief": objectType({
+    "goal": stringType().max(chatWithCircuitBuilderBodyBriefGoalMax),
+    "requirements": arrayType(stringType().max(chatWithCircuitBuilderBodyBriefRequirementsItemMax)).max(chatWithCircuitBuilderBodyBriefRequirementsMax),
+    "assumptions": arrayType(stringType().max(chatWithCircuitBuilderBodyBriefAssumptionsItemMax)).max(chatWithCircuitBuilderBodyBriefAssumptionsMax),
+    "openQuestions": arrayType(stringType().max(chatWithCircuitBuilderBodyBriefOpenQuestionsItemMax)).max(chatWithCircuitBuilderBodyBriefOpenQuestionsMax)
+  }).optional()
+});
+var chatWithCircuitBuilderResponseAnswerMax = 3e3;
+var chatWithCircuitBuilderResponseBriefGoalMax = 1e3;
+var chatWithCircuitBuilderResponseBriefRequirementsItemMax = 300;
+var chatWithCircuitBuilderResponseBriefRequirementsMax = 12;
+var chatWithCircuitBuilderResponseBriefAssumptionsItemMax = 300;
+var chatWithCircuitBuilderResponseBriefAssumptionsMax = 12;
+var chatWithCircuitBuilderResponseBriefOpenQuestionsItemMax = 300;
+var chatWithCircuitBuilderResponseBriefOpenQuestionsMax = 12;
+var chatWithCircuitBuilderResponseProposalSummaryMax = 500;
+var chatWithCircuitBuilderResponseProposalSpecElementsItemFromMin = 2;
+var chatWithCircuitBuilderResponseProposalSpecElementsItemFromMax = 2;
+var chatWithCircuitBuilderResponseProposalSpecElementsItemToMin = 2;
+var chatWithCircuitBuilderResponseProposalSpecElementsItemToMax = 2;
+var chatWithCircuitBuilderResponseProposalSpecElementsItemAtMin = 2;
+var chatWithCircuitBuilderResponseProposalSpecElementsItemAtMax = 2;
+var chatWithCircuitBuilderResponseProposalSpecElementsItemPointsItemMin = 2;
+var chatWithCircuitBuilderResponseProposalSpecElementsItemPointsItemMax = 2;
+var chatWithCircuitBuilderResponseProposalSpecElementsItemLabelNudgeMin = 2;
+var chatWithCircuitBuilderResponseProposalSpecElementsItemLabelNudgeMax = 2;
+var chatWithCircuitBuilderResponseProposalSpecElementsItemLabelAtMin = 2;
+var chatWithCircuitBuilderResponseProposalSpecElementsItemLabelAtMax = 2;
+var ChatWithCircuitBuilderResponse = objectType({
+  "answer": stringType().min(1).max(chatWithCircuitBuilderResponseAnswerMax),
+  "brief": objectType({
+    "goal": stringType().max(chatWithCircuitBuilderResponseBriefGoalMax),
+    "requirements": arrayType(stringType().max(chatWithCircuitBuilderResponseBriefRequirementsItemMax)).max(chatWithCircuitBuilderResponseBriefRequirementsMax),
+    "assumptions": arrayType(stringType().max(chatWithCircuitBuilderResponseBriefAssumptionsItemMax)).max(chatWithCircuitBuilderResponseBriefAssumptionsMax),
+    "openQuestions": arrayType(stringType().max(chatWithCircuitBuilderResponseBriefOpenQuestionsItemMax)).max(chatWithCircuitBuilderResponseBriefOpenQuestionsMax)
+  }),
+  "proposal": objectType({
+    "summary": stringType().min(1).max(chatWithCircuitBuilderResponseProposalSummaryMax),
+    "spec": objectType({
+      "title": stringType(),
+      "width": numberType().optional(),
+      "height": numberType().optional(),
+      "elements": arrayType(objectType({
+        "type": stringType(),
+        "id": stringType().optional(),
+        "label": stringType().optional(),
+        "value": stringType().optional(),
+        "from": arrayType(numberType()).min(chatWithCircuitBuilderResponseProposalSpecElementsItemFromMin).max(chatWithCircuitBuilderResponseProposalSpecElementsItemFromMax).optional(),
+        "to": arrayType(numberType()).min(chatWithCircuitBuilderResponseProposalSpecElementsItemToMin).max(chatWithCircuitBuilderResponseProposalSpecElementsItemToMax).optional(),
+        "at": arrayType(numberType()).min(chatWithCircuitBuilderResponseProposalSpecElementsItemAtMin).max(chatWithCircuitBuilderResponseProposalSpecElementsItemAtMax).optional(),
+        "points": arrayType(arrayType(numberType()).min(chatWithCircuitBuilderResponseProposalSpecElementsItemPointsItemMin).max(chatWithCircuitBuilderResponseProposalSpecElementsItemPointsItemMax)).optional(),
+        "x": numberType().optional(),
+        "y": numberType().optional(),
+        "w": numberType().optional(),
+        "h": numberType().optional(),
+        "height": numberType().optional(),
+        "open": booleanType().optional(),
+        "closed": booleanType().optional(),
+        "flip": booleanType().optional(),
+        "circle": booleanType().optional(),
+        "swap": booleanType().optional(),
+        "style": stringType().optional(),
+        "labelPos": stringType().optional(),
+        "labelNudge": arrayType(numberType()).min(chatWithCircuitBuilderResponseProposalSpecElementsItemLabelNudgeMin).max(chatWithCircuitBuilderResponseProposalSpecElementsItemLabelNudgeMax).optional(),
+        "labelAt": arrayType(numberType()).min(chatWithCircuitBuilderResponseProposalSpecElementsItemLabelAtMin).max(chatWithCircuitBuilderResponseProposalSpecElementsItemLabelAtMax).optional(),
         "labelAnchor": stringType().optional(),
         "text": stringType().optional(),
         "anchor": stringType().optional(),
@@ -61982,6 +62121,7 @@ import { GoogleGenAI } from "@google/genai";
 var DEFAULT_LIFETIME_TOKEN_ALLOWANCE = 25e3;
 var MAX_CONFIGURED_KEYS = 10;
 var STALE_RESERVATION_AGE_MS = 60 * 60 * 1e3;
+var GEMINI_API_VERSION = "v1beta";
 var CircuitAiError = class extends Error {
   constructor(message, statusCode) {
     super(message);
@@ -62052,7 +62192,10 @@ async function probeConfiguredKey(key) {
   const result = (async () => {
     const startedAt = Date.now();
     try {
-      const model = await new GoogleGenAI({ apiKey: key.apiKey }).models.get({
+      const model = await new GoogleGenAI({
+        apiKey: key.apiKey,
+        apiVersion: GEMINI_API_VERSION
+      }).models.get({
         model: AI_STATUS_MODEL,
         config: { abortSignal: AbortSignal.timeout(5e3) }
       });
@@ -62202,7 +62345,12 @@ async function generateWithAccountUsage(userId, options, generate) {
       const key = orderedKeys[index2];
       let response;
       try {
-        response = await generate(new GoogleGenAI({ apiKey: key.apiKey }));
+        response = await generate(
+          new GoogleGenAI({
+            apiKey: key.apiKey,
+            apiVersion: GEMINI_API_VERSION
+          })
+        );
       } catch (error) {
         if (index2 < orderedKeys.length - 1 && canFallbackToAnotherKey(error)) {
           continue;
@@ -62668,13 +62816,131 @@ ${contents}`,
 );
 var tutor_default = router4;
 
+// src/routes/circuitBuilder.ts
+var import_express9 = __toESM(require_express2(), 1);
+var router5 = (0, import_express9.Router)();
+var requireAuth4 = (req, res, next) => {
+  if (!getAuth(req).userId) {
+    res.status(401).json({ error: "Sign in to use the circuit builder." });
+    return;
+  }
+  next();
+};
+var builderLimiter = rate_limit_default({
+  windowMs: 6e4,
+  limit: 8,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { error: "Please wait before sending another builder message." }
+});
+var builderInstructions = `You are Circuit Studio's conversational circuit-building assistant. Help the user clarify a circuit idea and turn it into a proposed editable schematic. Be concise and collaborative; teach only when it helps the user make a decision.
+
+Return exactly one JSON object with these fields: answer (string), brief ({goal:string, requirements:string[], assumptions:string[], openQuestions:string[]}), and optional proposal ({summary:string, spec:CircuitSpec}). Do not include Markdown fences or extra fields.
+
+Keep the brief short. Requirements must come from explicit user statements. Put uncertain but necessary choices in assumptions, never present them as facts. Keep only useful unanswered questions. Ask at most one focused question at a time when a missing detail materially affects the design.
+
+In chat mode, discuss and clarify the design, update the brief, and never include a proposal.
+
+In build mode, if the request is clear enough, include a complete proposed CircuitSpec. If a critical requirement is unclear, ask one focused question and omit the proposal. For edits, start from the supplied current CircuitSpec and preserve unrelated components, values, labels, and connections. For an explicitly new or replacement design, do not preserve an unrelated example circuit.
+
+Use only supported CircuitDraw element types: resistor, capacitor, electrolytic, inductor, diode, zener, led, battery, switch, mic, speaker, lamp, acsource, crystal, npn, pnp, opamp, ground, antenna, terminal, wire, junction, label, box. Use clear reference designators and keep all coordinates and wire segments compatible with CircuitDraw. Never invent an exact manufacturer part number, footprint, rating, or user requirement. Clearly state assumptions and unknowns. A structurally renderable proposal is not proof of electrical correctness, safety, compliance, or fitness to build.`;
+var emptyBrief = {
+  goal: "",
+  requirements: [],
+  assumptions: [],
+  openQuestions: []
+};
+router5.post(
+  "/circuits/build-chat",
+  requireAuth4,
+  builderLimiter,
+  async (req, res) => {
+    const userId = getAuth(req).userId;
+    const parsed = ChatWithCircuitBuilderBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
+      return;
+    }
+    let currentSpec;
+    try {
+      currentSpec = parseUsableCircuit(parsed.data.currentSpec);
+    } catch {
+      res.status(400).json({ error: "The current CircuitSpec is not valid." });
+      return;
+    }
+    const history = parsed.data.history ?? [];
+    const brief = parsed.data.brief ?? emptyBrief;
+    const conversation = history.map((message) => `${message.role === "assistant" ? "Assistant" : "User"}: ${message.content}`).join("\n");
+    const userMessage = [
+      `Mode: ${parsed.data.mode}`,
+      `Current design brief:
+${JSON.stringify(brief)}`,
+      conversation ? `Recent conversation:
+${conversation}` : "",
+      `Current CircuitSpec:
+${JSON.stringify(currentSpec)}`,
+      `Latest user message:
+${parsed.data.message.trim()}`
+    ].filter(Boolean).join("\n\n");
+    const inputText = `${builderInstructions}
+
+${userMessage}`;
+    try {
+      const response = await generateWithAccountUsage(
+        userId,
+        { inputText, maxOutputTokens: 8192 },
+        (client) => client.models.generateContent({
+          model: "gemini-2.5-flash",
+          contents: userMessage,
+          config: {
+            systemInstruction: builderInstructions,
+            responseMimeType: "application/json",
+            maxOutputTokens: 8192,
+            temperature: 0.2
+          }
+        })
+      );
+      const text2 = response.text?.trim();
+      if (!text2) throw new Error("Empty builder response.");
+      const result = ChatWithCircuitBuilderResponse.parse(JSON.parse(text2));
+      if (result.proposal) {
+        result.proposal.spec = parseUsableCircuit(result.proposal.spec);
+      }
+      if (parsed.data.mode === "chat") {
+        delete result.proposal;
+      }
+      res.json(result);
+    } catch (error) {
+      if (error instanceof CircuitAiError) {
+        if (error.statusCode >= 500) {
+          req.log.error(
+            { statusCode: error.statusCode },
+            "Circuit builder request failed"
+          );
+        }
+        res.status(error.statusCode).json({ error: error.message });
+        return;
+      }
+      req.log.error(
+        { reason: "invalid_or_unusable_model_output" },
+        "Circuit builder response could not be validated"
+      );
+      res.status(502).json({
+        error: "The assistant returned a response that could not be safely used. Please try again."
+      });
+    }
+  }
+);
+var circuitBuilder_default = router5;
+
 // src/routes/index.ts
-var router5 = (0, import_express8.Router)();
-router5.use(health_default);
-router5.use(circuits_default);
-router5.use(tutor_default);
-router5.use(aiUsage_default);
-var routes_default = router5;
+var router6 = (0, import_express10.Router)();
+router6.use(health_default);
+router6.use(circuits_default);
+router6.use(tutor_default);
+router6.use(circuitBuilder_default);
+router6.use(aiUsage_default);
+var routes_default = router6;
 
 // src/lib/logger.ts
 var import_pino = __toESM(require_pino(), 1);
@@ -63779,11 +64045,11 @@ function parsePathRewriteRules(rewriteConfig) {
 var debug4 = Debug.extend("router");
 async function getTarget(req, res, config) {
   let newTarget;
-  const router6 = config.router;
-  if (isPlainObject(router6)) {
-    newTarget = getTargetFromProxyTable(req, router6);
-  } else if (typeof router6 === "function") {
-    newTarget = await router6(req, res, config);
+  const router7 = config.router;
+  if (isPlainObject(router7)) {
+    newTarget = getTargetFromProxyTable(req, router7);
+  } else if (typeof router7 === "function") {
+    newTarget = await router7(req, res, config);
   }
   return newTarget;
 }
@@ -64135,7 +64401,7 @@ function clerkProxyMiddleware() {
 }
 
 // src/app.ts
-var app = (0, import_express9.default)();
+var app = (0, import_express11.default)();
 app.set("trust proxy", 1);
 app.use(
   (0, import_pino_http.default)({
@@ -64158,8 +64424,8 @@ app.use(
 );
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 app.use((0, import_cors.default)({ credentials: true, origin: true }));
-app.use(import_express9.default.json({ limit: "6mb" }));
-app.use(import_express9.default.urlencoded({ extended: true }));
+app.use(import_express11.default.json({ limit: "6mb" }));
+app.use(import_express11.default.urlencoded({ extended: true }));
 app.use(
   clerkMiddleware((req) => ({
     publishableKey: publishableKeyFromHost(

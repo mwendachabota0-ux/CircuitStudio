@@ -10,6 +10,7 @@ import { GoogleGenAI, type GenerateContentResponse } from "@google/genai";
 const DEFAULT_LIFETIME_TOKEN_ALLOWANCE = 25_000;
 const MAX_CONFIGURED_KEYS = 10;
 const STALE_RESERVATION_AGE_MS = 60 * 60 * 1000;
+const GEMINI_API_VERSION = "v1beta";
 
 export class CircuitAiError extends Error {
   constructor(
@@ -127,10 +128,13 @@ async function probeConfiguredKey(key: ConfiguredKey): Promise<ModelProbe> {
     try {
       // This reads model metadata only. It does not send a prompt or generate
       // content, so it does not consume input or output tokens.
-      const model = await new GoogleGenAI({ apiKey: key.apiKey }).models.get({
-        model: AI_STATUS_MODEL,
-        config: { abortSignal: AbortSignal.timeout(5_000) },
-      });
+      const model = await new GoogleGenAI({
+        apiKey: key.apiKey,
+        apiVersion: GEMINI_API_VERSION,
+      }).models.get({
+          model: AI_STATUS_MODEL,
+          config: { abortSignal: AbortSignal.timeout(5_000) },
+        });
       return {
         available: model.supportedActions?.includes("generateContent") ?? false,
         latencyMs: Math.max(0, Date.now() - startedAt),
@@ -366,7 +370,12 @@ export async function generateWithAccountUsage(
       const key = orderedKeys[index];
       let response: GenerateContentResponse;
       try {
-        response = await generate(new GoogleGenAI({ apiKey: key.apiKey }));
+        response = await generate(
+          new GoogleGenAI({
+            apiKey: key.apiKey,
+            apiVersion: GEMINI_API_VERSION,
+          }),
+        );
       } catch (error) {
         if (index < orderedKeys.length - 1 && canFallbackToAnotherKey(error)) {
           continue;

@@ -410,6 +410,12 @@
 }
 
 .builder-chat__brief-heading > .builder-chat__text-link { margin-top: 3px; }
+.builder-chat__brief-help {
+  margin: 8px 0 0;
+  color: #88938b;
+  font-size: 9px;
+  line-height: 1.45;
+}
 .builder-chat__brief-content { padding-top: 4px; }
 .builder-chat__brief-block { margin-top: 12px; }
 .builder-chat__brief-block > span {

@@ -6,9 +6,18 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './aiKeySelectionRequest';
+export * from './aiUsage';
 export * from './apiError';
 export * from './circuitElement';
 export * from './circuitPoint';
 export * from './circuitPrompt';
+export * from './circuitReviewRequest';
+export * from './circuitReviewResponse';
 export * from './circuitSpec';
 export * from './healthStatus';
+export * from './tutorImage';
+export * from './tutorImageMimeType';
+export * from './tutorProposedEdit';
+export * from './tutorRequest';
+export * from './tutorResponse';

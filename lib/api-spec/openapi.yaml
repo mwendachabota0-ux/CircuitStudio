@@ -12,6 +12,10 @@ tags:
     description: Health operations
   - name: circuits
     description: Circuit schematic generation
+  - name: tutor
+    description: Signed-in AI circuit education and review
+  - name: account
+    description: Per-account AI usage and key selection
 paths:
   /healthz:
     get:
@@ -75,6 +79,140 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+        "402":
+          description: Lifetime token allowance is exhausted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /circuits/tutor:
+    post:
+      operationId: askCircuitTutor
+      tags: [tutor]
+      summary: Ask for an explanation of a circuit or image
+      description: Returns educational guidance that separates visible evidence from inference. Optional edit proposals are validated CircuitSpecs and never applied automatically.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TutorRequest"
+      responses:
+        "200":
+          description: Tutor explanation and optional edit proposal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TutorResponse"
+        "400":
+          description: Invalid question, image, or circuit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Authentication is required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "402":
+          description: Lifetime token allowance is exhausted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "413":
+          description: Uploaded image exceeds the size limit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /circuits/review:
+    post:
+      operationId: reviewCircuit
+      tags: [tutor]
+      summary: Review a valid circuit draft
+      description: Returns a concise educational review of a structurally valid draft. It does not check electrical safety or correctness.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CircuitReviewRequest"
+      responses:
+        "200":
+          description: Review of the submitted draft
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CircuitReviewResponse"
+        "400":
+          description: Invalid circuit draft
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Authentication is required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "402":
+          description: Lifetime token allowance is exhausted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /ai/usage:
+    get:
+      operationId: getAiUsage
+      tags: [account]
+      summary: Read the signed-in account's AI allowance and selected key
+      responses:
+        "200":
+          description: Lifetime usage and configured key numbers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiUsage"
+        "401":
+          description: Authentication is required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /ai/key-selection:
+    put:
+      operationId: setAiKeySelection
+      tags: [account]
+      summary: Select a configured Gemini key for this account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiKeySelectionRequest"
+      responses:
+        "200":
+          description: Updated account usage and selected key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiUsage"
+        "400":
+          description: The requested key number is not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Authentication is required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
 components:
   schemas:
     HealthStatus:
@@ -100,6 +238,119 @@ components:
           maxLength: 3000
       required:
         - prompt
+    TutorImage:
+      type: object
+      properties:
+        mimeType:
+          type: string
+          enum: [image/png, image/jpeg, image/webp]
+        dataBase64:
+          type: string
+          maxLength: 5592408
+          description: Base64-encoded image bytes, without a data URL prefix. Maximum decoded size is 4 MiB.
+      required: [mimeType, dataBase64]
+      additionalProperties: false
+    TutorRequest:
+      type: object
+      properties:
+        question:
+          type: string
+          minLength: 1
+          maxLength: 3000
+        image:
+          $ref: "#/components/schemas/TutorImage"
+        currentSpec:
+          $ref: "#/components/schemas/CircuitSpec"
+        proposeEdits:
+          type: boolean
+          default: false
+      additionalProperties: false
+    TutorProposedEdit:
+      type: object
+      properties:
+        summary:
+          type: string
+        spec:
+          $ref: "#/components/schemas/CircuitSpec"
+      required: [summary, spec]
+      additionalProperties: false
+    TutorResponse:
+      type: object
+      properties:
+        answer:
+          type: string
+        observed:
+          type: array
+          items: { type: string }
+        inferred:
+          type: array
+          items: { type: string }
+        unknowns:
+          type: array
+          items: { type: string }
+        missingValues:
+          type: array
+          items: { type: string }
+        proposedEdit:
+          $ref: "#/components/schemas/TutorProposedEdit"
+      required: [answer, observed, inferred, unknowns, missingValues]
+      additionalProperties: false
+    CircuitReviewRequest:
+      type: object
+      properties:
+        spec:
+          $ref: "#/components/schemas/CircuitSpec"
+      required: [spec]
+      additionalProperties: false
+    CircuitReviewResponse:
+      type: object
+      properties:
+        review:
+          type: string
+      required: [review]
+      additionalProperties: false
+    AiUsage:
+      type: object
+      properties:
+        tokensUsed:
+          type: integer
+          minimum: 0
+        tokensReserved:
+          type: integer
+          minimum: 0
+        lifetimeLimit:
+          type: integer
+          minimum: 1
+        tokensRemaining:
+          type: integer
+          minimum: 0
+        activeKeyNumber:
+          type: integer
+          minimum: 1
+        configuredKeyNumbers:
+          type: array
+          items:
+            type: integer
+            minimum: 1
+        canUseAi:
+          type: boolean
+      required:
+        - tokensUsed
+        - tokensReserved
+        - lifetimeLimit
+        - tokensRemaining
+        - activeKeyNumber
+        - configuredKeyNumbers
+        - canUseAi
+      additionalProperties: false
+    AiKeySelectionRequest:
+      type: object
+      properties:
+        keyNumber:
+          type: integer
+          minimum: 1
+      required: [keyNumber]
+      additionalProperties: false
     CircuitPoint:
       type: array
       items:

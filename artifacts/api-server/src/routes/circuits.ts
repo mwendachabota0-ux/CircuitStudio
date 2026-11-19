@@ -1,8 +1,9 @@
-import { GoogleGenAI } from "@google/genai";
-import { GenerateCircuitBody, GenerateCircuitResponse } from "@workspace/api-zod";
+import { GenerateCircuitBody } from "@workspace/api-zod";
 import { getAuth } from "@clerk/express";
 import rateLimit from "express-rate-limit";
 import { Router, type IRouter, type RequestHandler } from "express";
+import { CircuitAiError, generateWithAccountUsage } from "../lib/circuitAi";
+import { parseUsableCircuit } from "../lib/circuitSpec";
 
 const router: IRouter = Router();
 
@@ -36,80 +37,51 @@ Single-point parts ground, antenna, and terminal use "at":[x,y]. Wires use "poin
 
 Do not invent unsupported component types or draw SVG. Make a best effort to ensure every connection and value follows the request. The renderer's structural warnings are not an electrical rules check: do not claim the design is electrically verified.`;
 
-const supportedTypes = new Set([
-  "resistor",
-  "capacitor",
-  "electrolytic",
-  "inductor",
-  "diode",
-  "zener",
-  "led",
-  "battery",
-  "switch",
-  "mic",
-  "speaker",
-  "lamp",
-  "acsource",
-  "crystal",
-  "npn",
-  "pnp",
-  "opamp",
-  "ground",
-  "antenna",
-  "terminal",
-  "wire",
-  "junction",
-  "label",
-  "box",
-]);
-
 router.post(
   "/circuits/generate",
   requireAuth,
   generationLimiter,
   async (req, res): Promise<void> => {
+    const userId = getAuth(req).userId;
     const parsed = GenerateCircuitBody.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: parsed.error.message });
       return;
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      res.status(503).json({ error: "Gemini is not configured for circuit generation." });
-      return;
-    }
-
     try {
-      const client = new GoogleGenAI({ apiKey });
-      const response = await client.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: parsed.data.prompt,
-        config: {
-          systemInstruction: circuitSystemInstructions,
-          responseMimeType: "application/json",
-          maxOutputTokens: 8192,
-          temperature: 0.2,
-        },
-      });
+      const inputText = `${circuitSystemInstructions}\n\nCircuit request:\n${parsed.data.prompt}`;
+      const response = await generateWithAccountUsage(
+        userId!,
+        { inputText, maxOutputTokens: 3072 },
+        (client) =>
+          client.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: parsed.data.prompt,
+            config: {
+              systemInstruction: circuitSystemInstructions,
+              responseMimeType: "application/json",
+              maxOutputTokens: 3072,
+              temperature: 0.2,
+            },
+          }),
+      );
 
       const text = response.text?.trim();
       if (!text) {
         throw new Error("Gemini returned an empty response.");
       }
 
-      const circuit = GenerateCircuitResponse.parse(JSON.parse(text));
-      if (circuit.elements.length === 0) {
-        throw new Error("Gemini returned a circuit with no elements.");
-      }
-      const unsupported = circuit.elements.find((element) => !supportedTypes.has(element.type));
-      if (unsupported) {
-        throw new Error(`Gemini returned unsupported element type: ${unsupported.type}`);
-      }
-
-      res.json(circuit);
+      res.json(parseUsableCircuit(JSON.parse(text)));
     } catch (err) {
-      req.log.error({ err }, "Gemini circuit generation failed");
+      if (err instanceof CircuitAiError) {
+        if (err.statusCode >= 500) {
+          req.log.error({ statusCode: err.statusCode }, "Circuit generation failed");
+        }
+        res.status(err.statusCode).json({ error: err.message });
+        return;
+      }
+      req.log.error({ reason: "invalid_or_unusable_model_output" }, "Circuit generation failed");
       res.status(502).json({
         error: "Gemini could not produce a usable schematic. Try describing the parts and connections more specifically.",
       });

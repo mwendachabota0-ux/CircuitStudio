@@ -20,10 +20,16 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AiKeySelectionRequest,
+  AiUsage,
   ApiError,
   CircuitPrompt,
+  CircuitReviewRequest,
+  CircuitReviewResponse,
   CircuitSpec,
-  HealthStatus
+  HealthStatus,
+  TutorRequest,
+  TutorResponse
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -218,5 +224,348 @@ export const useGenerateCircuit = <TError = ErrorType<ApiError>,
         TContext
       > => {
       return useMutation(getGenerateCircuitMutationOptions(options));
+    }
+
+export const getAskCircuitTutorUrl = () => {
+
+
+
+
+  return `/api/circuits/tutor`
+}
+
+/**
+ * Returns educational guidance that separates visible evidence from inference. Optional edit proposals are validated CircuitSpecs and never applied automatically.
+ * @summary Ask for an explanation of a circuit or image
+ */
+export const askCircuitTutor = async (tutorRequest: TutorRequest, options?: Parameters<typeof customFetch>[1]): Promise<TutorResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<TutorResponse>(getAskCircuitTutorUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(tutorRequest)
+  }
+);}
+
+
+
+
+
+export const getAskCircuitTutorMutationKey = () => ['askCircuitTutor'] as const;
+
+export const getAskCircuitTutorMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askCircuitTutor>>, TError,AskCircuitTutorMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof askCircuitTutor>>, TError,AskCircuitTutorMutationVariables, TContext> => {
+
+const mutationKey = getAskCircuitTutorMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof askCircuitTutor>>, AskCircuitTutorMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  askCircuitTutor(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AskCircuitTutorMutationResult = NonNullable<Awaited<ReturnType<typeof askCircuitTutor>>>
+    export type AskCircuitTutorMutationBody = BodyType<TutorRequest>
+    export type AskCircuitTutorMutationError = ErrorType<ApiError>
+    export type AskCircuitTutorMutationVariables = {data: BodyType<TutorRequest>}
+
+    /**
+ * @summary Ask for an explanation of a circuit or image
+ */
+export const useAskCircuitTutor = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askCircuitTutor>>, TError,AskCircuitTutorMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof askCircuitTutor>>,
+        TError,
+        AskCircuitTutorMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAskCircuitTutorMutationOptions(options));
+    }
+
+export const getReviewCircuitUrl = () => {
+
+
+
+
+  return `/api/circuits/review`
+}
+
+/**
+ * Returns a concise educational review of a structurally valid draft. It does not check electrical safety or correctness.
+ * @summary Review a valid circuit draft
+ */
+export const reviewCircuit = async (circuitReviewRequest: CircuitReviewRequest, options?: Parameters<typeof customFetch>[1]): Promise<CircuitReviewResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CircuitReviewResponse>(getReviewCircuitUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(circuitReviewRequest)
+  }
+);}
+
+
+
+
+
+export const getReviewCircuitMutationKey = () => ['reviewCircuit'] as const;
+
+export const getReviewCircuitMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewCircuit>>, TError,ReviewCircuitMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewCircuit>>, TError,ReviewCircuitMutationVariables, TContext> => {
+
+const mutationKey = getReviewCircuitMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewCircuit>>, ReviewCircuitMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  reviewCircuit(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewCircuitMutationResult = NonNullable<Awaited<ReturnType<typeof reviewCircuit>>>
+    export type ReviewCircuitMutationBody = BodyType<CircuitReviewRequest>
+    export type ReviewCircuitMutationError = ErrorType<ApiError>
+    export type ReviewCircuitMutationVariables = {data: BodyType<CircuitReviewRequest>}
+
+    /**
+ * @summary Review a valid circuit draft
+ */
+export const useReviewCircuit = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewCircuit>>, TError,ReviewCircuitMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reviewCircuit>>,
+        TError,
+        ReviewCircuitMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReviewCircuitMutationOptions(options));
+    }
+
+export const getGetAiUsageUrl = () => {
+
+
+
+
+  return `/api/ai/usage`
+}
+
+/**
+ * @summary Read the signed-in account's AI allowance and selected key
+ */
+export const getAiUsage = async ( options?: Parameters<typeof customFetch>[1]): Promise<AiUsage> => {
+
+  return customFetch<AiUsage>(getGetAiUsageUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAiUsageQueryKey = () => {
+    return [
+    `/api/ai/usage`
+    ] as const;
+    }
+
+
+export const getGetAiUsageQueryOptions = <TData = Awaited<ReturnType<typeof getAiUsage>>, TError = ErrorType<ApiError>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAiUsage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAiUsageQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAiUsage>>> = ({ signal }) => getAiUsage({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAiUsage>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAiUsageQueryResult = NonNullable<Awaited<ReturnType<typeof getAiUsage>>>
+export type GetAiUsageQueryError = ErrorType<ApiError>
+
+
+/**
+ * @summary Read the signed-in account's AI allowance and selected key
+ */
+
+export function useGetAiUsage<TData = Awaited<ReturnType<typeof getAiUsage>>, TError = ErrorType<ApiError>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAiUsage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAiUsageQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSetAiKeySelectionUrl = () => {
+
+
+
+
+  return `/api/ai/key-selection`
+}
+
+/**
+ * @summary Select a configured Gemini key for this account
+ */
+export const setAiKeySelection = async (aiKeySelectionRequest: AiKeySelectionRequest, options?: Parameters<typeof customFetch>[1]): Promise<AiUsage> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AiUsage>(getSetAiKeySelectionUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(aiKeySelectionRequest)
+  }
+);}
+
+
+
+
+
+export const getSetAiKeySelectionMutationKey = () => ['setAiKeySelection'] as const;
+
+export const getSetAiKeySelectionMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setAiKeySelection>>, TError,SetAiKeySelectionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setAiKeySelection>>, TError,SetAiKeySelectionMutationVariables, TContext> => {
+
+const mutationKey = getSetAiKeySelectionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setAiKeySelection>>, SetAiKeySelectionMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  setAiKeySelection(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetAiKeySelectionMutationResult = NonNullable<Awaited<ReturnType<typeof setAiKeySelection>>>
+    export type SetAiKeySelectionMutationBody = BodyType<AiKeySelectionRequest>
+    export type SetAiKeySelectionMutationError = ErrorType<ApiError>
+    export type SetAiKeySelectionMutationVariables = {data: BodyType<AiKeySelectionRequest>}
+
+    /**
+ * @summary Select a configured Gemini key for this account
+ */
+export const useSetAiKeySelection = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setAiKeySelection>>, TError,SetAiKeySelectionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setAiKeySelection>>,
+        TError,
+        SetAiKeySelectionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetAiKeySelectionMutationOptions(options));
     }
 

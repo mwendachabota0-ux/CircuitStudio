@@ -21,6 +21,24 @@ export interface CircuitPrompt {
   prompt: string;
 }
 
+export type TutorImageMimeType = typeof TutorImageMimeType[keyof typeof TutorImageMimeType];
+
+
+export const TutorImageMimeType = {
+  'image/png': 'image/png',
+  'image/jpeg': 'image/jpeg',
+  'image/webp': 'image/webp',
+} as const;
+
+export interface TutorImage {
+  mimeType: TutorImageMimeType;
+  /**
+     * Base64-encoded image bytes, without a data URL prefix. Maximum decoded size is 4 MiB.
+     * @maxLength 5592408
+     */
+  dataBase64: string;
+}
+
 /**
  * @minItems 2
  * @maxItems 2
@@ -66,4 +84,58 @@ export interface CircuitSpec {
   elements: CircuitElement[];
   [key: string]: unknown;
  }
+
+export interface TutorRequest {
+  /**
+     * @minLength 1
+     * @maxLength 3000
+     */
+  question?: string;
+  image?: TutorImage;
+  currentSpec?: CircuitSpec;
+  proposeEdits?: boolean;
+}
+
+export interface TutorProposedEdit {
+  summary: string;
+  spec: CircuitSpec;
+}
+
+export interface TutorResponse {
+  answer: string;
+  observed: string[];
+  inferred: string[];
+  unknowns: string[];
+  missingValues: string[];
+  proposedEdit?: TutorProposedEdit;
+}
+
+export interface CircuitReviewRequest {
+  spec: CircuitSpec;
+}
+
+export interface CircuitReviewResponse {
+  review: string;
+}
+
+export interface AiUsage {
+  /** @minimum 0 */
+  tokensUsed: number;
+  /** @minimum 0 */
+  tokensReserved: number;
+  /** @minimum 1 */
+  lifetimeLimit: number;
+  /** @minimum 0 */
+  tokensRemaining: number;
+  /** @minimum 1 */
+  activeKeyNumber: number;
+  /** @items.minimum 1 */
+  configuredKeyNumbers: number[];
+  canUseAi: boolean;
+}
+
+export interface AiKeySelectionRequest {
+  /** @minimum 1 */
+  keyNumber: number;
+}
 

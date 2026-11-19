@@ -341,7 +341,7 @@ export function CircuitBuilderChat({
             <Wrench aria-hidden="true" /> Build
           </button>
         </div>
-        <p data-testid="status-builder-mode">{mode === 'chat' ? 'Clarify the idea, no edits proposed' : 'Shape an editable draft for review'}</p>
+        <p className="builder-chat__sr-only" role="status" aria-live="polite" data-testid="status-builder-mode">{mode === 'chat' ? 'Clarify the idea, no edits proposed' : 'Shape an editable draft for review'}</p>
       </div>
 
       <div className="builder-chat__body">

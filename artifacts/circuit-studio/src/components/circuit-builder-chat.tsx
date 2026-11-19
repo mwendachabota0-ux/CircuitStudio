@@ -29,7 +29,7 @@ import './circuit-builder-chat.css';
 
 type ChatMode = 'chat' | 'build';
 type ThreadMessage = CircuitBuildChatMessage & { id: string; createdAt: number };
-type SavedState = { brief: CircuitDesignBrief; messages: ThreadMessage[] };
+type SavedState = { brief: CircuitDesignBrief; aiBrief: CircuitDesignBrief; messages: ThreadMessage[] };
 type ValidationReport = { errors: string[]; warnings: string[] };
 
 const emptyBrief = (): CircuitDesignBrief => ({
@@ -52,13 +52,47 @@ const isStringList = (value: unknown): value is string[] =>
 const noteLines = (value: string): string[] =>
   value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).slice(0, 12).map((line) => line.slice(0, 300));
 
+function normalizeBrief(value: Partial<CircuitDesignBrief> | undefined): CircuitDesignBrief {
+  return {
+    goal: typeof value?.goal === 'string' ? value.goal.slice(0, 1000) : '',
+    requirements: isStringList(value?.requirements) ? value.requirements.slice(0, 12).map((item) => item.slice(0, 300)) : [],
+    assumptions: isStringList(value?.assumptions) ? value.assumptions.slice(0, 12).map((item) => item.slice(0, 300)) : [],
+    openQuestions: isStringList(value?.openQuestions) ? value.openQuestions.slice(0, 12).map((item) => item.slice(0, 300)) : [],
+  };
+}
+
+function mergeBriefPreservingManualEdits(
+  previousAiBrief: CircuitDesignBrief,
+  currentBrief: CircuitDesignBrief,
+  nextAiBrief: CircuitDesignBrief,
+): CircuitDesignBrief {
+  const mergeList = (previous: string[], current: string[], next: string[]) => {
+    const previousItems = new Set(previous);
+    const currentItems = new Set(current);
+    const removedByUser = new Set(previous.filter((item) => !currentItems.has(item)));
+    const addedByUser = current.filter((item) => !previousItems.has(item));
+    const addedItems = new Set(addedByUser);
+    const nextAiItems = next.filter((item) => !removedByUser.has(item));
+    return [
+      ...addedByUser,
+      ...nextAiItems.filter((item) => !addedItems.has(item)),
+    ].slice(0, 12);
+  };
+
+  return {
+    goal: currentBrief.goal !== previousAiBrief.goal ? currentBrief.goal : nextAiBrief.goal,
+    requirements: mergeList(previousAiBrief.requirements, currentBrief.requirements, nextAiBrief.requirements),
+    assumptions: mergeList(previousAiBrief.assumptions, currentBrief.assumptions, nextAiBrief.assumptions),
+    openQuestions: mergeList(previousAiBrief.openQuestions, currentBrief.openQuestions, nextAiBrief.openQuestions),
+  };
+}
+
 function readSavedState(key: string): SavedState {
-  const fallback = { brief: emptyBrief(), messages: [initialMessage] };
+  const fallback = { brief: emptyBrief(), aiBrief: emptyBrief(), messages: [initialMessage] };
   try {
     const raw = window.localStorage.getItem(key);
     if (!raw) return fallback;
     const parsed = JSON.parse(raw) as Partial<SavedState>;
-    const brief = parsed.brief;
     const messages = Array.isArray(parsed.messages)
       ? parsed.messages.filter((message): message is ThreadMessage =>
           !!message &&
@@ -68,13 +102,13 @@ function readSavedState(key: string): SavedState {
           typeof message.createdAt === 'number',
         ).slice(-60)
       : [];
+    const brief = normalizeBrief(parsed.brief);
+    // Older saved sessions did not record the AI's last draft separately.
+    // Treat their existing notes as user-owned so migration never overwrites them.
+    const aiBrief = parsed.aiBrief ? normalizeBrief(parsed.aiBrief) : emptyBrief();
     return {
-      brief: {
-        goal: typeof brief?.goal === 'string' ? brief.goal : '',
-        requirements: isStringList(brief?.requirements) ? brief.requirements.slice(0, 12) : [],
-        assumptions: isStringList(brief?.assumptions) ? brief.assumptions.slice(0, 12) : [],
-        openQuestions: isStringList(brief?.openQuestions) ? brief.openQuestions.slice(0, 12) : [],
-      },
+      brief,
+      aiBrief,
       messages: messages.length ? messages : [initialMessage],
     };
   } catch {
@@ -164,7 +198,8 @@ export function CircuitBuilderChat({
       const response = await chatMutation.mutateAsync({ data: request });
       const nextBrief = response.brief ?? emptyBrief();
       setSaved((current) => ({
-        brief: nextBrief,
+        brief: mergeBriefPreservingManualEdits(current.aiBrief, current.brief, nextBrief),
+        aiBrief: nextBrief,
         messages: [...current.messages, newMessage('assistant', response.answer)].slice(-60),
       }));
       if (request.mode === 'build' && response.proposal) {
@@ -259,7 +294,7 @@ export function CircuitBuilderChat({
   };
 
   const clearConversation = () => {
-    setSaved({ brief: emptyBrief(), messages: [initialMessage] });
+    setSaved({ brief: emptyBrief(), aiBrief: emptyBrief(), messages: [initialMessage] });
     setLastRequest(null);
   };
 
@@ -415,7 +450,7 @@ export function CircuitBuilderChat({
               ? <button className="builder-chat__text-link" type="button" onClick={() => setBriefEditing(false)} data-testid="button-cancel-edit-brief">Cancel</button>
               : <button className="builder-chat__text-link" type="button" onClick={editBrief} disabled={chatMutation.isPending} data-testid="button-edit-brief">{hasBrief ? 'Edit' : 'Add notes'}</button>}
           </div>
-          <p className="builder-chat__brief-help">The AI updates these as you chat. They guide its next reply, and you can edit every section.</p>
+          <p className="builder-chat__brief-help">This is the circuit’s running brief: its goal, requirements, assumptions, and unanswered questions. The AI uses it to stay on track; saved edits are preserved while it adds new details.</p>
           {briefEditing ? (
             <div className="builder-chat__brief-editor">
               <label htmlFor="builder-brief-goal">Goal</label>

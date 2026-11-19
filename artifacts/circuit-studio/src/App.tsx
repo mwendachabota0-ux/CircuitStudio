@@ -7,7 +7,7 @@ import { useGenerateCircuit } from '@workspace/api-client-react';
 import {
   ArrowDownRight, ArrowRight, Check, CheckCircle2, CircuitBoard,
   Clipboard, Code2, Download, FileCode2, FileImage, LoaderCircle, RefreshCw,
-  Sparkles, TriangleAlert, WandSparkles, ScanSearch, MoveUpRight,
+  TriangleAlert, ScanSearch, MoveUpRight,
 } from 'lucide-react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
@@ -185,7 +185,7 @@ function Landing() {
       <div className="landing-strip">
         <div className="strip-inner">
           <span className="strip-label">A focused set of tools</span>
-          <span className="strip-item"><WandSparkles /> Idea to schematic</span>
+          <span className="strip-item">Idea to schematic</span>
           <span className="strip-item"><Code2 /> Editable circuit spec</span>
           <span className="strip-item"><ScanSearch /> Structure checks</span>
           <span className="strip-item"><ArrowDownRight /> Exports when ready</span>
@@ -386,7 +386,7 @@ function Studio({ userId }: { userId: string }) {
 
         <section className="workbench" aria-label="Circuit workbench">
           <div className="panel prompt-panel">
-            <h2 className="section-title"><span className="section-icon"><WandSparkles /></span>Start with a description</h2>
+            <h2 className="section-title">Start with a description</h2>
             <p className="section-note">Tell the generator what the circuit should do and name any parts or supply details you already know.</p>
             <label className="field-label" htmlFor="circuit-prompt"><span>Your circuit idea</span><span>{prompt.length}/3000</span></label>
             <textarea id="circuit-prompt" className="prompt-input" data-testid="input-circuit-prompt" minLength={8} maxLength={3000} value={prompt} onChange={(event) => { setPrompt(event.target.value); generate.reset(); }} placeholder="For example: a 9V LED indicator with a current-limiting resistor and an on/off switch." />
@@ -394,7 +394,7 @@ function Studio({ userId }: { userId: string }) {
             {generationError && <p className="prompt-error" role="alert" data-testid="status-generation-error">{generationError}</p>}
             <div className="button-below">
               <button className="primary-button" data-testid="button-generate" onClick={submitPrompt} disabled={generate.isPending || prompt.trim().length < 8 || prompt.trim().length > 3000}>
-                {generate.isPending ? <><LoaderCircle className="spin-icon" /> Building schematic…</> : <><Sparkles /> Generate schematic</>}
+                {generate.isPending ? <><LoaderCircle className="spin-icon" /> Building schematic…</> : 'Generate schematic'}
               </button>
             </div>
             <p className="quota-note">Each generation uses the quota and billing for the Gemini API key configured for this app.</p>

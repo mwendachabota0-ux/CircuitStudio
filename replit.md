@@ -4,7 +4,7 @@ An account-gated circuit workspace for turning plain-language electronics ideas 
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/api-server run dev` — run the API server (port 8080)
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
@@ -52,7 +52,8 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- `/api/ai/usage` reads both AI usage tables. After importing the project or changing the DB schema, apply development changes with `pnpm --filter @workspace/db run push`; see `docs/ai-usage-503.md` for diagnosis and production-safe steps.
+- Restart `artifacts/api-server: API Server` after API source changes; its development workflow builds the server at startup.
 
 ## Pointers
 

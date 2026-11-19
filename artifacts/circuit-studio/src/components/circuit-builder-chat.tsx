@@ -430,11 +430,10 @@ export function CircuitBuilderChat({
               placeholder={mode === 'chat' ? 'Describe what you are trying to make…' : 'What should we add or change?'}
               rows={2}
               maxLength={3000}
-              disabled={chatMutation.isPending || !!proposal || briefEditing}
               data-testid="input-builder-message"
             />
             <div className="builder-chat__composer-foot">
-              <span>{briefEditing ? 'Save or cancel your notes before sending' : proposal ? 'Apply or discard the staged proposal before sending another request' : mode === 'chat' ? 'Enter to send · Shift + Enter for a new line' : 'A proposal is staged for your review, never applied automatically'}</span>
+              <span>{chatMutation.isPending ? 'You can draft a follow-up while the AI works' : briefEditing ? 'Save or cancel your notes before sending' : proposal ? 'Apply or discard the staged proposal before sending another request' : mode === 'chat' ? 'Enter to send · Shift + Enter for a new line' : 'A proposal is staged for your review, never applied automatically'}</span>
               <button type="submit" disabled={!canSend} aria-label="Send message" data-testid="button-send-builder-message">
                 {chatMutation.isPending ? <LoaderCircle className="is-spinning" aria-hidden="true" /> : <Send aria-hidden="true" />}
                 <span>{chatMutation.isPending ? 'Thinking' : 'Send'}</span>
@@ -448,7 +447,7 @@ export function CircuitBuilderChat({
             <div><p className="builder-chat__eyebrow">Working notes</p><h3>Design brief</h3></div>
             {briefEditing
               ? <button className="builder-chat__text-link" type="button" onClick={() => setBriefEditing(false)} data-testid="button-cancel-edit-brief">Cancel</button>
-              : <button className="builder-chat__text-link" type="button" onClick={editBrief} disabled={chatMutation.isPending} data-testid="button-edit-brief">{hasBrief ? 'Edit' : 'Add notes'}</button>}
+              : <button className="builder-chat__text-link" type="button" onClick={editBrief} data-testid="button-edit-brief">{hasBrief ? 'Edit' : 'Add notes'}</button>}
           </div>
           <p className="builder-chat__brief-help">This is the circuit’s running brief: its goal, requirements, assumptions, and unanswered questions. The AI uses it to stay on track; saved edits are preserved while it adds new details.</p>
           {briefEditing ? (

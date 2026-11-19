@@ -540,3 +540,23 @@ a { color: inherit; text-decoration: none; }
 @media (prefers-reduced-motion: reduce) {
   *,*::before,*::after { scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important; }
 }
+
+/* The main studio session keeps the conversation and its live drawing in view together. */
+.workbench.workbench--conversational {
+  grid-template-columns: minmax(0, 1.04fr) minmax(0, 1fr);
+  align-items: stretch;
+}
+
+.workbench--conversational > .canvas-panel { min-height: 610px; }
+
+@media (max-width: 1000px) {
+  .workbench.workbench--conversational {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 13px;
+  }
+}
+
+@media (max-width: 760px) {
+  .workbench.workbench--conversational { grid-template-columns: minmax(0, 1fr); }
+  .workbench--conversational > .canvas-panel { min-height: 440px; }
+}

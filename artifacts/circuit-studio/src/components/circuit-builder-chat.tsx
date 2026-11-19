@@ -143,7 +143,7 @@ export function CircuitBuilderChat({
   const visibleMessages = saved.messages;
   const remaining = usageQuery.data?.tokensRemaining;
   const allowanceBlocked = usageQuery.data ? !usageQuery.data.canUseAi || remaining === 0 : false;
-  const canSend = draft.trim().length > 0 && !chatMutation.isPending && !allowanceBlocked;
+  const canSend = draft.trim().length > 0 && !chatMutation.isPending && !allowanceBlocked && !proposal;
 
   const localProposalState = useMemo(() => {
     if (!proposal) return null;
@@ -194,14 +194,12 @@ export function CircuitBuilderChat({
     event.preventDefault();
     const content = draft.trim();
     if (!content || chatMutation.isPending || allowanceBlocked) return;
-    setDraft('');
     const intent = localModeIntent(content);
+    if (proposal && !intent) return;
+    setDraft('');
     addMessage(newMessage('user', content));
     if (intent) {
       setMode(intent);
-      setProposal(null);
-      setProposalSvg('');
-      setProposalValidation(null);
       setSaved((current) => ({
         ...current,
         messages: [...current.messages, newMessage('assistant', intent === 'build'
@@ -211,9 +209,6 @@ export function CircuitBuilderChat({
       return;
     }
 
-    setProposal(null);
-    setProposalSvg('');
-    setProposalValidation(null);
     const history = [...saved.messages, { role: 'user' as const, content }]
       .slice(-8)
       .map(({ role, content: messageContent }) => ({ role, content: messageContent }));
@@ -255,9 +250,6 @@ export function CircuitBuilderChat({
 
   const clearConversation = () => {
     setSaved({ brief: emptyBrief(), messages: [initialMessage] });
-    setProposal(null);
-    setProposalSvg('');
-    setProposalValidation(null);
     setLastRequest(null);
   };
 
@@ -394,11 +386,11 @@ export function CircuitBuilderChat({
               placeholder={mode === 'chat' ? 'Describe what you are trying to make…' : 'What should we add or change?'}
               rows={2}
               maxLength={3000}
-              disabled={chatMutation.isPending}
+              disabled={chatMutation.isPending || !!proposal}
               data-testid="input-builder-message"
             />
             <div className="builder-chat__composer-foot">
-              <span>{mode === 'chat' ? 'Enter to send · Shift + Enter for a new line' : 'A proposal is staged for your review, never applied automatically'}</span>
+              <span>{proposal ? 'Apply or discard the staged proposal before sending another request' : mode === 'chat' ? 'Enter to send · Shift + Enter for a new line' : 'A proposal is staged for your review, never applied automatically'}</span>
               <button type="submit" disabled={!canSend} aria-label="Send message" data-testid="button-send-builder-message">
                 {chatMutation.isPending ? <LoaderCircle className="is-spinning" aria-hidden="true" /> : <Send aria-hidden="true" />}
                 <span>{chatMutation.isPending ? 'Thinking' : 'Send'}</span>

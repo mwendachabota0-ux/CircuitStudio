@@ -9,7 +9,7 @@ import remarkGfm from 'remark-gfm';
 import {
   getAskCircuitTutorMutationKey, getGenerateCircuitMutationKey, getGetAiStatusQueryKey,
   getGetAiUsageQueryKey, getReviewCircuitMutationKey, useAskCircuitTutor,
-  useGenerateCircuit, useGetAiStatus, useGetAiUsage, useReviewCircuit, useSetAiKeySelection,
+  useGetAiStatus, useGetAiUsage, useReviewCircuit, useSetAiKeySelection,
 } from '@workspace/api-client-react';
 import type { AiUsage, CircuitSpec as ApiCircuitSpec, TutorImageMimeType, TutorResponse } from '@workspace/api-client-react';
 import {
@@ -19,6 +19,7 @@ import {
   Bot, BookOpenCheck, CircleHelp, Eye, Lightbulb, ListChecks, MessageCircle, Send, ShieldAlert, X,
 } from 'lucide-react';
 import { ErrorBoundary } from '@/components/error-boundary';
+import CircuitBuilderChat from './components/circuit-builder-chat';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Toaster } from '@/components/ui/toaster';
@@ -648,7 +649,6 @@ function SchematicViewer({ svg, onFullscreenError }: { svg: string; onFullscreen
 function Studio({ userId }: { userId: string }) {
   const [spec, setSpec] = useState<CircuitSpec>(() => readDraft(userId));
   const [jsonText, setJsonText] = useState(() => JSON.stringify(readDraft(userId), null, 2));
-  const [prompt, setPrompt] = useState('');
   const [jsonError, setJsonError] = useState('');
   const [libraryReady, setLibraryReady] = useState(!!window.CircuitDraw);
   const [toast, setToast] = useState('');
@@ -659,7 +659,6 @@ function Studio({ userId }: { userId: string }) {
   const [downloadMenuOpen, setDownloadMenuOpen] = useState(false);
   const [bomVisible, setBomVisible] = useState(false);
   const [bomOverrides, setBomOverrides] = useState<BomOverrides>(() => readBomOverrides(userId));
-  const generate = useGenerateCircuit();
   const review = useReviewCircuit();
   const queryClient = useQueryClient();
   const reviewDraftRef = useRef('');
@@ -798,19 +797,6 @@ function Studio({ userId }: { userId: string }) {
     }
   };
 
-  const submitPrompt = () => {
-    const trimmed = prompt.trim();
-    if (trimmed.length < 8 || trimmed.length > 3000) return;
-    generate.mutate({ data: { prompt: trimmed } }, {
-      onSuccess: (result) => {
-        acceptSpec(result);
-        setToast('Generated schematic is ready to inspect.');
-        sendDesktopNotification('Schematic ready', 'Your generated circuit is ready to inspect.');
-      },
-      onError: () => sendDesktopNotification('Schematic generation failed', 'Circuit Studio could not finish generating your circuit.'),
-    });
-  };
-
   const download = (filename: string, content: BlobPart, type: string) => {
     const url = URL.createObjectURL(new Blob([content], { type }));
     const anchor = document.createElement('a');
@@ -836,7 +822,7 @@ function Studio({ userId }: { userId: string }) {
         schematicSvg: svg,
         rows: bomRows,
         buildSheet: window.CircuitDraw.buildSheet(spec),
-        designIntent: prompt.trim(),
+        designIntent: '',
         createdAt: new Intl.DateTimeFormat(undefined, {
           dateStyle: 'medium',
           timeStyle: 'short',
@@ -903,13 +889,8 @@ function Studio({ userId }: { userId: string }) {
   };
   const loadExample = () => {
     acceptSpec(initialSpec);
-    setPrompt('');
-    generate.reset();
     setToast('FM transmitter example loaded.');
   };
-  const generationError = generate.error instanceof Error
-    ? generate.error.message
-    : generate.error ? 'Circuit generation failed. Please try again.' : '';
 
   return (
     <main className="studio-shell">
@@ -923,21 +904,23 @@ function Studio({ userId }: { userId: string }) {
           <div className="save-state" data-testid="status-save">{saveTime}</div>
         </div>
 
-        <section className="workbench" aria-label="Circuit workbench">
-          <div className="panel prompt-panel">
-            <h2 className="section-title">Start with a description</h2>
-            <p className="section-note">Tell the generator what the circuit should do and name any parts or supply details you already know.</p>
-            <label className="field-label" htmlFor="circuit-prompt"><span>Your circuit idea</span><span>{prompt.length}/3000</span></label>
-            <textarea id="circuit-prompt" className="prompt-input" data-testid="input-circuit-prompt" minLength={8} maxLength={3000} value={prompt} onChange={(event) => { setPrompt(event.target.value); generate.reset(); }} placeholder="For example: a 9V LED indicator with a current-limiting resistor and an on/off switch." />
-            <div className="prompt-hint"><span>Plain language works</span><span>8–3000 characters</span></div>
-            {generationError && <p className="prompt-error" role="alert" data-testid="status-generation-error">{generationError}</p>}
-            <div className="button-below">
-              <button className="primary-button" data-testid="button-generate" onClick={submitPrompt} disabled={generate.isPending || prompt.trim().length < 8 || prompt.trim().length > 3000}>
-                {generate.isPending ? <><LoaderCircle className="spin-icon" /> Building schematic…</> : 'Generate schematic'}
-              </button>
-            </div>
-            <p className="quota-note">Gemini-reported tokens count toward your lifetime Circuit Studio allowance. Open Tutor to review usage and key selection.</p>
-          </div>
+        <section className="workbench workbench--conversational" aria-label="Circuit workbench">
+          <CircuitBuilderChat
+            userId={userId}
+            currentSpec={spec}
+            onApplySpec={(nextSpec) => {
+              acceptSpec(nextSpec as CircuitSpec);
+              setToast('Proposal applied to the workbench.');
+            }}
+            onTaskComplete={(mode) => {
+              sendDesktopNotification(
+                mode === 'build' ? 'Circuit proposal ready' : 'Circuit conversation updated',
+                mode === 'build'
+                  ? 'A draft is staged for your review. Apply it when you are ready.'
+                  : 'The design notes have been updated.',
+              );
+            }}
+          />
 
           <div className="panel canvas-panel">
             <div className="canvas-toolbar">

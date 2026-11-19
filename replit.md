@@ -1,6 +1,6 @@
-# [Project name]
+# Circuit Studio
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+An account-gated circuit workspace for turning plain-language electronics ideas into editable schematics and useful exports.
 
 ## Run & Operate
 
@@ -22,15 +22,22 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/circuit-studio/` — public introduction, Clerk sign-in, and circuit workbench
+- `artifacts/circuit-studio/public/circuit-draw.js` — schematic renderer, structure checks, and EasyEDA sheet builder
+- `artifacts/api-server/src/routes/circuits.ts` — authenticated Gemini schematic generation
+- `lib/api-spec/openapi.yaml` — source of truth for API contracts
+- `lib/api-client-react/` — generated frontend API hooks and schemas
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Clerk browser sessions use same-origin cookies; circuit generation verifies the session on the server.
+- Circuit drafts are stored in browser local storage under a per-user key.
+- Gemini is called from the API server so the configured key is never sent to the browser.
+- Structure validation is not an electrical safety or correctness check.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+Visitors can learn about Circuit Studio and create an account. Signed-in users can generate and refine CircuitSpec schematics, review structural warnings, and export SVG, PNG, JSON, or an EasyEDA build sheet.
 
 ## User preferences
 

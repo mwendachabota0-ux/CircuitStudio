@@ -7,7 +7,7 @@ import { useGenerateCircuit } from '@workspace/api-client-react';
 import {
   ArrowDownRight, ArrowRight, Check, CheckCircle2, CircuitBoard,
   Clipboard, Code2, Download, FileCode2, FileImage, LoaderCircle, RefreshCw,
-  TriangleAlert, ScanSearch, MoveUpRight, Maximize2, ZoomIn, ZoomOut,
+  TriangleAlert, ScanSearch, MoveUpRight, Maximize, Maximize2, Minimize, ZoomIn, ZoomOut,
 } from 'lucide-react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
@@ -225,7 +225,7 @@ function StudioGate() {
 const MIN_ZOOM = 0.02;
 const MAX_ZOOM = 8;
 
-function SchematicViewer({ svg }: { svg: string }) {
+function SchematicViewer({ svg, onFullscreenError }: { svg: string; onFullscreenError: () => void }) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ pointerId: number; startX: number; startY: number; originX: number; originY: number; moved: boolean } | null>(null);
   const autoFitRef = useRef(true);
@@ -233,6 +233,7 @@ function SchematicViewer({ svg }: { svg: string }) {
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const fitToView = useCallback(() => {
     const viewport = viewportRef.current;
@@ -266,12 +267,42 @@ function SchematicViewer({ svg }: { svg: string }) {
     const observer = new ResizeObserver(() => {
       if (autoFitRef.current) fitToView();
     });
+    let fullscreenFitFrame: number | undefined;
+    const handleFullscreenChange = () => {
+      const stage = viewport.parentElement;
+      const fullscreen = document.fullscreenElement === stage;
+      setIsFullscreen(fullscreen);
+      if (fullscreen) {
+        autoFitRef.current = true;
+        fullscreenFitFrame = requestAnimationFrame(fitToView);
+      }
+    };
     observer.observe(viewport);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => {
       cancelAnimationFrame(frame);
+      if (fullscreenFitFrame !== undefined) cancelAnimationFrame(fullscreenFitFrame);
       observer.disconnect();
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
     };
   }, [fitToView, svg]);
+
+  const toggleFullscreen = async () => {
+    const stage = viewportRef.current?.parentElement;
+    if (!stage) return;
+    try {
+      if (document.fullscreenElement === stage) {
+        await document.exitFullscreen();
+      } else if (document.fullscreenElement || !stage.requestFullscreen) {
+        onFullscreenError();
+      } else {
+        autoFitRef.current = true;
+        await stage.requestFullscreen();
+      }
+    } catch {
+      onFullscreenError();
+    }
+  };
 
   const changeZoom = (direction: 1 | -1) => {
     autoFitRef.current = false;
@@ -400,6 +431,17 @@ function SchematicViewer({ svg }: { svg: string }) {
           onClick={fitToView}
         >
           <Maximize2 /> Fit
+        </button>
+        <button
+          className="icon-button zoom-control-button fullscreen-control-button"
+          type="button"
+          aria-label={isFullscreen ? 'Exit fullscreen' : 'View schematic fullscreen'}
+          aria-pressed={isFullscreen}
+          title={isFullscreen ? 'Exit fullscreen' : 'View schematic fullscreen'}
+          data-testid="button-schematic-fullscreen"
+          onClick={toggleFullscreen}
+        >
+          {isFullscreen ? <Minimize /> : <Maximize />}
         </button>
       </div>
     </>
@@ -596,7 +638,7 @@ function Studio({ userId }: { userId: string }) {
             <div className="schematic-stage">
               {!libraryReady ? <div className="schematic-paper canvas-empty"><div className="loading-skeleton" /><p>Loading the drawing engine…</p></div>
                 : report.errors.length ? <div className="schematic-paper canvas-empty"><div className="empty-icon"><TriangleAlert /></div><h3>This schematic needs a repair</h3><p>Resolve the drawing errors in the JSON editor below to see the rendered circuit.</p></div>
-                  : svg ? <SchematicViewer svg={svg} />
+                  : svg ? <SchematicViewer svg={svg} onFullscreenError={() => setToast('Fullscreen mode is unavailable in this browser.')} />
                     : <div className="schematic-paper canvas-empty"><div className="empty-icon"><CircuitBoard /></div><h3>Ready to draw</h3><p>Your schematic will appear here once the drawing engine is available.</p></div>}
             </div>
             <div className="canvas-foot"><span className="zoom-label" data-testid="status-canvas">{report.errors.length ? 'Drawing paused' : 'Vector schematic'}</span><span>Canvas {spec.width || 'auto'} × {spec.height || 'auto'}</span></div>

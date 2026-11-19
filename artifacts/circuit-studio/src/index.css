@@ -230,7 +230,20 @@ a { color: inherit; text-decoration: none; }
 .easyeda-sheet-description { margin-top:6px;color:#77847e;font-size:11px;line-height:1.5; }
 .easyeda-sheet-body { min-height:0;flex:1;overflow:auto;overscroll-behavior:contain;padding:18px 22px;background:#fffefa; }
 .easyeda-sheet-body:focus-visible { outline:2px solid #4b9278;outline-offset:-3px; }
-.easyeda-sheet-body pre { margin:0;color:#42574c;font:11px/1.65 var(--app-font-mono);white-space:pre-wrap;overflow-wrap:anywhere; }
+.easyeda-markdown { color:#42574c;font-size:12px;line-height:1.7;overflow-wrap:anywhere; }
+.easyeda-markdown > :first-child { margin-top:0; }
+.easyeda-markdown > :last-child { margin-bottom:0; }
+.easyeda-markdown h1 { margin:0 0 18px;color:#304640;font:700 22px/1.25 var(--app-font-display);letter-spacing:-.035em; }
+.easyeda-markdown h2 { margin:24px 0 10px;padding-bottom:7px;border-bottom:1px solid #e9e6dd;color:#304640;font:700 15px/1.35 var(--app-font-display); }
+.easyeda-markdown p { margin:12px 0;color:#65756d; }
+.easyeda-markdown ul { margin:8px 0 16px;padding-left:22px; }
+.easyeda-markdown li { margin:5px 0;padding-left:3px; }
+.easyeda-markdown-table-wrap { margin:12px 0 18px;overflow-x:auto;border:1px solid #e6e2d9;border-radius:7px; }
+.easyeda-markdown table { width:100%;min-width:420px;border-collapse:collapse;background:#fffefa;text-align:left; }
+.easyeda-markdown th,.easyeda-markdown td { padding:9px 11px;border-bottom:1px solid #ece9e1;vertical-align:top; }
+.easyeda-markdown th { background:#f5f3ed;color:#63746b;font:500 10px var(--app-font-mono); }
+.easyeda-markdown td { color:#42574c;font-size:11px; }
+.easyeda-markdown tr:last-child td { border-bottom:0; }
 .easyeda-sheet-footer { flex:none;display:flex;justify-content:flex-end;padding:12px 18px;border-top:1px solid #e6e2d9;background:#faf8f2; }
 .status-toast { position:fixed;right:22px;bottom:22px;background:#203c38;color:#fbf7eb;padding:11px 14px;border-radius:8px;box-shadow:0 8px 28px #1d39352e;font-size:12px;z-index:20;animation:toast-in .22s ease-out; }
 @keyframes toast-in { from { opacity:0;transform:translateY(8px); } to { opacity:1;transform:translateY(0); } }

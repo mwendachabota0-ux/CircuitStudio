@@ -4,6 +4,8 @@ import { publishableKeyFromHost } from '@clerk/react/internal';
 import { shadcn } from '@clerk/themes';
 import { QueryClient, QueryClientProvider, useIsMutating, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import {
   getAskCircuitTutorMutationKey, getGenerateCircuitMutationKey, getGetAiStatusQueryKey,
   getGetAiUsageQueryKey, getReviewCircuitMutationKey, useAskCircuitTutor,
@@ -1101,7 +1103,16 @@ function Studio({ userId }: { userId: string }) {
             </DialogDescription>
           </DialogHeader>
           <div className="easyeda-sheet-body" role="region" aria-label="EasyEDA sheet contents" tabIndex={0} data-testid="text-easyeda-sheet">
-            <pre>{easyedaSheet}</pre>
+            <div className="easyeda-markdown">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  table: ({ children }) => <div className="easyeda-markdown-table-wrap"><table>{children}</table></div>,
+                }}
+              >
+                {easyedaSheet}
+              </ReactMarkdown>
+            </div>
           </div>
           <div className="easyeda-sheet-footer">
             <button className="quiet-button" type="button" onClick={copySheet} disabled={!easyedaSheet}><Clipboard /> {copied ? 'Copied' : 'Copy sheet'}</button>

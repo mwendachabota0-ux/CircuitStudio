@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { ClerkProvider, SignIn, SignUp, useAuth, useClerk, useUser } from '@clerk/react';
 import { publishableKeyFromHost } from '@clerk/react/internal';
 import { shadcn } from '@clerk/themes';
@@ -7,7 +7,7 @@ import { useGenerateCircuit } from '@workspace/api-client-react';
 import {
   ArrowDownRight, ArrowRight, Check, CheckCircle2, CircuitBoard,
   Clipboard, Code2, Download, FileCode2, FileImage, LoaderCircle, RefreshCw,
-  TriangleAlert, ScanSearch, MoveUpRight,
+  TriangleAlert, ScanSearch, MoveUpRight, Maximize2, ZoomIn, ZoomOut,
 } from 'lucide-react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
@@ -222,6 +222,190 @@ function StudioGate() {
   return <Studio key={userId} userId={userId} />;
 }
 
+const MIN_ZOOM = 0.02;
+const MAX_ZOOM = 8;
+
+function SchematicViewer({ svg }: { svg: string }) {
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ pointerId: number; startX: number; startY: number; originX: number; originY: number; moved: boolean } | null>(null);
+  const autoFitRef = useRef(true);
+  const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+
+  const fitToView = useCallback(() => {
+    const viewport = viewportRef.current;
+    const graphic = viewport?.querySelector('svg');
+    if (!viewport || !graphic) return;
+
+    const viewBox = graphic.viewBox.baseVal;
+    const width = viewBox.width || graphic.width.baseVal.value || 900;
+    const height = viewBox.height || graphic.height.baseVal.value || 640;
+    if (!width || !height) return;
+
+    setCanvasSize({ width, height });
+    const padding = 56;
+    const scale = Math.min(
+      (viewport.clientWidth - padding) / width,
+      (viewport.clientHeight - padding) / height,
+    );
+    if (Number.isFinite(scale) && scale > 0) {
+      setZoom(Math.max(MIN_ZOOM, scale));
+    }
+    setOffset({ x: 0, y: 0 });
+    autoFitRef.current = true;
+  }, []);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+
+    autoFitRef.current = true;
+    const frame = requestAnimationFrame(fitToView);
+    const observer = new ResizeObserver(() => {
+      if (autoFitRef.current) fitToView();
+    });
+    observer.observe(viewport);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [fitToView, svg]);
+
+  const changeZoom = (direction: 1 | -1) => {
+    autoFitRef.current = false;
+    setZoom((current) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, current * (direction > 0 ? 1.2 : 1 / 1.2))));
+  };
+
+  const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0 || !canvasSize.width) return;
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: offset.x,
+      originY: offset.y,
+      moved: false,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setIsPanning(true);
+    event.preventDefault();
+  };
+
+  const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const deltaX = event.clientX - drag.startX;
+    const deltaY = event.clientY - drag.startY;
+    if (!drag.moved && Math.hypot(deltaX, deltaY) > 2) {
+      drag.moved = true;
+      autoFitRef.current = false;
+    }
+    setOffset({ x: drag.originX + deltaX, y: drag.originY + deltaY });
+  };
+
+  const stopPanning = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (dragRef.current?.pointerId !== event.pointerId) return;
+    dragRef.current = null;
+    setIsPanning(false);
+  };
+
+  const handleKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    const panAmount = 40;
+    const panByKey: Record<string, { x: number; y: number }> = {
+      ArrowLeft: { x: -panAmount, y: 0 },
+      ArrowRight: { x: panAmount, y: 0 },
+      ArrowUp: { x: 0, y: -panAmount },
+      ArrowDown: { x: 0, y: panAmount },
+    };
+    if (panByKey[event.key]) {
+      autoFitRef.current = false;
+      setOffset((current) => ({
+        x: current.x + panByKey[event.key].x,
+        y: current.y + panByKey[event.key].y,
+      }));
+      event.preventDefault();
+    } else if (event.key === '+' || event.key === '=') {
+      changeZoom(1);
+      event.preventDefault();
+    } else if (event.key === '-') {
+      changeZoom(-1);
+      event.preventDefault();
+    } else if (event.key === '0') {
+      fitToView();
+      event.preventDefault();
+    }
+  };
+
+  return (
+    <>
+      <div
+        className={`schematic-paper schematic-viewport${isPanning ? ' is-panning' : ''}`}
+        data-testid="canvas-schematic"
+        ref={viewportRef}
+        role="region"
+        aria-label="Schematic viewer. Drag or use arrow keys to pan; use plus and minus to zoom; press zero to fit."
+        tabIndex={0}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={stopPanning}
+        onPointerCancel={stopPanning}
+        onKeyDown={handleKeyDown}
+      >
+        <div
+          className="schematic-content"
+          style={{
+            width: canvasSize.width ? `${canvasSize.width}px` : undefined,
+            height: canvasSize.height ? `${canvasSize.height}px` : undefined,
+            left: `calc(50% + ${offset.x}px)`,
+            top: `calc(50% + ${offset.y}px)`,
+            transform: `translate(-50%, -50%) scale(${zoom})`,
+          }}
+        >
+          <div dangerouslySetInnerHTML={{ __html: svg }} />
+        </div>
+      </div>
+      <div className="schematic-controls" role="group" aria-label="Schematic zoom controls" data-viewer-controls>
+        <button
+          className="icon-button zoom-control-button"
+          type="button"
+          aria-label="Zoom out"
+          title="Zoom out"
+          data-testid="button-zoom-out"
+          disabled={zoom <= MIN_ZOOM * 1.01}
+          onClick={() => changeZoom(-1)}
+        >
+          <ZoomOut />
+        </button>
+        <span className="zoom-value" aria-live="polite" data-testid="status-zoom">{Math.round(zoom * 100)}%</span>
+        <button
+          className="icon-button zoom-control-button"
+          type="button"
+          aria-label="Zoom in"
+          title="Zoom in"
+          data-testid="button-zoom-in"
+          disabled={zoom >= MAX_ZOOM * 0.99}
+          onClick={() => changeZoom(1)}
+        >
+          <ZoomIn />
+        </button>
+        <span className="zoom-divider" aria-hidden="true" />
+        <button
+          className="quiet-button fit-control-button"
+          type="button"
+          aria-label="Reset zoom and fit schematic to view"
+          title="Reset zoom and fit to view"
+          data-testid="button-fit-schematic"
+          onClick={fitToView}
+        >
+          <Maximize2 /> Fit
+        </button>
+      </div>
+    </>
+  );
+}
+
 function Studio({ userId }: { userId: string }) {
   const [spec, setSpec] = useState<CircuitSpec>(() => readDraft(userId));
   const [jsonText, setJsonText] = useState(() => JSON.stringify(readDraft(userId), null, 2));
@@ -405,15 +589,15 @@ function Studio({ userId }: { userId: string }) {
               <div className="canvas-name"><span className="section-icon"><CircuitBoard /></span><strong>{spec.title || 'Untitled circuit'}</strong><span>{elementCount} elements</span></div>
               <div className="toolbar-actions">
                 <button className="quiet-button" data-testid="button-reset-example" onClick={resetExample} title="Restore the starter circuit"><RefreshCw /> Reset example</button>
-                <button className="icon-button" data-testid="button-export-svg" onClick={exportSvg} disabled={!svg} title="Download SVG"><Download /></button>
+                <button className="icon-button" type="button" aria-label="Download SVG" data-testid="button-export-svg" onClick={exportSvg} disabled={!svg} title="Download SVG"><Download /></button>
+                <button className="icon-button" type="button" aria-label="Download PNG image" data-testid="button-export-png-top" onClick={exportPng} disabled={!svg} title="Download PNG image"><FileImage /></button>
               </div>
             </div>
             <div className="schematic-stage">
-              <div className="schematic-paper" data-testid="canvas-schematic">
-                {!libraryReady ? <div className="canvas-empty"><div className="loading-skeleton" /><p>Loading the drawing engine…</p></div>
-                  : report.errors.length ? <div className="canvas-empty"><div className="empty-icon"><TriangleAlert /></div><h3>This schematic needs a repair</h3><p>Resolve the drawing errors in the JSON editor below to see the rendered circuit.</p></div>
-                    : svg ? <div dangerouslySetInnerHTML={{ __html: svg }} /> : <div className="canvas-empty"><div className="empty-icon"><CircuitBoard /></div><h3>Ready to draw</h3><p>Your schematic will appear here once the drawing engine is available.</p></div>}
-              </div>
+              {!libraryReady ? <div className="schematic-paper canvas-empty"><div className="loading-skeleton" /><p>Loading the drawing engine…</p></div>
+                : report.errors.length ? <div className="schematic-paper canvas-empty"><div className="empty-icon"><TriangleAlert /></div><h3>This schematic needs a repair</h3><p>Resolve the drawing errors in the JSON editor below to see the rendered circuit.</p></div>
+                  : svg ? <SchematicViewer svg={svg} />
+                    : <div className="schematic-paper canvas-empty"><div className="empty-icon"><CircuitBoard /></div><h3>Ready to draw</h3><p>Your schematic will appear here once the drawing engine is available.</p></div>}
             </div>
             <div className="canvas-foot"><span className="zoom-label" data-testid="status-canvas">{report.errors.length ? 'Drawing paused' : 'Vector schematic'}</span><span>Canvas {spec.width || 'auto'} × {spec.height || 'auto'}</span></div>
           </div>

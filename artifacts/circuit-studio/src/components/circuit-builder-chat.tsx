@@ -16,7 +16,6 @@ import {
   Check,
   CheckCircle2,
   CircleHelp,
-  CircuitBoard,
   LoaderCircle,
   MessageCircle,
   Plus,
@@ -270,7 +269,6 @@ export function CircuitBuilderChat({
     <section className="builder-chat" aria-label="Conversational circuit builder" data-testid="panel-circuit-builder-chat">
       <header className="builder-chat__header">
         <div className="builder-chat__identity">
-          <span className="builder-chat__mark"><CircuitBoard aria-hidden="true" /></span>
           <div>
             <p className="builder-chat__eyebrow">Circuit Studio / collaborator</p>
             <h2>Build through conversation</h2>

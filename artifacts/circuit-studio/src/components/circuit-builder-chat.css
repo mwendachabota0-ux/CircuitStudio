@@ -41,22 +41,7 @@
   align-items: center;
 }
 
-.builder-chat__identity { gap: 11px; }
 .builder-chat__header-tools { gap: 10px; }
-
-.builder-chat__mark {
-  width: 36px;
-  height: 36px;
-  flex: none;
-  display: grid;
-  place-items: center;
-  border: 1px solid #d8e4da;
-  border-radius: 10px;
-  background: #eaf1e9;
-  color: var(--chat-green);
-}
-
-.builder-chat__mark svg { width: 19px; height: 19px; }
 .builder-chat__eyebrow {
   margin: 0 0 4px;
   color: #839088;

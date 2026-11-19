@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: circuits
+    description: Circuit schematic generation
 paths:
   /healthz:
     get:
@@ -24,6 +26,55 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /circuits/generate:
+    post:
+      operationId: generateCircuit
+      tags: [circuits]
+      summary: Generate an editable circuit schematic
+      description: Converts a natural-language circuit description into a CircuitDraw-compatible schematic specification.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CircuitPrompt"
+      responses:
+        "200":
+          description: Generated circuit schematic
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CircuitSpec"
+        "401":
+          description: Authentication is required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "400":
+          description: Invalid prompt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "429":
+          description: Generation rate limit reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "502":
+          description: Circuit generation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "503":
+          description: Gemini is not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +84,107 @@ components:
           type: string
       required:
         - status
+    ApiError:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+    CircuitPrompt:
+      type: object
+      properties:
+        prompt:
+          type: string
+          minLength: 8
+          maxLength: 3000
+      required:
+        - prompt
+    CircuitPoint:
+      type: array
+      items:
+        type: number
+      minItems: 2
+      maxItems: 2
+    CircuitElement:
+      type: object
+      properties:
+        type:
+          type: string
+        id:
+          type: string
+        label:
+          type: string
+        value:
+          type: string
+        from:
+          $ref: "#/components/schemas/CircuitPoint"
+        to:
+          $ref: "#/components/schemas/CircuitPoint"
+        at:
+          $ref: "#/components/schemas/CircuitPoint"
+        points:
+          type: array
+          items:
+            $ref: "#/components/schemas/CircuitPoint"
+        x:
+          type: number
+        y:
+          type: number
+        w:
+          type: number
+        h:
+          type: number
+        height:
+          type: number
+        open:
+          type: boolean
+        closed:
+          type: boolean
+        flip:
+          type: boolean
+        circle:
+          type: boolean
+        swap:
+          type: boolean
+        style:
+          type: string
+        labelPos:
+          type: string
+        labelNudge:
+          $ref: "#/components/schemas/CircuitPoint"
+        labelAt:
+          $ref: "#/components/schemas/CircuitPoint"
+        labelAnchor:
+          type: string
+        text:
+          type: string
+        anchor:
+          type: string
+        size:
+          type: number
+        bold:
+          type: boolean
+        muted:
+          type: boolean
+      required:
+        - type
+      additionalProperties: true
+    CircuitSpec:
+      type: object
+      properties:
+        title:
+          type: string
+        width:
+          type: number
+        height:
+          type: number
+        elements:
+          type: array
+          items:
+            $ref: "#/components/schemas/CircuitElement"
+      required:
+        - title
+        - elements
+      additionalProperties: true
 

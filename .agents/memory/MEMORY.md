@@ -1,0 +1,2 @@
+- [Circuit Studio access](circuit-studio-access.md) — open sign-up, but require Clerk sign-in for the workbench and Gemini generation.
+- [Schematic view controls](schematic-view-controls.md) — keep Fit-to-view and fullscreen as separate actions; don't turn Fit into a fullscreen toggle.

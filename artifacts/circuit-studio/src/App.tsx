@@ -308,6 +308,29 @@ function AiStatusControls() {
     notificationsSupported ? Notification.permission : 'denied',
   );
   const [permissionFeedback, setPermissionFeedback] = useState('');
+  const controlsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!permissionFeedback) return;
+
+    const dismissOnOutsidePointer = (event: PointerEvent) => {
+      if (event.target instanceof Node && !controlsRef.current?.contains(event.target)) {
+        setPermissionFeedback('');
+      }
+    };
+    const dismissOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setPermissionFeedback('');
+    };
+    const dismissTimer = window.setTimeout(() => setPermissionFeedback(''), 5000);
+
+    document.addEventListener('pointerdown', dismissOnOutsidePointer);
+    document.addEventListener('keydown', dismissOnEscape);
+    return () => {
+      window.clearTimeout(dismissTimer);
+      document.removeEventListener('pointerdown', dismissOnOutsidePointer);
+      document.removeEventListener('keydown', dismissOnEscape);
+    };
+  }, [permissionFeedback]);
 
   const state = isWorking
     ? 'working'
@@ -356,7 +379,7 @@ function AiStatusControls() {
   };
 
   return (
-    <div className="ai-status-controls" title={statusMessage}>
+    <div ref={controlsRef} className="ai-status-controls" title={statusMessage}>
       <span className={`ai-status-dot is-${state}`} role="status" aria-label={statusMessage} data-testid="status-ai-availability" />
       <button
         type="button"

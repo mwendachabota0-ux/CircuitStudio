@@ -7,6 +7,7 @@
  */
 
 export * from './aiKeySelectionRequest';
+export * from './aiStatus';
 export * from './aiUsage';
 export * from './apiError';
 export * from './circuitElement';

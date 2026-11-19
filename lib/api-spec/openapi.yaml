@@ -183,6 +183,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+  /ai/status:
+    get:
+      operationId: getAiStatus
+      tags: [account]
+      summary: Check Gemini model availability without generating content
+      responses:
+        "200":
+          description: Provider responsiveness and account availability
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiStatus"
+        "401":
+          description: Authentication is required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "503":
+          description: AI status could not be checked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
   /ai/key-selection:
     put:
       operationId: setAiKeySelection
@@ -342,6 +366,21 @@ components:
         - activeKeyNumber
         - configuredKeyNumbers
         - canUseAi
+      additionalProperties: false
+    AiStatus:
+      type: object
+      properties:
+        available:
+          type: boolean
+        canUseAi:
+          type: boolean
+        latencyMs:
+          type: integer
+          minimum: 0
+        checkedAt:
+          type: string
+          format: date-time
+      required: [available, canUseAi, latencyMs, checkedAt]
       additionalProperties: false
     AiKeySelectionRequest:
       type: object

@@ -319,6 +319,21 @@ export const GetAiUsageResponse = zod.object({
 
 
 /**
+ * @summary Check Gemini model availability without generating content
+ */
+export const getAiStatusResponseLatencyMsMin = 0;
+
+
+
+export const GetAiStatusResponse = zod.object({
+  "available": zod.boolean(),
+  "canUseAi": zod.boolean(),
+  "latencyMs": zod.number().int().min(getAiStatusResponseLatencyMsMin),
+  "checkedAt": zod.coerce.date()
+})
+
+
+/**
  * @summary Select a configured Gemini key for this account
  */
 

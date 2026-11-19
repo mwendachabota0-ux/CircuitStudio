@@ -134,6 +134,14 @@ export interface AiUsage {
   canUseAi: boolean;
 }
 
+export interface AiStatus {
+  available: boolean;
+  canUseAi: boolean;
+  /** @minimum 0 */
+  latencyMs: number;
+  checkedAt: string;
+}
+
 export interface AiKeySelectionRequest {
   /** @minimum 1 */
   keyNumber: number;

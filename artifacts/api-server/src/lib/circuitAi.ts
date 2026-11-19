@@ -31,6 +31,20 @@ type AiUsageSummary = {
   configuredKeyNumbers: number[];
   canUseAi: boolean;
 };
+type AiStatusSummary = {
+  available: boolean;
+  canUseAi: boolean;
+  latencyMs: number;
+  checkedAt: string;
+};
+type ModelProbe = Omit<AiStatusSummary, "canUseAi">;
+
+const AI_STATUS_MODEL = "gemini-2.5-flash";
+const AI_STATUS_CACHE_TTL_MS = 15_000;
+const aiStatusCache = new Map<
+  number,
+  { expiresAt: number; result: Promise<ModelProbe> }
+>();
 
 function getLifetimeTokenAllowance(): number {
   const raw = process.env.CIRCUIT_STUDIO_LIFETIME_TOKEN_ALLOWANCE;
@@ -101,6 +115,63 @@ export async function getCircuitAiUsage(
     configuredKeyNumbers: keys.map((key) => key.number),
     canUseAi: keys.length > 0 && tokensRemaining > 0,
   };
+}
+
+async function probeConfiguredKey(key: ConfiguredKey): Promise<ModelProbe> {
+  const now = Date.now();
+  const cached = aiStatusCache.get(key.number);
+  if (cached && cached.expiresAt > now) return cached.result;
+
+  const result = (async (): Promise<ModelProbe> => {
+    const startedAt = Date.now();
+    try {
+      // This reads model metadata only. It does not send a prompt or generate
+      // content, so it does not consume input or output tokens.
+      const model = await new GoogleGenAI({ apiKey: key.apiKey }).models.get({
+        model: AI_STATUS_MODEL,
+        config: { abortSignal: AbortSignal.timeout(5_000) },
+      });
+      return {
+        available:
+          model.supportedGenerationMethods?.includes("generateContent") ?? false,
+        latencyMs: Math.max(0, Date.now() - startedAt),
+        checkedAt: new Date().toISOString(),
+      };
+    } catch {
+      return {
+        available: false,
+        latencyMs: Math.max(0, Date.now() - startedAt),
+        checkedAt: new Date().toISOString(),
+      };
+    }
+  })();
+
+  aiStatusCache.set(key.number, {
+    expiresAt: now + AI_STATUS_CACHE_TTL_MS,
+    result,
+  });
+  return result;
+}
+
+export async function getCircuitAiStatus(
+  userId: string,
+): Promise<AiStatusSummary> {
+  const [usage, keys] = await Promise.all([
+    getCircuitAiUsage(userId),
+    Promise.resolve(getConfiguredKeys()),
+  ]);
+  const activeKey = keys.find((key) => key.number === usage.activeKeyNumber);
+  if (!activeKey) {
+    return {
+      available: false,
+      canUseAi: false,
+      latencyMs: 0,
+      checkedAt: new Date().toISOString(),
+    };
+  }
+
+  const probe = await probeConfiguredKey(activeKey);
+  return { ...probe, canUseAi: usage.canUseAi };
 }
 
 export async function selectCircuitAiKey(

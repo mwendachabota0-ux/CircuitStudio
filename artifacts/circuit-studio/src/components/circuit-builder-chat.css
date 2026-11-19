@@ -281,8 +281,6 @@
   line-height: 1.5;
 }
 
-.builder-chat__error > svg,
-.builder-chat__allowance > svg { width: 14px; height: 14px; flex: none; margin-top: 1px; }
 .builder-chat__error > span { flex: 1; }
 .builder-chat__text-link {
   padding: 0;
@@ -530,7 +528,6 @@
   text-align: center;
 }
 
-.builder-chat__preview-empty svg { width: 15px; height: 15px; flex: none; }
 .builder-chat__validation {
   display: flex;
   align-items: center;

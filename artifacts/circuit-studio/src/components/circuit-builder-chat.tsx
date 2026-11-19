@@ -12,10 +12,8 @@ import type {
   CircuitDesignBrief,
 } from '@workspace/api-client-react';
 import {
-  AlertCircle,
   Check,
   CheckCircle2,
-  CircleHelp,
   LoaderCircle,
   MessageCircle,
   Plus,
@@ -366,14 +364,12 @@ export function CircuitBuilderChat({
           </div>
           {chatMutation.isError && (
             <div className="builder-chat__error" role="alert" data-testid="status-builder-error">
-              <AlertCircle aria-hidden="true" />
               <span>{errorMessage}</span>
               <button type="button" className="builder-chat__text-link" onClick={retryRequest} disabled={!lastRequest || allowanceBlocked} data-testid="button-retry-builder-chat">Retry</button>
             </div>
           )}
           {allowanceBlocked && (
             <div className="builder-chat__allowance" role="status" data-testid="status-builder-quota">
-              <CircleHelp aria-hidden="true" />
               <span><strong>AI allowance is unavailable.</strong> You can keep your brief and conversation here, but sending is paused.</span>
             </div>
           )}
@@ -397,13 +393,13 @@ export function CircuitBuilderChat({
               <div className="builder-chat__preview" data-testid="preview-builder-proposal">
                 {proposalSvg
                   ? <div className="builder-chat__svg" dangerouslySetInnerHTML={{ __html: proposalSvg }} />
-                  : <div className="builder-chat__preview-empty" data-testid="status-builder-preview-error"><AlertCircle aria-hidden="true" />Preview unavailable until the proposal is valid.</div>}
+                  : <div className="builder-chat__preview-empty" data-testid="status-builder-preview-error">Preview unavailable until the proposal is valid.</div>}
               </div>
               <div className={`builder-chat__validation${proposalValidation?.errors.length ? ' has-errors' : proposalValidation?.warnings.length ? ' has-warnings' : ' is-valid'}`} data-testid="status-builder-validation">
                 {proposalValidation?.errors.length
-                  ? <><AlertCircle aria-hidden="true" /><strong>{proposalValidation.errors.length} issue{proposalValidation.errors.length === 1 ? '' : 's'} need attention</strong></>
+                  ? <strong>{proposalValidation.errors.length} issue{proposalValidation.errors.length === 1 ? '' : 's'} need attention</strong>
                   : proposalValidation?.warnings.length
-                    ? <><AlertCircle aria-hidden="true" /><strong>Preview checked · {proposalValidation.warnings.length} warning{proposalValidation.warnings.length === 1 ? '' : 's'}</strong></>
+                    ? <strong>Preview checked · {proposalValidation.warnings.length} warning{proposalValidation.warnings.length === 1 ? '' : 's'}</strong>
                     : <><CheckCircle2 aria-hidden="true" /><strong>Preview checked · no structural issues</strong></>}
                 {!!proposalValidation?.errors.length && <ul>{proposalValidation.errors.map((item, index) => <li className="is-error" key={`e-${index}`}>{item}</li>)}</ul>}
                 {!!proposalValidation?.warnings.length && <ul>{proposalValidation.warnings.map((item, index) => <li key={`w-${index}`}>{item}</li>)}</ul>}

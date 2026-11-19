@@ -15,8 +15,8 @@ import type { AiUsage, CircuitSpec as ApiCircuitSpec, TutorImageMimeType, TutorR
 import {
   ArrowDownRight, ArrowRight, Bell, BellOff, BellRing, Check, CheckCircle2, ChevronDown, ChevronUp, CircuitBoard,
   Clipboard, Code2, Download, FileCode2, FileText, Image, LoaderCircle,
-  TriangleAlert, ScanSearch, MoveUpRight, Maximize, Maximize2, Minimize, ZoomIn, ZoomOut,
-  Bot, BookOpenCheck, CircleHelp, Eye, Lightbulb, ListChecks, MessageCircle, Send, ShieldAlert, X,
+  ScanSearch, MoveUpRight, Maximize, Maximize2, Minimize, ZoomIn, ZoomOut,
+  Bot, BookOpenCheck, CircleHelp, Eye, Lightbulb, ListChecks, MessageCircle, Send, X,
 } from 'lucide-react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import CircuitBuilderChat from './components/circuit-builder-chat';
@@ -964,7 +964,7 @@ function Studio({ userId }: { userId: string }) {
             </div>
             <div className="schematic-stage">
               {!libraryReady ? <div className="schematic-paper canvas-empty"><div className="loading-skeleton" /><p>Loading the drawing engine…</p></div>
-                : report.errors.length ? <div className="schematic-paper canvas-empty"><div className="empty-icon"><TriangleAlert /></div><h3>This schematic needs a repair</h3><p>Resolve the drawing errors in the JSON editor below to see the rendered circuit.</p></div>
+                : report.errors.length ? <div className="schematic-paper canvas-empty"><h3>This schematic needs a repair</h3><p>Resolve the drawing errors in the JSON editor below to see the rendered circuit.</p></div>
                   : svg ? <SchematicViewer svg={svg} onFullscreenError={() => setToast('Fullscreen mode is unavailable in this browser.')} />
                     : <div className="schematic-paper canvas-empty"><div className="empty-icon"><CircuitBoard /></div><h3>Ready to draw</h3><p>Your schematic will appear here once the drawing engine is available.</p></div>}
             </div>
@@ -1049,7 +1049,7 @@ function Studio({ userId }: { userId: string }) {
             {jsonError || report.errors.length ? <p className="review-prompt">Fix JSON and drawing-structure issues to request a review of this draft.</p>
               : draftReview.signature !== reviewSignature ? <p className="review-prompt">Pause after a valid edit and an educational review will appear here.</p>
                 : draftReview.state === 'loading' ? <div className="review-loading" role="status"><span className="loading-skeleton" />Preparing an educational review…</div>
-                  : draftReview.state === 'error' ? <div className="review-error" role="alert"><TriangleAlert /><span>{review.error instanceof Error ? review.error.message : 'Review unavailable right now.'} Your draft is unchanged.</span><button type="button" onClick={() => {
+                  : draftReview.state === 'error' ? <div className="review-error" role="alert"><span>{review.error instanceof Error ? review.error.message : 'Review unavailable right now.'} Your draft is unchanged.</span><button type="button" onClick={() => {
                     setDraftReview({ signature: reviewSignature, text: '', state: 'loading' });
                     review.mutate({ data: { spec: spec as ApiCircuitSpec } }, {
                       onSuccess: (result) => {
@@ -1077,8 +1077,8 @@ function Studio({ userId }: { userId: string }) {
             <div className="panel-heading"><h2 className="section-title"><span className="section-icon"><CheckCircle2 /></span>Structure check</h2><span className="count-badge" data-testid="status-validation-count">{report.errors.length ? `${report.errors.length} errors` : report.warnings.length ? `${report.warnings.length} notes` : 'Ready'}</span></div>
             <div className="validation-content">
               {!libraryReady ? <div className="validation-banner neutral" data-testid="status-validation"><LoaderCircle /><span>Checking the drawing…</span></div>
-                : report.errors.length ? <div className="validation-banner warn" data-testid="status-validation"><TriangleAlert /><span>Drawing structure has {report.errors.length} error{report.errors.length === 1 ? '' : 's'}. Fix the JSON before exporting a schematic build sheet.</span></div>
-                  : report.warnings.length ? <div className="validation-banner warn" data-testid="status-validation"><TriangleAlert /><span>Drawing structure is readable, with {report.warnings.length} connection or layout note{report.warnings.length === 1 ? '' : 's'} to review.</span></div>
+                : report.errors.length ? <div className="validation-banner warn" data-testid="status-validation"><span>Drawing structure has {report.errors.length} error{report.errors.length === 1 ? '' : 's'}. Fix the JSON before exporting a schematic build sheet.</span></div>
+                  : report.warnings.length ? <div className="validation-banner warn" data-testid="status-validation"><span>Drawing structure is readable, with {report.warnings.length} connection or layout note{report.warnings.length === 1 ? '' : 's'} to review.</span></div>
                     : <div className="validation-banner good" data-testid="status-validation"><Check /><span>No drawing-structure errors or warnings. That is not an electrical safety or correctness check.</span></div>}
               {(report.errors.length > 0 || report.warnings.length > 0) && <ul className="validation-list">{report.errors.map((item, index) => <li className="error" key={`e-${index}`} data-testid={`validation-error-${index}`}>{item}</li>)}{report.warnings.map((item, index) => <li key={`w-${index}`} data-testid={`validation-warning-${index}`}>{item}</li>)}</ul>}
             </div>
@@ -1295,9 +1295,9 @@ function Tutor({ userId }: { userId: string }) {
               </form>
             </Form>
             {formError && <p className="prompt-error" role="alert">{formError}</p>}
-            {!usageQuery.isLoading && usage && !usage.canUseAi && <div className="quota-exhausted" role="status" data-testid="status-quota-exhausted"><ShieldAlert /><span><strong>Lifetime allowance reached</strong><small>AI requests are unavailable for this account right now. Your draft remains available in the workbench.</small></span></div>}
-            {usageQuery.isError && <div className="usage-error" role="alert" data-testid="status-usage-error"><TriangleAlert /><span>Account allowance could not be loaded. Retry to check AI availability.</span><button type="button" onClick={() => usageQuery.refetch()}>Retry</button></div>}
-            {requestError && <div className="tutor-error" role="alert" data-testid="status-tutor-error"><TriangleAlert /><span>{requestError}</span><button type="button" onClick={() => formRef.current?.requestSubmit()}>Retry</button></div>}
+            {!usageQuery.isLoading && usage && !usage.canUseAi && <div className="quota-exhausted" role="status" data-testid="status-quota-exhausted"><span><strong>Lifetime allowance reached</strong><small>AI requests are unavailable for this account right now. Your draft remains available in the workbench.</small></span></div>}
+            {usageQuery.isError && <div className="usage-error" role="alert" data-testid="status-usage-error"><span>Account allowance could not be loaded. Retry to check AI availability.</span><button type="button" onClick={() => usageQuery.refetch()}>Retry</button></div>}
+            {requestError && <div className="tutor-error" role="alert" data-testid="status-tutor-error"><span>{requestError}</span><button type="button" onClick={() => formRef.current?.requestSubmit()}>Retry</button></div>}
           </section>
 
           <aside className="panel usage-panel">
@@ -1315,7 +1315,7 @@ function Tutor({ userId }: { userId: string }) {
                 <p className="usage-detail">{usage.tokensUsed.toLocaleString()} used · {usage.tokensReserved.toLocaleString()} reserved</p>
                 <p className="usage-footnote">Keys are selected by account configuration. Circuit Studio never asks for or stores API keys in your browser.</p>
               </div>
-                : <div className="usage-fallback" role="status"><CircleHelp /><p>Allowance details are unavailable. You can still return to your saved workbench.</p><button type="button" className="quiet-button" onClick={() => usageQuery.refetch()}>Retry account check</button></div>}
+                : <div className="usage-fallback" role="status"><p>Allowance details are unavailable. You can still return to your saved workbench.</p><button type="button" className="quiet-button" onClick={() => usageQuery.refetch()}>Retry account check</button></div>}
           </aside>
         </div>
 
@@ -1324,7 +1324,7 @@ function Tutor({ userId }: { userId: string }) {
             : response ? <TutorAnswer response={response} onApply={applyProposal} applied={applied} libraryReady={libraryReady} />
               : <div className="panel response-empty"><span className="response-empty-icon"><MessageCircle /></span><h2>Your explanation will appear here.</h2><p>Observed details, interpretation, uncertainty, and missing values stay in separate lanes.</p></div>}
         </section>
-        <p className="tutor-safety"><ShieldAlert /> Educational explanations only. They are not electrical correctness, safety, simulation, or compliance checks. Do not rely on them to build, power, or use a circuit.</p>
+        <p className="tutor-safety"><span>Educational explanations only. They are not electrical correctness, safety, simulation, or compliance checks. Do not rely on them to build, power, or use a circuit.</span></p>
       </div>
     </main>
   );

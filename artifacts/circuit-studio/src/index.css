@@ -348,7 +348,6 @@ a { color: inherit; text-decoration: none; }
 .review-loading { display:flex;align-items:center;gap:14px;color:#78847d;font-size:11px; }
 .review-loading .loading-skeleton { display:inline-block;width:100px;height:18px;flex:none; }
 .review-error,.usage-error,.tutor-error { display:flex;align-items:center;gap:9px;padding:11px 12px;border-radius:7px;background:#f8eee4;color:#865936;font-size:11px;line-height:1.5; }
-.review-error svg,.usage-error svg,.tutor-error svg { width:16px;height:16px;flex:none; }
 .tutor-workspace { max-width:1240px;padding-top:35px; }
 .tutor-heading { margin-bottom:24px; }
 .tutor-heading h1 { max-width:760px; }
@@ -384,8 +383,7 @@ a { color: inherit; text-decoration: none; }
 .tutor-submit-row .primary-button { white-space:nowrap; }
 .tutor-submit-row .primary-button svg { width:14px;height:14px; }
 .tutor-input-hint { color:#8b948e;font:10px var(--app-font-mono);line-height:1.5; }
-.quota-exhausted { display:flex;align-items:flex-start;gap:10px;margin-top:16px;padding:12px;border:1px solid #ebd7c8;border-radius:8px;background:#fbf2e9;color:#8c5a36; }
-.quota-exhausted > svg { width:17px;height:17px;flex:none; }
+.quota-exhausted { margin-top:16px;padding:12px;border:1px solid #ebd7c8;border-radius:8px;background:#fbf2e9;color:#8c5a36; }
 .quota-exhausted strong,.quota-exhausted small { display:block; }
 .quota-exhausted strong { font-size:11px; }
 .quota-exhausted small { margin-top:4px;font-size:10px;line-height:1.55; }
@@ -410,7 +408,6 @@ a { color: inherit; text-decoration: none; }
 .usage-skeleton span:nth-child(2) { width:75%;height:32px; }
 .usage-skeleton span:nth-child(3) { width:90%;height:42px; }
 .usage-fallback { padding:22px 18px;text-align:center;color:#82908a;font-size:11px;line-height:1.6; }
-.usage-fallback > svg { width:20px;height:20px;color:#d47b50; }
 .usage-fallback p { margin:9px 0 14px; }
 .usage-feedback { color:#176b55;font-size:10px; }
 .tutor-error { margin-top:12px; }
@@ -458,8 +455,7 @@ a { color: inherit; text-decoration: none; }
 .proposal-actions svg { width:14px;height:14px; }
 .proposal-applied { color:#39745d;font-size:11px; }
 .answer-disclaimer { margin:15px 0 0;color:#8a9189;font-size:10px;line-height:1.6; }
-.tutor-safety { display:flex;align-items:flex-start;gap:9px;max-width:900px;margin:17px auto 0;padding:12px 14px;border-left:2px solid #d47b50;background:#f8f3e9;color:#766958;font-size:10px;line-height:1.65; }
-.tutor-safety svg { width:15px;height:15px;flex:none;color:#b8704d; }
+.tutor-safety { display:block;max-width:900px;margin:17px auto 0;padding:12px 14px;border-left:2px solid #d47b50;background:#f8f3e9;color:#766958;font-size:10px;line-height:1.65; }
 
 @media (max-width:1000px) {
   .workbench { grid-template-columns:300px minmax(0,1fr); }

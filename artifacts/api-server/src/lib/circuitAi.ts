@@ -132,8 +132,7 @@ async function probeConfiguredKey(key: ConfiguredKey): Promise<ModelProbe> {
         config: { abortSignal: AbortSignal.timeout(5_000) },
       });
       return {
-        available:
-          model.supportedGenerationMethods?.includes("generateContent") ?? false,
+        available: model.supportedActions?.includes("generateContent") ?? false,
         latencyMs: Math.max(0, Date.now() - startedAt),
         checkedAt: new Date().toISOString(),
       };
@@ -156,11 +155,16 @@ async function probeConfiguredKey(key: ConfiguredKey): Promise<ModelProbe> {
 export async function getCircuitAiStatus(
   userId: string,
 ): Promise<AiStatusSummary> {
-  const [usage, keys] = await Promise.all([
-    getCircuitAiUsage(userId),
-    Promise.resolve(getConfiguredKeys()),
-  ]);
-  const activeKey = keys.find((key) => key.number === usage.activeKeyNumber);
+  const keys = getConfiguredKeys();
+  let usage: AiUsageSummary | undefined;
+  try {
+    usage = await getCircuitAiUsage(userId);
+  } catch {
+    // Provider health is independent of account-usage storage. Keep the
+    // token-free Gemini probe available even when the database is not.
+  }
+  const activeKey =
+    keys.find((key) => key.number === usage?.activeKeyNumber) ?? keys[0];
   if (!activeKey) {
     return {
       available: false,
@@ -171,7 +175,7 @@ export async function getCircuitAiStatus(
   }
 
   const probe = await probeConfiguredKey(activeKey);
-  return { ...probe, canUseAi: usage.canUseAi };
+  return { ...probe, canUseAi: usage?.canUseAi ?? false };
 }
 
 export async function selectCircuitAiKey(

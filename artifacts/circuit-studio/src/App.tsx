@@ -2,16 +2,17 @@ import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent a
 import { ClerkProvider, SignIn, SignUp, useAuth, useClerk, useUser } from '@clerk/react';
 import { publishableKeyFromHost } from '@clerk/react/internal';
 import { shadcn } from '@clerk/themes';
-import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useIsMutating, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import {
-  getGetAiUsageQueryKey, useAskCircuitTutor, useGenerateCircuit, useGetAiUsage,
-  useReviewCircuit, useSetAiKeySelection,
+  getAskCircuitTutorMutationKey, getGenerateCircuitMutationKey, getGetAiStatusQueryKey,
+  getGetAiUsageQueryKey, getReviewCircuitMutationKey, useAskCircuitTutor,
+  useGenerateCircuit, useGetAiStatus, useGetAiUsage, useReviewCircuit, useSetAiKeySelection,
 } from '@workspace/api-client-react';
 import type { AiUsage, CircuitSpec as ApiCircuitSpec, TutorImageMimeType, TutorResponse } from '@workspace/api-client-react';
 import {
-  ArrowDownRight, ArrowRight, Check, CheckCircle2, CircuitBoard,
-  Clipboard, Code2, FileCode2, Image, LoaderCircle, RefreshCw,
+  ArrowDownRight, ArrowRight, Bell, BellOff, BellRing, Check, CheckCircle2, CircuitBoard,
+  Clipboard, Code2, Download, FileCode2, Image, LoaderCircle,
   TriangleAlert, ScanSearch, MoveUpRight, Maximize, Maximize2, Minimize, ZoomIn, ZoomOut,
   Bot, BookOpenCheck, CircleHelp, Eye, Lightbulb, ListChecks, MessageCircle, Send, ShieldAlert, X,
 } from 'lucide-react';
@@ -228,6 +229,102 @@ function TutorGate() {
   if (!isLoaded) return <AuthLoading />;
   if (!isSignedIn || !userId) return <Redirect to="/" />;
   return <Tutor key={userId} userId={userId} />;
+}
+
+function sendDesktopNotification(title: string, body: string) {
+  if (
+    typeof window === 'undefined' ||
+    !('Notification' in window) ||
+    Notification.permission !== 'granted'
+  ) return;
+
+  try {
+    const notification = new Notification(title, {
+      body,
+      icon: `${basePath}/favicon.svg`,
+    });
+    notification.onclick = () => {
+      window.focus();
+      notification.close();
+    };
+  } catch {
+    // Browser notification failures should not interfere with the completed AI task.
+  }
+}
+
+function AiStatusControls() {
+  const statusQuery = useGetAiStatus({
+    query: {
+      queryKey: getGetAiStatusQueryKey(),
+      refetchInterval: 30_000,
+      refetchIntervalInBackground: false,
+      retry: 1,
+    },
+  });
+  const isGenerating = useIsMutating({ mutationKey: getGenerateCircuitMutationKey() }) > 0;
+  const isTutoring = useIsMutating({ mutationKey: getAskCircuitTutorMutationKey() }) > 0;
+  const isReviewing = useIsMutating({ mutationKey: getReviewCircuitMutationKey() }) > 0;
+  const isWorking = isGenerating || isTutoring || isReviewing;
+  const notificationsSupported = typeof window !== 'undefined' && 'Notification' in window;
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(() =>
+    notificationsSupported ? Notification.permission : 'denied',
+  );
+
+  const state = isWorking
+    ? 'working'
+    : statusQuery.isPending
+      ? 'checking'
+      : statusQuery.isError || !statusQuery.data?.available
+        ? 'unavailable'
+        : 'available';
+  const statusMessage = state === 'working'
+    ? 'AI is working on a task'
+    : state === 'checking'
+      ? 'Checking whether Gemini is responsive'
+      : state === 'unavailable'
+        ? 'AI is not responding right now'
+        : statusQuery.data?.canUseAi
+          ? 'AI is responsive. This check does not generate content or use tokens.'
+          : 'Gemini is responsive; account AI access could not be confirmed.';
+  const notificationTitle = !notificationsSupported
+    ? 'Desktop notifications are not supported by this browser'
+    : notificationPermission === 'granted'
+      ? 'Desktop notifications are enabled'
+      : notificationPermission === 'denied'
+        ? 'Notifications are blocked; allow them in your browser settings'
+        : 'Enable desktop notifications for completed AI tasks';
+  const NotificationIcon = !notificationsSupported || notificationPermission === 'denied'
+    ? BellOff
+    : notificationPermission === 'granted'
+      ? BellRing
+      : Bell;
+
+  const enableNotifications = async () => {
+    if (!notificationsSupported || notificationPermission !== 'default') return;
+    try {
+      const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
+    } catch {
+      setNotificationPermission('denied');
+    }
+  };
+
+  return (
+    <div className="ai-status-controls" title={statusMessage}>
+      <span className={`ai-status-dot is-${state}`} role="status" aria-label={statusMessage} data-testid="status-ai-availability" />
+      <button
+        type="button"
+        className="notification-toggle"
+        aria-label={notificationTitle}
+        title={notificationTitle}
+        data-testid="button-desktop-notifications"
+        onClick={enableNotifications}
+        disabled={!notificationsSupported || notificationPermission !== 'default'}
+      >
+        <NotificationIcon aria-hidden="true" />
+      </button>
+    </div>
+  );
 }
 
 const MIN_ZOOM = 0.02;
@@ -572,9 +669,13 @@ function Studio({ userId }: { userId: string }) {
           if (reviewDraftRef.current !== reviewSignature) return;
           setDraftReview({ signature: reviewSignature, text: result.review, state: 'idle' });
           queryClient.invalidateQueries({ queryKey: getGetAiUsageQueryKey() });
+          sendDesktopNotification('Circuit review ready', 'The educational review of your circuit draft is ready.');
         },
         onError: () => {
-          if (reviewDraftRef.current === reviewSignature) setDraftReview({ signature: reviewSignature, text: '', state: 'error' });
+          if (reviewDraftRef.current === reviewSignature) {
+            setDraftReview({ signature: reviewSignature, text: '', state: 'error' });
+            sendDesktopNotification('Circuit review failed', 'Circuit Studio could not finish reviewing this draft.');
+          }
         },
       });
     }, 850);
@@ -626,7 +727,9 @@ function Studio({ userId }: { userId: string }) {
       onSuccess: (result) => {
         acceptSpec(result);
         setToast('Generated schematic is ready to inspect.');
+        sendDesktopNotification('Schematic ready', 'Your generated circuit is ready to inspect.');
       },
+      onError: () => sendDesktopNotification('Schematic generation failed', 'Circuit Studio could not finish generating your circuit.'),
     });
   };
 
@@ -686,11 +789,11 @@ function Studio({ userId }: { userId: string }) {
       window.setTimeout(() => setCopied(false), 1800);
     } catch { setToast('Clipboard access was blocked by this browser.'); }
   };
-  const resetExample = () => {
+  const loadExample = () => {
     acceptSpec(initialSpec);
     setPrompt('');
     generate.reset();
-    setToast('FM transmitter example restored.');
+    setToast('FM transmitter example loaded.');
   };
   const generationError = generate.error instanceof Error
     ? generate.error.message
@@ -700,7 +803,7 @@ function Studio({ userId }: { userId: string }) {
     <main className="studio-shell">
       <header className="topbar">
         <Link href="/studio" className="brand" data-testid="link-studio-home"><span className="brand-mark"><CircuitBoard aria-hidden="true" /></span><span>Circuit Studio</span></Link>
-        <div className="top-user"><span data-testid="text-account-name">{user?.firstName || 'Your workbench'}</span><Link href="/studio/tutor" className="tutor-nav-link" data-testid="link-open-tutor"><MessageCircle /> Tutor</Link><button data-testid="button-sign-out" onClick={() => signOut({ redirectUrl: basePath || '/' })}>Sign out</button><span className="live-dot" aria-hidden="true" /></div>
+        <div className="top-user"><span data-testid="text-account-name">{user?.firstName || 'Your workbench'}</span><Link href="/studio/tutor" className="tutor-nav-link" data-testid="link-open-tutor"><MessageCircle /> Tutor</Link><button data-testid="button-sign-out" onClick={() => signOut({ redirectUrl: basePath || '/' })}>Sign out</button><AiStatusControls /></div>
       </header>
       <div className="workspace">
         <div className="page-heading">
@@ -728,9 +831,9 @@ function Studio({ userId }: { userId: string }) {
             <div className="canvas-toolbar">
               <div className="canvas-name"><span className="section-icon"><CircuitBoard /></span><strong>{spec.title || 'Untitled circuit'}</strong><span>{elementCount} elements</span></div>
               <div className="toolbar-actions">
-                <button className="quiet-button reset-compact" data-testid="button-reset-example" onClick={resetExample} title="Restore the starter circuit"><RefreshCw /> Reset example</button>
+                <button className="toolbar-link-button" data-testid="button-load-example" onClick={loadExample} title="Load the FM transmitter example"><CircuitBoard /> Load example</button>
                 <div className="download-menu">
-                  <button className="quiet-button download-trigger" type="button" aria-expanded={downloadMenuOpen} aria-haspopup="menu" data-testid="button-download-menu" onClick={() => setDownloadMenuOpen((open) => !open)} disabled={!svg}><Image /> Download</button>
+                  <button className="toolbar-link-button toolbar-icon-button" type="button" aria-label="Download schematic" title="Download schematic" aria-expanded={downloadMenuOpen} aria-haspopup="menu" data-testid="button-download-menu" onClick={() => setDownloadMenuOpen((open) => !open)} disabled={!svg}><Download aria-hidden="true" /></button>
                   {downloadMenuOpen && <div className="download-popover" role="menu">
                     <button type="button" role="menuitem" data-testid="button-export-svg" onClick={() => { exportSvg(); setDownloadMenuOpen(false); }}><FileCode2 /> SVG vector</button>
                     <button type="button" role="menuitem" data-testid="button-export-png-top" onClick={() => { exportPng(); setDownloadMenuOpen(false); }}><Image /> PNG image</button>
@@ -761,9 +864,13 @@ function Studio({ userId }: { userId: string }) {
                         if (reviewDraftRef.current !== reviewSignature) return;
                         setDraftReview({ signature: reviewSignature, text: result.review, state: 'idle' });
                         queryClient.invalidateQueries({ queryKey: getGetAiUsageQueryKey() });
+                        sendDesktopNotification('Circuit review ready', 'The educational review of your circuit draft is ready.');
                       },
                       onError: () => {
-                        if (reviewDraftRef.current === reviewSignature) setDraftReview({ signature: reviewSignature, text: '', state: 'error' });
+                        if (reviewDraftRef.current === reviewSignature) {
+                          setDraftReview({ signature: reviewSignature, text: '', state: 'error' });
+                          sendDesktopNotification('Circuit review failed', 'Circuit Studio could not finish reviewing this draft.');
+                        }
                       },
                     });
                   }}>Retry review</button></div>
@@ -888,8 +995,12 @@ function Tutor({ userId }: { userId: string }) {
       onSuccess: (result) => {
         setResponse(result);
         queryClient.invalidateQueries({ queryKey: getGetAiUsageQueryKey() });
+        sendDesktopNotification('Tutor response ready', 'Your Circuit Tutor response is ready.');
       },
-      onError: () => setResponse(null),
+      onError: () => {
+        setResponse(null);
+        sendDesktopNotification('Tutor request failed', 'Circuit Studio could not finish your Tutor request.');
+      },
     });
   };
 
@@ -913,7 +1024,7 @@ function Tutor({ userId }: { userId: string }) {
     <main className="studio-shell tutor-shell">
       <header className="topbar">
         <Link href="/studio" className="brand" data-testid="link-tutor-studio"><span className="brand-mark"><CircuitBoard aria-hidden="true" /></span><span>Circuit Studio</span></Link>
-        <div className="top-meta"><span className="live-dot" /><span>LEARNING DESK</span></div>
+        <div className="top-meta"><span>LEARNING DESK</span><AiStatusControls /></div>
         <Link href="/studio" className="tutor-back-link" data-testid="link-back-to-studio"><ArrowRight /> Back to workbench</Link>
       </header>
       <div className="workspace tutor-workspace">

@@ -168,7 +168,7 @@ var require_common = __commonJS({
     function setup(env) {
       createDebug3.debug = createDebug3;
       createDebug3.default = createDebug3;
-      createDebug3.coerce = coerce;
+      createDebug3.coerce = coerce2;
       createDebug3.disable = disable;
       createDebug3.enable = enable;
       createDebug3.enabled = enabled;
@@ -323,7 +323,7 @@ var require_common = __commonJS({
         }
         return false;
       }
-      function coerce(val) {
+      function coerce2(val) {
         if (val instanceof Error) {
           return val.stack || val.message;
         }
@@ -53552,6 +53552,16 @@ var optionalType = ZodOptional.create;
 var nullableType = ZodNullable.create;
 var preprocessType = ZodEffects.createWithPreprocess;
 var pipelineType = ZodPipeline.create;
+var coerce = {
+  string: ((arg) => ZodString.create({ ...arg, coerce: true })),
+  number: ((arg) => ZodNumber.create({ ...arg, coerce: true })),
+  boolean: ((arg) => ZodBoolean.create({
+    ...arg,
+    coerce: true
+  })),
+  bigint: ((arg) => ZodBigInt.create({ ...arg, coerce: true })),
+  date: ((arg) => ZodDate.create({ ...arg, coerce: true }))
+};
 
 // ../../lib/api-zod/src/generated/api.ts
 var HealthCheckResponse = objectType({
@@ -53787,6 +53797,13 @@ var GetAiUsageResponse = objectType({
   "activeKeyNumber": numberType().int().min(1),
   "configuredKeyNumbers": arrayType(numberType().int().min(1)),
   "canUseAi": booleanType()
+});
+var getAiStatusResponseLatencyMsMin = 0;
+var GetAiStatusResponse = objectType({
+  "available": booleanType(),
+  "canUseAi": booleanType(),
+  "latencyMs": numberType().int().min(getAiStatusResponseLatencyMsMin),
+  "checkedAt": coerce.date()
 });
 var SetAiKeySelectionBody = objectType({
   "keyNumber": numberType().int().min(1)
@@ -61973,6 +61990,9 @@ var CircuitAiError = class extends Error {
   }
   statusCode;
 };
+var AI_STATUS_MODEL = "gemini-2.5-flash";
+var AI_STATUS_CACHE_TTL_MS = 15e3;
+var aiStatusCache = /* @__PURE__ */ new Map();
 function getLifetimeTokenAllowance() {
   const raw = process.env.CIRCUIT_STUDIO_LIFETIME_TOKEN_ALLOWANCE;
   const value = raw === void 0 ? DEFAULT_LIFETIME_TOKEN_ALLOWANCE : Number(raw);
@@ -62024,6 +62044,55 @@ async function getCircuitAiUsage(userId) {
     configuredKeyNumbers: keys.map((key) => key.number),
     canUseAi: keys.length > 0 && tokensRemaining > 0
   };
+}
+async function probeConfiguredKey(key) {
+  const now = Date.now();
+  const cached = aiStatusCache.get(key.number);
+  if (cached && cached.expiresAt > now) return cached.result;
+  const result = (async () => {
+    const startedAt = Date.now();
+    try {
+      const model = await new GoogleGenAI({ apiKey: key.apiKey }).models.get({
+        model: AI_STATUS_MODEL,
+        config: { abortSignal: AbortSignal.timeout(5e3) }
+      });
+      return {
+        available: model.supportedActions?.includes("generateContent") ?? false,
+        latencyMs: Math.max(0, Date.now() - startedAt),
+        checkedAt: (/* @__PURE__ */ new Date()).toISOString()
+      };
+    } catch {
+      return {
+        available: false,
+        latencyMs: Math.max(0, Date.now() - startedAt),
+        checkedAt: (/* @__PURE__ */ new Date()).toISOString()
+      };
+    }
+  })();
+  aiStatusCache.set(key.number, {
+    expiresAt: now + AI_STATUS_CACHE_TTL_MS,
+    result
+  });
+  return result;
+}
+async function getCircuitAiStatus(userId) {
+  const keys = getConfiguredKeys();
+  let usage;
+  try {
+    usage = await getCircuitAiUsage(userId);
+  } catch {
+  }
+  const activeKey = keys.find((key) => key.number === usage?.activeKeyNumber) ?? keys[0];
+  if (!activeKey) {
+    return {
+      available: false,
+      canUseAi: false,
+      latencyMs: 0,
+      checkedAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+  }
+  const probe = await probeConfiguredKey(activeKey);
+  return { ...probe, canUseAi: usage?.canUseAi ?? false };
 }
 async function selectCircuitAiKey(userId, keyNumber) {
   const keys = getConfiguredKeys();
@@ -62307,6 +62376,13 @@ var health_default = router2;
 // src/routes/aiUsage.ts
 var import_express5 = __toESM(require_express2(), 1);
 var router3 = (0, import_express5.Router)();
+var statusLimiter = rate_limit_default({
+  windowMs: 6e4,
+  limit: 30,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { error: "Please wait before checking AI status again." }
+});
 var requireAuth2 = (req, res, next) => {
   if (!getAuth(req).userId) {
     res.status(401).json({ error: "Sign in to view AI usage." });
@@ -62323,6 +62399,20 @@ router3.get("/ai/usage", requireAuth2, async (req, res) => {
     res.status(503).json({ error: "AI usage is temporarily unavailable." });
   }
 });
+router3.get(
+  "/ai/status",
+  requireAuth2,
+  statusLimiter,
+  async (req, res) => {
+    const userId = getAuth(req).userId;
+    try {
+      res.json(await getCircuitAiStatus(userId));
+    } catch {
+      req.log.error({ reason: "ai_status_check_failed" }, "Could not check AI status");
+      res.status(503).json({ error: "AI status is temporarily unavailable." });
+    }
+  }
+);
 router3.put("/ai/key-selection", requireAuth2, async (req, res) => {
   const userId = getAuth(req).userId;
   const parsed = SetAiKeySelectionBody.safeParse(req.body);

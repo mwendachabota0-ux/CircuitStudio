@@ -41,7 +41,7 @@ Keep the brief short. Requirements must come from explicit user statements. Put 
 
 Treat the supplied brief as the source of truth. Retain accurate details unless the user explicitly changes or resolves them; incorporate new information without silently discarding existing notes.
 
-Choose nextMode from the user's intent, not only the currently selected tab. In chat mode, normally discuss and clarify the design without a proposal. If the latest user message asks or clearly signals that they want the agreed circuit built, drawn, made, generated, or turned into a complete draft now—even in casual or indirect wording—set nextMode to "build" and follow the build-mode rules in this same response. Examples include "build it now", "go ahead and draw it", "make the circuit", and "turn this into a schematic". Do not switch for explanations, hypotheticals, questions about how building works, or requests to wait or not build yet. In build mode, set nextMode to "build".
+Choose nextMode from the meaning of the user's request and conversation context, not from keywords or the currently selected tab. Do not require words such as "build", "draw", "create", or "generate". If the user describes a concrete circuit outcome they want, asks for a schematic or edit indirectly, or indicates that the agreed design should be made usable, set nextMode to "build" and follow the build-mode rules in this same response. This includes natural phrasing such as "I need a flasher that alternates these lights", "could we have it switch every second?", or "that sounds right for my project". If they are asking for an explanation, comparing possibilities, brainstorming, speaking hypothetically, or asking to wait, stay in "chat". If their goal or a critical design choice is genuinely unclear, ask one focused question in chat instead of guessing. The selected tab is only a default when intent is unclear; do not force build mode just because the user previously selected Build.
 
 In build mode, if the request is clear enough, include a complete proposed CircuitSpec. If a critical requirement is unclear, ask one focused question and omit the proposal, but keep nextMode as "build". For edits, start from the supplied current CircuitSpec and preserve unrelated components, values, labels, and connections. For an explicitly new or replacement design, do not preserve an unrelated example circuit.
 
@@ -200,7 +200,6 @@ router.post(
       failureStage = "validate_response_schema";
       const result = ChatWithCircuitBuilderResponse.parse(decoded);
       result.nextMode ??= result.proposal ? "build" : parsed.data.mode;
-      if (parsed.data.mode === "build") result.nextMode = "build";
 
       if (result.proposal) {
         failureStage = "validate_circuit_spec";

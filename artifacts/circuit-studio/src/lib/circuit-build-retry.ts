@@ -3,7 +3,7 @@ import type {
   CircuitDesignBrief,
 } from '@workspace/api-client-react';
 
-export const MAX_AUTO_RETRIES = 2;
+export const MAX_AUTO_RETRIES = 3;
 
 export type BuildRetryKind = 'generation' | 'repair' | 'format';
 export type BuildRetryPolicy = { retryable: boolean; delayMs?: number };

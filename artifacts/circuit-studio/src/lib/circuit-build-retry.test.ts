@@ -35,15 +35,21 @@ const baseRequest: CircuitBuildChatInput = {
 
 const noProposal = { answer: 'Ready.', nextMode: 'chat' as const };
 
-test('recognizes direct and conversational requests to build', () => {
+test('uses local mode shortcuts only for explicit mode changes', () => {
+  assert.equal(getLocalBuilderModeIntent('Please switch to build mode'), 'build');
+  assert.equal(getLocalBuilderModeIntent('build mode'), 'build');
+  assert.equal(getLocalBuilderModeIntent('Please switch to chat mode'), 'chat');
+  assert.equal(getLocalBuilderModeIntent('chat mode'), 'chat');
+
   for (const message of [
-    'okay build now',
     'Build a simple LED circuit.',
     'Can you build the circuit now?',
-    'Go ahead and draw it',
-    'Please switch to build mode',
+    'I need an alternating LED flasher.',
+    'The two lights should blink one after the other.',
+    'How do I build a simple LED circuit?',
+    "Don't build it yet.",
   ]) {
-    assert.equal(getLocalBuilderModeIntent(message), 'build', message);
+    assert.equal(getLocalBuilderModeIntent(message), null, message);
   }
 });
 
@@ -62,14 +68,15 @@ test('does not treat questions or requests to wait as build commands', () => {
   }
 });
 
-test('retries transient generation failures at most twice, then recovers', async () => {
+test('retries transient generation failures at most three times, then recovers', async () => {
+  assert.equal(MAX_AUTO_RETRIES, 3);
   let sends = 0;
   const progress: Array<[number, string]> = [];
   const result = await runCircuitBuildAttempts({
     initialRequest: baseRequest,
     send: async () => {
       sends += 1;
-      if (sends < 3) throw Object.assign(new Error('temporary provider error'), { status: 503 });
+      if (sends <= MAX_AUTO_RETRIES) throw Object.assign(new Error('temporary provider error'), { status: 503 });
       return noProposal;
     },
     getProposal: () => null,
@@ -80,7 +87,7 @@ test('retries transient generation failures at most twice, then recovers', async
   });
 
   assert.equal(sends, MAX_AUTO_RETRIES + 1);
-  assert.deepEqual(progress, [[1, 'generation'], [2, 'generation']]);
+  assert.deepEqual(progress, [[1, 'generation'], [2, 'generation'], [3, 'generation']]);
   assert.equal(result.response, noProposal);
 });
 
@@ -320,7 +327,7 @@ test('keeps existing workbench components fixed during a requested repair', asyn
   );
 });
 
-test('stops after two repair retries and exposes a manual retry', async () => {
+test('stops after three repair retries and exposes a manual retry', async () => {
   const invalidProposal = { answer: 'Draft ready.', nextMode: 'build' as const, proposal: { spec: { title: 'Draft', elements: [] } } };
   let sends = 0;
   let repairRequests = 0;

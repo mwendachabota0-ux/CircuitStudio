@@ -4,6 +4,25 @@ export type CircuitSpecJsonParseResult =
   | { ok: true; spec: CircuitSpec }
   | { ok: false; error: string };
 
+function stableStringify(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(stableStringify).join(',')}]`;
+  }
+
+  if (value !== null && typeof value === 'object') {
+    const entries = Object.entries(value)
+      .filter(([, entryValue]) => entryValue !== undefined)
+      .sort(([left], [right]) => left.localeCompare(right));
+    return `{${entries.map(([key, entryValue]) => `${JSON.stringify(key)}:${stableStringify(entryValue)}`).join(',')}}`;
+  }
+
+  return JSON.stringify(value) ?? 'undefined';
+}
+
+export function areCircuitSpecsEqual(left: CircuitSpec, right: CircuitSpec): boolean {
+  return stableStringify(left) === stableStringify(right);
+}
+
 export function parseCircuitSpecJson(value: string): CircuitSpecJsonParseResult {
   let parsed: unknown;
   try {

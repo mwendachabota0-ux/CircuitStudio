@@ -27,7 +27,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import exampleCircuit from './exampleCircuit.json';
-import { parseCircuitSpecJson } from './lib/circuit-spec-editor';
+import { areCircuitSpecsEqual, parseCircuitSpecJson } from './lib/circuit-spec-editor';
 import {
   buildBomCsv,
   buildBomRows,
@@ -825,9 +825,9 @@ function Studio({ userId }: { userId: string }) {
 
   const onJsonChange = (value: string) => {
     setJsonText(value);
-    setJsonEditorDirty(true);
     const result = parseCircuitSpecJson(value);
     setJsonError(result.ok ? '' : result.error);
+    setJsonEditorDirty(!result.ok || !areCircuitSpecsEqual(result.spec, spec));
   };
   const applyJsonEdit = () => {
     const parsed = parseCircuitSpecJson(jsonText);
@@ -1152,17 +1152,17 @@ function Studio({ userId }: { userId: string }) {
             <div className="panel-heading"><h2 className="section-title"><span className="section-icon"><Code2 /></span>Editable CircuitSpec</h2><span className="count-badge">JSON</span></div>
             <textarea className="json-editor" data-testid="input-circuit-json" aria-label="Editable CircuitSpec JSON" spellCheck={false} value={jsonText} disabled={!!jsonRepairRequest || hasStagedBuilderProposal} onChange={(event) => onJsonChange(event.target.value)} />
             <div className="editor-footer">
-              <span className={`editor-status${jsonError || jsonEditorDirty ? ' is-pending' : ''}`} data-testid="status-json">
-                {hasStagedBuilderProposal
-                  ? 'Review or discard the staged proposal before applying JSON edits.'
-                  : jsonRepairRequest
-                  ? 'Studio AI is interpreting this edit…'
-                  : jsonError
-                    ? `${jsonError} Click Apply edit to ask Studio AI.`
-                    : jsonEditorDirty
-                      ? 'Unapplied edits · Studio AI still uses the workbench draft.'
-                      : `${elementCount} elements · draft saved to your account on this device`}
-              </span>
+              {(hasStagedBuilderProposal || jsonRepairRequest || jsonError || jsonEditorDirty) && (
+                <span className={`editor-status${jsonError || jsonEditorDirty ? ' is-pending' : ''}`} data-testid="status-json">
+                  {hasStagedBuilderProposal
+                    ? 'Review or discard the staged proposal before applying JSON edits.'
+                    : jsonRepairRequest
+                    ? 'Studio AI is interpreting this edit…'
+                    : jsonError
+                      ? `${jsonError} Click Apply edit to ask Studio AI.`
+                      : 'Unapplied edits · Studio AI still uses the workbench draft.'}
+                </span>
+              )}
               <div className="editor-actions">
                 <button
                   className="editor-apply-button"

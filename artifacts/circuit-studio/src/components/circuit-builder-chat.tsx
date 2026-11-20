@@ -24,6 +24,7 @@ import { getLocalBuilderModeIntent } from '../lib/circuit-build-intent';
 import {
   Check,
   CheckCircle2,
+  Copy,
   MessageCircle,
   Plus,
   Sparkles,
@@ -45,6 +46,7 @@ type RetryFeedback = {
   canRetryManually: boolean;
   validationFindings?: string[];
 };
+type RejectedSpecCopyState = 'idle' | 'copied' | 'error';
 
 const emptyBrief = (): CircuitDesignBrief => ({
   goal: '',
@@ -210,6 +212,7 @@ export function CircuitBuilderChat({
   const [proposalValidation, setProposalValidation] = useState<ValidationReport | null>(null);
   const [proposalError, setProposalError] = useState('');
   const [rejectedProposalSpec, setRejectedProposalSpec] = useState<CircuitBuildChatInput['currentSpec'] | null>(null);
+  const [rejectedSpecCopyState, setRejectedSpecCopyState] = useState<RejectedSpecCopyState>('idle');
   const [briefEditing, setBriefEditing] = useState(false);
   const [briefGoalDraft, setBriefGoalDraft] = useState('');
   const [briefRequirementsDraft, setBriefRequirementsDraft] = useState('');
@@ -247,6 +250,16 @@ export function CircuitBuilderChat({
     setSaved((current) => ({ ...current, messages: [...current.messages, message].slice(-60) }));
   };
 
+  const copyRejectedSpec = async () => {
+    if (!rejectedProposalSpec) return;
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(rejectedProposalSpec, null, 2));
+      setRejectedSpecCopyState('copied');
+    } catch {
+      setRejectedSpecCopyState('error');
+    }
+  };
+
   const runRequest = async (
     request: CircuitBuildChatInput,
     draftRevisionAtStart: number,
@@ -254,6 +267,7 @@ export function CircuitBuilderChat({
     setLastRequest(request);
     setRetryFeedback(null);
     setRejectedProposalSpec(null);
+    setRejectedSpecCopyState('idle');
     setRetryAttempt(0);
     setRetryKind(null);
     setRequestCycleActive(true);
@@ -491,6 +505,22 @@ export function CircuitBuilderChat({
               {rejectedProposalSpec && (
                 <details className="builder-chat__rejected" data-testid="details-rejected-proposal">
                   <summary>Inspect rejected CircuitSpec (read-only; not applied)</summary>
+                  <div className="builder-chat__rejected-copy-row">
+                    <button
+                      type="button"
+                      className="builder-chat__text-link builder-chat__rejected-copy"
+                      onClick={copyRejectedSpec}
+                      data-testid="button-copy-rejected-spec"
+                    >
+                      {rejectedSpecCopyState === 'copied' ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
+                      {rejectedSpecCopyState === 'copied' ? 'Copied' : 'Copy CircuitSpec'}
+                    </button>
+                    {rejectedSpecCopyState === 'error' && (
+                      <span className="builder-chat__rejected-copy-error" role="status">
+                        Clipboard access failed.
+                      </span>
+                    )}
+                  </div>
                   <pre>{JSON.stringify(rejectedProposalSpec, null, 2)}</pre>
                 </details>
               )}

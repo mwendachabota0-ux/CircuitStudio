@@ -296,6 +296,10 @@
 
 .builder-chat__validation-findings li { padding: 0 2px 3px 0; }
 .builder-chat__rejected summary { cursor: pointer; font-weight: 700; }
+.builder-chat__rejected-copy-row { display:flex;align-items:center;gap:9px;margin-top:5px; }
+.builder-chat__rejected-copy { display:inline-flex;align-items:center;gap:4px; }
+.builder-chat__rejected-copy svg { width:12px;height:12px; }
+.builder-chat__rejected-copy-error { color:#a4453e;font-size:9px; }
 .builder-chat__rejected pre {
   max-height: 260px;
   overflow: auto;

@@ -9,7 +9,7 @@ An account-gated circuit workspace for turning plain-language electronics ideas 
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required server env: `DATABASE_URL`, `CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, and `GEMINI_API_KEY`
+- Required server env: `NEON_DATABASE_URL` (preferred for the Circuit Studio Neon database; falls back to Replit-managed `DATABASE_URL`), `CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, and `GEMINI_API_KEY`
 - Optional Gemini fallback keys: `GEMINI_API_KEY_2` through `GEMINI_API_KEY_10`
 
 ## Stack
@@ -36,6 +36,7 @@ An account-gated circuit workspace for turning plain-language electronics ideas 
 - Clerk browser sessions use same-origin cookies; circuit generation verifies the session on the server.
 - Circuit drafts are stored in browser local storage under a per-user key.
 - Gemini is called from the API server so configured keys never reach the browser. Users select among configured key numbers; fallback changes only that account's selection.
+- Keep the Neon connection string and application credentials in Replit Secrets; never store secrets in PostgreSQL.
 - Gemini usage is tracked per account, but Circuit Studio imposes no app-side token cap. Gemini provider quotas and costs still apply.
 - Tutor edits are validated and previewed before a user explicitly applies them to the local draft.
 - Tutor images are type- and size-checked, sent directly for analysis, and never saved as files or database content.

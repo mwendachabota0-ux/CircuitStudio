@@ -45,10 +45,19 @@ import {
   MessageCircle,
   Plus,
   Sparkles,
+  Trash2,
   Wrench,
   X,
 } from 'lucide-react';
 import './circuit-builder-chat.css';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   createBuilderHistorySession,
   getBuilderHistoryPreview,
@@ -372,6 +381,7 @@ export function CircuitBuilderChat({
   const [mode, setMode] = useState<ChatMode>(historyBootstrap.active.mode);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historySaveError, setHistorySaveError] = useState('');
+  const [clearChatOpen, setClearChatOpen] = useState(false);
   const [proposal, setProposal] = useState<{ summary: string; spec: CircuitBuildChatInput['currentSpec'] } | null>(null);
   const [proposalSvg, setProposalSvg] = useState('');
   const [proposalValidation, setProposalValidation] = useState<ValidationReport | null>(null);
@@ -760,6 +770,15 @@ export function CircuitBuilderChat({
     composerRef.current?.setDraft('');
   };
 
+  const clearCurrentConversation = () => {
+    if (chatMutation.isPending || requestCycleActive) return;
+    setSaved({ brief: emptyBrief(), aiBrief: emptyBrief(), messages: [initialMessage] });
+    setMode('chat');
+    clearTransientConversationState();
+    setHistoryOpen(false);
+    setClearChatOpen(false);
+  };
+
   const startNewConversation = () => {
     if (chatMutation.isPending || requestCycleActive) return;
     const now = Date.now();
@@ -873,7 +892,7 @@ export function CircuitBuilderChat({
         </div>
         <div className="builder-chat__header-tools">
           <button
-            className="builder-chat__action-link"
+            className="builder-chat__icon-link"
             type="button"
             onClick={startNewConversation}
             disabled={chatMutation.isPending || requestCycleActive}
@@ -881,10 +900,10 @@ export function CircuitBuilderChat({
             title="Start a new conversation"
             data-testid="button-new-builder-conversation"
           >
-            <Plus aria-hidden="true" /> <span>New chat</span>
+            <Plus aria-hidden="true" />
           </button>
           <button
-            className={`builder-chat__action-link${historyOpen ? ' is-active' : ''}`}
+            className={`builder-chat__icon-link${historyOpen ? ' is-active' : ''}`}
             type="button"
             onClick={() => setHistoryOpen((open) => !open)}
             disabled={chatMutation.isPending || requestCycleActive}
@@ -894,7 +913,7 @@ export function CircuitBuilderChat({
             title="Recent conversations"
             data-testid="button-builder-history"
           >
-            <History aria-hidden="true" /> <span>History</span><span className="builder-chat__history-count">{sessions.length}</span>
+            <History aria-hidden="true" />
           </button>
           <button
             className="builder-chat__icon-link"
@@ -905,6 +924,17 @@ export function CircuitBuilderChat({
             data-testid="button-open-component-library"
           >
             <Library aria-hidden="true" />
+          </button>
+          <button
+            className="builder-chat__icon-link"
+            type="button"
+            onClick={() => setClearChatOpen(true)}
+            disabled={chatMutation.isPending || requestCycleActive}
+            aria-label="Clear current chat"
+            title="Clear current chat"
+            data-testid="button-clear-builder-chat"
+          >
+            <Trash2 aria-hidden="true" />
           </button>
         </div>
       </header>
@@ -1177,6 +1207,24 @@ export function CircuitBuilderChat({
         onOpenChange={setComponentLibraryOpen}
         onSelect={prepareComponentPrompt}
       />
+      <Dialog open={clearChatOpen} onOpenChange={setClearChatOpen}>
+        <DialogContent className="builder-chat__clear-dialog">
+          <DialogHeader>
+            <DialogTitle className="builder-chat__clear-title">Clear this chat?</DialogTitle>
+            <DialogDescription className="builder-chat__clear-description">
+              This removes its saved messages and design notes from History. Your current schematic will stay unchanged.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="builder-chat__clear-footer">
+            <button type="button" className="builder-chat__clear-cancel" onClick={() => setClearChatOpen(false)} data-testid="button-cancel-clear-builder-chat">
+              Cancel
+            </button>
+            <button type="button" className="builder-chat__clear-confirm" onClick={clearCurrentConversation} data-testid="button-confirm-clear-builder-chat">
+              Clear chat
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

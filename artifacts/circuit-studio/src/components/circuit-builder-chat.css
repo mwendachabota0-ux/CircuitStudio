@@ -725,43 +725,12 @@
 }
 
 .builder-chat__header-tools { gap: 6px; }
-.builder-chat__action-link {
-  min-height: 31px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  padding: 5px 8px;
-  border: 1px solid #e5e1d7;
-  border-radius: 7px;
-  background: #fffefa;
-  color: #5f6f66;
-  font-size: 9px;
-  font-weight: 700;
-  white-space: nowrap;
-  transition: background .16s ease, border-color .16s ease, color .16s ease;
-}
-
-.builder-chat__action-link:hover,
-.builder-chat__action-link.is-active {
-  border-color: #c8d8cc;
+.builder-chat__icon-link.is-active {
   background: #edf4ed;
   color: #176b55;
 }
 
-.builder-chat__action-link:disabled { cursor: not-allowed; opacity: .55; }
-.builder-chat__action-link > svg { width: 13px; height: 13px; }
-.builder-chat__history-count {
-  min-width: 16px;
-  height: 16px;
-  display: inline-grid;
-  place-items: center;
-  padding: 0 4px;
-  border-radius: 999px;
-  background: #f0eee7;
-  color: #77847e;
-  font: 8px/1 var(--app-font-mono);
-}
+.builder-chat__icon-link:disabled { cursor: not-allowed; opacity: .5; }
 
 .builder-chat__history {
   padding: 11px 13px 12px;
@@ -860,6 +829,54 @@
   line-height: 1.45;
 }
 
+.builder-chat__clear-dialog {
+  max-width: 420px;
+  border-color: #dedbd1;
+  border-radius: 12px;
+  background: #fffefa;
+  color: #263b40;
+}
+
+.builder-chat__clear-title {
+  margin-right: 22px;
+  color: #263b40;
+  font: 700 16px/1.3 var(--app-font-display);
+}
+
+.builder-chat__clear-description {
+  color: #697871;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.builder-chat__clear-footer { gap: 8px; }
+.builder-chat__clear-cancel,
+.builder-chat__clear-confirm {
+  min-height: 34px;
+  padding: 7px 12px;
+  border-radius: 7px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.builder-chat__clear-cancel {
+  border: 1px solid #dedbd1;
+  background: #fffefa;
+  color: #54645d;
+}
+
+.builder-chat__clear-confirm {
+  border: 1px solid #a4453e;
+  background: #a4453e;
+  color: #fffefa;
+}
+
+.builder-chat__clear-confirm:hover { background: #8e3a35; }
+.builder-chat__clear-dialog button:focus-visible {
+  outline: 2px solid #4b9278;
+  outline-offset: 2px;
+}
+
 @media (max-width: 760px) {
   .builder-chat__session-title { max-width: 180px; }
   .builder-chat__history { padding-right: 10px; padding-left: 10px; }
@@ -867,6 +884,5 @@
 
 @media (max-width: 430px) {
   .builder-chat__header-tools { gap: 4px; }
-  .builder-chat__action-link { min-height: 29px; gap: 4px; padding-right: 6px; padding-left: 6px; font-size: 8px; }
   .builder-chat__session-title { max-width: 135px; }
 }

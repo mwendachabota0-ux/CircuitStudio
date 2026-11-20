@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   getChatWithCircuitBuilderMutationKey,
@@ -17,22 +17,22 @@ import {
   CircuitBuildAttemptError,
   MAX_AUTO_RETRIES,
   runCircuitBuildAttempts,
-  shouldClearSubmittedDraft,
   type BuildRetryKind,
 } from '../lib/circuit-build-retry';
 import {
   Check,
   CheckCircle2,
-  LoaderCircle,
   MessageCircle,
   Plus,
-  Send,
   Sparkles,
   Trash2,
   Wrench,
   X,
 } from 'lucide-react';
 import './circuit-builder-chat.css';
+import CircuitBuilderComposer, {
+  type CircuitBuilderComposerHandle,
+} from './circuit-builder-composer';
 
 type ChatMode = 'chat' | 'build';
 type ThreadMessage = CircuitBuildChatMessage & { id: string; createdAt: number };
@@ -202,7 +202,6 @@ export function CircuitBuilderChat({
   });
   const [saved, setSaved] = useState<SavedState>(() => readSavedState(storageKey));
   const [mode, setMode] = useState<ChatMode>('chat');
-  const [draft, setDraft] = useState('');
   const [proposal, setProposal] = useState<{ summary: string; spec: CircuitBuildChatInput['currentSpec'] } | null>(null);
   const [proposalSvg, setProposalSvg] = useState('');
   const [proposalValidation, setProposalValidation] = useState<ValidationReport | null>(null);
@@ -217,9 +216,8 @@ export function CircuitBuilderChat({
   const [retryAttempt, setRetryAttempt] = useState(0);
   const [retryKind, setRetryKind] = useState<BuildRetryKind | null>(null);
   const [retryFeedback, setRetryFeedback] = useState<RetryFeedback | null>(null);
-  const draftRevisionRef = useRef(0);
+  const composerRef = useRef<CircuitBuilderComposerHandle>(null);
   const threadEndRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     try {
@@ -235,7 +233,6 @@ export function CircuitBuilderChat({
 
   const visibleMessages = saved.messages;
   const aiUnavailable = usageQuery.data ? !usageQuery.data.canUseAi : false;
-  const canSend = draft.trim().length > 0 && !chatMutation.isPending && !requestCycleActive && !proposal && !briefEditing;
 
   const localProposalState = useMemo(() => {
     if (!proposal) return null;
@@ -246,8 +243,10 @@ export function CircuitBuilderChat({
     setSaved((current) => ({ ...current, messages: [...current.messages, message].slice(-60) }));
   };
 
-  const runRequest = async (request: CircuitBuildChatInput) => {
-    const draftRevisionAtStart = draftRevisionRef.current;
+  const runRequest = async (
+    request: CircuitBuildChatInput,
+    draftRevisionAtStart: number,
+  ) => {
     setLastRequest(request);
     setRetryFeedback(null);
     setRetryAttempt(0);
@@ -285,16 +284,7 @@ export function CircuitBuilderChat({
           aiBrief: nextBrief,
           messages: [...current.messages, newMessage('assistant', response.answer)].slice(-60),
         }));
-        setDraft((current) =>
-          shouldClearSubmittedDraft(
-            draftRevisionAtStart,
-            draftRevisionRef.current,
-            current,
-            request.message,
-          )
-            ? ''
-            : current,
-        );
+        composerRef.current?.clearDraftIfUnchanged(draftRevisionAtStart, request.message);
         if (nextMode === 'build' && response.proposal && proposalInspection) {
           setProposal(response.proposal);
           setProposalError('');
@@ -334,16 +324,15 @@ export function CircuitBuilderChat({
     }
   };
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const content = draft.trim();
-    if (!content || chatMutation.isPending || requestCycleActive || briefEditing) return;
-    const intent = localModeIntent(content);
+  const handleSubmitMessage = async (content: string, draftRevisionAtStart: number) => {
+    const normalizedContent = content.trim();
+    if (!normalizedContent || chatMutation.isPending || requestCycleActive || briefEditing) return;
+    const intent = localModeIntent(normalizedContent);
     if (proposal && intent !== 'chat') return;
     if (intent === 'chat') {
-      const userMessage = newMessage('user', content);
+      const userMessage = newMessage('user', normalizedContent);
       const assistantMessage = newMessage('assistant', 'Chat mode is on. We can clarify the idea without changing the schematic.');
-      setDraft((current) => current.trim() === content ? '' : current);
+      composerRef.current?.clearDraftIfUnchanged(draftRevisionAtStart, normalizedContent);
       setMode('chat');
       setSaved((current) => ({
         ...current,
@@ -353,7 +342,7 @@ export function CircuitBuilderChat({
     }
 
     const requestMode: ChatMode = intent === 'build' ? 'build' : mode;
-    const userMessage = newMessage('user', content);
+    const userMessage = newMessage('user', normalizedContent);
     setSaved((current) => ({
       ...current,
       messages: [...current.messages, userMessage].slice(-60),
@@ -362,24 +351,17 @@ export function CircuitBuilderChat({
       .slice(-8)
       .map(({ role, content: messageContent }) => ({ role, content: messageContent }));
     await runRequest({
-      message: content,
+      message: normalizedContent,
       mode: requestMode,
       currentSpec,
       history,
       brief: saved.brief,
-    });
-  };
-
-  const handleComposerKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === 'Enter' && !event.shiftKey && canSend) {
-      event.preventDefault();
-      event.currentTarget.form?.requestSubmit();
-    }
+    }, draftRevisionAtStart);
   };
 
   const retryRequest = async () => {
     if (!lastRequest || chatMutation.isPending || requestCycleActive) return;
-    await runRequest(lastRequest);
+    await runRequest(lastRequest, composerRef.current?.getDraftRevision() ?? 0);
   };
 
   const editBrief = () => {
@@ -529,30 +511,16 @@ export function CircuitBuilderChat({
             </section>
           )}
 
-          <form className="builder-chat__composer" onSubmit={handleSubmit} data-testid="form-builder-message">
-            <label className="builder-chat__sr-only" htmlFor="builder-chat-input">Message the circuit builder</label>
-            <textarea
-              id="builder-chat-input"
-              ref={textareaRef}
-              value={draft}
-              onChange={(event) => {
-                draftRevisionRef.current += 1;
-                setDraft(event.target.value.slice(0, 3000));
-              }}
-              onKeyDown={handleComposerKeyDown}
-              placeholder={mode === 'chat' ? 'Describe what you are trying to make…' : 'What should we add or change?'}
-              rows={2}
-              maxLength={3000}
-              data-testid="input-builder-message"
-            />
-            <div className="builder-chat__composer-foot">
-              <span>{requestCycleActive ? 'You can draft a follow-up while the AI works' : briefEditing ? 'Save or cancel your notes before sending' : proposal ? 'Apply or discard the staged proposal before sending another request' : mode === 'chat' ? 'Enter to send · Shift + Enter for a new line' : 'A proposal is staged for your review, never applied automatically'}</span>
-              <button type="submit" disabled={!canSend} aria-label="Send message" data-testid="button-send-builder-message">
-                {(chatMutation.isPending || requestCycleActive) ? <LoaderCircle className="is-spinning" aria-hidden="true" /> : <Send aria-hidden="true" />}
-                  <span>{requestCycleActive ? (retryAttempt > 0 ? retryKind === 'repair' ? 'Repairing' : 'Retrying' : 'Thinking') : 'Send'}</span>
-              </button>
-            </div>
-          </form>
+          <CircuitBuilderComposer
+            ref={composerRef}
+            mode={mode}
+            isWorking={chatMutation.isPending || requestCycleActive}
+            briefEditing={briefEditing}
+            hasProposal={!!proposal}
+            retryAttempt={retryAttempt}
+            retryKind={retryKind}
+            onSubmitMessage={handleSubmitMessage}
+          />
         </div>
 
         <aside className="builder-chat__brief" aria-label="Design brief" data-testid="panel-builder-brief">

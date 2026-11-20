@@ -1,0 +1,141 @@
+{
+  "title": "LED Alternating Flasher (Astable Multivibrator)",
+  "elements": [
+    {
+      "type": "terminal",
+      "id": "VCC1",
+      "label": "+5V",
+      "at": [100, 50]
+    },
+    {
+      "type": "ground",
+      "id": "GND1",
+      "at": [100, 440]
+    },
+    {
+      "type": "wire",
+      "id": "W_RAIL_TOP",
+      "points": [[100, 50], [580, 50]]
+    },
+    {
+      "type": "wire",
+      "id": "W_RAIL_BOTTOM",
+      "points": [[100, 440], [580, 440]]
+    },
+    {
+      "type": "resistor",
+      "id": "R1",
+      "value": "330 ohm",
+      "from": [150, 50],
+      "to": [150, 120]
+    },
+    {
+      "type": "led",
+      "id": "LED1",
+      "from": [150, 120],
+      "to": [150, 170]
+    },
+    {
+      "type": "resistor",
+      "id": "R2",
+      "value": "330 ohm",
+      "from": [530, 50],
+      "to": [530, 120]
+    },
+    {
+      "type": "led",
+      "id": "LED2",
+      "from": [530, 120],
+      "to": [530, 170]
+    },
+    {
+      "type": "resistor",
+      "id": "R3",
+      "value": "10 kohm",
+      "from": [180, 50],
+      "to": [180, 200]
+    },
+    {
+      "type": "resistor",
+      "id": "R4",
+      "value": "10 kohm",
+      "from": [500, 50],
+      "to": [500, 200]
+    },
+    {
+      "type": "npn",
+      "id": "Q1",
+      "at": [175, 250]
+    },
+    {
+      "type": "npn",
+      "id": "Q2",
+      "at": [505, 250],
+      "flip": true
+    },
+    {
+      "type": "electrolytic",
+      "id": "C1",
+      "value": "10 uF",
+      "from": [250, 180],
+      "to": [250, 280]
+    },
+    {
+      "type": "electrolytic",
+      "id": "C2",
+      "value": "10 uF",
+      "from": [430, 180],
+      "to": [430, 260]
+    },
+    {
+      "type": "wire",
+      "id": "W_LED1_COLLECTOR",
+      "points": [[150, 170], [200, 170], [200, 206]]
+    },
+    {
+      "type": "wire",
+      "id": "W_LED2_COLLECTOR",
+      "points": [[530, 170], [480, 170], [480, 206]]
+    },
+    {
+      "type": "wire",
+      "id": "W_R3_BASE",
+      "points": [[180, 200], [150, 200], [150, 250]]
+    },
+    {
+      "type": "wire",
+      "id": "W_R4_BASE",
+      "points": [[500, 200], [530, 200], [530, 250]]
+    },
+    {
+      "type": "wire",
+      "id": "W_Q1_EMITTER",
+      "points": [[200, 294], [200, 440]]
+    },
+    {
+      "type": "wire",
+      "id": "W_Q2_EMITTER",
+      "points": [[480, 294], [480, 440]]
+    },
+    {
+      "type": "wire",
+      "id": "W_C1_COLLECTOR",
+      "points": [[250, 180], [200, 180], [200, 206]]
+    },
+    {
+      "type": "wire",
+      "id": "W_C1_OPPOSITE_BASE",
+      "points": [[250, 280], [530, 280], [530, 250]]
+    },
+    {
+      "type": "wire",
+      "id": "W_C2_COLLECTOR",
+      "points": [[430, 180], [480, 180], [480, 206]]
+    },
+    {
+      "type": "wire",
+      "id": "W_C2_OPPOSITE_BASE",
+      "points": [[430, 260], [150, 260], [150, 250]]
+    }
+  ]
+}

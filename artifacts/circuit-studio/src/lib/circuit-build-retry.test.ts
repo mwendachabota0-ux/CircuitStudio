@@ -7,6 +7,7 @@ import type {
 import {
   buildOutputRepairRequest,
   buildRepairRequest,
+  classifyProposalValidation,
   CircuitBuildAttemptError,
   getNonWireElementSignature,
   getBuildRetryPolicy,
@@ -37,6 +38,28 @@ const baseRequest: CircuitBuildChatInput = {
 };
 
 const noProposal = { answer: 'Ready.', nextMode: 'chat' as const };
+
+test('requires AI proposals to route wires orthogonally while keeping advisory notes distinct', () => {
+  const result = classifyProposalValidation({
+    errors: ['Required pin is not connected.'],
+    warnings: [
+      'wire "W1": segment (0,0)->(20,20) is diagonal; add an orthogonal corner point.',
+      'wire "W2": has a zero-length segment at (10,10); remove the duplicate point.',
+      'relay "RL1".NC is intentionally unused.',
+      'dcsource "V1": terminals are very close (50 px).',
+    ],
+  });
+
+  assert.deepEqual(result.errors, [
+    'Required pin is not connected.',
+    'Drawing-quality issue: wire "W1": segment (0,0)->(20,20) is diagonal; add an orthogonal corner point.',
+    'Drawing-quality issue: wire "W2": has a zero-length segment at (10,10); remove the duplicate point.',
+  ]);
+  assert.deepEqual(result.warnings, [
+    'relay "RL1".NC is intentionally unused.',
+    'dcsource "V1": terminals are very close (50 px).',
+  ]);
+});
 
 test('uses local mode shortcuts only for explicit mode changes', () => {
   assert.equal(getLocalBuilderModeIntent('Please switch to build mode'), 'build');

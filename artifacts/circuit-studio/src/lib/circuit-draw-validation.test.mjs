@@ -283,12 +283,57 @@ test("disconnected wire errors identify the nearest pin and distance", () => {
   );
 });
 
+test("unconnected DC source and potentiometer pins are blocking errors", () => {
+  const report = CircuitDraw.validate({
+    title: "Required supply and wiper connections",
+    elements: [
+      { type: "dcsource", id: "VCC_5V", from: [100, 50], to: [100, 100] },
+      { type: "potentiometer", id: "POT1", at: [280, 350] },
+    ],
+  });
+
+  assert.ok(report.errors.some((error) => error.includes('dcsource "VCC_5V".-') && error.includes("required pin")));
+  assert.ok(report.errors.some((error) => error.includes('potentiometer "POT1".W') && error.includes("required pin")));
+  assert.ok(report.warnings.some((warning) => warning.includes("terminals are very close")));
+});
+
+test("relay needs both coil pins and COM, plus at least one contact", () => {
+  const report = CircuitDraw.validate({
+    title: "Relay without a switched contact",
+    elements: [
+      { type: "relay", id: "RL1", at: [200, 200] },
+      { type: "wire", id: "W_COIL1", open: true, points: [[145, 180], [120, 180]] },
+      { type: "wire", id: "W_COIL2", open: true, points: [[145, 220], [120, 220]] },
+      { type: "wire", id: "W_COM", open: true, points: [[255, 200], [280, 200]] },
+    ],
+  });
+
+  assert.ok(report.errors.some((error) => error.includes('relay "RL1" has neither NC nor NO contact connected')));
+});
+
+test("an unused relay contact remains advisory when the other contact is wired", () => {
+  const report = CircuitDraw.validate({
+    title: "Relay with unused NC contact",
+    elements: [
+      { type: "relay", id: "RL1", at: [200, 200] },
+      { type: "wire", id: "W_COIL1", open: true, points: [[145, 180], [120, 180]] },
+      { type: "wire", id: "W_COIL2", open: true, points: [[145, 220], [120, 220]] },
+      { type: "wire", id: "W_COM", open: true, points: [[255, 200], [280, 200]] },
+      { type: "wire", id: "W_NO", open: true, points: [[255, 230], [280, 230]] },
+    ],
+  });
+
+  assert.deepEqual(Array.from(report.errors), []);
+  assert.ok(report.warnings.some((warning) => warning.includes('relay "RL1".NC')));
+});
+
 test("diagonal routing remains an advisory warning rather than a blocking error", () => {
   const report = CircuitDraw.validate({
     title: "Diagonal wire layout",
     elements: [
       { type: "resistor", id: "R1", from: [100, 100], to: [160, 100] },
       { type: "wire", id: "W1", open: true, points: [[100, 100], [140, 140]] },
+      { type: "wire", id: "W2", open: true, points: [[160, 100], [180, 100]] },
     ],
   });
   assert.deepEqual(Array.from(report.errors), []);
@@ -305,6 +350,10 @@ test("a wire-crossing bridge renders an overpass and keeps the two nets separate
       { type: "battery", id: "B_HR", from: [100, 50], to: [100, 70] },
       { type: "battery", id: "B_VT", from: [50, 0], to: [70, 0] },
       { type: "battery", id: "B_VB", from: [50, 100], to: [70, 100] },
+      { type: "wire", id: "W_HL_RETURN", open: true, points: [[0, 70], [0, 90]] },
+      { type: "wire", id: "W_HR_RETURN", open: true, points: [[100, 70], [100, 90]] },
+      { type: "wire", id: "W_VT_RETURN", open: true, points: [[70, 0], [90, 0]] },
+      { type: "wire", id: "W_VB_RETURN", open: true, points: [[70, 100], [90, 100]] },
       { type: "crossing", id: "BR1", at: [50, 50], orientation: "horizontal" },
     ],
   };

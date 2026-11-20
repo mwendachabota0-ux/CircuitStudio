@@ -13,6 +13,16 @@ export type BuildProposalInspection = {
   canRepair: boolean;
 };
 
+export function classifyProposalValidation(validation: BuildValidation): BuildValidation {
+  const requiresLayoutRepair = (warning: string) =>
+    warning.includes('is diagonal;') || warning.includes('has a zero-length segment');
+  const layoutFindings = validation.warnings.filter(requiresLayoutRepair);
+  return {
+    errors: [...validation.errors, ...layoutFindings.map((finding) => `Drawing-quality issue: ${finding}`)],
+    warnings: validation.warnings.filter((warning) => !requiresLayoutRepair(warning)),
+  };
+}
+
 export type BuildAttemptFailureKind = 'generation' | 'validation' | 'output';
 export type CircuitBuildMode = CircuitBuildChatInput['mode'];
 export type RepairAttemptOutcome = 'reconstructed' | 'validated' | 'rejected' | 'exhausted';

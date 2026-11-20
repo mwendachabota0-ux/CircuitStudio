@@ -61,6 +61,29 @@ function exampleElement(component) {
   return { type: component.type, at: [200, 200] };
 }
 
+function openPinLeads(element) {
+  const pins = CircuitGeometry.getCircuitPins(element);
+  const anchor = Array.isArray(element.at)
+    ? element.at
+    : Array.isArray(element.from) && Array.isArray(element.to)
+      ? [(element.from[0] + element.to[0]) / 2, (element.from[1] + element.to[1]) / 2]
+      : null;
+  return pins.map((pin, index) => {
+    let dx = anchor ? pin.point[0] - anchor[0] : 1;
+    let dy = anchor ? pin.point[1] - anchor[1] : 0;
+    const length = Math.hypot(dx, dy) || 1;
+    dx = Math.round((dx / length) * 24);
+    dy = Math.round((dy / length) * 24);
+    if (dx === 0 && dy === 0) dx = 24;
+    return {
+      type: "wire",
+      id: `W_TEST_${index + 1}`,
+      open: true,
+      points: [pin.point, [pin.point[0] + dx, pin.point[1] + dy]],
+    };
+  });
+}
+
 test("the renderer and shared geometry expose the same exact component types", () => {
   assert.deepEqual(
     Array.from(CircuitDraw.types),
@@ -81,7 +104,10 @@ test("every catalog schema has a renderable CircuitDraw example", () => {
             { ...element, at: [150, 200] },
           ],
         }
-      : { title: `Reference: ${component.type}`, elements: [element] };
+      : {
+          title: `Reference: ${component.type}`,
+          elements: [element, ...openPinLeads(element)],
+        };
     assert.deepEqual(
       Array.from(CircuitDraw.validate(spec).errors),
       [],

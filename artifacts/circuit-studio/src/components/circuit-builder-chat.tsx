@@ -18,6 +18,7 @@ import {
   buildOutputRepairRequest,
   buildRepairRequest,
   CircuitBuildAttemptError,
+  classifyProposalValidation,
   getProtectedCircuitChanges,
   getProtectedCircuitSignature,
   getModeAfterFailedRequest,
@@ -130,7 +131,7 @@ function inspectProposal(spec: CircuitBuildChatInput['currentSpec']): {
     };
   }
   try {
-    const validation = window.CircuitDraw.validate(spec);
+    const validation = classifyProposalValidation(window.CircuitDraw.validate(spec));
     if (validation.errors.length) return { svg: '', validation, canRepair: true };
     const svg = window.CircuitDraw.render(spec);
     if (!svg) {

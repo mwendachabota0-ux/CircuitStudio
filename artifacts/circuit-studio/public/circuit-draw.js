@@ -282,6 +282,12 @@
     return dot > 0.01 && dot < len2 - 0.01;
   }
 
+  function isAdvisoryUnconnectedPin(element, pinName) {
+    if (!element) return false;
+    if (element.type === 'ic' || element.type === 'connector' || element.type === 'kicad') return true;
+    return element.type === 'relay' && (pinName === 'NC' || pinName === 'NO');
+  }
+
   function analyse(spec) {
     var res = { errors: [], warnings: [], junctions: [], crossings: [], bbox: null, freeEnds: [] };
     var ends = {}, segs = [], allPins = [];
@@ -298,6 +304,18 @@
       if (kind === 'pin') ends[k].pinOwners.push(owner);
       if (kind === 'wire') ends[k].wireOwners.push(owner);
       track(p[0], p[1]);
+    }
+
+    function pinHasConnection(pin) {
+      if (!pin) return false;
+      var pointKey = key(pin.point[0], pin.point[1]);
+      var node = ends[pointKey];
+      if (node && (node.wireOwners.length || node.pinOwners.some(function (owner) {
+        return owner !== pin.owner;
+      }))) return true;
+      return segs.some(function (segment) {
+        return onSegInterior(pin.point[0], pin.point[1], segment.a, segment.b);
+      });
     }
 
     if (!spec || typeof spec !== 'object' || !Array.isArray(spec.elements)) {
@@ -385,7 +403,7 @@
       pinsOf(el).forEach(function (pin) {
         var owner = id + '.' + pin.n;
         addEnd(pin.p, owner, 'pin');
-        allPins.push({ owner: owner, point: pin.p });
+        allPins.push({ owner: owner, point: pin.p, element: el, name: pin.n });
       });
       if (t === 'kicad') trackKicadSymbol(el, track);
       if (t === 'npn' || t === 'pnp') { track(el.at[0] - 44, el.at[1] - 44); track(el.at[0] + 44, el.at[1] + 80); }
@@ -467,9 +485,25 @@
             : ' Connect it to a supported component pin or another wire endpoint; set open:true only if it is intentionally left open.'));
           res.freeEnds.push({ point: point, kind: 'wire' });
         } else {
-          res.warnings.push(owner + ' at ' + location + ' is not connected to a wire.' + detail + ' If this pin should be connected, route a wire endpoint exactly to (' + f(e.x) + ',' + f(e.y) + '); otherwise leave it intentionally unused.');
+          var pin = allPins.filter(function (entry) { return entry.owner === owner; })[0];
+          var message = owner + ' at ' + location + ' is not connected to a wire.' + detail;
+          if (pin && !isAdvisoryUnconnectedPin(pin.element, pin.name)) {
+            res.errors.push(message + ' This required pin must be connected before the proposal can be applied.');
+          } else {
+            res.warnings.push(message + ' If this pin should be connected, route a wire endpoint exactly to (' + f(e.x) + ',' + f(e.y) + '); otherwise leave it intentionally unused.');
+          }
           res.freeEnds.push({ point: point, kind: 'pin' });
         }
+      }
+    });
+
+    spec.elements.forEach(function (el, i) {
+      if (!el || el.type !== 'relay') return;
+      var relayPins = allPins.filter(function (pin) { return pin.element === el; });
+      var nc = relayPins.filter(function (pin) { return pin.name === 'NC'; })[0];
+      var no = relayPins.filter(function (pin) { return pin.name === 'NO'; })[0];
+      if (!pinHasConnection(nc) && !pinHasConnection(no)) {
+        res.errors.push(elementName(el, i) + ' has neither NC nor NO contact connected. Connect at least one contact; the unused contact may remain open.');
       }
     });
 

@@ -524,10 +524,16 @@
 
 .builder-chat__brief {
   min-width: 0;
+  min-height: 0;
+  max-height: 360px;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 15px 13px 12px;
   background: #f8f7f1;
+  scrollbar-color: #d5d1c6 transparent;
+  scrollbar-width: thin;
 }
 
 .builder-chat__brief-heading {
@@ -749,7 +755,11 @@
   .builder-chat__body { grid-template-columns: 1fr; }
   .builder-chat__conversation { border-right: 0; }
   .builder-chat__thread { min-height: 220px; max-height: 360px; }
-  .builder-chat__brief { border-top: 1px solid var(--chat-rule); padding: 12px 14px; }
+  .builder-chat__brief {
+    max-height: 280px;
+    border-top: 1px solid var(--chat-rule);
+    padding: 12px 14px;
+  }
   .builder-chat__brief-content { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 15px; }
   .builder-chat__brief-block { margin-top: 10px; }
   .builder-chat__brief-empty { padding: 12px 3px; }

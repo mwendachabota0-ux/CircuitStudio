@@ -136,9 +136,10 @@ router.post(
         { reason: "invalid_or_unusable_model_output" },
         "Circuit builder response could not be validated",
       );
+      res.setHeader("X-Circuit-AI-Output-Invalid", "true");
       res.setHeader("X-Circuit-AI-Retryable", "true");
       res.status(502).json({
-        error: "The assistant returned a response that could not be safely used. Please try again.",
+        error: "The assistant response did not match Circuit Studio's required format.",
       });
     }
   },

@@ -5,7 +5,7 @@ import type {
 
 export const MAX_AUTO_RETRIES = 2;
 
-export type BuildRetryKind = 'generation' | 'repair';
+export type BuildRetryKind = 'generation' | 'repair' | 'format';
 export type BuildRetryPolicy = { retryable: boolean; delayMs?: number };
 export type BuildValidation = { errors: string[]; warnings: string[] };
 export type BuildProposalInspection = {
@@ -13,7 +13,7 @@ export type BuildProposalInspection = {
   canRepair: boolean;
 };
 
-export type BuildAttemptFailureKind = 'generation' | 'validation';
+export type BuildAttemptFailureKind = 'generation' | 'validation' | 'output';
 
 export class CircuitBuildAttemptError extends Error {
   readonly retryCount: number;
@@ -96,6 +96,10 @@ export function getBuildRetryPolicy(error: unknown): BuildRetryPolicy {
   return { retryable: false };
 }
 
+export function isInvalidModelOutput(error: unknown): boolean {
+  return getErrorHeader(error, 'x-circuit-ai-output-invalid') === 'true';
+}
+
 export function waitBeforeRetry(attempt: number, providerDelayMs?: number): Promise<void> {
   const delayMs = providerDelayMs ?? Math.min(4_000, 600 * (2 ** (attempt - 1)));
   return new Promise((resolve) => globalThis.setTimeout(resolve, delayMs));
@@ -147,6 +151,21 @@ export function buildRepairRequest(
   };
 }
 
+export function buildOutputRepairRequest(
+  originalRequest: CircuitBuildChatInput,
+): CircuitBuildChatInput {
+  const history = [
+    ...(originalRequest.history ?? []),
+    { role: 'user' as const, content: originalRequest.message },
+  ].slice(-8);
+
+  return {
+    ...originalRequest,
+    history,
+    message: 'The previous attempt did not match Circuit Studio’s required response format. Answer the original latest request again using the included conversation, design brief, and current CircuitSpec. Return exactly one valid JSON object with the required fields. In Build mode, include a complete supported CircuitSpec when the request is clear enough. Do not add Markdown fences or extra fields.',
+  };
+}
+
 export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TInspection extends BuildProposalInspection>(
   options: {
     initialRequest: TRequest;
@@ -154,6 +173,7 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
     getProposal: (response: TResponse) => TProposal | null | undefined;
     inspectProposal: (proposal: TProposal) => TInspection;
     makeRepairRequest: (response: TResponse, findings: string[]) => TRequest;
+    makeOutputRepairRequest?: (request: TRequest) => TRequest;
     onResponse?: (response: TResponse) => void;
     onRetry?: (attempt: number, kind: BuildRetryKind) => void;
     wait?: (attempt: number, providerDelayMs?: number) => Promise<void>;
@@ -161,12 +181,34 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
 ): Promise<{ response: TResponse; proposalInspection: TInspection | null; request: TRequest }> {
   let retries = 0;
   let workingRequest = options.initialRequest;
+  let outputRepairAttempted = false;
 
   while (true) {
     let response: TResponse;
     try {
       response = await options.send(workingRequest);
     } catch (cause) {
+      if (isInvalidModelOutput(cause)) {
+        if (
+          !outputRepairAttempted &&
+          options.makeOutputRepairRequest &&
+          retries < MAX_AUTO_RETRIES
+        ) {
+          outputRepairAttempted = true;
+          retries += 1;
+          options.onRetry?.(retries, 'format');
+          await (options.wait ?? waitBeforeRetry)(retries);
+          workingRequest = options.makeOutputRepairRequest(workingRequest);
+          continue;
+        }
+        throw new CircuitBuildAttemptError({
+          retryCount: retries,
+          canRetryManually: true,
+          failureKind: 'output',
+          cause,
+        });
+      }
+
       const policy = getBuildRetryPolicy(cause);
       if (policy.retryable && retries < MAX_AUTO_RETRIES) {
         retries += 1;

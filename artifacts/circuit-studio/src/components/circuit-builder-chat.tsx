@@ -12,6 +12,7 @@ import type {
   CircuitDesignBrief,
 } from '@workspace/api-client-react';
 import {
+  buildOutputRepairRequest,
   buildRepairRequest,
   CircuitBuildAttemptError,
   MAX_AUTO_RETRIES,
@@ -265,6 +266,7 @@ export function CircuitBuilderChat({
           latestBrief,
           findings,
         ),
+        makeOutputRepairRequest: buildOutputRepairRequest,
         onResponse: (result) => {
           latestBrief = result.brief ?? latestBrief;
         },
@@ -306,13 +308,18 @@ export function CircuitBuilderChat({
         const causeMessage = error.cause instanceof Error
           ? error.cause.message
           : 'The request did not go through. Your message is still here.';
-        const message = error.failureKind === 'validation'
-          ? error.validationFindings.length
+        let message: string;
+        if (error.failureKind === 'validation') {
+          message = error.validationFindings.length
             ? formatValidationFailure(error.validationFindings)
-            : 'The proposal could not be checked. Your message is still here.'
-          : error.retryCount >= MAX_AUTO_RETRIES
+            : 'The proposal could not be checked. Your message is still here.';
+        } else if (error.failureKind === 'output') {
+          message = 'The assistant response still did not match Circuit Studio’s required format. Your message and notes are unchanged; you can retry or simplify the request.';
+        } else {
+          message = error.retryCount >= MAX_AUTO_RETRIES
             ? `The request failed after ${MAX_AUTO_RETRIES} automatic retries. ${causeMessage}`
             : causeMessage;
+        }
         setRetryFeedback({ message, canRetryManually: error.canRetryManually });
       } else {
         setRetryFeedback({
@@ -457,7 +464,9 @@ export function CircuitBuilderChat({
                 <span className="builder-chat__thinking-mark"><Sparkles aria-hidden="true" /></span>
                 <span><i /><i /><i /></span>
                 <small>{retryAttempt > 0
-                  ? retryKind === 'repair'
+                  ? retryKind === 'format'
+                    ? `Fixing response format · retry ${retryAttempt} of ${MAX_AUTO_RETRIES}`
+                    : retryKind === 'repair'
                     ? `Repairing proposal · retry ${retryAttempt} of ${MAX_AUTO_RETRIES}`
                     : `Automatic retry ${retryAttempt} of ${MAX_AUTO_RETRIES}`
                   : mode === 'build' ? 'Working through a draft' : 'Thinking it through'}</small>

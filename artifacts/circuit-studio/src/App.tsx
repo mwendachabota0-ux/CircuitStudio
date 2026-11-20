@@ -1095,8 +1095,8 @@ function Studio({ userId }: { userId: string }) {
         <section className="export-bar" aria-label="Export circuit">
           <div className="export-copy"><strong>Take this circuit to your next tool.</strong><span>Preview or copy the EasyEDA sheet, or use the download menu for files.</span></div>
           <div className="export-actions">
-            <button className="quiet-button" data-testid="button-preview-easyeda-sheet" onClick={showEasyedaSheet} disabled={!libraryReady || report.errors.length > 0}><Eye /> Show EasyEDA sheet</button>
-            <button className="quiet-button" data-testid="button-copy-sheet" onClick={copySheet} disabled={!libraryReady || report.errors.length > 0}><Clipboard /> {copied ? 'Copied' : 'Copy EasyEDA sheet'}</button>
+            <button className="quiet-button export-action-button" data-testid="button-preview-easyeda-sheet" onClick={showEasyedaSheet} disabled={!libraryReady || report.errors.length > 0}><Eye className="export-action-icon" aria-hidden="true" /><span>Show EasyEDA sheet</span></button>
+            <button className="quiet-button export-action-button" data-testid="button-copy-sheet" onClick={copySheet} disabled={!libraryReady || report.errors.length > 0}><Clipboard className="export-action-icon" aria-hidden="true" /><span>{copied ? 'Copied' : 'Copy EasyEDA sheet'}</span></button>
           </div>
         </section>
       </div>

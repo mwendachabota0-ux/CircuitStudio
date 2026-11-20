@@ -147,6 +147,23 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+        "502":
+          description: The model response could not be used
+          headers:
+            X-Circuit-AI-Output-Invalid:
+              description: Set to true when the response failed format or schema validation
+              schema:
+                type: string
+                enum: ["true"]
+            X-Circuit-AI-Retryable:
+              description: Whether the client may retry this request
+              schema:
+                type: string
+                enum: ["true", "false"]
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
         "503":
           description: Gemini is unavailable or usage could not be recorded
           content:

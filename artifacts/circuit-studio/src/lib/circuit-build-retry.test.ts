@@ -5,9 +5,11 @@ import type {
   CircuitDesignBrief,
 } from '@workspace/api-client-react';
 import {
+  buildOutputRepairRequest,
   buildRepairRequest,
   CircuitBuildAttemptError,
   getBuildRetryPolicy,
+  isInvalidModelOutput,
   MAX_AUTO_RETRIES,
   runCircuitBuildAttempts,
   shouldClearSubmittedDraft,
@@ -206,6 +208,88 @@ test('retries malformed model output when the API marks it retryable', () => {
     })),
     { retryable: false },
   );
+});
+
+test('builds a format repair request without changing the original mode or circuit', () => {
+  const request: CircuitBuildChatInput = {
+    ...baseRequest,
+    mode: 'chat',
+    message: 'Can you explain the power supply?',
+  };
+  const repaired = buildOutputRepairRequest(request);
+
+  assert.equal(repaired.mode, 'chat');
+  assert.equal(repaired.currentSpec, request.currentSpec);
+  assert.deepEqual(repaired.brief, request.brief);
+  assert.deepEqual(repaired.history, [
+    ...request.history!,
+    { role: 'user', content: request.message },
+  ]);
+  assert.match(repaired.message, /required response format/);
+});
+
+test('retries invalid model output once with a format repair request', async () => {
+  const invalidOutput = Object.assign(new Error('Invalid model output.'), {
+    status: 502,
+    headers: new Headers({ 'x-circuit-ai-output-invalid': 'true' }),
+  });
+  const requests: CircuitBuildChatInput[] = [];
+  const progress: Array<[number, string]> = [];
+
+  const result = await runCircuitBuildAttempts({
+    initialRequest: baseRequest,
+    send: async (request) => {
+      requests.push(request);
+      if (requests.length === 1) throw invalidOutput;
+      return noProposal;
+    },
+    getProposal: () => null,
+    inspectProposal: () => ({ validation: { errors: [], warnings: [] }, canRepair: true }),
+    makeRepairRequest: (request) => request,
+    makeOutputRepairRequest: buildOutputRepairRequest,
+    onRetry: (attempt, kind) => progress.push([attempt, kind]),
+    wait: async () => {},
+  });
+
+  assert.equal(isInvalidModelOutput(invalidOutput), true);
+  assert.equal(requests.length, 2);
+  assert.notEqual(requests[1].message, baseRequest.message);
+  assert.equal(requests[1].mode, baseRequest.mode);
+  assert.equal(requests[1].history?.at(-1)?.content, baseRequest.message);
+  assert.deepEqual(progress, [[1, 'format']]);
+  assert.equal(result.response, noProposal);
+});
+
+test('stops after one failed format repair and offers a manual retry', async () => {
+  const invalidOutput = Object.assign(new Error('Invalid model output.'), {
+    status: 502,
+    headers: new Headers({ 'x-circuit-ai-output-invalid': 'true' }),
+  });
+  let sends = 0;
+
+  await assert.rejects(
+    runCircuitBuildAttempts({
+      initialRequest: baseRequest,
+      send: async () => {
+        sends += 1;
+        throw invalidOutput;
+      },
+      getProposal: () => null,
+      inspectProposal: () => ({ validation: { errors: [], warnings: [] }, canRepair: true }),
+      makeRepairRequest: (request) => request,
+      makeOutputRepairRequest: buildOutputRepairRequest,
+      wait: async () => {},
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof CircuitBuildAttemptError);
+      assert.equal(error.retryCount, 1);
+      assert.equal(error.canRetryManually, true);
+      assert.equal(error.failureKind, 'output');
+      return true;
+    },
+  );
+
+  assert.equal(sends, 2);
 });
 
 test('keeps newly typed draft text and does not clear it after a request', () => {

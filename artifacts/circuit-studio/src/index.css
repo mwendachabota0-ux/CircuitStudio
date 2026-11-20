@@ -223,6 +223,9 @@ a { color: inherit; text-decoration: none; }
 .export-copy strong { display:block;font:700 12px var(--app-font-display);color:#31443f;margin-bottom:3px; }
 .export-copy span { font-size:10px;color:#74807a; }
 .export-actions { display:flex;gap:7px;flex-wrap:wrap; }
+.export-actions .export-action-button { display:inline-flex;align-items:center;justify-content:center;gap:7px; }
+.export-actions .export-action-icon { display:block;width:15px;height:15px;flex:0 0 auto; }
+.export-actions .export-action-button > span { min-width:0; }
 .export-actions .quiet-button,.editor-footer .quiet-button { padding:7px 5px;border:0;background:transparent; }
 .export-actions .quiet-button:hover:not(:disabled),.editor-footer .quiet-button:hover:not(:disabled) { background:transparent;color:#176b55;text-decoration:underline;text-underline-offset:3px; }
 .easyeda-sheet-dialog { display:flex;flex-direction:column;gap:0;width:min(860px,calc(100vw - 28px));max-width:calc(100vw - 28px);max-height:min(86dvh,820px);overflow:hidden;padding:0;border:1px solid #dedbd1;border-radius:12px;background:#faf8f2;color:#253440; }

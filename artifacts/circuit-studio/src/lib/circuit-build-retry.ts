@@ -26,6 +26,9 @@ export function classifyProposalValidation(validation: BuildValidation): BuildVa
 export type BuildAttemptFailureKind = 'generation' | 'validation' | 'output';
 export type CircuitBuildMode = CircuitBuildChatInput['mode'];
 export type RepairAttemptOutcome = 'reconstructed' | 'validated' | 'rejected' | 'exhausted';
+const MAX_HISTORY_CONTENT_LENGTH = 3_000;
+const MAX_HISTORY_ITEMS = 8;
+
 export type RepairAttemptDiagnostic = {
   attempt: number;
   outcome: RepairAttemptOutcome;
@@ -176,6 +179,30 @@ export function buildRepairMessage(findings: string[]): string {
   return `${preamble}\n${included.join('\n')}\n${footer}`.slice(0, 6_000);
 }
 
+function compactHistoryContent(content: string): string {
+  if (content.length <= MAX_HISTORY_CONTENT_LENGTH) return content;
+
+  const marker = '\n[Earlier context shortened for retry.]\n';
+  const remainingLength = MAX_HISTORY_CONTENT_LENGTH - marker.length;
+  const leadingLength = Math.floor(remainingLength / 2);
+  const trailingLength = remainingLength - leadingLength;
+  return `${content.slice(0, leadingLength)}${marker}${content.slice(-trailingLength)}`;
+}
+
+export function normalizeCircuitBuildRequest(
+  request: CircuitBuildChatInput,
+): CircuitBuildChatInput {
+  if (!request.history) return request;
+
+  return {
+    ...request,
+    history: request.history.slice(-MAX_HISTORY_ITEMS).map(({ role, content }) => ({
+      role,
+      content: compactHistoryContent(content),
+    })),
+  };
+}
+
 export function buildRepairRequest(
   originalRequest: CircuitBuildChatInput,
   brief: CircuitDesignBrief,
@@ -187,7 +214,7 @@ export function buildRepairRequest(
     { role: 'user' as const, content: originalRequest.message },
   ].slice(-8);
 
-  return {
+  return normalizeCircuitBuildRequest({
     ...originalRequest,
     mode: 'build',
     responseFormatRetry: false,
@@ -195,7 +222,20 @@ export function buildRepairRequest(
     brief,
     history,
     message: buildRepairMessage(findings),
-  };
+  });
+}
+
+export function buildManualRetryRequest(
+  originalRequest: CircuitBuildChatInput,
+  brief: CircuitDesignBrief,
+  rejectedProposal: CircuitBuildChatInput['currentSpec'] | null,
+  findings: string[],
+): CircuitBuildChatInput {
+  const safeRequest = normalizeCircuitBuildRequest(originalRequest);
+  if (rejectedProposal && findings.length > 0) {
+    return buildRepairRequest(safeRequest, brief, findings, rejectedProposal);
+  }
+  return safeRequest;
 }
 
 function canonicalizeElement(value: unknown): unknown {
@@ -273,12 +313,12 @@ export function buildOutputRepairRequest(
     { role: 'user' as const, content: originalRequest.message },
   ].slice(-8);
 
-  return {
+  return normalizeCircuitBuildRequest({
     ...originalRequest,
     responseFormatRetry: true,
     history,
     message: 'The previous attempt did not match Circuit Studio’s required response format. Answer the original latest request again using the included conversation, design brief, and current CircuitSpec. Return exactly one valid JSON object with the required fields. In Build mode, include a complete supported CircuitSpec when the request is clear enough. Do not add Markdown fences or extra fields.',
-  };
+  });
 }
 
 export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TInspection extends BuildProposalInspection>(
@@ -309,6 +349,8 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
   let workingRequest = options.initialRequest;
   let outputRepairAttempted = false;
   let lastInvalidProposal: TProposal | null = null;
+  let lastInvalidFindings: string[] = [];
+  let lastInvalidWarnings: string[] = [];
   let protectedSpec = options.initialProtectedSpec;
   let protectedCircuitSignature = protectedSpec !== undefined && options.getProtectedCircuitSignature
     ? options.getProtectedCircuitSignature(protectedSpec)
@@ -340,6 +382,8 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
           canRetryManually: true,
           failureKind: 'output',
           cause,
+          validationFindings: lastInvalidFindings,
+          validationWarnings: lastInvalidWarnings,
           rejectedProposal: lastInvalidProposal ?? undefined,
           repairAttemptCount,
           repairDiagnostics: isRepairAttempt
@@ -370,6 +414,8 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
         canRetryManually: true,
         failureKind: 'generation',
         cause,
+        validationFindings: lastInvalidFindings,
+        validationWarnings: lastInvalidWarnings,
         rejectedProposal: lastInvalidProposal ?? undefined,
         repairAttemptCount,
         repairDiagnostics: isRepairAttempt
@@ -398,6 +444,19 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
           metadataModified: false,
           validationErrors: [],
           validationWarnings: [],
+        });
+      }
+      if (lastInvalidProposal !== null) {
+        throw new CircuitBuildAttemptError({
+          retryCount: retries,
+          canRetryManually: true,
+          failureKind: 'output',
+          cause: new Error('The repair response did not include a corrected CircuitSpec. The previous proposal is preserved.'),
+          validationFindings: lastInvalidFindings,
+          validationWarnings: lastInvalidWarnings,
+          repairAttemptCount,
+          repairDiagnostics,
+          rejectedProposal: lastInvalidProposal,
         });
       }
       options.onResponse?.(response);
@@ -459,6 +518,19 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
           validationWarnings: [],
         });
       }
+      if (lastInvalidProposal !== null) {
+        throw new CircuitBuildAttemptError({
+          retryCount: retries,
+          canRetryManually: true,
+          failureKind: 'output',
+          cause: new Error('The repair response did not include a corrected CircuitSpec. The previous proposal is preserved.'),
+          validationFindings: lastInvalidFindings,
+          validationWarnings: lastInvalidWarnings,
+          repairAttemptCount,
+          repairDiagnostics,
+          rejectedProposal: lastInvalidProposal,
+        });
+      }
       return {
         response,
         proposalInspection: null,
@@ -498,6 +570,8 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
     // Warnings are advisory layout notes. Only blocking validation errors
     // should consume automatic repair attempts or prevent a proposal staging.
     const findings = proposalInspection.validation.errors;
+    lastInvalidFindings = findings;
+    lastInvalidWarnings = proposalInspection.validation.warnings;
     const diagnostic: RepairAttemptDiagnostic | undefined = isRepairAttempt
       ? {
           attempt: repairAttemptCount,

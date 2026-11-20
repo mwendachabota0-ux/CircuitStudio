@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   getChatWithCircuitBuilderMutationKey,
@@ -15,6 +15,7 @@ import type {
 } from '@workspace/api-client-react';
 import type { CircuitComponentLibraryEntry } from '@workspace/circuit-geometry';
 import {
+  buildManualRetryRequest,
   buildOutputRepairRequest,
   buildRepairRequest,
   CircuitBuildAttemptError,
@@ -23,6 +24,7 @@ import {
   getProtectedCircuitSignature,
   getModeAfterFailedRequest,
   MAX_AUTO_RETRIES,
+  normalizeCircuitBuildRequest,
   restoreProtectedNonWireElements,
   runCircuitBuildAttempts,
   type BuildRetryKind,
@@ -452,7 +454,7 @@ export function CircuitBuilderChat({
     onProposalStateChange(!!proposal);
   }, [proposal, onProposalStateChange]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     try {
       window.localStorage.setItem(storageKey, JSON.stringify(saved));
     } catch {
@@ -466,17 +468,7 @@ export function CircuitBuilderChat({
     if (JSON.stringify(currentSpec) !== restore.specSignature) onApplySpec(restore.spec);
   }, []);
 
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(historyStorageKey, JSON.stringify(sessions));
-      window.localStorage.setItem(activeSessionStorageKey, activeSessionId);
-      setHistorySaveError((current) => current ? '' : current);
-    } catch {
-      setHistorySaveError('Recent conversations could not be saved in this browser. Your current chat is still open.');
-    }
-  }, [sessions, activeSessionId, historyStorageKey, activeSessionStorageKey]);
-
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!activeSessionId) return;
     const restore = pendingRestoreRef.current;
     if (restore?.sessionId === activeSessionId) {
@@ -493,15 +485,25 @@ export function CircuitBuilderChat({
       now: Date.now(),
       createdAt: existing?.createdAt,
     });
-    if (
-      existing &&
-      existing.title === nextSession.title &&
-      existing.mode === nextSession.mode &&
-      JSON.stringify(existing.saved) === JSON.stringify(nextSession.saved) &&
-      JSON.stringify(existing.currentSpec) === JSON.stringify(nextSession.currentSpec)
-    ) return;
-    setSessions((current) => upsertBuilderHistorySession(current, nextSession));
-  }, [activeSessionId, saved, currentSpec, mode]);
+    const sessionChanged = !existing ||
+      existing.title !== nextSession.title ||
+      existing.mode !== nextSession.mode ||
+      JSON.stringify(existing.saved) !== JSON.stringify(nextSession.saved) ||
+      JSON.stringify(existing.currentSpec) !== JSON.stringify(nextSession.currentSpec);
+    const nextSessions = sessionChanged
+      ? upsertBuilderHistorySession(sessions, nextSession)
+      : sessions;
+    if (sessionChanged) setSessions(nextSessions);
+
+    try {
+      window.localStorage.setItem(historyStorageKey, JSON.stringify(nextSessions));
+      window.localStorage.setItem(activeSessionStorageKey, activeSessionId);
+      setHistorySaveError('');
+    } catch {
+      setHistorySaveError('Recent conversations could not be saved in this browser. Your current chat is still open.');
+    }
+
+  }, [activeSessionId, saved, currentSpec, mode, sessions, historyStorageKey, activeSessionStorageKey]);
 
   const visibleMessages = saved.messages;
   const aiUnavailable = usageQuery.data ? !usageQuery.data.canUseAi : false;
@@ -529,19 +531,24 @@ export function CircuitBuilderChat({
     request: CircuitBuildChatInput,
     draftRevisionAtStart: number,
     protectedElementsBaseSpec?: NonNullable<CircuitBuildChatInput['currentSpec']>,
+    preserveRejectedProposal = false,
+    rememberForRetry = true,
   ) => {
-    setLastRequest(request);
+    const safeRequest = normalizeCircuitBuildRequest(request);
+    if (rememberForRetry) setLastRequest(safeRequest);
     setLastProtectedElementsBaseSpec(protectedElementsBaseSpec ?? null);
     setRetryFeedback(null);
     setRepairDiagnostics([]);
-    setRejectedProposalSpec(null);
-    setRejectedProposalSvg('');
+    if (!preserveRejectedProposal) {
+      setRejectedProposalSpec(null);
+      setRejectedProposalSvg('');
+    }
     setRejectedSpecCopyState('idle');
     setRetryAttempt(0);
     setRetryKind(null);
     setRequestCycleActive(true);
     chatMutation.reset();
-    let latestBrief = request.brief ?? emptyBrief();
+    let latestBrief = safeRequest.brief ?? emptyBrief();
     try {
       const {
         response,
@@ -549,7 +556,7 @@ export function CircuitBuilderChat({
         request: completedRequest,
         repairDiagnostics: completedRepairDiagnostics,
       } = await runCircuitBuildAttempts({
-        initialRequest: request,
+        initialRequest: safeRequest,
         send: (workingRequest) => chatMutation.mutateAsync({ data: workingRequest }),
         getProposal: (result) => result.proposal?.spec ?? null,
         inspectProposal,
@@ -582,7 +589,7 @@ export function CircuitBuilderChat({
           };
         },
         makeRepairRequest: (result, findings) => buildRepairRequest(
-          request,
+          safeRequest,
           latestBrief,
           findings,
           result.proposal?.spec ?? request.currentSpec,
@@ -626,12 +633,24 @@ export function CircuitBuilderChat({
         void queryClient.invalidateQueries({ queryKey: getGetAiUsageQueryKey() });
         onTaskComplete(nextMode);
     } catch (error) {
-      setMode((currentMode) => getModeAfterFailedRequest(currentMode, request.mode));
+      setSaved((current) => ({
+        ...current,
+        brief: mergeBriefPreservingManualEdits(current.aiBrief, current.brief, latestBrief),
+        aiBrief: latestBrief,
+      }));
+      setMode((currentMode) => getModeAfterFailedRequest(currentMode, safeRequest.mode));
       if (error instanceof CircuitBuildAttemptError) {
-        const rejectedSpec = asCircuitSpec(error.rejectedProposal);
+        const rejectedSpec = asCircuitSpec(error.rejectedProposal) ??
+          (preserveRejectedProposal ? rejectedProposalSpec : null);
         setRejectedProposalSpec(rejectedSpec);
         setRejectedProposalSvg(renderRejectedProposalPreview(rejectedSpec));
         setRepairDiagnostics(error.repairDiagnostics);
+        const validationFindings = error.validationFindings.length
+          ? error.validationFindings
+          : preserveRejectedProposal ? retryFeedback?.validationFindings ?? [] : [];
+        const validationWarnings = error.validationWarnings.length
+          ? error.validationWarnings
+          : preserveRejectedProposal ? retryFeedback?.validationWarnings ?? [] : [];
         const causeMessage = error.cause instanceof Error
           ? error.cause.message
           : 'The request did not go through. Your message is still here.';
@@ -652,27 +671,34 @@ export function CircuitBuilderChat({
             ? `The request failed after ${error.retryCount} automatic retr${error.retryCount === 1 ? 'y' : 'ies'}. ${causeMessage}`
             : causeMessage;
         }
+        if (preserveRejectedProposal && rejectedSpec && error.failureKind !== 'validation') {
+          message = `${message} The previous proposal is preserved below for another repair attempt.`;
+        }
         setRetryFeedback({
           message,
           canRetryManually: error.canRetryManually,
-          ...(error.failureKind === 'validation'
-            ? {
-                validationFindings: error.validationFindings,
-                validationWarnings: error.validationWarnings,
-              }
-            : {}),
+          ...(validationFindings.length ? { validationFindings } : {}),
+          ...(validationWarnings.length ? { validationWarnings } : {}),
         });
       } else {
         setRepairDiagnostics([]);
-        setRejectedProposalSpec(null);
-        setRejectedProposalSvg('');
+        if (!preserveRejectedProposal) {
+          setRejectedProposalSpec(null);
+          setRejectedProposalSvg('');
+        }
         setRetryFeedback({
-          message: error instanceof Error ? error.message : 'The request did not go through. Your message is still here.',
+          message: `${error instanceof Error ? error.message : 'The request did not go through. Your message is still here.'}${preserveRejectedProposal ? ' The previous proposal remains available for another repair attempt.' : ''}`,
           canRetryManually: true,
+          ...(preserveRejectedProposal && retryFeedback?.validationFindings?.length
+            ? { validationFindings: retryFeedback.validationFindings }
+            : {}),
+          ...(preserveRejectedProposal && retryFeedback?.validationWarnings?.length
+            ? { validationWarnings: retryFeedback.validationWarnings }
+            : {}),
         });
       }
     } finally {
-      composerRef.current?.clearDraftIfUnchanged(draftRevisionAtStart, request.message);
+      composerRef.current?.clearDraftIfUnchanged(draftRevisionAtStart, safeRequest.message);
       setRequestCycleActive(false);
       setRetryAttempt(0);
       setRetryKind(null);
@@ -727,10 +753,20 @@ export function CircuitBuilderChat({
 
   const retryRequest = async () => {
     if (!lastRequest || chatMutation.isPending || requestCycleActive) return;
-    await runRequest(
+    const findings = retryFeedback?.validationFindings ?? [];
+    const continuingRejectedProposal = !!rejectedProposalSpec && findings.length > 0;
+    const request = buildManualRetryRequest(
       lastRequest,
+      saved.brief,
+      rejectedProposalSpec,
+      findings,
+    );
+    await runRequest(
+      request,
       composerRef.current?.getDraftRevision() ?? 0,
-      lastProtectedElementsBaseSpec ?? undefined,
+      lastProtectedElementsBaseSpec ?? (continuingRejectedProposal ? rejectedProposalSpec : undefined) ?? undefined,
+      continuingRejectedProposal,
+      false,
     );
   };
 
@@ -1050,7 +1086,7 @@ export function CircuitBuilderChat({
           data-testid="panel-builder-history"
         >
           <div className="builder-chat__history-heading">
-            <div><strong>Recent conversations</strong><span>Saved in this browser</span></div>
+            <div><strong>Recent conversations</strong><span>Auto-saved in this browser, including chats in progress</span></div>
             <button type="button" className="builder-chat__text-link" onClick={() => setHistoryOpen(false)}>Close</button>
           </div>
           {historySaveError && <p className="builder-chat__history-error" role="status">{historySaveError}</p>}
@@ -1167,7 +1203,9 @@ export function CircuitBuilderChat({
               <div className="builder-chat__error" role="alert" data-testid="status-builder-error">
                 <span>{errorMessage}</span>
                 {retryFeedback.canRetryManually && (
-                  <button type="button" className="builder-chat__text-link" onClick={retryRequest} disabled={!lastRequest || hasUnappliedJsonEdits} data-testid="button-retry-builder-chat">Retry</button>
+                  <button type="button" className="builder-chat__text-link" onClick={retryRequest} disabled={!lastRequest || hasUnappliedJsonEdits} data-testid="button-retry-builder-chat">
+                    {rejectedProposalSpec && retryFeedback.validationFindings?.length ? 'Continue repair' : 'Retry'}
+                  </button>
                 )}
               </div>
               {!!retryFeedback.validationFindings?.length && (

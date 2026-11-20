@@ -70,3 +70,25 @@ test('history sessions preserve circuit snapshots and upsert newest first withou
   assert.equal(result[0].title, 'Build a 24V motor driver.');
   assert.deepEqual(original.map((session) => session.id), ['first', 'second']);
 });
+
+test('unfinished chat-mode conversations are valid history sessions before Build', () => {
+  const saved = {
+    messages: [
+      { role: 'user', content: 'I want a flasher, but need help choosing the timing.' },
+      { role: 'assistant', content: 'What blink interval should it use?' },
+    ],
+  };
+  const session = createBuilderHistorySession({
+    id: 'unfinished-chat',
+    saved,
+    currentSpec: { title: 'Example', elements: [] },
+    mode: 'chat',
+    now: 400,
+  });
+
+  const history = upsertBuilderHistorySession([], session);
+  assert.equal(history[0].mode, 'chat');
+  assert.equal(history[0].title, 'I want a flasher, but need help choosing the timing.');
+  assert.equal(history[0].saved.messages.length, 2);
+  assert.equal(history[0].currentSpec.title, 'Example');
+});

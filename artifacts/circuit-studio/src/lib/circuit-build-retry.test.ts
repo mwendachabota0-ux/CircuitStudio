@@ -5,6 +5,7 @@ import type {
   CircuitDesignBrief,
 } from '@workspace/api-client-react';
 import {
+  buildManualRetryRequest,
   buildOutputRepairRequest,
   buildRepairRequest,
   classifyProposalValidation,
@@ -16,6 +17,7 @@ import {
   getProtectedCircuitSignature,
   isInvalidModelOutput,
   MAX_AUTO_RETRIES,
+  normalizeCircuitBuildRequest,
   restoreProtectedNonWireElements,
   runCircuitBuildAttempts,
   shouldClearSubmittedDraft,
@@ -59,6 +61,35 @@ test('requires AI proposals to route wires orthogonally while keeping advisory n
     'relay "RL1".NC is intentionally unused.',
     'dcsource "V1": terminals are very close (50 px).',
   ]);
+});
+
+test('compacts oversized history before retrying and repairs the rejected proposal in place', () => {
+  const oversizedHistory = Array.from({ length: 10 }, (_, index) => ({
+    role: index % 2 === 0 ? 'assistant' as const : 'user' as const,
+    content: `start-${index}${'x'.repeat(3_200)}end-${index}`,
+  }));
+  const request = normalizeCircuitBuildRequest({ ...baseRequest, history: oversizedHistory });
+
+  assert.equal(request.history?.length, 8);
+  assert.ok(request.history?.every((item) => item.content.length <= 3_000));
+  assert.match(request.history?.[0].content ?? '', /start-2/);
+  assert.match(request.history?.[0].content ?? '', /end-2/);
+  assert.match(request.history?.[0].content ?? '', /shortened for retry/);
+
+  const rejectedProposal = { title: 'Partially wired flasher', elements: [] };
+  const findings = ['The LED return wire is disconnected.'];
+  const retry = buildManualRetryRequest(
+    { ...baseRequest, history: oversizedHistory },
+    brief,
+    rejectedProposal,
+    findings,
+  );
+
+  assert.equal(retry.mode, 'build');
+  assert.deepEqual(retry.currentSpec, rejectedProposal);
+  assert.match(retry.message, /last failing AI proposal/);
+  assert.match(retry.message, /The LED return wire is disconnected/);
+  assert.ok(retry.history?.every((item) => item.content.length <= 3_000));
 });
 
 test('uses local mode shortcuts only for explicit mode changes', () => {
@@ -145,6 +176,11 @@ test('exposes manual retry after exactly three transient failures', async () => 
 test('repairs blocking wire faults without sending layout warnings as errors', async () => {
   const failingSpec = { title: 'Rejected AI proposal', elements: [] };
   const badProposal = { answer: 'Draft ready.', nextMode: 'build' as const, proposal: { spec: failingSpec } };
+  const repairedProposal = {
+    answer: 'The disconnected wire is fixed.',
+    nextMode: 'build' as const,
+    proposal: { spec: { title: 'Repaired AI proposal', elements: [] } },
+  };
   const blockingFinding = 'Wire W1 at (120,80) is not connected to anything.';
   const advisoryWarning = 'W1 has a diagonal segment; use horizontal and vertical wires.';
   const requests: CircuitBuildChatInput[] = [];
@@ -154,7 +190,7 @@ test('repairs blocking wire faults without sending layout warnings as errors', a
     initialRequest: baseRequest,
     send: async (request) => {
       requests.push(request);
-      return requests.length === 1 ? badProposal : noProposal;
+      return requests.length === 1 ? badProposal : repairedProposal;
     },
     getProposal: (response) => 'proposal' in response ? response.proposal.spec : null,
     inspectProposal: () => ({
@@ -184,7 +220,7 @@ test('repairs blocking wire faults without sending layout warnings as errors', a
   assert.deepEqual(requests[1].currentSpec, failingSpec);
   assert.notDeepEqual(requests[1].currentSpec, baseRequest.currentSpec);
   assert.equal(requests[1].history?.filter((item) => item.content === baseRequest.message).length, 1);
-  assert.equal(result.response, noProposal);
+  assert.equal(result.response, repairedProposal);
 });
 
 test('accepts a valid proposal with advisory warnings without retrying', async () => {
@@ -211,10 +247,15 @@ test('accepts a valid proposal with advisory warnings without retrying', async (
 test('each repair request uses the latest failing proposal, not the workbench draft', async () => {
   const firstFailingSpec = { title: 'First rejected proposal', elements: [] };
   const secondFailingSpec = { title: 'Latest rejected proposal', elements: [] };
+  const repairedProposal = {
+    answer: 'The latest wiring issue is fixed.',
+    nextMode: 'build' as const,
+    proposal: { spec: { title: 'Repaired proposal', elements: [] } },
+  };
   const proposals = [
     { answer: 'First draft.', nextMode: 'build' as const, proposal: { spec: firstFailingSpec } },
     { answer: 'Updated draft.', nextMode: 'build' as const, proposal: { spec: secondFailingSpec } },
-    noProposal,
+    repairedProposal,
   ];
   const requests: CircuitBuildChatInput[] = [];
 
@@ -226,7 +267,10 @@ test('each repair request uses the latest failing proposal, not the workbench dr
     },
     getProposal: (response) => 'proposal' in response ? response.proposal.spec : null,
     inspectProposal: () => ({
-      validation: { errors: ['Wire W1 endpoint is disconnected.'], warnings: [] },
+      validation: {
+        errors: requests.length < 3 ? ['Wire W1 endpoint is disconnected.'] : [],
+        warnings: [],
+      },
       canRepair: true,
     }),
     makeRepairRequest: (response, findings) => buildRepairRequest(
@@ -444,6 +488,75 @@ test('stops after three repair retries and exposes a manual retry', async () => 
 
   assert.equal(sends, MAX_AUTO_RETRIES + 1);
   assert.equal(repairRequests, MAX_AUTO_RETRIES);
+});
+
+test('keeps the rejected proposal and validation findings when a repair request fails', async () => {
+  const rejectedProposal = { title: 'Partially wired flasher', elements: [] };
+  const initialResponse = {
+    answer: 'Here is the first draft.',
+    nextMode: 'build' as const,
+    proposal: { spec: rejectedProposal },
+  };
+  const findings = ['The LED return wire is disconnected.'];
+  let sends = 0;
+
+  await assert.rejects(
+    runCircuitBuildAttempts({
+      initialRequest: baseRequest,
+      send: async () => {
+        sends += 1;
+        if (sends === 1) return initialResponse;
+        throw Object.assign(new Error('History entry exceeds 3000 characters.'), { status: 400 });
+      },
+      getProposal: (response) => response.proposal?.spec ?? null,
+      inspectProposal: () => ({
+        validation: { errors: findings, warnings: ['One unused relay contact.'] },
+        canRepair: true,
+      }),
+      makeRepairRequest: () => baseRequest,
+      wait: async () => {},
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof CircuitBuildAttemptError);
+      assert.equal(error.failureKind, 'generation');
+      assert.deepEqual(error.validationFindings, findings);
+      assert.deepEqual(error.validationWarnings, ['One unused relay contact.']);
+      assert.deepEqual(error.rejectedProposal, rejectedProposal);
+      return true;
+    },
+  );
+});
+
+test('preserves the last invalid proposal when a repair response omits its schematic', async () => {
+  const rejectedProposal = { title: 'Partially wired flasher', elements: [] };
+  const initialResponse = {
+    answer: 'Here is the first draft.',
+    nextMode: 'build' as const,
+    proposal: { spec: rejectedProposal },
+  };
+  const findings = ['The LED return wire is disconnected.'];
+  let sends = 0;
+
+  await assert.rejects(
+    runCircuitBuildAttempts({
+      initialRequest: baseRequest,
+      send: async () => {
+        sends += 1;
+        return sends === 1 ? initialResponse : noProposal;
+      },
+      getProposal: (response) => response.proposal?.spec ?? null,
+      inspectProposal: () => ({ validation: { errors: findings, warnings: [] }, canRepair: true }),
+      makeRepairRequest: () => baseRequest,
+      wait: async () => {},
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof CircuitBuildAttemptError);
+      assert.equal(error.failureKind, 'output');
+      assert.deepEqual(error.validationFindings, findings);
+      assert.deepEqual(error.rejectedProposal, rejectedProposal);
+      return true;
+    },
+  );
 });
 
 test('does not automatically retry permanent request errors but allows manual retry', async () => {

@@ -29,6 +29,10 @@ import {
 } from '../lib/circuit-build-retry';
 import { getLocalBuilderModeIntent } from '../lib/circuit-build-intent';
 import {
+  isExplicitBuildApproval,
+  isExplicitBuildRequest,
+} from '../lib/circuit-build-authorization';
+import {
   getContextualSuggestedActions,
   getFinalAssistantQuestion,
 } from '../lib/suggested-action-context';
@@ -55,6 +59,7 @@ type ThreadMessage = CircuitBuildChatMessage & {
   id: string;
   createdAt: number;
   suggestedActions?: CircuitBuilderSuggestedAction[];
+  buildApprovalRequest?: boolean;
 };
 type SavedState = { brief: CircuitDesignBrief; aiBrief: CircuitDesignBrief; messages: ThreadMessage[] };
 type ValidationReport = { errors: string[]; warnings: string[] };
@@ -188,6 +193,9 @@ function readSavedState(key: string): SavedState {
               : [];
             return {
               ...message,
+              ...(message.buildApprovalRequest === true
+                ? { buildApprovalRequest: true }
+                : { buildApprovalRequest: undefined }),
               ...(actions.length ? { suggestedActions: actions } : { suggestedActions: undefined }),
             };
           })
@@ -210,6 +218,7 @@ function newMessage(
   role: CircuitBuildChatMessage['role'],
   content: string,
   suggestedActions?: CircuitBuilderSuggestedAction[],
+  options?: { buildApprovalRequest?: boolean },
 ): ThreadMessage {
   return {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
@@ -217,6 +226,7 @@ function newMessage(
     content,
     createdAt: Date.now(),
     ...(suggestedActions?.length ? { suggestedActions: suggestedActions.slice(0, 2) } : {}),
+    ...(options?.buildApprovalRequest ? { buildApprovalRequest: true } : {}),
   };
 }
 
@@ -387,7 +397,12 @@ export function CircuitBuilderChat({
           aiBrief: nextBrief,
           messages: [
             ...current.messages,
-            newMessage('assistant', response.answer, response.suggestedActions),
+            newMessage(
+              'assistant',
+              response.answer,
+              response.suggestedActions,
+              { buildApprovalRequest: response.buildApprovalRequested },
+            ),
           ].slice(-60),
         }));
         setRejectedProposalSpec(null);
@@ -467,9 +482,17 @@ export function CircuitBuilderChat({
       return;
     }
 
-    const requestMode: ChatMode = intent === 'build' ? 'build' : mode;
-    // Reflect an explicit build request immediately and keep that mode if
-    // generation or validation fails, so repair/retry stays in build mode.
+    const lastMessage = saved.messages.at(-1);
+    const approvalIsPending =
+      lastMessage?.role === 'assistant' && lastMessage.buildApprovalRequest === true;
+    const buildIsAuthorized =
+      mode === 'build' ||
+      intent === 'build' ||
+      isExplicitBuildRequest(normalizedContent) ||
+      isExplicitBuildApproval(normalizedContent, approvalIsPending);
+    const requestMode: ChatMode = buildIsAuthorized ? 'build' : mode;
+    // Direct build requests and explicit approvals may enter Build mode. An
+    // inferred request stays in Chat until the user approves the question.
     setMode(requestMode);
     const userMessage = newMessage('user', normalizedContent);
     setSaved((current) => ({

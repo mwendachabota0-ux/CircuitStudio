@@ -68,6 +68,8 @@ export function normalizeCircuitBuilderResponse(
 ): unknown {
   if (!isRecord(value)) return value;
   const response = { ...value };
+  // This is set by the server after enforcing the build-permission boundary.
+  delete response.buildApprovalRequested;
   const modelBrief = isRecord(response.brief) ? response.brief : {};
 
   response.brief = {

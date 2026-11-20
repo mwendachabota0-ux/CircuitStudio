@@ -503,6 +503,9 @@ components:
           maxItems: 2
           items:
             $ref: "#/components/schemas/CircuitBuilderSuggestedAction"
+        buildApprovalRequested:
+          type: boolean
+          description: Server-set marker that the assistant asked permission before creating a schematic.
       required: [answer, brief]
       additionalProperties: false
     CircuitSymbolSearchItem:

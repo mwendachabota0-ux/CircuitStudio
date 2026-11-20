@@ -20,5 +20,7 @@ export interface CircuitBuildChatResponse {
     proposal?: CircuitBuildProposal;
     /** @maxItems 2 */
     suggestedActions?: CircuitBuilderSuggestedAction[];
+    /** Server-set marker that the assistant asked permission before creating a schematic. */
+    buildApprovalRequested?: boolean;
 }
 //# sourceMappingURL=circuitBuildChatResponse.d.ts.map

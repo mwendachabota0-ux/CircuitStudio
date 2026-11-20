@@ -54,7 +54,7 @@ Circuit Studio helps makers and engineers draft a clear schematic before moving 
 
 ## User preferences
 
-- In chat mode, natural build requests should switch to Build mode and prepare a proposal. Builder and working-note textareas must stay editable during every AI status, and responses must not overwrite text entered after a request starts.
+- In Chat mode, inferred circuit intent must stay in Chat and ask permission before preparing a schematic. A direct build/draw/create request, manually selecting Build, or explicitly accepting the permission question counts as approval. Builder and working-note textareas must stay editable during every AI status, and responses must not overwrite text entered after a request starts.
 
 ## Gotchas
 

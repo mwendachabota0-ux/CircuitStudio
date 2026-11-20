@@ -4,4 +4,4 @@
 - [Working-note ownership](circuit-studio-working-notes.md) — AI adds context, but saved user edits remain protected and editable.
 - [Circuit Studio input focus](circuit-studio-input-focus.md) — treat broad focus loss as a client hit-testing issue unless fresh logs show API failures.
 - [Circuit topology checks](circuit-studio-topology-checks.md) — restore original components during repairs and distinguish blockers from advisory warnings.
-- [Circuit builder intent](circuit-studio-builder-intent.md) — choose Chat or Build from the user's meaning and context, not a fixed phrase list.
+- [Circuit builder intent](circuit-studio-builder-intent.md) — inferred intent stays in Chat until the user approves a schematic; direct build commands count as approval.

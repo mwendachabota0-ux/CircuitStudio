@@ -24,6 +24,17 @@ test("a chat answer ignores an irrelevant malformed proposal", () => {
   });
 });
 
+test("model output cannot set the server-owned build approval marker", () => {
+  const result = normalizeCircuitBuilderResponse({
+    nextMode: "chat",
+    answer: "What would you like to work on?",
+    brief,
+    buildApprovalRequested: true,
+  }, brief);
+
+  assert.equal("buildApprovalRequested" in result, false);
+});
+
 test("missing or partial brief fields preserve the supplied notes", () => {
   const result = normalizeCircuitBuilderResponse({
     nextMode: "chat",

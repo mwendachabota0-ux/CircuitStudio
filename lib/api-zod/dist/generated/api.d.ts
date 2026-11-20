@@ -3336,6 +3336,7 @@ export declare const ChatWithCircuitBuilderResponse: zod.ZodObject<{
         label: string;
         replyTo?: string | undefined;
     }>, "many">>;
+    buildApprovalRequested: zod.ZodOptional<zod.ZodBoolean>;
 }, "strip", zod.ZodTypeAny, {
     answer: string;
     brief: {
@@ -3419,6 +3420,7 @@ export declare const ChatWithCircuitBuilderResponse: zod.ZodObject<{
         label: string;
         replyTo?: string | undefined;
     }[] | undefined;
+    buildApprovalRequested?: boolean | undefined;
 }, {
     answer: string;
     brief: {
@@ -3502,6 +3504,7 @@ export declare const ChatWithCircuitBuilderResponse: zod.ZodObject<{
         label: string;
         replyTo?: string | undefined;
     }[] | undefined;
+    buildApprovalRequested?: boolean | undefined;
 }>;
 /**
  * Returns a concise educational review of a structurally valid draft. It does not check electrical safety or correctness.

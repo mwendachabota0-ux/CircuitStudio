@@ -738,7 +738,8 @@ export const ChatWithCircuitBuilderResponse = zod.object({
   "label": zod.string().min(1).max(chatWithCircuitBuilderResponseSuggestedActionsItemLabelMax),
   "prompt": zod.string().min(1).max(chatWithCircuitBuilderResponseSuggestedActionsItemPromptMax),
   "replyTo": zod.string().min(1).max(chatWithCircuitBuilderResponseSuggestedActionsItemReplyToMax).optional().describe('Exact assistant question this suggested reply answers.')
-})).max(chatWithCircuitBuilderResponseSuggestedActionsMax).optional()
+})).max(chatWithCircuitBuilderResponseSuggestedActionsMax).optional(),
+  "buildApprovalRequested": zod.boolean().optional().describe('Server-set marker that the assistant asked permission before creating a schematic.')
 })
 
 

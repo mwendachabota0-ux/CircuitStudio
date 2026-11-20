@@ -13,6 +13,9 @@ test('only direct build instructions count as build approval', () => {
     'Can you create a circuit for the motor?',
     'Looks good, build it.',
     "Let's draft the schematic.",
+    'Add a protection fuse to my motor circuit.',
+    'Please move the diode so it does not overlap the motor.',
+    'Adjust the fuse rating.',
   ]) {
     assert.equal(isExplicitBuildRequest(message), true, message);
   }
@@ -22,6 +25,8 @@ test('only direct build instructions count as build approval', () => {
     'That sounds right for my project.',
     'How do I build a motor circuit?',
     'Explain how to create a schematic.',
+    'Explain why the diode is there.',
+    'Can you tell me how to add a fuse?',
     "Don't build it yet.",
   ]) {
     assert.equal(isExplicitBuildRequest(message), false, message);

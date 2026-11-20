@@ -4,6 +4,8 @@ function normalize(text: string): string {
 
 export function isExplicitBuildRequest(text: string): boolean {
   const message = normalize(text);
+  const directCircuitAction =
+    '(?:build|draw|create|generate|draft|prepare|sketch|design|add|include|insert|remove|delete|move|connect|change|adjust|set|fix|redraw|reroute|replace|update|modify)';
   if (
     !message ||
     /\b(?:don't|do not|not yet|not now|wait|hold off|not ready)\b/.test(message) ||
@@ -13,10 +15,16 @@ export function isExplicitBuildRequest(text: string): boolean {
     return false;
   }
 
-  return /^(?:please\s+)?(?:build|draw|create|generate|draft|prepare|sketch|design)\b/.test(message) ||
-    /^(?:(?:can|could|would) you|i want you to|i'd like you to)\s+(?:please\s+)?(?:build|draw|create|generate|draft|prepare|sketch|design)\b/.test(message) ||
-    /^(?:let's|lets)\s+(?:build|draw|create|generate|draft|prepare|sketch|design)\b/.test(message) ||
-    /\b(?:build|draw|create|generate|draft|prepare|sketch|design)\s+(?:it|this|that|one)\b/.test(message) ||
+  const directActionPattern = new RegExp(`^(?:please\\s+)?${directCircuitAction}\\b`);
+  const requestedActionPattern = new RegExp(
+    `^(?:(?:can|could|would) you|i want you to|i'd like you to)\\s+(?:please\\s+)?${directCircuitAction}\\b`,
+  );
+  const suggestedActionPattern = new RegExp(`^(?:let's|lets)\\s+${directCircuitAction}\\b`);
+  const objectActionPattern = new RegExp(`\\b${directCircuitAction}\\s+(?:it|this|that|one)\\b`);
+  return directActionPattern.test(message) ||
+    requestedActionPattern.test(message) ||
+    suggestedActionPattern.test(message) ||
+    objectActionPattern.test(message) ||
     /\b(?:build|draw|create|generate|draft|prepare|sketch|design)\b.{0,80}\b(?:circuit|schematic|diagram|drawing|draft|layout)\b/.test(message);
 }
 

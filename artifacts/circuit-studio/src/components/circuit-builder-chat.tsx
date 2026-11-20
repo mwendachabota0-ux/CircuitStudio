@@ -40,15 +40,22 @@ import {
   Check,
   CheckCircle2,
   Copy,
+  History,
   Library,
   MessageCircle,
   Plus,
   Sparkles,
-  Trash2,
   Wrench,
   X,
 } from 'lucide-react';
 import './circuit-builder-chat.css';
+import {
+  createBuilderHistorySession,
+  getBuilderHistoryPreview,
+  getBuilderHistoryTitle,
+  upsertBuilderHistorySession,
+  type BuilderHistorySession,
+} from '../lib/circuit-builder-history';
 import { ComponentLibraryDialog } from './component-library-dialog';
 import CircuitBuilderComposer, {
   type CircuitBuilderComposerHandle,
@@ -62,6 +69,7 @@ type ThreadMessage = CircuitBuildChatMessage & {
   buildApprovalRequest?: boolean;
 };
 type SavedState = { brief: CircuitDesignBrief; aiBrief: CircuitDesignBrief; messages: ThreadMessage[] };
+type BuilderHistoryEntry = BuilderHistorySession<SavedState, CircuitBuildChatInput['currentSpec']>;
 type ValidationReport = { errors: string[]; warnings: string[] };
 type RetryFeedback = {
   message: string;
@@ -174,13 +182,11 @@ function mergeBriefPreservingManualEdits(
   };
 }
 
-function readSavedState(key: string): SavedState {
-  const fallback = { brief: emptyBrief(), aiBrief: emptyBrief(), messages: [initialMessage] };
-  try {
-    const raw = window.localStorage.getItem(key);
-    if (!raw) return fallback;
-    const parsed = JSON.parse(raw) as Partial<SavedState>;
-    const messages = Array.isArray(parsed.messages)
+function normalizeSavedState(value: unknown): SavedState {
+  const parsed = value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Partial<SavedState>
+    : {};
+  const messages = Array.isArray(parsed.messages)
       ? parsed.messages.filter((message): message is ThreadMessage =>
           !!message &&
           (message.role === 'user' || message.role === 'assistant') &&
@@ -200,18 +206,112 @@ function readSavedState(key: string): SavedState {
             };
           })
       : [];
-    const brief = normalizeBrief(parsed.brief);
-    // Older saved sessions did not record the AI's last draft separately.
-    // Treat their existing notes as user-owned so migration never overwrites them.
-    const aiBrief = parsed.aiBrief ? normalizeBrief(parsed.aiBrief) : emptyBrief();
-    return {
-      brief,
-      aiBrief,
-      messages: messages.length ? messages : [initialMessage],
-    };
+  const brief = normalizeBrief(parsed.brief);
+  // Older saved sessions did not record the AI's last draft separately.
+  // Treat their existing notes as user-owned so migration never overwrites them.
+  const aiBrief = parsed.aiBrief ? normalizeBrief(parsed.aiBrief) : emptyBrief();
+  return {
+    brief,
+    aiBrief,
+    messages: messages.length ? messages : [initialMessage],
+  };
+}
+
+function readSavedState(key: string): SavedState {
+  const fallback = normalizeSavedState(null);
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? normalizeSavedState(JSON.parse(raw)) : fallback;
   } catch {
     return fallback;
   }
+}
+
+function isCircuitSpec(value: unknown): value is CircuitBuildChatInput['currentSpec'] {
+  return !!value &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    typeof (value as { title?: unknown }).title === 'string' &&
+    Array.isArray((value as { elements?: unknown }).elements);
+}
+
+function isHistoryTimestamp(value: unknown): value is number {
+  return typeof value === 'number' &&
+    Number.isFinite(value) &&
+    Math.abs(value) <= 8_640_000_000_000_000;
+}
+
+function createHistoryId(): string {
+  return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function readBuilderHistorySessions(key: string): BuilderHistoryEntry[] {
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.flatMap((value): BuilderHistoryEntry[] => {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) return [];
+      const entry = value as Partial<BuilderHistoryEntry>;
+      if (
+        typeof entry.id !== 'string' ||
+        !entry.id ||
+        !isCircuitSpec(entry.currentSpec) ||
+        !isHistoryTimestamp(entry.createdAt) ||
+        !isHistoryTimestamp(entry.updatedAt) ||
+        (entry.mode !== 'chat' && entry.mode !== 'build')
+      ) return [];
+      const saved = normalizeSavedState(entry.saved);
+      return [{
+        id: entry.id,
+        title: getBuilderHistoryTitle(saved.messages),
+        createdAt: entry.createdAt as number,
+        updatedAt: entry.updatedAt as number,
+        mode: entry.mode,
+        saved,
+        currentSpec: entry.currentSpec,
+      }];
+    }).sort((left, right) => right.updatedAt - left.updatedAt);
+  } catch {
+    return [];
+  }
+}
+
+function readBuilderHistoryBootstrap(storageKey: string, currentSpec: CircuitBuildChatInput['currentSpec']) {
+  const historyKey = `${storageKey}:history-v1`;
+  const sessions = readBuilderHistorySessions(historyKey);
+  const hasStoredHistory = sessions.length > 0;
+  const availableSessions = hasStoredHistory
+    ? sessions
+    : [createBuilderHistorySession({
+        id: createHistoryId(),
+        saved: readSavedState(storageKey),
+        currentSpec,
+        mode: 'chat',
+      })];
+  let activeId: string | null = null;
+  try {
+    activeId = window.localStorage.getItem(`${storageKey}:active-session-v1`);
+  } catch {
+    // A fresh workbench can still be used if storage is blocked.
+  }
+  const active = availableSessions.find((session) => session.id === activeId) ?? availableSessions[0];
+  return {
+    sessions: availableSessions,
+    active,
+    restoreSpec: hasStoredHistory ? active.currentSpec : null,
+  };
+}
+
+function formatHistoryTime(timestamp: number): string {
+  const elapsed = Math.max(0, Date.now() - timestamp);
+  if (elapsed < 60_000) return 'Just now';
+  if (elapsed < 60 * 60_000) return `${Math.floor(elapsed / 60_000)}m ago`;
+  if (elapsed < 24 * 60 * 60_000) return `${Math.floor(elapsed / (60 * 60_000))}h ago`;
+  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(timestamp);
 }
 
 function newMessage(
@@ -256,6 +356,8 @@ export function CircuitBuilderChat({
   onTaskComplete,
 }: CircuitBuilderChatProps) {
   const storageKey = `circuit-studio-builder-chat-v1:${userId}`;
+  const historyStorageKey = `${storageKey}:history-v1`;
+  const activeSessionStorageKey = `${storageKey}:active-session-v1`;
   const queryClient = useQueryClient();
   const chatMutation = useChatWithCircuitBuilder({
     mutation: { mutationKey: getChatWithCircuitBuilderMutationKey() },
@@ -263,8 +365,13 @@ export function CircuitBuilderChat({
   const usageQuery = useGetAiUsage({
     query: { queryKey: getGetAiUsageQueryKey(), retry: 1 },
   });
-  const [saved, setSaved] = useState<SavedState>(() => readSavedState(storageKey));
-  const [mode, setMode] = useState<ChatMode>('chat');
+  const [historyBootstrap] = useState(() => readBuilderHistoryBootstrap(storageKey, currentSpec));
+  const [sessions, setSessions] = useState<BuilderHistoryEntry[]>(historyBootstrap.sessions);
+  const [activeSessionId, setActiveSessionId] = useState(historyBootstrap.active.id);
+  const [saved, setSaved] = useState<SavedState>(historyBootstrap.active.saved);
+  const [mode, setMode] = useState<ChatMode>(historyBootstrap.active.mode);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historySaveError, setHistorySaveError] = useState('');
   const [proposal, setProposal] = useState<{ summary: string; spec: CircuitBuildChatInput['currentSpec'] } | null>(null);
   const [proposalSvg, setProposalSvg] = useState('');
   const [proposalValidation, setProposalValidation] = useState<ValidationReport | null>(null);
@@ -286,6 +393,20 @@ export function CircuitBuilderChat({
   const [retryFeedback, setRetryFeedback] = useState<RetryFeedback | null>(null);
   const [repairDiagnostics, setRepairDiagnostics] = useState<RepairAttemptDiagnostic[]>([]);
   const composerRef = useRef<CircuitBuilderComposerHandle>(null);
+  const pendingRestoreRef = useRef<{
+    sessionId: string;
+    specSignature: string;
+    spec: CircuitBuildChatInput['currentSpec'];
+  } | null>(
+    historyBootstrap.restoreSpec
+      ? {
+          sessionId: historyBootstrap.active.id,
+          specSignature: JSON.stringify(historyBootstrap.restoreSpec),
+          spec: historyBootstrap.restoreSpec,
+        }
+      : null,
+  );
+  const activeSession = sessions.find((session) => session.id === activeSessionId) ?? historyBootstrap.active;
 
   useEffect(() => {
     try {
@@ -294,6 +415,49 @@ export function CircuitBuilderChat({
       // Storage can be unavailable in private browsing; the session remains usable.
     }
   }, [saved, storageKey]);
+
+  useEffect(() => {
+    const restore = pendingRestoreRef.current;
+    if (!restore || restore.sessionId !== activeSessionId) return;
+    if (JSON.stringify(currentSpec) !== restore.specSignature) onApplySpec(restore.spec);
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(historyStorageKey, JSON.stringify(sessions));
+      window.localStorage.setItem(activeSessionStorageKey, activeSessionId);
+      setHistorySaveError((current) => current ? '' : current);
+    } catch {
+      setHistorySaveError('Recent conversations could not be saved in this browser. Your current chat is still open.');
+    }
+  }, [sessions, activeSessionId, historyStorageKey, activeSessionStorageKey]);
+
+  useEffect(() => {
+    if (!activeSessionId) return;
+    const restore = pendingRestoreRef.current;
+    if (restore?.sessionId === activeSessionId) {
+      if (JSON.stringify(currentSpec) !== restore.specSignature) return;
+      pendingRestoreRef.current = null;
+    }
+
+    const existing = sessions.find((session) => session.id === activeSessionId);
+    const nextSession = createBuilderHistorySession({
+      id: activeSessionId,
+      saved,
+      currentSpec,
+      mode,
+      now: Date.now(),
+      createdAt: existing?.createdAt,
+    });
+    if (
+      existing &&
+      existing.title === nextSession.title &&
+      existing.mode === nextSession.mode &&
+      JSON.stringify(existing.saved) === JSON.stringify(nextSession.saved) &&
+      JSON.stringify(existing.currentSpec) === JSON.stringify(nextSession.currentSpec)
+    ) return;
+    setSessions((current) => upsertBuilderHistorySession(current, nextSession));
+  }, [activeSessionId, saved, currentSpec, mode]);
 
   const visibleMessages = saved.messages;
   const aiUnavailable = usageQuery.data ? !usageQuery.data.canUseAi : false;
@@ -578,9 +742,83 @@ export function CircuitBuilderChat({
     setBriefEditing(false);
   };
 
-  const clearConversation = () => {
-    setSaved({ brief: emptyBrief(), aiBrief: emptyBrief(), messages: [initialMessage] });
+  const clearTransientConversationState = () => {
+    chatMutation.reset();
     setLastRequest(null);
+    setLastProtectedElementsBaseSpec(null);
+    setProposal(null);
+    setProposalSvg('');
+    setProposalValidation(null);
+    setProposalError('');
+    setRejectedProposalSpec(null);
+    setRejectedSpecCopyState('idle');
+    setRetryFeedback(null);
+    setRepairDiagnostics([]);
+    setRetryAttempt(0);
+    setRetryKind(null);
+    setBriefEditing(false);
+    composerRef.current?.setDraft('');
+  };
+
+  const startNewConversation = () => {
+    if (chatMutation.isPending || requestCycleActive) return;
+    const now = Date.now();
+    const currentSession = createBuilderHistorySession({
+      id: activeSessionId,
+      saved,
+      currentSpec,
+      mode,
+      now,
+      createdAt: activeSession.createdAt,
+    });
+    const nextSession = createBuilderHistorySession({
+      id: createHistoryId(),
+      saved: { brief: emptyBrief(), aiBrief: emptyBrief(), messages: [initialMessage] },
+      currentSpec,
+      mode: 'chat',
+      now,
+    });
+    setSessions((current) => upsertBuilderHistorySession(
+      upsertBuilderHistorySession(current, currentSession),
+      nextSession,
+    ));
+    setActiveSessionId(nextSession.id);
+    setSaved(nextSession.saved);
+    setMode('chat');
+    clearTransientConversationState();
+    setHistoryOpen(false);
+  };
+
+  const openHistorySession = (session: BuilderHistoryEntry) => {
+    if (
+      session.id === activeSessionId ||
+      chatMutation.isPending ||
+      requestCycleActive
+    ) {
+      setHistoryOpen(false);
+      return;
+    }
+    const now = Date.now();
+    const currentSession = createBuilderHistorySession({
+      id: activeSessionId,
+      saved,
+      currentSpec,
+      mode,
+      now,
+      createdAt: activeSession.createdAt,
+    });
+    setSessions((current) => upsertBuilderHistorySession(current, currentSession));
+    pendingRestoreRef.current = {
+      sessionId: session.id,
+      specSignature: JSON.stringify(session.currentSpec),
+      spec: session.currentSpec,
+    };
+    setActiveSessionId(session.id);
+    setSaved(session.saved);
+    setMode(session.mode);
+    onApplySpec(session.currentSpec);
+    clearTransientConversationState();
+    setHistoryOpen(false);
   };
 
   const prepareComponentPrompt = (
@@ -605,7 +843,7 @@ export function CircuitBuilderChat({
     action: CircuitBuilderSuggestedAction,
     isReplyToQuestion: boolean,
   ) => {
-    if (!isReplyToQuestion) setMode('build');
+    if (!isReplyToQuestion && isExplicitBuildRequest(action.prompt)) setMode('build');
     composerRef.current?.setDraft(action.prompt);
   };
 
@@ -630,9 +868,34 @@ export function CircuitBuilderChat({
         <div className="builder-chat__identity">
           <div>
             <h2>Build through conversation</h2>
+            <p className="builder-chat__session-title" title={activeSession.title}>{activeSession.title}</p>
           </div>
         </div>
         <div className="builder-chat__header-tools">
+          <button
+            className="builder-chat__action-link"
+            type="button"
+            onClick={startNewConversation}
+            disabled={chatMutation.isPending || requestCycleActive}
+            aria-label="Start a new conversation"
+            title="Start a new conversation"
+            data-testid="button-new-builder-conversation"
+          >
+            <Plus aria-hidden="true" /> <span>New chat</span>
+          </button>
+          <button
+            className={`builder-chat__action-link${historyOpen ? ' is-active' : ''}`}
+            type="button"
+            onClick={() => setHistoryOpen((open) => !open)}
+            disabled={chatMutation.isPending || requestCycleActive}
+            aria-expanded={historyOpen}
+            aria-controls="builder-conversation-history"
+            aria-label={`Recent conversations, ${sessions.length} saved`}
+            title="Recent conversations"
+            data-testid="button-builder-history"
+          >
+            <History aria-hidden="true" /> <span>History</span><span className="builder-chat__history-count">{sessions.length}</span>
+          </button>
           <button
             className="builder-chat__icon-link"
             type="button"
@@ -643,11 +906,44 @@ export function CircuitBuilderChat({
           >
             <Library aria-hidden="true" />
           </button>
-          <button className="builder-chat__icon-link" type="button" onClick={clearConversation} aria-label="Clear conversation and brief" title="Clear conversation" data-testid="button-clear-builder-chat">
-            <Trash2 aria-hidden="true" />
-          </button>
         </div>
       </header>
+
+      {historyOpen && (
+        <section
+          className="builder-chat__history"
+          id="builder-conversation-history"
+          aria-label="Recent conversations"
+          data-testid="panel-builder-history"
+        >
+          <div className="builder-chat__history-heading">
+            <div><strong>Recent conversations</strong><span>Saved in this browser</span></div>
+            <button type="button" className="builder-chat__text-link" onClick={() => setHistoryOpen(false)}>Close</button>
+          </div>
+          {historySaveError && <p className="builder-chat__history-error" role="status">{historySaveError}</p>}
+          <div className="builder-chat__history-list" role="list">
+            {sessions.map((session) => (
+              <div key={session.id} role="listitem">
+                <button
+                  type="button"
+                  className={`builder-chat__history-item${session.id === activeSessionId ? ' is-current' : ''}`}
+                  onClick={() => openHistorySession(session)}
+                  disabled={chatMutation.isPending || requestCycleActive}
+                  aria-current={session.id === activeSessionId ? 'page' : undefined}
+                  data-testid={`button-builder-history-${session.id}`}
+                >
+                  <span className="builder-chat__history-item-top">
+                    <strong>{session.title}</strong><time dateTime={new Date(session.updatedAt).toISOString()}>{formatHistoryTime(session.updatedAt)}</time>
+                  </span>
+                  <span className="builder-chat__history-preview">{getBuilderHistoryPreview(session.saved.messages)}</span>
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {historySaveError && !historyOpen && <p className="builder-chat__history-error" role="status">{historySaveError}</p>}
 
       <div className="builder-chat__mode-row">
         <div className="builder-chat__mode-tabs" role="tablist" aria-label="Conversation mode" data-testid="group-builder-modes">

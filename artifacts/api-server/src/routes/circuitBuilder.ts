@@ -63,6 +63,8 @@ A greeting or other social opener by itself is not a circuit request. Reply brie
 
 In Build mode, if the request is clear enough, include a complete proposed CircuitSpec. If a critical requirement is unclear, ask one focused question and omit the proposal. For edits, start from the supplied current CircuitSpec and preserve unrelated components, values, labels, and connections. For an explicitly new or replacement design, do not preserve an unrelated example circuit.
 
+For new schematic layouts, prioritize readability over density: leave clear space between symbols, keep labels away from symbols and wire crossings, align related power and return paths, and route wires orthogonally where practical. Arrange parallel parts so their relationship is visible without overlapping their bodies, pins, labels, or wires. Keep a separate control path visually distinct from a load's power path. For motor-driver diagrams, show the fuse and motor in the power path, the flyback diode clearly across the motor, and the MOSFET return and gate-control wiring separately. These are drawing-layout instructions, not proof of electrical correctness. When asked only to repair wiring or respond to validator findings, follow the preservation rules below instead of changing component positions. Move a component only when the user explicitly asks for a layout change.
+
 Use only the component types, required properties, pin locations, and minimum lengths in this actual CircuitDraw reference:
 ${formatCircuitComponentGuide()}
 

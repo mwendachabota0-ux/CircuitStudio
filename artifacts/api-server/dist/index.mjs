@@ -54126,7 +54126,8 @@ var ChatWithCircuitBuilderResponse = objectType({
     "label": stringType().min(1).max(chatWithCircuitBuilderResponseSuggestedActionsItemLabelMax),
     "prompt": stringType().min(1).max(chatWithCircuitBuilderResponseSuggestedActionsItemPromptMax),
     "replyTo": stringType().min(1).max(chatWithCircuitBuilderResponseSuggestedActionsItemReplyToMax).optional().describe("Exact assistant question this suggested reply answers.")
-  })).max(chatWithCircuitBuilderResponseSuggestedActionsMax).optional()
+  })).max(chatWithCircuitBuilderResponseSuggestedActionsMax).optional(),
+  "buildApprovalRequested": booleanType().optional().describe("Server-set marker that the assistant asked permission before creating a schematic.")
 });
 var reviewCircuitBodySpecElementsItemFromMin = 2;
 var reviewCircuitBodySpecElementsItemFromMax = 2;
@@ -64078,6 +64079,7 @@ function normalizeSuggestedActions(value, finalQuestion) {
 function normalizeCircuitBuilderResponse(value, fallbackBrief) {
   if (!isRecord2(value)) return value;
   const response = { ...value };
+  delete response.buildApprovalRequested;
   const modelBrief = isRecord2(response.brief) ? response.brief : {};
   response.brief = {
     goal: typeof modelBrief.goal === "string" ? modelBrief.goal.slice(0, 1e3) : fallbackBrief.goal,
@@ -64097,6 +64099,62 @@ function normalizeCircuitBuilderResponse(value, fallbackBrief) {
   }
   if (response.nextMode === "chat") delete response.proposal;
   return response;
+}
+
+// src/lib/circuitBuilderPermission.ts
+var BUILD_PERMISSION_QUESTION = "Would you like me to switch to Build and prepare an editable schematic now?";
+var BUILD_PERMISSION_ACTIONS = [
+  {
+    label: "Yes, prepare a draft",
+    prompt: "Yes, please switch to Build and prepare an editable schematic for the circuit we discussed.",
+    replyTo: BUILD_PERMISSION_QUESTION
+  },
+  {
+    label: "Not yet",
+    prompt: "Not yet. Keep discussing the circuit with me in Chat; do not create a schematic.",
+    replyTo: BUILD_PERMISSION_QUESTION
+  }
+];
+function isBuildPermissionQuestion(text3) {
+  return text3.trim().toLowerCase().endsWith(BUILD_PERMISSION_QUESTION.toLowerCase());
+}
+function isBuildPermissionDecline(text3) {
+  const normalized2 = text3.trim().toLowerCase().replace(/[’]/g, "'");
+  return /^(?:no|nope|not yet|not now|wait|hold on|later)\b/.test(normalized2) || /\b(?:don't|do not)\s+(?:build|create|draft|make)\b/.test(normalized2) || /\bkeep (?:it )?(?:in )?chat\b|\bkeep discussing\b/.test(normalized2);
+}
+function enforceBuildPermission(response, requestedMode, history, latestUserMessage) {
+  if (requestedMode === "build") return response;
+  const result = {
+    ...response,
+    nextMode: "chat"
+  };
+  const previousMessage = history.at(-1);
+  const approvalWasPending = previousMessage?.role === "assistant" && isBuildPermissionQuestion(previousMessage.content);
+  if (approvalWasPending && isBuildPermissionDecline(latestUserMessage)) {
+    delete result.proposal;
+    delete result.suggestedActions;
+    delete result.buildApprovalRequested;
+    result.answer = "Understood. I'll stay in Chat and won't create a schematic yet.";
+    return result;
+  }
+  if (response.nextMode === "build" && response.proposal) {
+    delete result.proposal;
+    result.answer = BUILD_PERMISSION_QUESTION;
+    result.suggestedActions = BUILD_PERMISSION_ACTIONS;
+    result.buildApprovalRequested = true;
+    return result;
+  }
+  if (response.nextMode === "build") {
+    delete result.proposal;
+    delete result.buildApprovalRequested;
+    return result;
+  }
+  if (isBuildPermissionQuestion(response.answer)) {
+    delete result.proposal;
+    result.suggestedActions = BUILD_PERMISSION_ACTIONS;
+    result.buildApprovalRequested = true;
+  }
+  return result;
 }
 
 // src/routes/circuitBuilder.ts
@@ -64127,11 +64185,13 @@ Example: if answer asks "What is the current draw of your 24V DC motor?" and no 
 
 Treat the supplied brief as the source of truth. Retain accurate details unless the user explicitly changes or resolves them; incorporate new information without silently discarding existing notes.
 
-Choose nextMode from the meaning of the user's request and conversation context, not from keywords or the currently selected tab. Do not require words such as "build", "draw", "create", or "generate". If the user describes a concrete circuit outcome they want, asks for a schematic or edit indirectly, or indicates that the agreed design should be made usable, set nextMode to "build" and follow the build-mode rules in this same response. This includes natural phrasing such as "I need a flasher that alternates these lights", "could we have it switch every second?", or "that sounds right for my project". If they are asking for an explanation, comparing possibilities, brainstorming, speaking hypothetically, or asking to wait, stay in "chat". If their goal or a critical design choice is genuinely unclear, ask one focused question in chat instead of guessing. The selected tab is only a default when intent is unclear; do not force build mode just because the user previously selected Build.
+Treat the requested mode as an authorization boundary. "Mode: build" means the user explicitly selected Build, directly requested a schematic, or approved a permission question; only then may you return nextMode "build" or a proposal. "Mode: chat" means permission has not been granted. In Chat, do not switch modes or return a proposal based on inferred intent, even when the user describes a concrete circuit goal or says an idea sounds right. Continue clarifying in Chat. When the design is ready for a schematic, ask exactly "Would you like me to switch to Build and prepare an editable schematic now?" and offer up to two direct yes/no replies whose replyTo exactly matches that question. Do not set buildApprovalRequested; it is server-owned. If the user asks an explanation, compares possibilities, brainstorms, speaks hypothetically, or asks to wait, answer in Chat without asking for build approval.
 
-A greeting or other social opener by itself is not a circuit request. Reply briefly in chat; do not treat an existing brief or current schematic as a new instruction to build.
+A greeting or other social opener by itself is not a circuit request. Reply briefly in chat; do not treat an existing brief or current schematic as a new instruction to build. Never infer approval from a prior brief, current schematic, or an ambiguous positive reaction.
 
-In build mode, if the request is clear enough, include a complete proposed CircuitSpec. If a critical requirement is unclear, ask one focused question and omit the proposal, but keep nextMode as "build". For edits, start from the supplied current CircuitSpec and preserve unrelated components, values, labels, and connections. For an explicitly new or replacement design, do not preserve an unrelated example circuit.
+In Build mode, if the request is clear enough, include a complete proposed CircuitSpec. If a critical requirement is unclear, ask one focused question and omit the proposal. For edits, start from the supplied current CircuitSpec and preserve unrelated components, values, labels, and connections. For an explicitly new or replacement design, do not preserve an unrelated example circuit.
+
+For new schematic layouts, prioritize readability over density: leave clear space between symbols, keep labels away from symbols and wire crossings, align related power and return paths, and route wires orthogonally where practical. Arrange parallel parts so their relationship is visible without overlapping their bodies, pins, labels, or wires. Keep a separate control path visually distinct from a load's power path. For motor-driver diagrams, show the fuse and motor in the power path, the flyback diode clearly across the motor, and the MOSFET return and gate-control wiring separately. These are drawing-layout instructions, not proof of electrical correctness. When asked only to repair wiring or respond to validator findings, follow the preservation rules below instead of changing component positions. Move a component only when the user explicitly asks for a layout change.
 
 Use only the component types, required properties, pin locations, and minimum lengths in this actual CircuitDraw reference:
 ${formatCircuitComponentGuide()}
@@ -64343,10 +64403,16 @@ ${contents}`,
       failureStage = "parse_json";
       const decoded = JSON.parse(text3);
       failureStage = "validate_response_schema";
-      const result = ChatWithCircuitBuilderResponse.parse(
+      const validatedResult = ChatWithCircuitBuilderResponse.parse(
         normalizeCircuitBuilderResponse(decoded, brief)
       );
-      result.nextMode ??= result.proposal ? "build" : parsed.data.mode;
+      validatedResult.nextMode ??= validatedResult.proposal ? "build" : parsed.data.mode;
+      const result = enforceBuildPermission(
+        validatedResult,
+        parsed.data.mode,
+        history,
+        parsed.data.message
+      );
       if (result.proposal) {
         failureStage = "validate_circuit_spec";
         result.proposal.spec = await hydrateKicadSymbols(

@@ -1,0 +1,490 @@
+.component-library-dialog {
+  --library-ink: #263b40;
+  --library-muted: #78857e;
+  --library-rule: #e5e1d7;
+  --library-paper: #fffefa;
+  --library-green: #176b55;
+  --library-copper: #bd7955;
+  display: flex !important;
+  flex-direction: column;
+  gap: 0 !important;
+  width: min(900px, calc(100vw - 28px)) !important;
+  max-width: 900px !important;
+  max-height: min(88dvh, 840px) !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  border: 1px solid #dedbd1 !important;
+  border-radius: 13px !important;
+  background: #faf8f2 !important;
+  color: var(--library-ink) !important;
+  box-shadow: 0 22px 70px rgba(33, 46, 40, .2) !important;
+}
+
+.component-library-dialog:focus-visible,
+.component-library-dialog button:focus-visible,
+.component-library-dialog input:focus-visible,
+.component-library-dialog select:focus-visible {
+  outline: 2px solid #4b9278;
+  outline-offset: 2px;
+}
+
+.component-library-dialog > button:last-child {
+  display: none;
+}
+
+.component-library-dialog [data-radix-dialog-overlay] {
+  background: rgba(35, 48, 43, .38);
+  backdrop-filter: blur(2px);
+}
+
+.component-library-dialog__header {
+  flex: none;
+  min-height: 102px;
+  padding: 21px 66px 17px 24px;
+  border-bottom: 1px solid var(--library-rule);
+  background:
+    linear-gradient(90deg, rgba(226, 235, 226, .52), transparent 58%),
+    #fffefa;
+  text-align: left !important;
+}
+
+.component-library-dialog__heading {
+  min-width: 0;
+}
+
+.component-library-dialog__eyebrow {
+  display: block;
+  margin-bottom: 7px;
+  color: #829088;
+  font: 500 9px/1.3 var(--app-font-mono);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.component-library-dialog__title {
+  color: #304640 !important;
+  font: 700 20px/1.2 var(--app-font-display) !important;
+  letter-spacing: -.04em !important;
+}
+
+.component-library-dialog__description {
+  margin-top: 6px;
+  color: #77847e !important;
+  font-size: 11px !important;
+  line-height: 1.5 !important;
+}
+
+.component-library-dialog .component-library-dialog__close {
+  position: absolute;
+  top: 17px;
+  right: 18px;
+  z-index: 2;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid #e5e1d7;
+  border-radius: 7px;
+  background: #faf8f2;
+  color: #738078;
+  font-size: 22px;
+  line-height: 1;
+  text-decoration: none;
+  opacity: 1;
+}
+
+.component-library-dialog .component-library-dialog__close:hover {
+  background: #f0eee7;
+  color: var(--library-green);
+}
+
+.component-library-dialog__tools {
+  flex: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 190px;
+  gap: 12px;
+  padding: 16px 22px 13px;
+  border-bottom: 1px solid #ece9e1;
+  background: #faf8f2;
+}
+
+.component-library-dialog__search {
+  min-width: 0;
+  height: 39px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 11px;
+  border: 1px solid #deddd4;
+  border-radius: 7px;
+  background: var(--library-paper);
+  color: #8b968e;
+}
+
+.component-library-dialog__search svg {
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+
+.component-library-dialog__search input {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--library-ink);
+  font-size: 11px;
+}
+
+.component-library-dialog__search input::placeholder {
+  color: #a2a79f;
+}
+
+.component-library-dialog__search input:focus-visible {
+  outline: none;
+}
+
+.component-library-dialog__category {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  color: #87918b;
+  font: 9px var(--app-font-mono);
+  letter-spacing: .02em;
+}
+
+.component-library-dialog__category select {
+  width: 100%;
+  min-width: 0;
+  height: 39px;
+  padding: 0 27px 0 10px;
+  border: 1px solid #deddd4;
+  border-radius: 7px;
+  background: var(--library-paper);
+  color: #52635e;
+  font: 10px var(--app-font-sans);
+}
+
+.component-library-dialog__results-heading {
+  min-height: 42px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 23px;
+  color: #87918b;
+  font: 10px var(--app-font-mono);
+}
+
+.component-library-dialog__results-heading strong {
+  color: #42574f;
+  font-weight: 500;
+}
+
+.component-library-dialog__active-filter {
+  overflow: hidden;
+  max-width: 50%;
+  padding: 4px 8px;
+  border: 1px solid #e4e0d5;
+  border-radius: 20px;
+  background: #f1efe7;
+  color: #6d7c73;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.component-library-dialog__list {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 0 22px 18px;
+  scrollbar-color: #d5d1c6 transparent;
+  scrollbar-width: thin;
+}
+
+.component-library-dialog__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.component-library-dialog__item {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 13px 14px 12px;
+  border: 1px solid #e6e2d9;
+  border-radius: 8px;
+  background: #fffefa;
+  box-shadow: 0 2px 7px rgba(41, 51, 46, .025);
+  animation: component-library-arrive .2s ease-out both;
+}
+
+.component-library-dialog__item:nth-child(2n) {
+  animation-delay: 25ms;
+}
+
+.component-library-dialog__item-top {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.component-library-dialog__mark {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 1px solid #dce8dd;
+  border-radius: 8px;
+  background: #eff5ee;
+  color: #337157;
+  font: 500 20px/1 var(--app-font-mono);
+}
+
+.component-library-dialog__mark.is-annotation {
+  border-color: #eadccf;
+  background: #f7efe7;
+  color: #a16b49;
+  font-size: 16px;
+}
+
+.component-library-dialog__item-title {
+  min-width: 0;
+  flex: 1;
+}
+
+.component-library-dialog__item-title h3 {
+  overflow: hidden;
+  margin: 0;
+  color: #344a43;
+  font: 700 12px/1.35 var(--app-font-display);
+  letter-spacing: -.015em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.component-library-dialog__type {
+  flex: none;
+  max-width: 95px;
+  overflow: hidden;
+  color: #9a9b91;
+  font: 9px var(--app-font-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.component-library-dialog__annotation-tag {
+  display: inline-block;
+  margin-top: 3px;
+  color: #a16b49;
+  font: 9px/1.2 var(--app-font-mono);
+  letter-spacing: .01em;
+}
+
+.component-library-dialog__item-description {
+  min-height: 32px;
+  margin: 11px 0 9px;
+  color: #748179;
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.component-library-dialog__item-meta {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 0 9px;
+  border-top: 1px solid #efede6;
+  color: #8a948c;
+  font: 9px/1.4 var(--app-font-mono);
+}
+
+.component-library-dialog__item-meta span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  color: #63746b;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.component-library-dialog__select {
+  min-height: 31px;
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: auto;
+  padding: 5px 8px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--library-green);
+  font-size: 10px;
+  font-weight: 700;
+  transition: background .16s ease, color .16s ease, transform .16s ease;
+}
+
+.component-library-dialog__select:hover {
+  transform: translateY(-1px);
+  background: #edf3eb;
+  color: #105643;
+}
+
+.component-library-dialog__select svg {
+  width: 13px;
+  height: 13px;
+}
+
+.component-library-dialog__empty {
+  min-height: 250px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 30px;
+  border: 1px dashed #dbd9cf;
+  border-radius: 9px;
+  background-color: #fbfaf6;
+  background-image: radial-gradient(#e9e6dc .65px, transparent .65px);
+  background-size: 18px 18px;
+  text-align: center;
+}
+
+.component-library-dialog__empty-mark {
+  margin-bottom: 10px;
+  color: #bd7955;
+  font: 15px var(--app-font-mono);
+  letter-spacing: .2em;
+}
+
+.component-library-dialog__empty h3 {
+  margin: 0;
+  color: #3a5148;
+  font: 700 14px var(--app-font-display);
+}
+
+.component-library-dialog__empty p {
+  margin: 6px 0 13px;
+  color: #7c8981;
+  font-size: 10px;
+}
+
+.component-library-dialog__empty button {
+  min-height: 30px;
+  padding: 5px 10px;
+  border: 1px solid #d9e4d9;
+  border-radius: 6px;
+  background: #f1f5ef;
+  color: #39745d;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.component-library-dialog__empty button:hover {
+  background: #e6efe6;
+}
+
+.component-library-dialog__note {
+  flex: none;
+  margin: 0;
+  padding: 12px 22px 13px;
+  border-top: 1px solid #e5e1d7;
+  background: #f3f3ec;
+  color: #738078;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.component-library-dialog__sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+@keyframes component-library-arrive {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 620px) {
+  .component-library-dialog {
+    width: calc(100vw - 20px) !important;
+    max-height: min(92dvh, 820px) !important;
+    border-radius: 11px !important;
+  }
+
+  .component-library-dialog__header {
+    min-height: 94px;
+    padding: 17px 55px 14px 17px;
+  }
+
+  .component-library-dialog__title {
+    font-size: 18px !important;
+  }
+
+  .component-library-dialog__tools {
+    grid-template-columns: 1fr;
+    gap: 9px;
+    padding: 12px 15px 11px;
+  }
+
+  .component-library-dialog__category {
+    grid-template-columns: 62px minmax(0, 1fr);
+  }
+
+  .component-library-dialog__results-heading {
+    min-height: 38px;
+    padding: 0 16px;
+  }
+
+  .component-library-dialog__list {
+    padding: 0 14px 14px;
+  }
+
+  .component-library-dialog__grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .component-library-dialog__item {
+    padding: 11px 12px 10px;
+  }
+
+  .component-library-dialog__item-description {
+    min-height: 0;
+    margin: 8px 0;
+  }
+
+  .component-library-dialog__note {
+    padding: 10px 15px 11px;
+    font-size: 9px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .component-library-dialog__item {
+    animation: none;
+  }
+
+  .component-library-dialog__select {
+    transition: none;
+  }
+}

@@ -24,6 +24,7 @@ type CircuitBuilderComposerProps = {
   briefEditing: boolean;
   hasProposal: boolean;
   hasUnappliedJsonEdits: boolean;
+  activeKeyNumber?: number;
   retryAttempt: number;
   retryKind: BuildRetryKind | null;
   onSubmitMessage: (content: string, draftRevisionAtStart: number) => void | Promise<void>;
@@ -38,6 +39,7 @@ const CircuitBuilderComposer = forwardRef<
   briefEditing,
   hasProposal,
   hasUnappliedJsonEdits,
+  activeKeyNumber,
   retryAttempt,
   retryKind,
   onSubmitMessage,
@@ -119,12 +121,24 @@ const CircuitBuilderComposer = forwardRef<
       />
       <div className="builder-chat__composer-foot">
         <span>{composerHint}</span>
-        <button type="submit" disabled={!canSend} aria-label="Send message" data-testid="button-send-builder-message">
-          {isWorking
-            ? <LoaderCircle className="is-spinning" aria-hidden="true" />
-            : <Send aria-hidden="true" />}
-          <span>{sendLabel}</span>
-        </button>
+        <div className="builder-chat__composer-controls">
+          {activeKeyNumber !== undefined && (
+            <span
+              className="builder-chat__active-key"
+              aria-label={`Current AI key number ${activeKeyNumber}`}
+              title="Currently selected AI key number"
+              data-testid="badge-active-ai-key"
+            >
+              Key #{activeKeyNumber}
+            </span>
+          )}
+          <button type="submit" disabled={!canSend} aria-label="Send message" data-testid="button-send-builder-message">
+            {isWorking
+              ? <LoaderCircle className="is-spinning" aria-hidden="true" />
+              : <Send aria-hidden="true" />}
+            <span>{sendLabel}</span>
+          </button>
+        </div>
       </div>
     </form>
   );

@@ -473,6 +473,27 @@
   line-height: 1.4;
 }
 
+.builder-chat__composer-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex: none;
+}
+
+.builder-chat__active-key {
+  display: inline-flex;
+  min-height: 23px;
+  align-items: center;
+  padding: 4px 7px;
+  border: 1px solid #dce6dc;
+  border-radius: 6px;
+  background: #eef3ec;
+  color: #356858;
+  font-size: 9px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .builder-chat__composer-foot button,
 .builder-chat__brief-save,
 .builder-chat__apply {

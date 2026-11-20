@@ -1275,6 +1275,7 @@ export function CircuitBuilderChat({
             briefEditing={briefEditing}
             hasProposal={!!proposal}
             hasUnappliedJsonEdits={hasUnappliedJsonEdits}
+            activeKeyNumber={usageQuery.data?.activeKeyNumber}
             retryAttempt={retryAttempt}
             retryKind={retryKind}
             onSubmitMessage={handleSubmitMessage}

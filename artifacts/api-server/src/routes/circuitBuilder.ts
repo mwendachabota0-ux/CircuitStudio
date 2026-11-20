@@ -263,6 +263,12 @@ router.post(
                 keyNumber = usedKeyNumber;
                 lastUsedKeyNumber = usedKeyNumber;
               },
+              onKeyFallback: (failedKeyNumber, nextKeyNumber) => {
+                req.log.info(
+                  { failedKeyNumber, nextKeyNumber },
+                  "Gemini key failed; trying the next configured key",
+                );
+              },
             },
             (client) =>
               client.models.generateContent({

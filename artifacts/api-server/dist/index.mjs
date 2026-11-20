@@ -62713,8 +62713,12 @@ var SAFE_IDENTIFIER = /^[A-Za-z][A-Za-z0-9_.-]{0,47}$/;
 function safeIdentifier(value) {
   return typeof value === "string" && SAFE_IDENTIFIER.test(value) ? value : void 0;
 }
-function getProviderErrorDiagnostics(error, providerKeyNumber) {
-  const diagnostics = { providerKeyNumber };
+function getProviderErrorDiagnostics(error, providerKeyNumber, attemptedKeyNumbers, rateLimitedKeyNumbers) {
+  const diagnostics = {
+    providerKeyNumber,
+    ...attemptedKeyNumbers?.length ? { attemptedKeyNumbers } : {},
+    ...rateLimitedKeyNumbers?.length ? { rateLimitedKeyNumbers } : {}
+  };
   if (typeof error !== "object" || error === null) return diagnostics;
   const record = error;
   const status = Number(record.status);
@@ -62733,6 +62737,14 @@ function getSafeErrorType(error) {
 }
 
 // src/lib/circuitAiKeySelection.ts
+function canFallbackToAnotherKey(error) {
+  if (!error || typeof error !== "object") return false;
+  const record = error;
+  const status = Number(record.status);
+  if (status === 429 || status === 503) return true;
+  const code = `${record.code ?? ""} ${record.message ?? ""}`.toLowerCase();
+  return /quota|rate.?limit|resource.?exhausted/.test(code);
+}
 function orderKeysAfter(keys, usedKeyNumber) {
   const ordered = [...keys].sort((left, right) => left.number - right.number);
   if (ordered.length < 2) return ordered;
@@ -62903,14 +62915,6 @@ async function settleReservation(userId, requestId, actualTokens, preferredKeyNu
     await tx.delete(circuitAiReservations).where(eq(circuitAiReservations.requestId, requestId));
   });
 }
-function canFallbackToAnotherKey(error) {
-  if (!error || typeof error !== "object") return false;
-  const record = error;
-  const status = Number(record.status);
-  if (status === 429 || status === 503) return true;
-  const code = `${record.code ?? ""} ${record.message ?? ""}`.toLowerCase();
-  return /quota|rate.?limit|resource.?exhausted/.test(code);
-}
 function providerErrorText(error) {
   if (!error || typeof error !== "object") return "";
   const record = error;
@@ -62988,9 +62992,12 @@ async function generateWithAccountUsage(userId, options, generate) {
     ...keys.filter((key) => key.number === reservation.keyNumber),
     ...keys.filter((key) => key.number !== reservation.keyNumber)
   ] : orderKeysAfter(keys, options.afterKeyNumber);
+  const attemptedKeyNumbers = [];
+  const rateLimitedKeyNumbers = [];
   try {
     for (let index2 = 0; index2 < orderedKeys.length; index2 += 1) {
       const key = orderedKeys[index2];
+      attemptedKeyNumbers.push(key.number);
       let response;
       try {
         response = await generate(
@@ -63000,16 +63007,24 @@ async function generateWithAccountUsage(userId, options, generate) {
           })
         );
       } catch (error) {
+        const rateLimited = isProviderRateLimited(error);
+        if (rateLimited) rateLimitedKeyNumbers.push(key.number);
         if (index2 < orderedKeys.length - 1 && canFallbackToAnotherKey(error)) {
+          options.onKeyFallback?.(key.number, orderedKeys[index2 + 1].number);
           continue;
         }
-        const rateLimited = isProviderRateLimited(error);
+        const everyConfiguredKeyRateLimited = attemptedKeyNumbers.length === orderedKeys.length && rateLimitedKeyNumbers.length === orderedKeys.length;
         throw new CircuitAiError(
-          "Gemini could not complete this request. Try again shortly or select another configured key.",
+          everyConfiguredKeyRateLimited ? `All ${orderedKeys.length} configured Gemini keys are rate-limited. Circuit Studio tried each key; wait for quota to reset or configure another key.` : "Gemini could not complete this request. Circuit Studio tried the configured keys that could be used. Try again shortly or select another configured key.",
           502,
           rateLimited ? true : isTransientProviderFailure(error),
           providerRetryAfterMs(error),
-          getProviderErrorDiagnostics(error, key.number)
+          getProviderErrorDiagnostics(
+            error,
+            key.number,
+            attemptedKeyNumbers,
+            rateLimitedKeyNumbers
+          )
         );
       }
       const reportedTokens = response.usageMetadata?.totalTokenCount;
@@ -64367,6 +64382,12 @@ ${contents}`,
               onKeyUsed: (usedKeyNumber) => {
                 keyNumber = usedKeyNumber;
                 lastUsedKeyNumber = usedKeyNumber;
+              },
+              onKeyFallback: (failedKeyNumber, nextKeyNumber) => {
+                req.log.info(
+                  { failedKeyNumber, nextKeyNumber },
+                  "Gemini key failed; trying the next configured key"
+                );
               }
             },
             (client) => client.models.generateContent({

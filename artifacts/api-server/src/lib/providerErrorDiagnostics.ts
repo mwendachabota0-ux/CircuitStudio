@@ -1,5 +1,7 @@
 export type ProviderErrorDiagnostics = {
   providerKeyNumber: number;
+  attemptedKeyNumbers?: number[];
+  rateLimitedKeyNumbers?: number[];
   providerStatus?: number;
   providerCode?: string;
   providerErrorType?: string;
@@ -17,8 +19,14 @@ function safeIdentifier(value: unknown): string | undefined {
 export function getProviderErrorDiagnostics(
   error: unknown,
   providerKeyNumber: number,
+  attemptedKeyNumbers?: number[],
+  rateLimitedKeyNumbers?: number[],
 ): ProviderErrorDiagnostics {
-  const diagnostics: ProviderErrorDiagnostics = { providerKeyNumber };
+  const diagnostics: ProviderErrorDiagnostics = {
+    providerKeyNumber,
+    ...(attemptedKeyNumbers?.length ? { attemptedKeyNumbers } : {}),
+    ...(rateLimitedKeyNumbers?.length ? { rateLimitedKeyNumbers } : {}),
+  };
   if (typeof error !== "object" || error === null) return diagnostics;
 
   const record = error as Record<string, unknown>;

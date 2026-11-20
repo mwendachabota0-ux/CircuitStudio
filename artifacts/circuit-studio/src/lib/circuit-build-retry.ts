@@ -128,7 +128,7 @@ export function shouldClearSubmittedDraft(
 
 export function buildRepairMessage(findings: string[]): string {
   const preamble = 'The supplied current CircuitSpec is the last failing AI proposal, not the user’s workbench draft. Edit that proposal in place. Fix every validator finding below and return a complete corrected CircuitSpec:';
-  const footer = 'Preserve the requested behavior and avoid unrelated changes. Do not return the previous invalid coordinates.';
+  const footer = 'Preserve every non-wire element exactly, including all positions and orientations. Do not redesign the layout; only add, remove, reroute, or snap wires. Preserve the requested behavior.';
   const included: string[] = [];
   let length = preamble.length + footer.length + 2;
   for (const finding of findings) {
@@ -165,6 +165,26 @@ export function buildRepairRequest(
   };
 }
 
+function canonicalizeElement(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalizeElement);
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, item]) => [key, canonicalizeElement(item)]),
+  );
+}
+
+export function getNonWireElementSignature(
+  spec: NonNullable<CircuitBuildChatInput['currentSpec']>,
+): string {
+  const protectedElements = spec.elements
+    .filter((element) => element.type !== 'wire')
+    .map((element) => JSON.stringify(canonicalizeElement(element)))
+    .sort();
+  return JSON.stringify(protectedElements);
+}
+
 export function buildOutputRepairRequest(
   originalRequest: CircuitBuildChatInput,
 ): CircuitBuildChatInput {
@@ -187,6 +207,8 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
     send: (request: TRequest) => Promise<TResponse>;
     getProposal: (response: TResponse) => TProposal | null | undefined;
     inspectProposal: (proposal: TProposal) => TInspection;
+    prepareResponse?: (response: TResponse) => TResponse;
+    getProtectedElementsSignature?: (proposal: TProposal) => string;
     makeRepairRequest: (response: TResponse, findings: string[]) => TRequest;
     makeOutputRepairRequest?: (request: TRequest) => TRequest;
     onResponse?: (response: TResponse) => void;
@@ -198,6 +220,7 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
   let workingRequest = options.initialRequest;
   let outputRepairAttempted = false;
   let lastInvalidProposal: TProposal | null = null;
+  let protectedElementsSignature: string | undefined;
 
   while (true) {
     let response: TResponse;
@@ -242,10 +265,26 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
       });
     }
 
+    response = options.prepareResponse?.(response) ?? response;
     options.onResponse?.(response);
     const proposal = options.getProposal(response);
     if (proposal == null) {
       return { response, proposalInspection: null, request: workingRequest };
+    }
+
+    if (
+      protectedElementsSignature !== undefined &&
+      options.getProtectedElementsSignature &&
+      options.getProtectedElementsSignature(proposal) !== protectedElementsSignature
+    ) {
+      const finding = 'The repair changed a non-wire element. Keep every component fixed and repair the wires only.';
+      throw new CircuitBuildAttemptError({
+        retryCount: retries,
+        canRetryManually: true,
+        failureKind: 'validation',
+        validationFindings: [finding],
+        rejectedProposal: proposal,
+      });
     }
 
     const proposalInspection = options.inspectProposal(proposal);
@@ -255,6 +294,9 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
     ];
     if (findings.length === 0) return { response, proposalInspection, request: workingRequest };
     lastInvalidProposal = proposal;
+    if (protectedElementsSignature === undefined && options.getProtectedElementsSignature) {
+      protectedElementsSignature = options.getProtectedElementsSignature(proposal);
+    }
 
     if (!proposalInspection.canRepair) {
       throw new CircuitBuildAttemptError({

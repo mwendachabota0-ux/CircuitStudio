@@ -15,6 +15,7 @@ import {
   buildOutputRepairRequest,
   buildRepairRequest,
   CircuitBuildAttemptError,
+  getNonWireElementSignature,
   getModeAfterFailedRequest,
   MAX_AUTO_RETRIES,
   runCircuitBuildAttempts,
@@ -279,6 +280,14 @@ export function CircuitBuilderChat({
         send: (workingRequest) => chatMutation.mutateAsync({ data: workingRequest }),
         getProposal: (result) => result.proposal?.spec ?? null,
         inspectProposal,
+        prepareResponse: (result) => {
+          if (!result.proposal?.spec || !window.CircuitDraw) return result;
+          const autoFixed = window.CircuitDraw.autoFix(result.proposal.spec);
+          return autoFixed.changes.length
+            ? { ...result, proposal: { ...result.proposal, spec: autoFixed.spec } }
+            : result;
+        },
+        getProtectedElementsSignature: getNonWireElementSignature,
         makeRepairRequest: (result, findings) => buildRepairRequest(
           request,
           latestBrief,

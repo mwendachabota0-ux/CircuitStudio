@@ -8,6 +8,7 @@ import {
   buildOutputRepairRequest,
   buildRepairRequest,
   CircuitBuildAttemptError,
+  getNonWireElementSignature,
   getBuildRetryPolicy,
   getModeAfterFailedRequest,
   isInvalidModelOutput,
@@ -189,6 +190,93 @@ test('each repair request uses the latest failing proposal, not the workbench dr
   assert.deepEqual(requests[2].currentSpec, secondFailingSpec);
   assert.deepEqual(baseRequest.currentSpec, { title: 'Draft', elements: [] });
 });
+
+test('allows wire-only repairs while preserving every component position', async () => {
+  const firstSpec = {
+    title: 'Draft',
+    elements: [
+      { type: 'npn', id: 'Q1', at: [100, 100] },
+      { type: 'wire', id: 'W1', points: [[50, 50], [60, 50]] },
+    ],
+  };
+  const repairedSpec = {
+    ...firstSpec,
+    elements: [
+      firstSpec.elements[0],
+      { type: 'wire', id: 'W1', points: [[50, 50], [75, 100]] },
+    ],
+  };
+  const proposals = [firstSpec, repairedSpec];
+  let inspected = 0;
+  const result = await runCircuitBuildAttempts({
+    initialRequest: baseRequest,
+    send: async () => {
+      const spec = proposals.shift()!;
+      return { answer: 'Draft.', nextMode: 'build' as const, proposal: { spec } };
+    },
+    getProposal: (response) => response.proposal.spec,
+    inspectProposal: () => ({
+      validation: inspected++ === 0
+        ? { errors: [], warnings: ['Wire W1 is disconnected.'] }
+        : { errors: [], warnings: [] },
+      canRepair: true,
+    }),
+    makeRepairRequest: (response) => ({
+      ...baseRequest,
+      currentSpec: response.proposal.spec,
+    }),
+    getProtectedElementsSignature: (spec) =>
+      getNonWireElementSignature(spec as NonNullable<CircuitBuildChatInput['currentSpec']>),
+    wait: async () => {},
+  });
+
+  assert.equal(result.response.proposal.spec, repairedSpec);
+  assert.equal(inspected, 2);
+});
+
+test('rejects a repair before applying it if a component moves', async () => {
+  const initialSpec = {
+    title: 'Draft',
+    elements: [{ type: 'npn', id: 'Q1', at: [100, 100] }],
+  };
+  const movedSpec = {
+    title: 'Draft',
+    elements: [{ type: 'npn', id: 'Q1', at: [120, 100] }],
+  };
+  let sends = 0;
+
+  await assert.rejects(
+    runCircuitBuildAttempts({
+      initialRequest: baseRequest,
+      send: async () => {
+        sends += 1;
+        return {
+          answer: 'Draft.',
+          nextMode: 'build' as const,
+          proposal: { spec: sends === 1 ? initialSpec : movedSpec },
+        };
+      },
+      getProposal: (response) => response.proposal.spec,
+      inspectProposal: () => ({
+        validation: { errors: [], warnings: ['Wire W1 is disconnected.'] },
+        canRepair: true,
+      }),
+      makeRepairRequest: () => baseRequest,
+      getProtectedElementsSignature: (spec) =>
+        getNonWireElementSignature(spec as NonNullable<CircuitBuildChatInput['currentSpec']>),
+      wait: async () => {},
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof CircuitBuildAttemptError);
+      assert.equal(error.failureKind, 'validation');
+      assert.match(error.validationFindings[0], /changed a non-wire element/);
+      assert.equal(error.rejectedProposal, movedSpec);
+      return true;
+    },
+  );
+  assert.equal(sends, 2);
+});
+
 test('stops after two repair retries and exposes a manual retry', async () => {
   const invalidProposal = { answer: 'Draft ready.', nextMode: 'build' as const, proposal: { spec: { title: 'Draft', elements: [] } } };
   let sends = 0;

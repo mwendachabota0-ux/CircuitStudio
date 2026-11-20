@@ -2,6 +2,7 @@ import {
   ChatWithCircuitBuilderBody,
   ChatWithCircuitBuilderResponse,
 } from "@workspace/api-zod";
+import { formatCircuitPinGuide } from "@workspace/circuit-geometry";
 import type { GenerateContentResponse } from "@google/genai";
 import { getAuth } from "@clerk/express";
 import rateLimit from "express-rate-limit";
@@ -48,7 +49,12 @@ Use only supported CircuitDraw element types: resistor, capacitor, electrolytic,
 
 Before returning a proposal, make it pass CircuitDraw structural validation. For every two-terminal part, keep the straight-line distance from "from" to "to" at least 10 px above the renderer minimum: resistor 60 px; capacitor and electrolytic 22 px; inductor 74 px; diode, zener, and LED 30 px; battery 20 px; switch and mic 46 px; speaker 34 px; lamp 38 px; AC source 42 px; crystal 28 px. Prefer 80–100 px when space allows. Do not use the same 30 px spacing for every part.
 
-Connect wires exactly to pins. For NPN, the base is at x−25,y and collector/emitter at x+25,y−44/y+44; for PNP, the base is at x−25,y and emitter/collector at x+25,y−44/y+44. The flip:true property mirrors transistor pin x-coordinates. For an op-amp at x,y, INV and NONINV are at x−40,y−20 and x−40,y+20 (swapped when swap:true), and OUT is at x+40,y. Ground and antenna connect at their at coordinate. Keep wire segments horizontal or vertical, avoid zero-length segments and routes through two-terminal parts, and connect wire endpoints to pins or other wire endpoints. Set open:true on a wire only when it is intentionally left disconnected.
+Use this canonical CircuitDraw pin-coordinate table for initial proposals and every repair:
+${formatCircuitPinGuide()}
+
+Keep wire segments horizontal or vertical, avoid zero-length segments and routes through two-terminal parts, and connect wire endpoints exactly to pins or other wire endpoints. Set open:true on a wire only when it is intentionally left disconnected.
+
+When the latest user message asks to repair a prior proposal using validator findings, preserve every non-wire element exactly, including its type, identity, value, orientation, and coordinates. Do not redesign or reposition the layout. Only add, remove, reroute, or snap wires. If the requested design is a two-transistor astable multivibrator or alternating flasher, each timing capacitor must connect one collector to the opposite transistor's base; each base also needs its own resistor to the positive supply. Never connect a timing capacitor from a transistor's collector back to that same transistor's base.
 
 CircuitDraw warnings also trigger a repair attempt. Avoid terminals with almost no lead wire, disconnected wire endpoints, and wires that cross or short components.
 

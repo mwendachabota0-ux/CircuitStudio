@@ -62906,6 +62906,63 @@ ${contents}`,
 );
 var tutor_default = router4;
 
+// ../../lib/circuit-geometry/src/index.ts
+var TWO_TERMINAL_PIN_NAMES = {
+  resistor: ["1", "2"],
+  capacitor: ["1", "2"],
+  electrolytic: ["+", "-"],
+  inductor: ["1", "2"],
+  diode: ["A", "K"],
+  zener: ["A", "K"],
+  led: ["A", "K"],
+  battery: ["+", "-"],
+  switch: ["1", "2"],
+  mic: ["1", "2"],
+  speaker: ["1", "2"],
+  lamp: ["1", "2"],
+  acsource: ["1", "2"],
+  crystal: ["1", "2"]
+};
+var TRANSISTOR_PIN_OFFSETS = {
+  npn: {
+    B: [-25, 0],
+    C: [25, -44],
+    E: [25, 44]
+  },
+  pnp: {
+    B: [-25, 0],
+    E: [25, -44],
+    C: [25, 44]
+  }
+};
+function coordinateOffset(value, axis) {
+  if (value === 0) return axis;
+  return `${axis}${value > 0 ? "+" : "\u2212"}${Math.abs(value)}`;
+}
+function formatOffset([x, y]) {
+  return `(${coordinateOffset(x, "x")}, ${coordinateOffset(y, "y")})`;
+}
+function formatCircuitPinGuide() {
+  const lines = [
+    "Two-terminal pin locations:",
+    ...Object.entries(TWO_TERMINAL_PIN_NAMES).map(
+      ([type, [first, second]]) => `${type}: ${first} is exactly at from; ${second} is exactly at to.`
+    )
+  ];
+  for (const type of ["npn", "pnp"]) {
+    const offsets = TRANSISTOR_PIN_OFFSETS[type];
+    const pins = Object.entries(offsets).map(([name, offset]) => `${name}=${formatOffset(offset)}`).join(", ");
+    lines.push(
+      `${type.toUpperCase()}: ${pins}; flip:true mirrors all x offsets.`
+    );
+  }
+  lines.push(
+    `opamp: INV=${formatOffset([-40, -20])}, NONINV=${formatOffset([-40, 20])}, OUT=${formatOffset([40, 0])}; swap:true exchanges the two input y offsets.`,
+    "ground, antenna, terminal: the pin is exactly at the element at coordinate."
+  );
+  return lines.join("\n");
+}
+
 // src/routes/circuitBuilder.ts
 var import_express9 = __toESM(require_express2(), 1);
 
@@ -62964,7 +63021,12 @@ Use only supported CircuitDraw element types: resistor, capacitor, electrolytic,
 
 Before returning a proposal, make it pass CircuitDraw structural validation. For every two-terminal part, keep the straight-line distance from "from" to "to" at least 10 px above the renderer minimum: resistor 60 px; capacitor and electrolytic 22 px; inductor 74 px; diode, zener, and LED 30 px; battery 20 px; switch and mic 46 px; speaker 34 px; lamp 38 px; AC source 42 px; crystal 28 px. Prefer 80\u2013100 px when space allows. Do not use the same 30 px spacing for every part.
 
-Connect wires exactly to pins. For NPN, the base is at x\u221225,y and collector/emitter at x+25,y\u221244/y+44; for PNP, the base is at x\u221225,y and emitter/collector at x+25,y\u221244/y+44. The flip:true property mirrors transistor pin x-coordinates. For an op-amp at x,y, INV and NONINV are at x\u221240,y\u221220 and x\u221240,y+20 (swapped when swap:true), and OUT is at x+40,y. Ground and antenna connect at their at coordinate. Keep wire segments horizontal or vertical, avoid zero-length segments and routes through two-terminal parts, and connect wire endpoints to pins or other wire endpoints. Set open:true on a wire only when it is intentionally left disconnected.
+Use this canonical CircuitDraw pin-coordinate table for initial proposals and every repair:
+${formatCircuitPinGuide()}
+
+Keep wire segments horizontal or vertical, avoid zero-length segments and routes through two-terminal parts, and connect wire endpoints exactly to pins or other wire endpoints. Set open:true on a wire only when it is intentionally left disconnected.
+
+When the latest user message asks to repair a prior proposal using validator findings, preserve every non-wire element exactly, including its type, identity, value, orientation, and coordinates. Do not redesign or reposition the layout. Only add, remove, reroute, or snap wires. If the requested design is a two-transistor astable multivibrator or alternating flasher, each timing capacitor must connect one collector to the opposite transistor's base; each base also needs its own resistor to the positive supply. Never connect a timing capacitor from a transistor's collector back to that same transistor's base.
 
 CircuitDraw warnings also trigger a repair attempt. Avoid terminals with almost no lead wire, disconnected wire endpoints, and wires that cross or short components.
 

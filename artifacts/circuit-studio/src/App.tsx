@@ -12,6 +12,7 @@ import {
   useGetAiStatus, useGetAiUsage, useReviewCircuit, useSetAiKeySelection,
 } from '@workspace/api-client-react';
 import type { AiUsage, CircuitSpec as ApiCircuitSpec, TutorImageMimeType, TutorResponse } from '@workspace/api-client-react';
+import * as CircuitGeometry from '@workspace/circuit-geometry';
 import {
   ArrowDownRight, ArrowRight, Bell, BellOff, BellRing, Check, CheckCircle2, ChevronDown, ChevronUp, CircuitBoard,
   Clipboard, Code2, Download, FileCode2, FileText, Image, LoaderCircle,
@@ -40,15 +41,21 @@ type CircuitSpec = ApiCircuitSpec;
 type CircuitDrawApi = {
   render: (spec: CircuitSpec) => string;
   validate: (spec: CircuitSpec) => ValidationReport;
+  autoFix: (spec: CircuitSpec) => { spec: CircuitSpec; changes: string[] };
   buildSheet: (spec: CircuitSpec) => string;
 };
 declare global {
-  interface Window { CircuitDraw?: CircuitDrawApi; }
+  interface Window {
+    CircuitDraw?: CircuitDrawApi;
+    CircuitGeometry: typeof CircuitGeometry;
+  }
   interface ImportMetaEnv {
     readonly VITE_CLERK_PUBLISHABLE_KEY: string;
     readonly VITE_CLERK_PROXY_URL: string;
   }
 }
+
+window.CircuitGeometry = CircuitGeometry;
 
 const queryClient = new QueryClient();
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');

@@ -15,6 +15,7 @@
     "@clerk/shared": "^4.46.0",
     "@google/genai": "^3.6.0",
     "@workspace/api-zod": "workspace:*",
+    "@workspace/circuit-geometry": "workspace:*",
     "@workspace/db": "workspace:*",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",

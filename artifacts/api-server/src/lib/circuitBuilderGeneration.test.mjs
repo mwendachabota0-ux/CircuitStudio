@@ -19,6 +19,7 @@ test("retries MAX_TOKENS output once with a lower thinking budget", async () => 
       return responses.shift();
     },
     isMaxTokens: (response) => response.finishReason === "MAX_TOKENS",
+    getPartialOutput: (response) => response.text,
   });
 
   assert.deepEqual(budgets, [1024, 512]);
@@ -39,8 +40,36 @@ test("does not spend a fallback call when generation finishes normally", async (
       return { finishReason: "STOP" };
     },
     isMaxTokens: (response) => response.finishReason === "MAX_TOKENS",
+    getPartialOutput: () => undefined,
   });
 
   assert.deepEqual(budgets, [1024]);
   assert.deepEqual(result.attemptedBudgets, [1024]);
+});
+
+test("hands truncated output to the next-key continuation with a lower thinking budget", async () => {
+  const calls = [];
+  const responses = [
+    { finishReason: "MAX_TOKENS", text: '{"answer":"partial work' },
+    { finishReason: "STOP", text: '{"answer":"complete response"}' },
+  ];
+
+  const result = await generateWithThinkingBudgetFallback({
+    budgets: getBuilderThinkingBudgets(false),
+    generate: async (thinkingBudget, continuation) => {
+      calls.push({ thinkingBudget, continuation });
+      return responses.shift();
+    },
+    isMaxTokens: (response) => response.finishReason === "MAX_TOKENS",
+    getPartialOutput: (response) => response.text,
+  });
+
+  assert.deepEqual(calls, [
+    { thinkingBudget: 1024, continuation: null },
+    {
+      thinkingBudget: 512,
+      continuation: { partialOutput: '{"answer":"partial work' },
+    },
+  ]);
+  assert.equal(result.response.finishReason, "STOP");
 });

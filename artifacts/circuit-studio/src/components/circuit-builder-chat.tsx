@@ -15,6 +15,7 @@ import {
   buildOutputRepairRequest,
   buildRepairRequest,
   CircuitBuildAttemptError,
+  getModeAfterFailedRequest,
   MAX_AUTO_RETRIES,
   runCircuitBuildAttempts,
   type BuildRetryKind,
@@ -299,6 +300,7 @@ export function CircuitBuilderChat({
         void queryClient.invalidateQueries({ queryKey: getGetAiUsageQueryKey() });
         onTaskComplete(nextMode);
     } catch (error) {
+      setMode((currentMode) => getModeAfterFailedRequest(currentMode, request.mode));
       if (error instanceof CircuitBuildAttemptError) {
         setRejectedProposalSpec(asCircuitSpec(error.rejectedProposal));
         const causeMessage = error.cause instanceof Error

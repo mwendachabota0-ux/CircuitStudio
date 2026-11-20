@@ -48,11 +48,23 @@ Use only supported CircuitDraw element types: resistor, capacitor, electrolytic,
 
 Before returning a proposal, make it pass CircuitDraw structural validation. For every two-terminal part, keep the straight-line distance from "from" to "to" at least 10 px above the renderer minimum: resistor 60 px; capacitor and electrolytic 22 px; inductor 74 px; diode, zener, and LED 30 px; battery 20 px; switch and mic 46 px; speaker 34 px; lamp 38 px; AC source 42 px; crystal 28 px. Prefer 80–100 px when space allows. Do not use the same 30 px spacing for every part.
 
-Connect wires exactly to pins. For NPN, the base is at x−25,y and collector/emitter at x+25,y−44/y+44; for PNP, the base is at x−25,y and emitter/collector at x+25,y−44/y+44. `flip:true` mirrors transistor pin x-coordinates. For an op-amp at x,y, INV and NONINV are at x−40,y−20 and x−40,y+20 (swapped when `swap:true`), and OUT is at x+40,y. Ground and antenna connect at their `at` coordinate. Keep wire segments horizontal or vertical, avoid zero-length segments and routes through two-terminal parts, and connect wire endpoints to pins or other wire endpoints. Set `open:true` on a wire only when it is intentionally left disconnected.
+Connect wires exactly to pins. For NPN, the base is at x−25,y and collector/emitter at x+25,y−44/y+44; for PNP, the base is at x−25,y and emitter/collector at x+25,y−44/y+44. The flip:true property mirrors transistor pin x-coordinates. For an op-amp at x,y, INV and NONINV are at x−40,y−20 and x−40,y+20 (swapped when swap:true), and OUT is at x+40,y. Ground and antenna connect at their at coordinate. Keep wire segments horizontal or vertical, avoid zero-length segments and routes through two-terminal parts, and connect wire endpoints to pins or other wire endpoints. Set open:true on a wire only when it is intentionally left disconnected.
 
-CircuitDraw warnings also trigger a repair attempt. Avoid terminals with almost no lead wire, disconnected wire endpoints, and wires that cross or short components.`;
+CircuitDraw warnings also trigger a repair attempt. Avoid terminals with almost no lead wire, disconnected wire endpoints, and wires that cross or short components.
 
 Never invent an exact manufacturer part number, footprint, rating, or user requirement. Clearly state assumptions and unknowns. A structurally renderable proposal is not proof of electrical correctness, safety, compliance, or fitness to build.`;
+
+function buildContinuationContents(
+  originalContents: string,
+  partialOutput: string,
+): string {
+  return `${originalContents}
+
+The previous Gemini key reached its output limit while working on this response. Continue from its partial work below. Preserve useful details, repair any incomplete JSON, and return one complete valid JSON object that follows the required schema. Do not repeat the partial text as a separate answer.
+
+Partial assistant output:
+${partialOutput || "(The previous attempt returned no text.)"}`;
+}
 
 const emptyBrief = {
   goal: "",
@@ -110,8 +122,6 @@ router.post(
     ]
       .filter(Boolean)
       .join("\n\n");
-    const inputText = `${builderInstructions}\n\n${userMessage}`;
-
     let failureStage = "model_generation";
     let outputLength = 0;
     let finishReason = "unknown";
@@ -120,18 +130,35 @@ router.post(
       finishReason: string;
       outputLength: number;
       tokenUsage: Record<string, number>;
+      keyNumber?: number;
+      continuedFromOutputLength: number;
     }> = [];
+    let lastUsedKeyNumber: number | undefined;
     try {
       const generation = await generateWithThinkingBudgetFallback({
         budgets: getBuilderThinkingBudgets(parsed.data.responseFormatRetry ?? false),
-        generate: async (thinkingBudget) => {
+        generate: async (thinkingBudget, continuation) => {
+          const contents = continuation
+            ? buildContinuationContents(userMessage, continuation.partialOutput)
+            : userMessage;
+          let keyNumber: number | undefined;
           const result = await generateWithAccountUsage(
             userId!,
-            { inputText, maxOutputTokens: 8192 },
+            {
+              inputText: `${builderInstructions}\n\n${contents}`,
+              maxOutputTokens: 8192,
+              ...(continuation && lastUsedKeyNumber !== undefined
+                ? { afterKeyNumber: lastUsedKeyNumber }
+                : {}),
+              onKeyUsed: (usedKeyNumber) => {
+                keyNumber = usedKeyNumber;
+                lastUsedKeyNumber = usedKeyNumber;
+              },
+            },
             (client) =>
               client.models.generateContent({
                 model: "gemini-2.5-flash",
-                contents: userMessage,
+                contents,
                 config: {
                   systemInstruction: builderInstructions,
                   responseMimeType: "application/json",
@@ -146,10 +173,13 @@ router.post(
             finishReason: result.candidates?.[0]?.finishReason ?? "unknown",
             outputLength: result.text?.length ?? 0,
             tokenUsage: summarizeTokenUsage(result),
+            ...(keyNumber === undefined ? {} : { keyNumber }),
+            continuedFromOutputLength: continuation?.partialOutput.length ?? 0,
           });
           return result;
         },
         isMaxTokens: (result) => result.candidates?.[0]?.finishReason === "MAX_TOKENS",
+        getPartialOutput: (result) => result.text,
       });
       const response = generation.response;
 

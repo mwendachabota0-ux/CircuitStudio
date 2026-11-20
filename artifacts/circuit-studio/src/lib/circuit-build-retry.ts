@@ -14,6 +14,14 @@ export type BuildProposalInspection = {
 };
 
 export type BuildAttemptFailureKind = 'generation' | 'validation' | 'output';
+export type CircuitBuildMode = CircuitBuildChatInput['mode'];
+
+export function getModeAfterFailedRequest(
+  currentMode: CircuitBuildMode,
+  requestMode: CircuitBuildMode,
+): CircuitBuildMode {
+  return requestMode === 'build' ? 'build' : currentMode;
+}
 
 export class CircuitBuildAttemptError extends Error {
   readonly retryCount: number;

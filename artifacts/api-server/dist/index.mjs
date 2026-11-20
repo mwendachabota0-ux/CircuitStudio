@@ -53734,7 +53734,7 @@ var AskCircuitTutorResponse = objectType({
     })
   }).optional()
 });
-var chatWithCircuitBuilderBodyMessageMax = 3e3;
+var chatWithCircuitBuilderBodyMessageMax = 6e3;
 var chatWithCircuitBuilderBodyCurrentSpecElementsItemFromMin = 2;
 var chatWithCircuitBuilderBodyCurrentSpecElementsItemFromMax = 2;
 var chatWithCircuitBuilderBodyCurrentSpecElementsItemToMin = 2;
@@ -53759,6 +53759,7 @@ var chatWithCircuitBuilderBodyBriefOpenQuestionsMax = 12;
 var ChatWithCircuitBuilderBody = objectType({
   "message": stringType().min(1).max(chatWithCircuitBuilderBodyMessageMax),
   "mode": enumType(["chat", "build"]),
+  "responseFormatRetry": booleanType().optional().describe("Indicates a retry for correcting a previously truncated or malformed model response."),
   "currentSpec": objectType({
     "title": stringType(),
     "width": numberType().optional(),
@@ -62139,6 +62140,16 @@ function getSafeErrorType(error) {
   return safeIdentifier(error.name) ?? "UnknownError";
 }
 
+// src/lib/circuitAiKeySelection.ts
+function orderKeysAfter(keys, usedKeyNumber) {
+  const ordered = [...keys].sort((left, right) => left.number - right.number);
+  if (ordered.length < 2) return ordered;
+  const usedIndex = ordered.findIndex((key) => key.number === usedKeyNumber);
+  const nextIndex = usedIndex >= 0 ? (usedIndex + 1) % ordered.length : ordered.findIndex((key) => key.number > usedKeyNumber);
+  const startIndex = nextIndex >= 0 ? nextIndex : 0;
+  return [...ordered.slice(startIndex), ...ordered.slice(0, startIndex)];
+}
+
 // src/lib/circuitAi.ts
 var MAX_CONFIGURED_KEYS = 10;
 var STALE_RESERVATION_AGE_MS = 60 * 60 * 1e3;
@@ -62381,10 +62392,10 @@ async function generateWithAccountUsage(userId, options, generate) {
       true
     );
   }
-  const orderedKeys = [
+  const orderedKeys = options.afterKeyNumber === void 0 ? [
     ...keys.filter((key) => key.number === reservation.keyNumber),
     ...keys.filter((key) => key.number !== reservation.keyNumber)
-  ];
+  ] : orderKeysAfter(keys, options.afterKeyNumber);
   try {
     for (let index2 = 0; index2 < orderedKeys.length; index2 += 1) {
       const key = orderedKeys[index2];
@@ -62429,6 +62440,7 @@ async function generateWithAccountUsage(userId, options, generate) {
         reservation.keyNumber,
         key.number
       );
+      options.onKeyUsed?.(key.number);
       return response;
     }
     throw new CircuitAiError(
@@ -62896,6 +62908,31 @@ var tutor_default = router4;
 
 // src/routes/circuitBuilder.ts
 var import_express9 = __toESM(require_express2(), 1);
+
+// src/lib/circuitBuilderGeneration.ts
+var DEFAULT_BUILDER_THINKING_BUDGET = 1024;
+var RESPONSE_RETRY_THINKING_BUDGET = 512;
+var FORMAT_RETRY_THINKING_BUDGET = 512;
+var FORMAT_RETRY_FALLBACK_THINKING_BUDGET = 256;
+function getBuilderThinkingBudgets(responseFormatRetry) {
+  return responseFormatRetry ? [FORMAT_RETRY_THINKING_BUDGET, FORMAT_RETRY_FALLBACK_THINKING_BUDGET] : [DEFAULT_BUILDER_THINKING_BUDGET, RESPONSE_RETRY_THINKING_BUDGET];
+}
+async function generateWithThinkingBudgetFallback(options) {
+  const [initialBudget, fallbackBudget] = options.budgets;
+  const initialResponse = await options.generate(initialBudget, null);
+  if (!options.isMaxTokens(initialResponse)) {
+    return { response: initialResponse, attemptedBudgets: [initialBudget] };
+  }
+  const fallbackResponse = await options.generate(fallbackBudget, {
+    partialOutput: options.getPartialOutput(initialResponse) ?? ""
+  });
+  return {
+    response: fallbackResponse,
+    attemptedBudgets: [initialBudget, fallbackBudget]
+  };
+}
+
+// src/routes/circuitBuilder.ts
 var router5 = (0, import_express9.Router)();
 var requireAuth4 = (req, res, next) => {
   if (!getAuth(req).userId) {
@@ -62925,15 +62962,41 @@ In build mode, if the request is clear enough, include a complete proposed Circu
 
 Use only supported CircuitDraw element types: resistor, capacitor, electrolytic, inductor, diode, zener, led, battery, switch, mic, speaker, lamp, acsource, crystal, npn, pnp, opamp, ground, antenna, terminal, wire, junction, label, box. Use clear reference designators and keep all coordinates and wire segments compatible with CircuitDraw.
 
-Before returning a proposal, make it pass CircuitDraw structural validation. For every two-terminal part, the straight-line distance from "from" to "to" must meet these minimums: resistor 50 px; capacitor and electrolytic 12 px; inductor 64 px; diode, zener, and LED 20 px; battery 10 px; switch and mic 36 px; speaker 24 px; lamp 28 px; AC source 32 px; crystal 18 px. Do not use the same 30 px spacing for every part. Keep wire segments horizontal or vertical, connect their endpoints exactly to component pins or other wire endpoints, avoid zero-length segments, and do not route wires through two-terminal parts. Mark a wire endpoint open only when it is intentionally left disconnected.
+Before returning a proposal, make it pass CircuitDraw structural validation. For every two-terminal part, keep the straight-line distance from "from" to "to" at least 10 px above the renderer minimum: resistor 60 px; capacitor and electrolytic 22 px; inductor 74 px; diode, zener, and LED 30 px; battery 20 px; switch and mic 46 px; speaker 34 px; lamp 38 px; AC source 42 px; crystal 28 px. Prefer 80\u2013100 px when space allows. Do not use the same 30 px spacing for every part.
+
+Connect wires exactly to pins. For NPN, the base is at x\u221225,y and collector/emitter at x+25,y\u221244/y+44; for PNP, the base is at x\u221225,y and emitter/collector at x+25,y\u221244/y+44. The flip:true property mirrors transistor pin x-coordinates. For an op-amp at x,y, INV and NONINV are at x\u221240,y\u221220 and x\u221240,y+20 (swapped when swap:true), and OUT is at x+40,y. Ground and antenna connect at their at coordinate. Keep wire segments horizontal or vertical, avoid zero-length segments and routes through two-terminal parts, and connect wire endpoints to pins or other wire endpoints. Set open:true on a wire only when it is intentionally left disconnected.
+
+CircuitDraw warnings also trigger a repair attempt. Avoid terminals with almost no lead wire, disconnected wire endpoints, and wires that cross or short components.
 
 Never invent an exact manufacturer part number, footprint, rating, or user requirement. Clearly state assumptions and unknowns. A structurally renderable proposal is not proof of electrical correctness, safety, compliance, or fitness to build.`;
+function buildContinuationContents(originalContents, partialOutput) {
+  return `${originalContents}
+
+The previous Gemini key reached its output limit while working on this response. Continue from its partial work below. Preserve useful details, repair any incomplete JSON, and return one complete valid JSON object that follows the required schema. Do not repeat the partial text as a separate answer.
+
+Partial assistant output:
+${partialOutput || "(The previous attempt returned no text.)"}`;
+}
 var emptyBrief = {
   goal: "",
   requirements: [],
   assumptions: [],
   openQuestions: []
 };
+function summarizeTokenUsage(response) {
+  const usage = response.usageMetadata;
+  const values = {
+    promptTokenCount: usage?.promptTokenCount,
+    candidatesTokenCount: usage?.candidatesTokenCount,
+    thoughtsTokenCount: usage?.thoughtsTokenCount,
+    totalTokenCount: usage?.totalTokenCount
+  };
+  const summary = {};
+  for (const [name, value] of Object.entries(values)) {
+    if (typeof value === "number" && Number.isFinite(value)) summary[name] = value;
+  }
+  return summary;
+}
 router5.post(
   "/circuits/build-chat",
   requireAuth4,
@@ -62966,27 +63029,56 @@ ${JSON.stringify(currentSpec)}`,
       `Latest user message:
 ${parsed.data.message.trim()}`
     ].filter(Boolean).join("\n\n");
-    const inputText = `${builderInstructions}
-
-${userMessage}`;
     let failureStage = "model_generation";
     let outputLength = 0;
     let finishReason = "unknown";
+    const generationAttempts = [];
+    let lastUsedKeyNumber;
     try {
-      const response = await generateWithAccountUsage(
-        userId,
-        { inputText, maxOutputTokens: 8192 },
-        (client) => client.models.generateContent({
-          model: "gemini-2.5-flash",
-          contents: userMessage,
-          config: {
-            systemInstruction: builderInstructions,
-            responseMimeType: "application/json",
-            maxOutputTokens: 8192,
-            temperature: 0.2
-          }
-        })
-      );
+      const generation = await generateWithThinkingBudgetFallback({
+        budgets: getBuilderThinkingBudgets(parsed.data.responseFormatRetry ?? false),
+        generate: async (thinkingBudget, continuation) => {
+          const contents = continuation ? buildContinuationContents(userMessage, continuation.partialOutput) : userMessage;
+          let keyNumber;
+          const result2 = await generateWithAccountUsage(
+            userId,
+            {
+              inputText: `${builderInstructions}
+
+${contents}`,
+              maxOutputTokens: 8192,
+              ...continuation && lastUsedKeyNumber !== void 0 ? { afterKeyNumber: lastUsedKeyNumber } : {},
+              onKeyUsed: (usedKeyNumber) => {
+                keyNumber = usedKeyNumber;
+                lastUsedKeyNumber = usedKeyNumber;
+              }
+            },
+            (client) => client.models.generateContent({
+              model: "gemini-2.5-flash",
+              contents,
+              config: {
+                systemInstruction: builderInstructions,
+                responseMimeType: "application/json",
+                maxOutputTokens: 8192,
+                temperature: 0.2,
+                thinkingConfig: { thinkingBudget }
+              }
+            })
+          );
+          generationAttempts.push({
+            thinkingBudget,
+            finishReason: result2.candidates?.[0]?.finishReason ?? "unknown",
+            outputLength: result2.text?.length ?? 0,
+            tokenUsage: summarizeTokenUsage(result2),
+            ...keyNumber === void 0 ? {} : { keyNumber },
+            continuedFromOutputLength: continuation?.partialOutput.length ?? 0
+          });
+          return result2;
+        },
+        isMaxTokens: (result2) => result2.candidates?.[0]?.finishReason === "MAX_TOKENS",
+        getPartialOutput: (result2) => result2.text
+      });
+      const response = generation.response;
       finishReason = response.candidates?.[0]?.finishReason ?? "unknown";
       failureStage = "read_response_text";
       const text2 = response.text?.trim();
@@ -63013,6 +63105,7 @@ ${userMessage}`;
             {
               statusCode: error.statusCode,
               retryable: error.retryable,
+              generationAttempts,
               ...error.providerDiagnostics ?? {}
             },
             "Circuit builder request failed"
@@ -63034,7 +63127,8 @@ ${userMessage}`;
           failureStage,
           errorType: getSafeErrorType(error),
           outputLength,
-          finishReason
+          finishReason,
+          generationAttempts
         },
         "Circuit builder response could not be validated"
       );

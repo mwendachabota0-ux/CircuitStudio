@@ -10,6 +10,7 @@ import {
   getProviderErrorDiagnostics,
   type ProviderErrorDiagnostics,
 } from "./providerErrorDiagnostics";
+import { orderKeysAfter } from "./circuitAiKeySelection";
 
 const MAX_CONFIGURED_KEYS = 10;
 const STALE_RESERVATION_AGE_MS = 60 * 60 * 1000;
@@ -356,6 +357,8 @@ export async function generateWithAccountUsage(
     inputText: string;
     maxOutputTokens: number;
     imageTokenEstimate?: number;
+    afterKeyNumber?: number;
+    onKeyUsed?: (keyNumber: number) => void;
   },
   generate: (client: GoogleGenAI) => Promise<GenerateContentResponse>,
 ): Promise<GenerateContentResponse> {
@@ -383,10 +386,12 @@ export async function generateWithAccountUsage(
       true,
     );
   }
-  const orderedKeys = [
-    ...keys.filter((key) => key.number === reservation.keyNumber),
-    ...keys.filter((key) => key.number !== reservation.keyNumber),
-  ];
+  const orderedKeys = options.afterKeyNumber === undefined
+    ? [
+        ...keys.filter((key) => key.number === reservation.keyNumber),
+        ...keys.filter((key) => key.number !== reservation.keyNumber),
+      ]
+    : orderKeysAfter(keys, options.afterKeyNumber);
 
   try {
     for (let index = 0; index < orderedKeys.length; index += 1) {
@@ -440,6 +445,7 @@ export async function generateWithAccountUsage(
         reservation.keyNumber,
         key.number,
       );
+      options.onKeyUsed?.(key.number);
       return response;
     }
     throw new CircuitAiError(

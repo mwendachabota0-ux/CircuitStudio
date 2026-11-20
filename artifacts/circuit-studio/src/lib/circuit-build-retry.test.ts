@@ -9,6 +9,7 @@ import {
   buildRepairRequest,
   CircuitBuildAttemptError,
   getBuildRetryPolicy,
+  getModeAfterFailedRequest,
   isInvalidModelOutput,
   MAX_AUTO_RETRIES,
   runCircuitBuildAttempts,
@@ -43,6 +44,11 @@ test('recognizes direct and conversational requests to build', () => {
   ]) {
     assert.equal(getLocalBuilderModeIntent(message), 'build', message);
   }
+});
+
+test('keeps Build mode when a build request fails', () => {
+  assert.equal(getModeAfterFailedRequest('chat', 'build'), 'build');
+  assert.equal(getModeAfterFailedRequest('build', 'build'), 'build');
 });
 
 test('does not treat questions or requests to wait as build commands', () => {
@@ -103,7 +109,8 @@ test('exposes manual retry after exactly three transient failures', async () => 
 });
 
 test('repairs disconnected-wire warnings and spacing errors using exact findings', async () => {
-  const badProposal = { answer: 'Draft ready.', nextMode: 'build' as const, proposal: { spec: { title: 'Draft', elements: [] } } };
+  const failingSpec = { title: 'Rejected AI proposal', elements: [] };
+  const badProposal = { answer: 'Draft ready.', nextMode: 'build' as const, proposal: { spec: failingSpec } };
   const findings = [
     'R1: terminals are only 30 px apart; resistor needs at least 50 px.',
     'Wire W1 at (120,80) is not connected to anything.',
@@ -124,7 +131,12 @@ test('repairs disconnected-wire warnings and spacing errors using exact findings
         : { errors: [], warnings: [] },
       canRepair: true,
     }),
-    makeRepairRequest: (_response, issues) => buildRepairRequest(baseRequest, brief, issues),
+    makeRepairRequest: (response, issues) => buildRepairRequest(
+      baseRequest,
+      brief,
+      issues,
+      response.proposal?.spec,
+    ),
     onRetry: (attempt, kind) => progress.push([attempt, kind]),
     wait: async () => {},
   });
@@ -137,10 +149,46 @@ test('repairs disconnected-wire warnings and spacing errors using exact findings
     ...baseRequest.history!,
     { role: 'user', content: baseRequest.message },
   ]);
+  assert.deepEqual(requests[1].currentSpec, failingSpec);
+  assert.notDeepEqual(requests[1].currentSpec, baseRequest.currentSpec);
   assert.equal(requests[1].history?.filter((item) => item.content === baseRequest.message).length, 1);
   assert.equal(result.response, noProposal);
 });
 
+test('each repair request uses the latest failing proposal, not the workbench draft', async () => {
+  const firstFailingSpec = { title: 'First rejected proposal', elements: [] };
+  const secondFailingSpec = { title: 'Latest rejected proposal', elements: [] };
+  const proposals = [
+    { answer: 'First draft.', nextMode: 'build' as const, proposal: { spec: firstFailingSpec } },
+    { answer: 'Updated draft.', nextMode: 'build' as const, proposal: { spec: secondFailingSpec } },
+    noProposal,
+  ];
+  const requests: CircuitBuildChatInput[] = [];
+
+  await runCircuitBuildAttempts({
+    initialRequest: baseRequest,
+    send: async (request) => {
+      requests.push(request);
+      return proposals.shift()!;
+    },
+    getProposal: (response) => 'proposal' in response ? response.proposal.spec : null,
+    inspectProposal: () => ({
+      validation: { errors: [], warnings: ['Wire W1 is disconnected.'] },
+      canRepair: true,
+    }),
+    makeRepairRequest: (response, findings) => buildRepairRequest(
+      baseRequest,
+      brief,
+      findings,
+      response.proposal?.spec,
+    ),
+    wait: async () => {},
+  });
+
+  assert.deepEqual(requests[1].currentSpec, firstFailingSpec);
+  assert.deepEqual(requests[2].currentSpec, secondFailingSpec);
+  assert.deepEqual(baseRequest.currentSpec, { title: 'Draft', elements: [] });
+});
 test('stops after two repair retries and exposes a manual retry', async () => {
   const invalidProposal = { answer: 'Draft ready.', nextMode: 'build' as const, proposal: { spec: { title: 'Draft', elements: [] } } };
   let sends = 0;

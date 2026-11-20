@@ -6,6 +6,10 @@ import {
 } from "@workspace/db";
 import { and, eq, lt, sql } from "drizzle-orm";
 import { GoogleGenAI, type GenerateContentResponse } from "@google/genai";
+import {
+  getProviderErrorDiagnostics,
+  type ProviderErrorDiagnostics,
+} from "./providerErrorDiagnostics";
 
 const MAX_CONFIGURED_KEYS = 10;
 const STALE_RESERVATION_AGE_MS = 60 * 60 * 1000;
@@ -17,6 +21,7 @@ export class CircuitAiError extends Error {
     readonly statusCode: number,
     readonly retryable = false,
     readonly retryAfterMs?: number,
+    readonly providerDiagnostics?: ProviderErrorDiagnostics,
   ) {
     super(message);
     this.name = "CircuitAiError";
@@ -406,6 +411,7 @@ export async function generateWithAccountUsage(
             ? providerRetryAfterMs(error) !== undefined
             : isTransientProviderFailure(error),
           providerRetryAfterMs(error),
+          getProviderErrorDiagnostics(error, key.number),
         );
       }
 
@@ -418,6 +424,12 @@ export async function generateWithAccountUsage(
         throw new CircuitAiError(
           "Gemini did not return token usage, so this response could not be safely recorded.",
           502,
+          false,
+          undefined,
+          {
+            providerKeyNumber: key.number,
+            failurePhase: "usage_metadata_missing",
+          },
         );
       }
 

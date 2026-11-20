@@ -7,6 +7,7 @@ import rateLimit from "express-rate-limit";
 import { Router, type IRouter, type RequestHandler } from "express";
 import { CircuitAiError, generateWithAccountUsage } from "../lib/circuitAi";
 import { parseUsableCircuit } from "../lib/circuitSpec";
+import { getSafeErrorType } from "../lib/providerErrorDiagnostics";
 
 const router: IRouter = Router();
 
@@ -83,6 +84,9 @@ router.post(
       .join("\n\n");
     const inputText = `${builderInstructions}\n\n${userMessage}`;
 
+    let failureStage = "model_generation";
+    let outputLength = 0;
+    let finishReason = "unknown";
     try {
       const response = await generateWithAccountUsage(
         userId!,
@@ -100,13 +104,21 @@ router.post(
           }),
       );
 
+      finishReason = response.candidates?.[0]?.finishReason ?? "unknown";
+      failureStage = "read_response_text";
       const text = response.text?.trim();
       if (!text) throw new Error("Empty builder response.");
-      const result = ChatWithCircuitBuilderResponse.parse(JSON.parse(text));
+      outputLength = text.length;
+
+      failureStage = "parse_json";
+      const decoded = JSON.parse(text);
+      failureStage = "validate_response_schema";
+      const result = ChatWithCircuitBuilderResponse.parse(decoded);
       result.nextMode ??= result.proposal ? "build" : parsed.data.mode;
       if (parsed.data.mode === "build") result.nextMode = "build";
 
       if (result.proposal) {
+        failureStage = "validate_circuit_spec";
         result.proposal.spec = parseUsableCircuit(result.proposal.spec);
       }
       if (result.nextMode !== "build") {
@@ -118,7 +130,11 @@ router.post(
       if (error instanceof CircuitAiError) {
         if (error.statusCode >= 500) {
           req.log.error(
-            { statusCode: error.statusCode },
+            {
+              statusCode: error.statusCode,
+              retryable: error.retryable,
+              ...(error.providerDiagnostics ?? {}),
+            },
             "Circuit builder request failed",
           );
         }
@@ -133,7 +149,13 @@ router.post(
         return;
       }
       req.log.error(
-        { reason: "invalid_or_unusable_model_output" },
+        {
+          reason: "invalid_or_unusable_model_output",
+          failureStage,
+          errorType: getSafeErrorType(error),
+          outputLength,
+          finishReason,
+        },
         "Circuit builder response could not be validated",
       );
       res.setHeader("X-Circuit-AI-Output-Invalid", "true");

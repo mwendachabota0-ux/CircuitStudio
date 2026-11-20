@@ -62114,20 +62114,48 @@ var db = drizzle(pool, { schema: schema_exports });
 
 // src/lib/circuitAi.ts
 import { GoogleGenAI } from "@google/genai";
+
+// src/lib/providerErrorDiagnostics.ts
+var SAFE_IDENTIFIER = /^[A-Za-z][A-Za-z0-9_.-]{0,47}$/;
+function safeIdentifier(value) {
+  return typeof value === "string" && SAFE_IDENTIFIER.test(value) ? value : void 0;
+}
+function getProviderErrorDiagnostics(error, providerKeyNumber) {
+  const diagnostics = { providerKeyNumber };
+  if (typeof error !== "object" || error === null) return diagnostics;
+  const record = error;
+  const status = Number(record.status);
+  if (Number.isInteger(status) && status >= 400 && status <= 599) {
+    diagnostics.providerStatus = status;
+  }
+  const code = safeIdentifier(record.code);
+  if (code) diagnostics.providerCode = code;
+  const errorType = safeIdentifier(record.name);
+  if (errorType) diagnostics.providerErrorType = errorType;
+  return diagnostics;
+}
+function getSafeErrorType(error) {
+  if (typeof error !== "object" || error === null) return "UnknownError";
+  return safeIdentifier(error.name) ?? "UnknownError";
+}
+
+// src/lib/circuitAi.ts
 var MAX_CONFIGURED_KEYS = 10;
 var STALE_RESERVATION_AGE_MS = 60 * 60 * 1e3;
 var GEMINI_API_VERSION = "v1beta";
 var CircuitAiError = class extends Error {
-  constructor(message, statusCode, retryable = false, retryAfterMs) {
+  constructor(message, statusCode, retryable = false, retryAfterMs, providerDiagnostics) {
     super(message);
     this.statusCode = statusCode;
     this.retryable = retryable;
     this.retryAfterMs = retryAfterMs;
+    this.providerDiagnostics = providerDiagnostics;
     this.name = "CircuitAiError";
   }
   statusCode;
   retryable;
   retryAfterMs;
+  providerDiagnostics;
 };
 var AI_STATUS_MODEL = "gemini-2.5-flash";
 var AI_STATUS_CACHE_TTL_MS = 15e3;
@@ -62377,14 +62405,21 @@ async function generateWithAccountUsage(userId, options, generate) {
           "Gemini could not complete this request. Try again shortly or select another configured key.",
           502,
           rateLimited ? providerRetryAfterMs(error) !== void 0 : isTransientProviderFailure(error),
-          providerRetryAfterMs(error)
+          providerRetryAfterMs(error),
+          getProviderErrorDiagnostics(error, key.number)
         );
       }
       const reportedTokens = response.usageMetadata?.totalTokenCount;
       if (typeof reportedTokens !== "number" || !Number.isSafeInteger(reportedTokens) || reportedTokens < 1) {
         throw new CircuitAiError(
           "Gemini did not return token usage, so this response could not be safely recorded.",
-          502
+          502,
+          false,
+          void 0,
+          {
+            providerKeyNumber: key.number,
+            failurePhase: "usage_metadata_missing"
+          }
         );
       }
       await settleReservation(
@@ -62930,6 +62965,9 @@ ${parsed.data.message.trim()}`
     const inputText = `${builderInstructions}
 
 ${userMessage}`;
+    let failureStage = "model_generation";
+    let outputLength = 0;
+    let finishReason = "unknown";
     try {
       const response = await generateWithAccountUsage(
         userId,
@@ -62945,12 +62983,19 @@ ${userMessage}`;
           }
         })
       );
+      finishReason = response.candidates?.[0]?.finishReason ?? "unknown";
+      failureStage = "read_response_text";
       const text2 = response.text?.trim();
       if (!text2) throw new Error("Empty builder response.");
-      const result = ChatWithCircuitBuilderResponse.parse(JSON.parse(text2));
+      outputLength = text2.length;
+      failureStage = "parse_json";
+      const decoded = JSON.parse(text2);
+      failureStage = "validate_response_schema";
+      const result = ChatWithCircuitBuilderResponse.parse(decoded);
       result.nextMode ??= result.proposal ? "build" : parsed.data.mode;
       if (parsed.data.mode === "build") result.nextMode = "build";
       if (result.proposal) {
+        failureStage = "validate_circuit_spec";
         result.proposal.spec = parseUsableCircuit(result.proposal.spec);
       }
       if (result.nextMode !== "build") {
@@ -62961,7 +63006,11 @@ ${userMessage}`;
       if (error instanceof CircuitAiError) {
         if (error.statusCode >= 500) {
           req.log.error(
-            { statusCode: error.statusCode },
+            {
+              statusCode: error.statusCode,
+              retryable: error.retryable,
+              ...error.providerDiagnostics ?? {}
+            },
             "Circuit builder request failed"
           );
         }
@@ -62976,7 +63025,13 @@ ${userMessage}`;
         return;
       }
       req.log.error(
-        { reason: "invalid_or_unusable_model_output" },
+        {
+          reason: "invalid_or_unusable_model_output",
+          failureStage,
+          errorType: getSafeErrorType(error),
+          outputLength,
+          finishReason
+        },
         "Circuit builder response could not be validated"
       );
       res.setHeader("X-Circuit-AI-Output-Invalid", "true");

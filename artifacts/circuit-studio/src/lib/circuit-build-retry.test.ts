@@ -14,6 +14,7 @@ import {
   runCircuitBuildAttempts,
   shouldClearSubmittedDraft,
 } from './circuit-build-retry.ts';
+import { getLocalBuilderModeIntent } from './circuit-build-intent.ts';
 
 const brief: CircuitDesignBrief = {
   goal: 'Build an LED indicator',
@@ -31,6 +32,28 @@ const baseRequest: CircuitBuildChatInput = {
 };
 
 const noProposal = { answer: 'Ready.', nextMode: 'chat' as const };
+
+test('recognizes direct and conversational requests to build', () => {
+  for (const message of [
+    'okay build now',
+    'Build a simple LED circuit.',
+    'Can you build the circuit now?',
+    'Go ahead and draw it',
+    'Please switch to build mode',
+  ]) {
+    assert.equal(getLocalBuilderModeIntent(message), 'build', message);
+  }
+});
+
+test('does not treat questions or requests to wait as build commands', () => {
+  for (const message of [
+    'How do I build a simple LED circuit?',
+    "Don't build it yet.",
+    'What if we build a different circuit?',
+  ]) {
+    assert.equal(getLocalBuilderModeIntent(message), null, message);
+  }
+});
 
 test('retries transient generation failures at most twice, then recovers', async () => {
   let sends = 0;

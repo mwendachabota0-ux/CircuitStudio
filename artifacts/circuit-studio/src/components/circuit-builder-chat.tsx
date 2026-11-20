@@ -19,6 +19,7 @@ import {
   runCircuitBuildAttempts,
   type BuildRetryKind,
 } from '../lib/circuit-build-retry';
+import { getLocalBuilderModeIntent } from '../lib/circuit-build-intent';
 import {
   Check,
   CheckCircle2,
@@ -164,15 +165,6 @@ function readSavedState(key: string): SavedState {
   } catch {
     return fallback;
   }
-}
-
-function localModeIntent(text: string): ChatMode | null {
-  const normalized = text.toLowerCase().replace(/[.!?]/g, '').trim();
-  if (/^(please )?(turn|switch|change|go)( me )?( to )?(the )?build( mode)?$/.test(normalized)
-    || normalized === 'build mode' || normalized === 'switch to build') return 'build';
-  if (/^(please )?(turn|switch|change|go)( me )?( to )?(the )?chat( mode)?$/.test(normalized)
-    || normalized === 'chat mode' || normalized === 'switch to chat') return 'chat';
-  return null;
 }
 
 function newMessage(role: CircuitBuildChatMessage['role'], content: string): ThreadMessage {
@@ -327,7 +319,7 @@ export function CircuitBuilderChat({
   const handleSubmitMessage = async (content: string, draftRevisionAtStart: number) => {
     const normalizedContent = content.trim();
     if (!normalizedContent || chatMutation.isPending || requestCycleActive || briefEditing) return;
-    const intent = localModeIntent(normalizedContent);
+    const intent = getLocalBuilderModeIntent(normalizedContent);
     if (proposal && intent !== 'chat') return;
     if (intent === 'chat') {
       const userMessage = newMessage('user', normalizedContent);
@@ -342,6 +334,9 @@ export function CircuitBuilderChat({
     }
 
     const requestMode: ChatMode = intent === 'build' ? 'build' : mode;
+    // Reflect an explicit build request immediately and keep that mode if
+    // generation or validation fails, so repair/retry stays in build mode.
+    setMode(requestMode);
     const userMessage = newMessage('user', normalizedContent);
     setSaved((current) => ({
       ...current,

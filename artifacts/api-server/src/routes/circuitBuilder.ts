@@ -39,7 +39,11 @@ Choose nextMode from the user's intent, not only the currently selected tab. In 
 
 In build mode, if the request is clear enough, include a complete proposed CircuitSpec. If a critical requirement is unclear, ask one focused question and omit the proposal, but keep nextMode as "build". For edits, start from the supplied current CircuitSpec and preserve unrelated components, values, labels, and connections. For an explicitly new or replacement design, do not preserve an unrelated example circuit.
 
-Use only supported CircuitDraw element types: resistor, capacitor, electrolytic, inductor, diode, zener, led, battery, switch, mic, speaker, lamp, acsource, crystal, npn, pnp, opamp, ground, antenna, terminal, wire, junction, label, box. Use clear reference designators and keep all coordinates and wire segments compatible with CircuitDraw. Never invent an exact manufacturer part number, footprint, rating, or user requirement. Clearly state assumptions and unknowns. A structurally renderable proposal is not proof of electrical correctness, safety, compliance, or fitness to build.`;
+Use only supported CircuitDraw element types: resistor, capacitor, electrolytic, inductor, diode, zener, led, battery, switch, mic, speaker, lamp, acsource, crystal, npn, pnp, opamp, ground, antenna, terminal, wire, junction, label, box. Use clear reference designators and keep all coordinates and wire segments compatible with CircuitDraw.
+
+Before returning a proposal, make it pass CircuitDraw structural validation. For every two-terminal part, the straight-line distance from "from" to "to" must meet these minimums: resistor 50 px; capacitor and electrolytic 12 px; inductor 64 px; diode, zener, and LED 20 px; battery 10 px; switch and mic 36 px; speaker 24 px; lamp 28 px; AC source 32 px; crystal 18 px. Do not use the same 30 px spacing for every part. Keep wire segments horizontal or vertical, connect their endpoints exactly to component pins or other wire endpoints, avoid zero-length segments, and do not route wires through two-terminal parts. Mark a wire endpoint open only when it is intentionally left disconnected.
+
+Never invent an exact manufacturer part number, footprint, rating, or user requirement. Clearly state assumptions and unknowns. A structurally renderable proposal is not proof of electrical correctness, safety, compliance, or fitness to build.`;
 
 const emptyBrief = {
   goal: "",

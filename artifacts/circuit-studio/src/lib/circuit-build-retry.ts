@@ -15,6 +15,20 @@ export type BuildProposalInspection = {
 
 export type BuildAttemptFailureKind = 'generation' | 'validation' | 'output';
 export type CircuitBuildMode = CircuitBuildChatInput['mode'];
+export type RepairAttemptOutcome = 'reconstructed' | 'validated' | 'rejected' | 'exhausted';
+export type RepairAttemptDiagnostic = {
+  attempt: number;
+  outcome: RepairAttemptOutcome;
+  nonWireElementsModified: boolean;
+  metadataModified: boolean;
+  validationErrors: string[];
+  validationWarnings: string[];
+};
+
+type ProtectedCircuitChanges = {
+  nonWireElementsModified: boolean;
+  metadataModified: boolean;
+};
 
 export function getModeAfterFailedRequest(
   currentMode: CircuitBuildMode,
@@ -28,6 +42,9 @@ export class CircuitBuildAttemptError extends Error {
   readonly canRetryManually: boolean;
   readonly failureKind: BuildAttemptFailureKind;
   readonly validationFindings: string[];
+  readonly validationWarnings: string[];
+  readonly repairAttemptCount: number;
+  readonly repairDiagnostics: RepairAttemptDiagnostic[];
   readonly rejectedProposal: unknown;
   readonly cause: unknown;
 
@@ -37,6 +54,9 @@ export class CircuitBuildAttemptError extends Error {
     failureKind: BuildAttemptFailureKind;
     cause?: unknown;
     validationFindings?: string[];
+    validationWarnings?: string[];
+    repairAttemptCount?: number;
+    repairDiagnostics?: RepairAttemptDiagnostic[];
     rejectedProposal?: unknown;
   }) {
     super('Circuit build attempts did not produce a usable result.');
@@ -45,6 +65,9 @@ export class CircuitBuildAttemptError extends Error {
     this.canRetryManually = options.canRetryManually;
     this.failureKind = options.failureKind;
     this.validationFindings = options.validationFindings ?? [];
+    this.validationWarnings = options.validationWarnings ?? [];
+    this.repairAttemptCount = options.repairAttemptCount ?? 0;
+    this.repairDiagnostics = options.repairDiagnostics ?? [];
     this.rejectedProposal = options.rejectedProposal;
     this.cause = options.cause;
   }
@@ -175,7 +198,7 @@ function canonicalizeElement(value: unknown): unknown {
   );
 }
 
-export function getNonWireElementSignature(
+function getNonWireElementsSignature(
   spec: NonNullable<CircuitBuildChatInput['currentSpec']>,
 ): string {
   const protectedElements = spec.elements
@@ -185,13 +208,39 @@ export function getNonWireElementSignature(
   return JSON.stringify(protectedElements);
 }
 
+function getMetadataSignature(
+  spec: NonNullable<CircuitBuildChatInput['currentSpec']>,
+): string {
+  const { elements: _elements, ...metadata } = spec;
+  return JSON.stringify(canonicalizeElement(metadata));
+}
+
+export function getProtectedCircuitSignature(
+  spec: NonNullable<CircuitBuildChatInput['currentSpec']>,
+): string {
+  return JSON.stringify({
+    metadata: getMetadataSignature(spec),
+    nonWireElements: getNonWireElementsSignature(spec),
+  });
+}
+
+export function getProtectedCircuitChanges(
+  protectedSpec: NonNullable<CircuitBuildChatInput['currentSpec']>,
+  proposedSpec: NonNullable<CircuitBuildChatInput['currentSpec']>,
+): ProtectedCircuitChanges {
+  return {
+    metadataModified: getMetadataSignature(protectedSpec) !== getMetadataSignature(proposedSpec),
+    nonWireElementsModified:
+      getNonWireElementsSignature(protectedSpec) !== getNonWireElementsSignature(proposedSpec),
+  };
+}
+
 export function restoreProtectedNonWireElements(
   protectedSpec: NonNullable<CircuitBuildChatInput['currentSpec']>,
   proposedSpec: NonNullable<CircuitBuildChatInput['currentSpec']>,
 ): NonNullable<CircuitBuildChatInput['currentSpec']> {
   const { elements: protectedElements, ...protectedMetadata } = protectedSpec;
   return {
-    ...proposedSpec,
     ...protectedMetadata,
     elements: [
       ...protectedElements.filter((element) => element.type !== 'wire'),
@@ -223,20 +272,34 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
     getProposal: (response: TResponse) => TProposal | null | undefined;
     inspectProposal: (proposal: TProposal) => TInspection;
     prepareResponse?: (response: TResponse) => TResponse;
-    initialProtectedElementsSignature?: string;
-    getProtectedElementsSignature?: (proposal: TProposal) => string;
+    initialProtectedSpec?: TProposal;
+    getProtectedCircuitSignature?: (proposal: TProposal) => string;
+    getProtectedCircuitChanges?: (protectedSpec: TProposal, proposal: TProposal) => ProtectedCircuitChanges;
+    restoreProtectedSpec?: (response: TResponse, protectedSpec: TProposal) => TResponse;
     makeRepairRequest: (response: TResponse, findings: string[]) => TRequest;
     makeOutputRepairRequest?: (request: TRequest) => TRequest;
     onResponse?: (response: TResponse) => void;
     onRetry?: (attempt: number, kind: BuildRetryKind) => void;
     wait?: (attempt: number, providerDelayMs?: number) => Promise<void>;
   },
-): Promise<{ response: TResponse; proposalInspection: TInspection | null; request: TRequest }> {
+): Promise<{
+  response: TResponse;
+  proposalInspection: TInspection | null;
+  request: TRequest;
+  repairAttemptCount: number;
+  repairDiagnostics: RepairAttemptDiagnostic[];
+}> {
   let retries = 0;
   let workingRequest = options.initialRequest;
   let outputRepairAttempted = false;
   let lastInvalidProposal: TProposal | null = null;
-  let protectedElementsSignature = options.initialProtectedElementsSignature;
+  let protectedSpec = options.initialProtectedSpec;
+  let protectedCircuitSignature = protectedSpec !== undefined && options.getProtectedCircuitSignature
+    ? options.getProtectedCircuitSignature(protectedSpec)
+    : undefined;
+  let isRepairAttempt = protectedSpec !== undefined;
+  let repairAttemptCount = isRepairAttempt ? 1 : 0;
+  const repairDiagnostics: RepairAttemptDiagnostic[] = [];
 
   while (true) {
     let response: TResponse;
@@ -262,6 +325,20 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
           failureKind: 'output',
           cause,
           rejectedProposal: lastInvalidProposal ?? undefined,
+          repairAttemptCount,
+          repairDiagnostics: isRepairAttempt
+            ? [
+                ...repairDiagnostics,
+                {
+                  attempt: repairAttemptCount,
+                  outcome: 'rejected',
+                  nonWireElementsModified: false,
+                  metadataModified: false,
+                  validationErrors: [],
+                  validationWarnings: [],
+                },
+              ]
+            : repairDiagnostics,
         });
       }
 
@@ -278,28 +355,126 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
         failureKind: 'generation',
         cause,
         rejectedProposal: lastInvalidProposal ?? undefined,
+        repairAttemptCount,
+        repairDiagnostics: isRepairAttempt
+          ? [
+              ...repairDiagnostics,
+              {
+                attempt: repairAttemptCount,
+                outcome: 'rejected',
+                nonWireElementsModified: false,
+                metadataModified: false,
+                validationErrors: [],
+                validationWarnings: [],
+              },
+            ]
+          : repairDiagnostics,
       });
     }
 
-    response = options.prepareResponse?.(response) ?? response;
-    options.onResponse?.(response);
-    const proposal = options.getProposal(response);
+    let proposal = options.getProposal(response);
     if (proposal == null) {
-      return { response, proposalInspection: null, request: workingRequest };
+      if (isRepairAttempt) {
+        repairDiagnostics.push({
+          attempt: repairAttemptCount,
+          outcome: 'rejected',
+          nonWireElementsModified: false,
+          metadataModified: false,
+          validationErrors: [],
+          validationWarnings: [],
+        });
+      }
+      options.onResponse?.(response);
+      return {
+        response,
+        proposalInspection: null,
+        request: workingRequest,
+        repairAttemptCount,
+        repairDiagnostics,
+      };
     }
 
-    if (
-      protectedElementsSignature !== undefined &&
-      options.getProtectedElementsSignature &&
-      options.getProtectedElementsSignature(proposal) !== protectedElementsSignature
-    ) {
-      const finding = 'The repair changed a non-wire element. Keep every component fixed and repair the wires only.';
+    if (protectedSpec === undefined) {
+      protectedSpec = proposal;
+      protectedCircuitSignature = options.getProtectedCircuitSignature?.(protectedSpec);
+    }
+
+    const protectedChanges = protectedSpec !== undefined && options.getProtectedCircuitChanges
+      ? options.getProtectedCircuitChanges(protectedSpec, proposal)
+      : { nonWireElementsModified: false, metadataModified: false };
+    const signatureChanged = protectedCircuitSignature !== undefined &&
+      options.getProtectedCircuitSignature &&
+      options.getProtectedCircuitSignature(proposal) !== protectedCircuitSignature;
+    if (signatureChanged && !options.restoreProtectedSpec) {
+      const diagnostic = isRepairAttempt
+        ? {
+            attempt: repairAttemptCount,
+            outcome: 'rejected' as const,
+            ...protectedChanges,
+            validationErrors: [],
+            validationWarnings: [],
+          }
+        : undefined;
+      if (diagnostic) repairDiagnostics.push(diagnostic);
       throw new CircuitBuildAttemptError({
         retryCount: retries,
         canRetryManually: true,
         failureKind: 'validation',
-        validationFindings: [finding],
+        validationFindings: ['The protected CircuitSpec could not be reconstructed before validation.'],
         rejectedProposal: proposal,
+        repairAttemptCount,
+        repairDiagnostics,
+      });
+    }
+
+    if (protectedSpec !== undefined && options.restoreProtectedSpec) {
+      response = options.restoreProtectedSpec(response, protectedSpec);
+    }
+    response = options.prepareResponse?.(response) ?? response;
+    proposal = options.getProposal(response);
+    options.onResponse?.(response);
+    if (proposal == null) {
+      if (isRepairAttempt) {
+        repairDiagnostics.push({
+          attempt: repairAttemptCount,
+          outcome: 'rejected',
+          ...protectedChanges,
+          validationErrors: [],
+          validationWarnings: [],
+        });
+      }
+      return {
+        response,
+        proposalInspection: null,
+        request: workingRequest,
+        repairAttemptCount,
+        repairDiagnostics,
+      };
+    }
+
+    if (
+      protectedCircuitSignature !== undefined &&
+      options.getProtectedCircuitSignature &&
+      options.getProtectedCircuitSignature(proposal) !== protectedCircuitSignature
+    ) {
+      const diagnostic = isRepairAttempt
+        ? {
+            attempt: repairAttemptCount,
+            outcome: 'rejected' as const,
+            ...protectedChanges,
+            validationErrors: [],
+            validationWarnings: [],
+          }
+        : undefined;
+      if (diagnostic) repairDiagnostics.push(diagnostic);
+      throw new CircuitBuildAttemptError({
+        retryCount: retries,
+        canRetryManually: false,
+        failureKind: 'validation',
+        validationFindings: ['The reconstructed CircuitSpec did not preserve its immutable baseline.'],
+        rejectedProposal: proposal,
+        repairAttemptCount,
+        repairDiagnostics,
       });
     }
 
@@ -307,27 +482,52 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
     // Warnings are advisory layout notes. Only blocking validation errors
     // should consume automatic repair attempts or prevent a proposal staging.
     const findings = proposalInspection.validation.errors;
-    if (findings.length === 0) return { response, proposalInspection, request: workingRequest };
-    lastInvalidProposal = proposal;
-    if (protectedElementsSignature === undefined && options.getProtectedElementsSignature) {
-      protectedElementsSignature = options.getProtectedElementsSignature(proposal);
+    const diagnostic = isRepairAttempt
+      ? {
+          attempt: repairAttemptCount,
+          outcome: 'reconstructed' as const,
+          ...protectedChanges,
+          validationErrors: findings,
+          validationWarnings: proposalInspection.validation.warnings,
+        }
+      : undefined;
+    if (diagnostic) repairDiagnostics.push(diagnostic);
+
+    if (findings.length === 0) {
+      if (diagnostic) diagnostic.outcome = 'validated';
+      return {
+        response,
+        proposalInspection,
+        request: workingRequest,
+        repairAttemptCount,
+        repairDiagnostics,
+      };
     }
+    lastInvalidProposal = proposal;
 
     if (!proposalInspection.canRepair) {
+      if (diagnostic) diagnostic.outcome = 'rejected';
       throw new CircuitBuildAttemptError({
         retryCount: retries,
         canRetryManually: false,
         failureKind: 'validation',
         validationFindings: findings,
+        validationWarnings: proposalInspection.validation.warnings,
+        repairAttemptCount,
+        repairDiagnostics,
         rejectedProposal: proposal,
       });
     }
     if (retries >= MAX_AUTO_RETRIES) {
+      if (diagnostic) diagnostic.outcome = 'exhausted';
       throw new CircuitBuildAttemptError({
         retryCount: retries,
         canRetryManually: true,
         failureKind: 'validation',
         validationFindings: findings,
+        validationWarnings: proposalInspection.validation.warnings,
+        repairAttemptCount,
+        repairDiagnostics,
         rejectedProposal: proposal,
       });
     }
@@ -336,5 +536,7 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
     options.onRetry?.(retries, 'repair');
     await (options.wait ?? waitBeforeRetry)(retries);
     workingRequest = options.makeRepairRequest(response, findings);
+    repairAttemptCount += 1;
+    isRepairAttempt = true;
   }
 }

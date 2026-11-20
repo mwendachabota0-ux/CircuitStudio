@@ -15,12 +15,14 @@ import {
   buildOutputRepairRequest,
   buildRepairRequest,
   CircuitBuildAttemptError,
-  getNonWireElementSignature,
+  getProtectedCircuitChanges,
+  getProtectedCircuitSignature,
   getModeAfterFailedRequest,
   MAX_AUTO_RETRIES,
   restoreProtectedNonWireElements,
   runCircuitBuildAttempts,
   type BuildRetryKind,
+  type RepairAttemptDiagnostic,
 } from '../lib/circuit-build-retry';
 import { getLocalBuilderModeIntent } from '../lib/circuit-build-intent';
 import {
@@ -47,6 +49,7 @@ type RetryFeedback = {
   message: string;
   canRetryManually: boolean;
   validationFindings?: string[];
+  validationWarnings?: string[];
 };
 type RejectedSpecCopyState = 'idle' | 'copied' | 'error';
 
@@ -115,8 +118,8 @@ function inspectProposal(spec: CircuitBuildChatInput['currentSpec']): {
   }
 }
 
-function formatValidationFailure(errors: string[]): string {
-  return `The proposal still has ${errors.length} validation finding${errors.length === 1 ? '' : 's'} after ${MAX_AUTO_RETRIES} automatic repair retries. The full list and rejected draft are shown below.`;
+function formatValidationFailure(errors: string[], repairAttemptCount: number): string {
+  return `The proposal still has ${errors.length} blocking validation error${errors.length === 1 ? '' : 's'} after ${repairAttemptCount} repair attempt${repairAttemptCount === 1 ? '' : 's'}. The full list and rejected draft are shown below.`;
 }
 
 function asCircuitSpec(value: unknown): CircuitBuildChatInput['currentSpec'] | null {
@@ -231,6 +234,7 @@ export function CircuitBuilderChat({
   const [retryAttempt, setRetryAttempt] = useState(0);
   const [retryKind, setRetryKind] = useState<BuildRetryKind | null>(null);
   const [retryFeedback, setRetryFeedback] = useState<RetryFeedback | null>(null);
+  const [repairDiagnostics, setRepairDiagnostics] = useState<RepairAttemptDiagnostic[]>([]);
   const composerRef = useRef<CircuitBuilderComposerHandle>(null);
 
   useEffect(() => {
@@ -271,6 +275,7 @@ export function CircuitBuilderChat({
     setLastRequest(request);
     setLastProtectedElementsBaseSpec(protectedElementsBaseSpec ?? null);
     setRetryFeedback(null);
+    setRepairDiagnostics([]);
     setRejectedProposalSpec(null);
     setRejectedSpecCopyState('idle');
     setRetryAttempt(0);
@@ -279,32 +284,44 @@ export function CircuitBuilderChat({
     chatMutation.reset();
     let latestBrief = request.brief ?? emptyBrief();
     try {
-      const { response, proposalInspection, request: completedRequest } = await runCircuitBuildAttempts({
+      const {
+        response,
+        proposalInspection,
+        request: completedRequest,
+        repairDiagnostics: completedRepairDiagnostics,
+      } = await runCircuitBuildAttempts({
         initialRequest: request,
         send: (workingRequest) => chatMutation.mutateAsync({ data: workingRequest }),
         getProposal: (result) => result.proposal?.spec ?? null,
         inspectProposal,
         prepareResponse: (result) => {
-          if (!result.proposal?.spec) return result;
-          const preservedSpec = protectedElementsBaseSpec
-            ? restoreProtectedNonWireElements(protectedElementsBaseSpec, result.proposal.spec)
-            : result.proposal.spec;
-          if (!window.CircuitDraw) {
-            return preservedSpec === result.proposal.spec
-              ? result
-              : { ...result, proposal: { ...result.proposal, spec: preservedSpec } };
-          }
-          const autoFixed = window.CircuitDraw.autoFix(preservedSpec);
+          if (!result.proposal?.spec || !window.CircuitDraw) return result;
+          const autoFixed = window.CircuitDraw.autoFix(result.proposal.spec);
           return autoFixed.changes.length
             ? { ...result, proposal: { ...result.proposal, spec: autoFixed.spec } }
-            : preservedSpec === result.proposal.spec
-              ? result
-              : { ...result, proposal: { ...result.proposal, spec: preservedSpec } };
+            : result;
         },
-        initialProtectedElementsSignature: protectedElementsBaseSpec
-          ? getNonWireElementSignature(protectedElementsBaseSpec)
-          : undefined,
-        getProtectedElementsSignature: getNonWireElementSignature,
+        initialProtectedSpec: protectedElementsBaseSpec ?? undefined,
+        getProtectedCircuitSignature: (spec) =>
+          getProtectedCircuitSignature(spec as NonNullable<CircuitBuildChatInput['currentSpec']>),
+        getProtectedCircuitChanges: (baseline, candidate) =>
+          getProtectedCircuitChanges(
+            baseline as NonNullable<CircuitBuildChatInput['currentSpec']>,
+            candidate as NonNullable<CircuitBuildChatInput['currentSpec']>,
+          ),
+        restoreProtectedSpec: (result, baseline) => {
+          if (!result.proposal?.spec) return result;
+          return {
+            ...result,
+            proposal: {
+              ...result.proposal,
+              spec: restoreProtectedNonWireElements(
+                baseline as NonNullable<CircuitBuildChatInput['currentSpec']>,
+                result.proposal.spec,
+              ),
+            },
+          };
+        },
         makeRepairRequest: (result, findings) => buildRepairRequest(
           request,
           latestBrief,
@@ -331,6 +348,7 @@ export function CircuitBuilderChat({
           messages: [...current.messages, newMessage('assistant', response.answer)].slice(-60),
         }));
         setRejectedProposalSpec(null);
+        setRepairDiagnostics(completedRepairDiagnostics);
         if (nextMode === 'build' && response.proposal && proposalInspection) {
           setProposal(response.proposal);
           setProposalError('');
@@ -343,13 +361,14 @@ export function CircuitBuilderChat({
       setMode((currentMode) => getModeAfterFailedRequest(currentMode, request.mode));
       if (error instanceof CircuitBuildAttemptError) {
         setRejectedProposalSpec(asCircuitSpec(error.rejectedProposal));
+        setRepairDiagnostics(error.repairDiagnostics);
         const causeMessage = error.cause instanceof Error
           ? error.cause.message
           : 'The request did not go through. Your message is still here.';
         let message: string;
         if (error.failureKind === 'validation') {
           message = error.validationFindings.length
-            ? formatValidationFailure(error.validationFindings)
+            ? formatValidationFailure(error.validationFindings, error.repairAttemptCount)
             : 'The proposal could not be checked. Your message is still here.';
         } else if (error.failureKind === 'output') {
           const compatibilityMessage = error.cause instanceof Error
@@ -359,18 +378,22 @@ export function CircuitBuilderChat({
             ? `${compatibilityMessage} Your message and notes are unchanged; you can retry or choose a supported component.`
             : 'The assistant response still did not match Circuit Studio’s required format. Your message and notes are unchanged; you can retry or simplify the request.';
         } else {
-          message = error.retryCount >= MAX_AUTO_RETRIES
-            ? `The request failed after ${MAX_AUTO_RETRIES} automatic retries. ${causeMessage}`
+          message = error.retryCount > 0
+            ? `The request failed after ${error.retryCount} automatic retr${error.retryCount === 1 ? 'y' : 'ies'}. ${causeMessage}`
             : causeMessage;
         }
         setRetryFeedback({
           message,
           canRetryManually: error.canRetryManually,
           ...(error.failureKind === 'validation'
-            ? { validationFindings: error.validationFindings }
+            ? {
+                validationFindings: error.validationFindings,
+                validationWarnings: error.validationWarnings,
+              }
             : {}),
         });
       } else {
+        setRepairDiagnostics([]);
         setRetryFeedback({
           message: error instanceof Error ? error.message : 'The request did not go through. Your message is still here.',
           canRetryManually: false,
@@ -587,9 +610,15 @@ export function CircuitBuilderChat({
                 )}
               </div>
               {!!retryFeedback.validationFindings?.length && (
-                <section className="builder-chat__validation-findings" aria-label="All validation findings" data-testid="list-builder-validation-findings">
-                  <strong>All {retryFeedback.validationFindings.length} findings</strong>
+                <section className="builder-chat__validation-findings" aria-label="Blocking validation errors" data-testid="list-builder-validation-findings">
+                  <strong>{retryFeedback.validationFindings.length} blocking validation error{retryFeedback.validationFindings.length === 1 ? '' : 's'}</strong>
                   <ol>{retryFeedback.validationFindings.map((finding, index) => <li key={`failure-${index}`}>{finding}</li>)}</ol>
+                </section>
+              )}
+              {!!retryFeedback.validationWarnings?.length && (
+                <section className="builder-chat__validation-findings is-warning" aria-label="Advisory validation warnings" data-testid="list-builder-validation-warnings">
+                  <strong>{retryFeedback.validationWarnings.length} advisory warning{retryFeedback.validationWarnings.length === 1 ? '' : 's'} (not blocking)</strong>
+                  <ol>{retryFeedback.validationWarnings.map((warning, index) => <li key={`warning-${index}`}>{warning}</li>)}</ol>
                 </section>
               )}
               {rejectedProposalSpec && (

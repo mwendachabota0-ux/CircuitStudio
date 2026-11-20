@@ -2,10 +2,15 @@ import {
   ChatWithCircuitBuilderBody,
   ChatWithCircuitBuilderResponse,
 } from "@workspace/api-zod";
+import type { GenerateContentResponse } from "@google/genai";
 import { getAuth } from "@clerk/express";
 import rateLimit from "express-rate-limit";
 import { Router, type IRouter, type RequestHandler } from "express";
 import { CircuitAiError, generateWithAccountUsage } from "../lib/circuitAi";
+import {
+  generateWithThinkingBudgetFallback,
+  getBuilderThinkingBudgets,
+} from "../lib/circuitBuilderGeneration";
 import { parseUsableCircuit } from "../lib/circuitSpec";
 import { getSafeErrorType } from "../lib/providerErrorDiagnostics";
 
@@ -41,7 +46,11 @@ In build mode, if the request is clear enough, include a complete proposed Circu
 
 Use only supported CircuitDraw element types: resistor, capacitor, electrolytic, inductor, diode, zener, led, battery, switch, mic, speaker, lamp, acsource, crystal, npn, pnp, opamp, ground, antenna, terminal, wire, junction, label, box. Use clear reference designators and keep all coordinates and wire segments compatible with CircuitDraw.
 
-Before returning a proposal, make it pass CircuitDraw structural validation. For every two-terminal part, the straight-line distance from "from" to "to" must meet these minimums: resistor 50 px; capacitor and electrolytic 12 px; inductor 64 px; diode, zener, and LED 20 px; battery 10 px; switch and mic 36 px; speaker 24 px; lamp 28 px; AC source 32 px; crystal 18 px. Do not use the same 30 px spacing for every part. Keep wire segments horizontal or vertical, connect their endpoints exactly to component pins or other wire endpoints, avoid zero-length segments, and do not route wires through two-terminal parts. Mark a wire endpoint open only when it is intentionally left disconnected.
+Before returning a proposal, make it pass CircuitDraw structural validation. For every two-terminal part, keep the straight-line distance from "from" to "to" at least 10 px above the renderer minimum: resistor 60 px; capacitor and electrolytic 22 px; inductor 74 px; diode, zener, and LED 30 px; battery 20 px; switch and mic 46 px; speaker 34 px; lamp 38 px; AC source 42 px; crystal 28 px. Prefer 80–100 px when space allows. Do not use the same 30 px spacing for every part.
+
+Connect wires exactly to pins. For NPN, the base is at x−25,y and collector/emitter at x+25,y−44/y+44; for PNP, the base is at x−25,y and emitter/collector at x+25,y−44/y+44. `flip:true` mirrors transistor pin x-coordinates. For an op-amp at x,y, INV and NONINV are at x−40,y−20 and x−40,y+20 (swapped when `swap:true`), and OUT is at x+40,y. Ground and antenna connect at their `at` coordinate. Keep wire segments horizontal or vertical, avoid zero-length segments and routes through two-terminal parts, and connect wire endpoints to pins or other wire endpoints. Set `open:true` on a wire only when it is intentionally left disconnected.
+
+CircuitDraw warnings also trigger a repair attempt. Avoid terminals with almost no lead wire, disconnected wire endpoints, and wires that cross or short components.`;
 
 Never invent an exact manufacturer part number, footprint, rating, or user requirement. Clearly state assumptions and unknowns. A structurally renderable proposal is not proof of electrical correctness, safety, compliance, or fitness to build.`;
 
@@ -51,6 +60,21 @@ const emptyBrief = {
   assumptions: [],
   openQuestions: [],
 };
+
+function summarizeTokenUsage(response: GenerateContentResponse): Record<string, number> {
+  const usage = response.usageMetadata;
+  const values: Record<string, number | undefined> = {
+    promptTokenCount: usage?.promptTokenCount,
+    candidatesTokenCount: usage?.candidatesTokenCount,
+    thoughtsTokenCount: usage?.thoughtsTokenCount,
+    totalTokenCount: usage?.totalTokenCount,
+  };
+  const summary: Record<string, number> = {};
+  for (const [name, value] of Object.entries(values)) {
+    if (typeof value === "number" && Number.isFinite(value)) summary[name] = value;
+  }
+  return summary;
+}
 
 router.post(
   "/circuits/build-chat",
@@ -91,22 +115,43 @@ router.post(
     let failureStage = "model_generation";
     let outputLength = 0;
     let finishReason = "unknown";
+    const generationAttempts: Array<{
+      thinkingBudget: number;
+      finishReason: string;
+      outputLength: number;
+      tokenUsage: Record<string, number>;
+    }> = [];
     try {
-      const response = await generateWithAccountUsage(
-        userId!,
-        { inputText, maxOutputTokens: 8192 },
-        (client) =>
-          client.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: userMessage,
-            config: {
-              systemInstruction: builderInstructions,
-              responseMimeType: "application/json",
-              maxOutputTokens: 8192,
-              temperature: 0.2,
-            },
-          }),
-      );
+      const generation = await generateWithThinkingBudgetFallback({
+        budgets: getBuilderThinkingBudgets(parsed.data.responseFormatRetry ?? false),
+        generate: async (thinkingBudget) => {
+          const result = await generateWithAccountUsage(
+            userId!,
+            { inputText, maxOutputTokens: 8192 },
+            (client) =>
+              client.models.generateContent({
+                model: "gemini-2.5-flash",
+                contents: userMessage,
+                config: {
+                  systemInstruction: builderInstructions,
+                  responseMimeType: "application/json",
+                  maxOutputTokens: 8192,
+                  temperature: 0.2,
+                  thinkingConfig: { thinkingBudget },
+                },
+              }),
+          );
+          generationAttempts.push({
+            thinkingBudget,
+            finishReason: result.candidates?.[0]?.finishReason ?? "unknown",
+            outputLength: result.text?.length ?? 0,
+            tokenUsage: summarizeTokenUsage(result),
+          });
+          return result;
+        },
+        isMaxTokens: (result) => result.candidates?.[0]?.finishReason === "MAX_TOKENS",
+      });
+      const response = generation.response;
 
       finishReason = response.candidates?.[0]?.finishReason ?? "unknown";
       failureStage = "read_response_text";
@@ -137,6 +182,7 @@ router.post(
             {
               statusCode: error.statusCode,
               retryable: error.retryable,
+              generationAttempts,
               ...(error.providerDiagnostics ?? {}),
             },
             "Circuit builder request failed",
@@ -159,6 +205,7 @@ router.post(
           errorType: getSafeErrorType(error),
           outputLength,
           finishReason,
+          generationAttempts,
         },
         "Circuit builder response could not be validated",
       );

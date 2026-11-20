@@ -830,7 +830,7 @@ export declare const AskCircuitTutorResponse: zod.ZodObject<{
  * Maintains a concise design brief and, in Build mode, may return a validated CircuitSpec proposal that the user must review and apply.
  * @summary Clarify circuit requirements or propose a circuit edit
  */
-export declare const chatWithCircuitBuilderBodyMessageMax = 3000;
+export declare const chatWithCircuitBuilderBodyMessageMax = 6000;
 export declare const chatWithCircuitBuilderBodyCurrentSpecElementsItemFromMin = 2;
 export declare const chatWithCircuitBuilderBodyCurrentSpecElementsItemFromMax = 2;
 export declare const chatWithCircuitBuilderBodyCurrentSpecElementsItemToMin = 2;
@@ -855,6 +855,7 @@ export declare const chatWithCircuitBuilderBodyBriefOpenQuestionsMax = 12;
 export declare const ChatWithCircuitBuilderBody: zod.ZodObject<{
     message: zod.ZodString;
     mode: zod.ZodEnum<["chat", "build"]>;
+    responseFormatRetry: zod.ZodOptional<zod.ZodBoolean>;
     currentSpec: zod.ZodObject<{
         title: zod.ZodString;
         width: zod.ZodOptional<zod.ZodNumber>;
@@ -1080,6 +1081,7 @@ export declare const ChatWithCircuitBuilderBody: zod.ZodObject<{
         height?: number | undefined;
     };
     mode: "chat" | "build";
+    responseFormatRetry?: boolean | undefined;
     history?: {
         role: "user" | "assistant";
         content: string;
@@ -1128,6 +1130,7 @@ export declare const ChatWithCircuitBuilderBody: zod.ZodObject<{
         height?: number | undefined;
     };
     mode: "chat" | "build";
+    responseFormatRetry?: boolean | undefined;
     history?: {
         role: "user" | "assistant";
         content: string;

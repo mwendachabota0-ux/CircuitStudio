@@ -398,10 +398,13 @@ components:
         message:
           type: string
           minLength: 1
-          maxLength: 3000
+          maxLength: 6000
         mode:
           type: string
           enum: [chat, build]
+        responseFormatRetry:
+          type: boolean
+          description: Indicates a retry for correcting a previously truncated or malformed model response.
         currentSpec:
           $ref: "#/components/schemas/CircuitSpec"
         history:

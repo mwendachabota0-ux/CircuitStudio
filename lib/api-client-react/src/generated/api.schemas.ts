@@ -155,10 +155,12 @@ export const CircuitBuildChatInputMode = {
 export interface CircuitBuildChatInput {
   /**
      * @minLength 1
-     * @maxLength 3000
+     * @maxLength 6000
      */
   message: string;
   mode: CircuitBuildChatInputMode;
+  /** Indicates a retry for correcting a previously truncated or malformed model response. */
+  responseFormatRetry?: boolean;
   currentSpec: CircuitSpec;
   /** @maxItems 8 */
   history?: CircuitBuildChatMessage[];

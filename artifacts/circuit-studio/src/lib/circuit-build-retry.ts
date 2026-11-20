@@ -20,6 +20,7 @@ export class CircuitBuildAttemptError extends Error {
   readonly canRetryManually: boolean;
   readonly failureKind: BuildAttemptFailureKind;
   readonly validationFindings: string[];
+  readonly rejectedProposal: unknown;
   readonly cause: unknown;
 
   constructor(options: {
@@ -28,6 +29,7 @@ export class CircuitBuildAttemptError extends Error {
     failureKind: BuildAttemptFailureKind;
     cause?: unknown;
     validationFindings?: string[];
+    rejectedProposal?: unknown;
   }) {
     super('Circuit build attempts did not produce a usable result.');
     this.name = 'CircuitBuildAttemptError';
@@ -35,6 +37,7 @@ export class CircuitBuildAttemptError extends Error {
     this.canRetryManually = options.canRetryManually;
     this.failureKind = options.failureKind;
     this.validationFindings = options.validationFindings ?? [];
+    this.rejectedProposal = options.rejectedProposal;
     this.cause = options.cause;
   }
 }
@@ -116,26 +119,27 @@ export function shouldClearSubmittedDraft(
 }
 
 export function buildRepairMessage(findings: string[]): string {
-  const preamble = 'Repair the previous proposal for the original circuit request. Fix every validator finding below and return a complete corrected CircuitSpec:';
-  const footer = 'Preserve the requested behavior and avoid unrelated changes.';
+  const preamble = 'The supplied current CircuitSpec is the last failing AI proposal, not the user’s workbench draft. Edit that proposal in place. Fix every validator finding below and return a complete corrected CircuitSpec:';
+  const footer = 'Preserve the requested behavior and avoid unrelated changes. Do not return the previous invalid coordinates.';
   const included: string[] = [];
   let length = preamble.length + footer.length + 2;
   for (const finding of findings) {
-    const line = `- ${finding.slice(0, 180)}`;
-    if (length + line.length + 1 > 2_850) {
+    const line = `- ${finding.slice(0, 240)}`;
+    if (length + line.length + 1 > 5_850) {
       included.push(`- ${findings.length - included.length} additional validation finding(s) were omitted; repair all remaining structural issues.`);
       break;
     }
     included.push(line);
     length += line.length + 1;
   }
-  return `${preamble}\n${included.join('\n')}\n${footer}`.slice(0, 3_000);
+  return `${preamble}\n${included.join('\n')}\n${footer}`.slice(0, 6_000);
 }
 
 export function buildRepairRequest(
   originalRequest: CircuitBuildChatInput,
   brief: CircuitDesignBrief,
   findings: string[],
+  failingProposal: CircuitBuildChatInput['currentSpec'] = originalRequest.currentSpec,
 ): CircuitBuildChatInput {
   const history = [
     ...(originalRequest.history ?? []),
@@ -145,6 +149,8 @@ export function buildRepairRequest(
   return {
     ...originalRequest,
     mode: 'build',
+    responseFormatRetry: false,
+    currentSpec: failingProposal,
     brief,
     history,
     message: buildRepairMessage(findings),
@@ -161,6 +167,7 @@ export function buildOutputRepairRequest(
 
   return {
     ...originalRequest,
+    responseFormatRetry: true,
     history,
     message: 'The previous attempt did not match Circuit Studio’s required response format. Answer the original latest request again using the included conversation, design brief, and current CircuitSpec. Return exactly one valid JSON object with the required fields. In Build mode, include a complete supported CircuitSpec when the request is clear enough. Do not add Markdown fences or extra fields.',
   };
@@ -182,6 +189,7 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
   let retries = 0;
   let workingRequest = options.initialRequest;
   let outputRepairAttempted = false;
+  let lastInvalidProposal: TProposal | null = null;
 
   while (true) {
     let response: TResponse;
@@ -206,6 +214,7 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
           canRetryManually: true,
           failureKind: 'output',
           cause,
+          rejectedProposal: lastInvalidProposal ?? undefined,
         });
       }
 
@@ -221,6 +230,7 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
         canRetryManually: policy.retryable,
         failureKind: 'generation',
         cause,
+        rejectedProposal: lastInvalidProposal ?? undefined,
       });
     }
 
@@ -236,6 +246,7 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
       ...proposalInspection.validation.warnings,
     ];
     if (findings.length === 0) return { response, proposalInspection, request: workingRequest };
+    lastInvalidProposal = proposal;
 
     if (!proposalInspection.canRepair) {
       throw new CircuitBuildAttemptError({
@@ -243,6 +254,7 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
         canRetryManually: false,
         failureKind: 'validation',
         validationFindings: findings,
+        rejectedProposal: proposal,
       });
     }
     if (retries >= MAX_AUTO_RETRIES) {
@@ -251,6 +263,7 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
         canRetryManually: true,
         failureKind: 'validation',
         validationFindings: findings,
+        rejectedProposal: proposal,
       });
     }
 

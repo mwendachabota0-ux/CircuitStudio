@@ -275,6 +275,41 @@
 }
 
 .builder-chat__error > span { flex: 1; }
+.builder-chat__validation-findings,
+.builder-chat__rejected {
+  margin: 0 12px 9px;
+  padding: 9px 10px;
+  border: 1px solid #ead7c8;
+  border-radius: 7px;
+  background: #fffaf3;
+  color: #80583b;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.builder-chat__validation-findings ol {
+  max-height: 220px;
+  overflow: auto;
+  margin: 6px 0 0;
+  padding-left: 20px;
+}
+
+.builder-chat__validation-findings li { padding: 0 2px 3px 0; }
+.builder-chat__rejected summary { cursor: pointer; font-weight: 700; }
+.builder-chat__rejected pre {
+  max-height: 260px;
+  overflow: auto;
+  margin: 8px 0 0;
+  padding: 9px;
+  border-radius: 5px;
+  background: #f4f1e9;
+  color: #35463f;
+  font: 9px/1.45 var(--app-font-mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
 .builder-chat__text-link {
   padding: 0;
   border: 0;

@@ -39,7 +39,11 @@ type ChatMode = 'chat' | 'build';
 type ThreadMessage = CircuitBuildChatMessage & { id: string; createdAt: number };
 type SavedState = { brief: CircuitDesignBrief; aiBrief: CircuitDesignBrief; messages: ThreadMessage[] };
 type ValidationReport = { errors: string[]; warnings: string[] };
-type RetryFeedback = { message: string; canRetryManually: boolean };
+type RetryFeedback = {
+  message: string;
+  canRetryManually: boolean;
+  validationFindings?: string[];
+};
 
 const emptyBrief = (): CircuitDesignBrief => ({
   goal: '',
@@ -107,9 +111,15 @@ function inspectProposal(spec: CircuitBuildChatInput['currentSpec']): {
 }
 
 function formatValidationFailure(errors: string[]): string {
-  const firstIssues = errors.slice(0, 3).join(' ');
-  const remainder = errors.length > 3 ? ` And ${errors.length - 3} more.` : '';
-  return `The proposal still has ${errors.length} validation finding${errors.length === 1 ? '' : 's'} after ${MAX_AUTO_RETRIES} automatic repair retries. ${firstIssues}${remainder}`;
+  return `The proposal still has ${errors.length} validation finding${errors.length === 1 ? '' : 's'} after ${MAX_AUTO_RETRIES} automatic repair retries. The full list and rejected draft are shown below.`;
+}
+
+function asCircuitSpec(value: unknown): CircuitBuildChatInput['currentSpec'] | null {
+  if (!value || typeof value !== 'object') return null;
+  const candidate = value as CircuitBuildChatInput['currentSpec'];
+  return typeof candidate.title === 'string' && Array.isArray(candidate.elements)
+    ? candidate
+    : null;
 }
 
 function mergeBriefPreservingManualEdits(
@@ -198,6 +208,7 @@ export function CircuitBuilderChat({
   const [proposalSvg, setProposalSvg] = useState('');
   const [proposalValidation, setProposalValidation] = useState<ValidationReport | null>(null);
   const [proposalError, setProposalError] = useState('');
+  const [rejectedProposalSpec, setRejectedProposalSpec] = useState<CircuitBuildChatInput['currentSpec'] | null>(null);
   const [briefEditing, setBriefEditing] = useState(false);
   const [briefGoalDraft, setBriefGoalDraft] = useState('');
   const [briefRequirementsDraft, setBriefRequirementsDraft] = useState('');
@@ -241,6 +252,7 @@ export function CircuitBuilderChat({
   ) => {
     setLastRequest(request);
     setRetryFeedback(null);
+    setRejectedProposalSpec(null);
     setRetryAttempt(0);
     setRetryKind(null);
     setRequestCycleActive(true);
@@ -252,10 +264,11 @@ export function CircuitBuilderChat({
         send: (workingRequest) => chatMutation.mutateAsync({ data: workingRequest }),
         getProposal: (result) => result.proposal?.spec ?? null,
         inspectProposal,
-        makeRepairRequest: (_result, findings) => buildRepairRequest(
+        makeRepairRequest: (result, findings) => buildRepairRequest(
           request,
           latestBrief,
           findings,
+          result.proposal?.spec ?? request.currentSpec,
         ),
         makeOutputRepairRequest: buildOutputRepairRequest,
         onResponse: (result) => {
@@ -276,7 +289,7 @@ export function CircuitBuilderChat({
           aiBrief: nextBrief,
           messages: [...current.messages, newMessage('assistant', response.answer)].slice(-60),
         }));
-        composerRef.current?.clearDraftIfUnchanged(draftRevisionAtStart, request.message);
+        setRejectedProposalSpec(null);
         if (nextMode === 'build' && response.proposal && proposalInspection) {
           setProposal(response.proposal);
           setProposalError('');
@@ -287,6 +300,7 @@ export function CircuitBuilderChat({
         onTaskComplete(nextMode);
     } catch (error) {
       if (error instanceof CircuitBuildAttemptError) {
+        setRejectedProposalSpec(asCircuitSpec(error.rejectedProposal));
         const causeMessage = error.cause instanceof Error
           ? error.cause.message
           : 'The request did not go through. Your message is still here.';
@@ -302,7 +316,13 @@ export function CircuitBuilderChat({
             ? `The request failed after ${MAX_AUTO_RETRIES} automatic retries. ${causeMessage}`
             : causeMessage;
         }
-        setRetryFeedback({ message, canRetryManually: error.canRetryManually });
+        setRetryFeedback({
+          message,
+          canRetryManually: error.canRetryManually,
+          ...(error.failureKind === 'validation'
+            ? { validationFindings: error.validationFindings }
+            : {}),
+        });
       } else {
         setRetryFeedback({
           message: error instanceof Error ? error.message : 'The request did not go through. Your message is still here.',
@@ -310,6 +330,7 @@ export function CircuitBuilderChat({
         });
       }
     } finally {
+      composerRef.current?.clearDraftIfUnchanged(draftRevisionAtStart, request.message);
       setRequestCycleActive(false);
       setRetryAttempt(0);
       setRetryKind(null);
@@ -452,12 +473,26 @@ export function CircuitBuilderChat({
             <div ref={threadEndRef} />
           </div>
           {retryFeedback && !requestCycleActive && (
-            <div className="builder-chat__error" role="alert" data-testid="status-builder-error">
-              <span>{errorMessage}</span>
-              {retryFeedback.canRetryManually && (
-                <button type="button" className="builder-chat__text-link" onClick={retryRequest} disabled={!lastRequest} data-testid="button-retry-builder-chat">Retry</button>
+            <>
+              <div className="builder-chat__error" role="alert" data-testid="status-builder-error">
+                <span>{errorMessage}</span>
+                {retryFeedback.canRetryManually && (
+                  <button type="button" className="builder-chat__text-link" onClick={retryRequest} disabled={!lastRequest} data-testid="button-retry-builder-chat">Retry</button>
+                )}
+              </div>
+              {!!retryFeedback.validationFindings?.length && (
+                <section className="builder-chat__validation-findings" aria-label="All validation findings" data-testid="list-builder-validation-findings">
+                  <strong>All {retryFeedback.validationFindings.length} findings</strong>
+                  <ol>{retryFeedback.validationFindings.map((finding, index) => <li key={`failure-${index}`}>{finding}</li>)}</ol>
+                </section>
               )}
-            </div>
+              {rejectedProposalSpec && (
+                <details className="builder-chat__rejected" data-testid="details-rejected-proposal">
+                  <summary>Inspect rejected CircuitSpec (read-only; not applied)</summary>
+                  <pre>{JSON.stringify(rejectedProposalSpec, null, 2)}</pre>
+                </details>
+              )}
+            </>
           )}
           {aiUnavailable && (
             <div className="builder-chat__unavailable" role="status" data-testid="status-builder-ai-unavailable">

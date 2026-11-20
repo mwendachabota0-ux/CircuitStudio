@@ -230,7 +230,7 @@ export const AskCircuitTutorResponse = zod.object({
  * Maintains a concise design brief and, in Build mode, may return a validated CircuitSpec proposal that the user must review and apply.
  * @summary Clarify circuit requirements or propose a circuit edit
  */
-export const chatWithCircuitBuilderBodyMessageMax = 3000;
+export const chatWithCircuitBuilderBodyMessageMax = 6000;
 
 export const chatWithCircuitBuilderBodyCurrentSpecElementsItemFromMin = 2;
 export const chatWithCircuitBuilderBodyCurrentSpecElementsItemFromMax = 2;
@@ -273,6 +273,7 @@ export const chatWithCircuitBuilderBodyBriefOpenQuestionsMax = 12;
 export const ChatWithCircuitBuilderBody = zod.object({
   "message": zod.string().min(1).max(chatWithCircuitBuilderBodyMessageMax),
   "mode": zod.enum(['chat', 'build']),
+  "responseFormatRetry": zod.boolean().optional().describe('Indicates a retry for correcting a previously truncated or malformed model response.'),
   "currentSpec": zod.object({
   "title": zod.string(),
   "width": zod.number().optional(),

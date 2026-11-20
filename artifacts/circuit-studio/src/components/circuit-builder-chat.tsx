@@ -9,6 +9,7 @@ import {
   useGetAiUsage,
   useListCircuitBuilderHistory,
   useLearnFromCircuitBuilderHistory,
+  useReviewExternalCircuitFix,
   useSyncCircuitBuilderHistory,
 } from '@workspace/api-client-react';
 import type {
@@ -18,6 +19,7 @@ import type {
   CircuitBuildChatInput,
   CircuitBuildChatMessage,
   CircuitDesignBrief,
+  CircuitSpec,
   CircuitSymbolSearchItem,
 } from '@workspace/api-client-react';
 import type { CircuitComponentLibraryEntry } from '@workspace/circuit-geometry';
@@ -47,10 +49,21 @@ import {
   getFinalAssistantQuestion,
 } from '../lib/suggested-action-context';
 import {
+  buildExternalCircuitFixPrompt,
+  getExternalCircuitFixContextKey,
+  inspectExternalCircuitFixCandidate,
+  partitionExternalCircuitFixFindings,
+  shouldShowExternalCircuitFixPaste,
+  type ExternalCircuitFixContext,
+} from '../lib/circuit-external-fix';
+import { parseCircuitSpecJson } from '../lib/circuit-spec-editor.ts';
+import {
   Check,
   CheckCircle2,
   Copy,
   Brain,
+  Maximize2,
+  Minimize2,
   History,
   Library,
   MessageCircle,
@@ -105,6 +118,10 @@ type RetryFeedback = {
   validationWarnings?: string[];
 };
 type RejectedSpecCopyState = 'idle' | 'copied' | 'error';
+type ExternalCircuitFixFeedback =
+  | { kind: 'local-rejected'; reasons: string[] }
+  | { kind: 'review'; approved: boolean; summary: string; concerns: string[] }
+  | { kind: 'error'; message: string };
 
 const emptyBrief = (): CircuitDesignBrief => ({
   goal: '',
@@ -457,6 +474,7 @@ export function CircuitBuilderChat({
   const chatMutation = useChatWithCircuitBuilder({
     mutation: { mutationKey: getChatWithCircuitBuilderMutationKey() },
   });
+  const externalFixReviewMutation = useReviewExternalCircuitFix();
   const historyImportMutation = useLearnFromCircuitBuilderHistory();
   const usageQuery = useGetAiUsage({
     query: { queryKey: getGetAiUsageQueryKey(), retry: 1 },
@@ -479,7 +497,12 @@ export function CircuitBuilderChat({
   const [proposalError, setProposalError] = useState('');
   const [rejectedProposalSpec, setRejectedProposalSpec] = useState<CircuitBuildChatInput['currentSpec'] | null>(null);
   const [rejectedProposalSvg, setRejectedProposalSvg] = useState('');
+  const [rejectedPreviewExpanded, setRejectedPreviewExpanded] = useState(false);
   const [rejectedSpecCopyState, setRejectedSpecCopyState] = useState<RejectedSpecCopyState>('idle');
+  const [externalFixCopiedContextKey, setExternalFixCopiedContextKey] = useState<string | null>(null);
+  const [externalFixCopyState, setExternalFixCopyState] = useState<RejectedSpecCopyState>('idle');
+  const [externalFixDraft, setExternalFixDraft] = useState('');
+  const [externalFixFeedback, setExternalFixFeedback] = useState<ExternalCircuitFixFeedback | null>(null);
   const [componentLibraryOpen, setComponentLibraryOpen] = useState(false);
   const [briefEditing, setBriefEditing] = useState(false);
   const [briefGoalDraft, setBriefGoalDraft] = useState('');
@@ -495,6 +518,8 @@ export function CircuitBuilderChat({
   const [retryFeedback, setRetryFeedback] = useState<RetryFeedback | null>(null);
   const [repairDiagnostics, setRepairDiagnostics] = useState<RepairAttemptDiagnostic[]>([]);
   const composerRef = useRef<CircuitBuilderComposerHandle>(null);
+  const externalFixContextKeyRef = useRef('');
+  const externalFixCopiedContextKeyRef = useRef<string | null>(null);
   const handledJsonRepairRequestRef = useRef<number | null>(null);
   const pendingRestoreRef = useRef<{
     sessionId: string;
@@ -766,6 +791,46 @@ export function CircuitBuilderChat({
     return proposalValidation;
   }, [proposal, proposalValidation]);
 
+  const externalFixContext = useMemo<ExternalCircuitFixContext | null>(() => {
+    if (!rejectedProposalSpec || !retryFeedback) return null;
+    const { reportedProblems, advisoryWarnings } = partitionExternalCircuitFixFindings(
+      retryFeedback.validationFindings ?? [],
+      retryFeedback.validationWarnings ?? [],
+      retryFeedback.message,
+    );
+    return {
+      rejectedSpec: rejectedProposalSpec as CircuitSpec,
+      reportedProblems,
+      advisoryWarnings,
+      originalRequest: lastRequest?.message ?? '',
+      designBrief: saved.brief,
+      history: saved.messages.slice(-8).map(({ role, content }) => ({
+        role,
+        content: content.slice(0, 3000),
+      })),
+    };
+  }, [rejectedProposalSpec, retryFeedback, lastRequest, saved.brief, saved.messages]);
+  const externalFixContextKey = externalFixContext
+    ? getExternalCircuitFixContextKey(externalFixContext)
+    : '';
+  const showExternalFixPaste = shouldShowExternalCircuitFixPaste(
+    externalFixCopiedContextKey,
+    externalFixContextKey,
+  );
+  externalFixContextKeyRef.current = externalFixContextKey;
+  externalFixCopiedContextKeyRef.current = externalFixCopiedContextKey;
+
+  useEffect(() => {
+    setExternalFixCopiedContextKey(null);
+    setExternalFixCopyState('idle');
+    setExternalFixDraft('');
+    setExternalFixFeedback(null);
+  }, [externalFixContextKey]);
+
+  useEffect(() => {
+    if (!rejectedProposalSpec) setRejectedPreviewExpanded(false);
+  }, [rejectedProposalSpec]);
+
   const addMessage = (message: ThreadMessage) => {
     setSaved((current) => ({ ...current, messages: [...current.messages, message].slice(-60) }));
   };
@@ -777,6 +842,126 @@ export function CircuitBuilderChat({
       setRejectedSpecCopyState('copied');
     } catch {
       setRejectedSpecCopyState('error');
+    }
+  };
+
+  const copyExternalCircuitFixPrompt = async () => {
+    if (!externalFixContext || !externalFixContextKey) return;
+    try {
+      await navigator.clipboard.writeText(buildExternalCircuitFixPrompt(externalFixContext));
+      setExternalFixDraft('');
+      setExternalFixFeedback(null);
+      externalFixReviewMutation.reset();
+      setExternalFixCopiedContextKey(externalFixContextKey);
+      setExternalFixCopyState('copied');
+    } catch {
+      setExternalFixCopiedContextKey(null);
+      setExternalFixCopyState('error');
+    }
+  };
+
+  const submitExternalCircuitFix = async () => {
+    if (
+      !externalFixContext ||
+      !showExternalFixPaste ||
+      proposal ||
+      requestCycleActive ||
+      externalFixReviewMutation.isPending
+    ) return;
+
+    const submittedContextKey = externalFixContextKey;
+    setExternalFixFeedback(null);
+    const parsed = parseCircuitSpecJson(externalFixDraft);
+    if (!parsed.ok) {
+      setExternalFixFeedback({ kind: 'local-rejected', reasons: [parsed.error] });
+      return;
+    }
+    if (!window.CircuitDraw) {
+      setExternalFixFeedback({
+        kind: 'local-rejected',
+        reasons: ['The schematic validator is not ready. Reload the page and try again.'],
+      });
+      return;
+    }
+
+    let validation: ValidationReport;
+    let svg: string;
+    try {
+      validation = window.CircuitDraw.validate(parsed.spec);
+      const localCheck = inspectExternalCircuitFixCandidate(
+        externalFixContext.rejectedSpec,
+        parsed.spec,
+        validation,
+      );
+      if (!localCheck.accepted) {
+        setExternalFixFeedback({ kind: 'local-rejected', reasons: localCheck.reasons });
+        return;
+      }
+      svg = window.CircuitDraw.render(parsed.spec);
+      if (!svg) throw new Error('The schematic renderer did not produce a preview.');
+    } catch (error) {
+      setExternalFixFeedback({
+        kind: 'local-rejected',
+        reasons: [error instanceof Error ? error.message : 'The pasted CircuitSpec could not be checked.'],
+      });
+      return;
+    }
+
+    if (
+      externalFixContextKeyRef.current !== submittedContextKey ||
+      externalFixCopiedContextKeyRef.current !== submittedContextKey
+    ) {
+      setExternalFixFeedback({
+        kind: 'error',
+        message: 'The rejected proposal changed. Copy its prompt again before submitting a fix.',
+      });
+      return;
+    }
+
+    try {
+      const result = await externalFixReviewMutation.mutateAsync({
+        data: {
+          rejectedSpec: externalFixContext.rejectedSpec,
+          candidateSpec: parsed.spec,
+          reportedProblems: externalFixContext.reportedProblems.slice(0, 30).map((item) => item.slice(0, 1000)),
+          advisoryWarnings: externalFixContext.advisoryWarnings.slice(0, 30).map((item) => item.slice(0, 1000)),
+          originalRequest: externalFixContext.originalRequest.slice(0, 6000),
+          designBrief: externalFixContext.designBrief,
+          history: externalFixContext.history,
+        },
+      });
+      void queryClient.invalidateQueries({ queryKey: getGetAiUsageQueryKey() });
+      if (
+        externalFixContextKeyRef.current !== submittedContextKey ||
+        externalFixCopiedContextKeyRef.current !== submittedContextKey
+      ) return;
+
+      setExternalFixFeedback({
+        kind: 'review',
+        approved: result.approved,
+        summary: result.summary,
+        concerns: result.concerns,
+      });
+      if (!result.approved) return;
+
+      setProposal({
+        summary: `External fix reviewed by Studio AI: ${result.summary}`.slice(0, 500),
+        spec: parsed.spec,
+      });
+      setProposalSvg(svg);
+      setProposalValidation(validation);
+      setProposalError('Studio AI review is not an electrical simulation or safety check.');
+    } catch (error) {
+      if (
+        externalFixContextKeyRef.current !== submittedContextKey ||
+        externalFixCopiedContextKeyRef.current !== submittedContextKey
+      ) return;
+      setExternalFixFeedback({
+        kind: 'error',
+        message: error instanceof Error
+          ? error.message
+          : 'Studio AI could not review this fix. Your pasted text is still here; try again shortly.',
+      });
     }
   };
 
@@ -1155,6 +1340,11 @@ export function CircuitBuilderChat({
     setRejectedProposalSpec(null);
     setRejectedProposalSvg('');
     setRejectedSpecCopyState('idle');
+    setExternalFixCopiedContextKey(null);
+    setExternalFixCopyState('idle');
+    setExternalFixDraft('');
+    setExternalFixFeedback(null);
+    externalFixReviewMutation.reset();
     setRetryFeedback(null);
     setRepairDiagnostics([]);
     setRetryAttempt(0);
@@ -1265,6 +1455,13 @@ export function CircuitBuilderChat({
     setProposal(null);
     setProposalSvg('');
     setProposalValidation(null);
+    setRetryFeedback(null);
+    setRejectedProposalSpec(null);
+    setRejectedProposalSvg('');
+    setExternalFixCopiedContextKey(null);
+    setExternalFixCopyState('idle');
+    setExternalFixDraft('');
+    setExternalFixFeedback(null);
   };
 
   const errorMessage = retryFeedback?.message ?? (
@@ -1520,13 +1717,35 @@ export function CircuitBuilderChat({
                 </section>
               )}
               {rejectedProposalSpec && (
-                <section className="builder-chat__rejected-preview" aria-label="Schematic needing repair" data-testid="preview-rejected-proposal">
+                <section
+                  className={`builder-chat__rejected-preview${rejectedPreviewExpanded ? ' is-expanded' : ''}`}
+                  aria-label="Schematic needing repair"
+                  data-testid="preview-rejected-proposal"
+                >
                   <div className="builder-chat__rejected-preview-head">
                     <span className="builder-chat__repair-badge">Needs repair</span>
-                    <span>{rejectedProposalSpec.title}</span>
+                    <span className="builder-chat__rejected-preview-title">{rejectedProposalSpec.title}</span>
+                    {!!rejectedProposalSvg && (
+                      <button
+                        type="button"
+                        className="builder-chat__rejected-preview-toggle"
+                        aria-expanded={rejectedPreviewExpanded}
+                        aria-controls="rejected-proposal-preview-visual"
+                        onClick={() => setRejectedPreviewExpanded((expanded) => !expanded)}
+                        data-testid="button-toggle-rejected-preview"
+                      >
+                        {rejectedPreviewExpanded
+                          ? <Minimize2 aria-hidden="true" />
+                          : <Maximize2 aria-hidden="true" />}
+                        {rejectedPreviewExpanded ? 'Collapse preview' : 'Expand preview'}
+                      </button>
+                    )}
                   </div>
                   {rejectedProposalSvg
-                    ? <div className="builder-chat__preview builder-chat__rejected-preview-canvas">
+                    ? <div
+                        id="rejected-proposal-preview-visual"
+                        className="builder-chat__preview builder-chat__rejected-preview-canvas"
+                      >
                         <div className="builder-chat__svg" dangerouslySetInnerHTML={{ __html: rejectedProposalSvg }} />
                       </div>
                     : <p className="builder-chat__rejected-preview-empty">This schematic could not be rendered yet.</p>}
@@ -1551,9 +1770,79 @@ export function CircuitBuilderChat({
                         Clipboard access failed.
                       </span>
                     )}
+                    <button
+                      type="button"
+                      className="builder-chat__text-link builder-chat__rejected-copy builder-chat__external-fix-copy"
+                      onClick={copyExternalCircuitFixPrompt}
+                      disabled={!externalFixContext || externalFixReviewMutation.isPending}
+                      data-testid="button-copy-rejected-spec-ai-prompt"
+                    >
+                      {externalFixCopyState === 'copied' ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
+                      {externalFixCopyState === 'copied' ? 'Prompt copied' : 'Copy CircuitSpec + AI prompt'}
+                    </button>
+                    {externalFixCopyState === 'error' && (
+                      <span className="builder-chat__rejected-copy-error" role="status">
+                        Clipboard access failed. Allow clipboard access and try again.
+                      </span>
+                    )}
                   </div>
                   <pre>{JSON.stringify(rejectedProposalSpec, null, 2)}</pre>
                 </details>
+              )}
+              {showExternalFixPaste && externalFixContext && (
+                <section
+                  className="builder-chat__external-fix"
+                  aria-label="Paste an external CircuitSpec fix"
+                  data-testid="panel-external-circuit-fix"
+                >
+                  <h3>Paste the external fix here</h3>
+                  <p>Paste the AI’s complete plain-JSON CircuitSpec. Studio checks its structure and asks Studio AI to review it before staging.</p>
+                  <label htmlFor="external-circuit-fix-json">Corrected CircuitSpec JSON</label>
+                  <textarea
+                    id="external-circuit-fix-json"
+                    value={externalFixDraft}
+                    onChange={(event) => setExternalFixDraft(event.target.value)}
+                    disabled={externalFixReviewMutation.isPending}
+                    spellCheck={false}
+                    rows={8}
+                    data-testid="input-external-circuit-fix"
+                  />
+                  <button
+                    type="button"
+                    className="builder-chat__external-fix-submit"
+                    onClick={submitExternalCircuitFix}
+                    disabled={!externalFixDraft.trim() || externalFixReviewMutation.isPending || !!proposal}
+                    data-testid="button-submit-external-circuit-fix"
+                  >
+                    {externalFixReviewMutation.isPending ? 'Reviewing fix…' : 'Submit fix for review'}
+                  </button>
+                  {externalFixFeedback?.kind === 'local-rejected' && (
+                    <div className="builder-chat__external-fix-feedback is-error" role="alert" data-testid="status-external-circuit-fix-local-error">
+                      <strong>This fix needs changes before Studio AI review.</strong>
+                      <ul>{externalFixFeedback.reasons.map((reason, index) => <li key={`external-local-${index}`}>{reason}</li>)}</ul>
+                    </div>
+                  )}
+                  {externalFixFeedback?.kind === 'error' && (
+                    <p className="builder-chat__external-fix-feedback is-error" role="alert" data-testid="status-external-circuit-fix-error">
+                      {externalFixFeedback.message}
+                    </p>
+                  )}
+                  {externalFixFeedback?.kind === 'review' && (
+                    <div
+                      className={`builder-chat__external-fix-feedback ${externalFixFeedback.approved ? 'is-approved' : 'is-error'}`}
+                      role={externalFixFeedback.approved ? 'status' : 'alert'}
+                      data-testid="status-external-circuit-fix-review"
+                    >
+                      <strong>{externalFixFeedback.approved ? 'Studio AI approved this fix for staging.' : 'Studio AI did not approve this fix.'}</strong>
+                      <p>{externalFixFeedback.summary}</p>
+                      {!!externalFixFeedback.concerns.length && (
+                        <ul>{externalFixFeedback.concerns.map((concern, index) => <li key={`external-concern-${index}`}>{concern}</li>)}</ul>
+                      )}
+                      {externalFixFeedback.approved && <p>The staged proposal is shown below. It has not been applied to your workbench.</p>}
+                    </div>
+                  )}
+                  <p className="builder-chat__external-fix-note">Structural checks and AI review are not electrical simulation or safety verification. Your current workbench draft stays unchanged until you choose Apply.</p>
+                </section>
               )}
             </>
           )}
@@ -1608,7 +1897,7 @@ export function CircuitBuilderChat({
             key="circuit-builder-composer"
             ref={composerRef}
             mode={mode}
-            isWorking={chatMutation.isPending || requestCycleActive}
+            isWorking={chatMutation.isPending || requestCycleActive || externalFixReviewMutation.isPending}
             briefEditing={briefEditing}
             hasProposal={!!proposal}
             hasUnappliedJsonEdits={hasUnappliedJsonEdits}

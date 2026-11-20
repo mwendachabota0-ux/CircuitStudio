@@ -758,6 +758,182 @@ export const ChatWithCircuitBuilderResponse = zod.object({
 
 
 /**
+ * Checks a candidate CircuitSpec against a rejected proposal and its reported problems. The response is an AI review, not proof of electrical correctness or safety.
+ * @summary Review a user-pasted correction to a rejected circuit
+ */
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemFromMin = 2;
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemFromMax = 2;
+
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemToMin = 2;
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemToMax = 2;
+
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemAtMin = 2;
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemAtMax = 2;
+
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolIdRegExp = new RegExp('^[^:\\s]+:[^:\\s]+$');
+
+
+
+
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemPinsItemPointMin = 2;
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemPinsItemPointMax = 2;
+
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin = 2;
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax = 2;
+
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemPinsMax = 512;
+
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin = 2;
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax = 2;
+
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin = 0;
+
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin = 0;
+
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin = 0;
+
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemGraphicsMax = 2048;
+
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsMax = 256;
+
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemPointsItemMin = 2;
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemPointsItemMax = 2;
+
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemLabelNudgeMin = 2;
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemLabelNudgeMax = 2;
+
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemLabelAtMin = 2;
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemLabelAtMax = 2;
+
+export const reviewExternalCircuitFixBodyReportedProblemsItemMax = 1000;
+
+export const reviewExternalCircuitFixBodyReportedProblemsMax = 30;
+
+export const reviewExternalCircuitFixBodyAdvisoryWarningsItemMax = 1000;
+
+export const reviewExternalCircuitFixBodyAdvisoryWarningsMax = 30;
+
+export const reviewExternalCircuitFixBodyOriginalRequestMax = 6000;
+
+export const reviewExternalCircuitFixBodyDesignBriefGoalMax = 1000;
+
+export const reviewExternalCircuitFixBodyDesignBriefRequirementsItemMax = 300;
+
+export const reviewExternalCircuitFixBodyDesignBriefRequirementsMax = 12;
+
+export const reviewExternalCircuitFixBodyDesignBriefAssumptionsItemMax = 300;
+
+export const reviewExternalCircuitFixBodyDesignBriefAssumptionsMax = 12;
+
+export const reviewExternalCircuitFixBodyDesignBriefOpenQuestionsItemMax = 300;
+
+export const reviewExternalCircuitFixBodyDesignBriefOpenQuestionsMax = 12;
+
+export const reviewExternalCircuitFixBodyHistoryItemContentMax = 3000;
+
+export const reviewExternalCircuitFixBodyHistoryMax = 8;
+
+
+
+export const ReviewExternalCircuitFixBody = zod.object({
+  "rejectedSpec": zod.record(zod.string(), zod.unknown()).describe('Untrusted snapshot of a rejected model proposal; intentionally permissive so invalid elements can be reviewed.'),
+  "candidateSpec": zod.object({
+  "title": zod.string(),
+  "width": zod.number().optional(),
+  "height": zod.number().optional(),
+  "elements": zod.array(zod.object({
+  "type": zod.string(),
+  "id": zod.string().optional(),
+  "label": zod.string().optional(),
+  "value": zod.string().optional(),
+  "from": zod.array(zod.number()).min(reviewExternalCircuitFixBodyCandidateSpecElementsItemFromMin).max(reviewExternalCircuitFixBodyCandidateSpecElementsItemFromMax).optional(),
+  "to": zod.array(zod.number()).min(reviewExternalCircuitFixBodyCandidateSpecElementsItemToMin).max(reviewExternalCircuitFixBodyCandidateSpecElementsItemToMax).optional(),
+  "at": zod.array(zod.number()).min(reviewExternalCircuitFixBodyCandidateSpecElementsItemAtMin).max(reviewExternalCircuitFixBodyCandidateSpecElementsItemAtMax).optional(),
+  "symbolId": zod.string().regex(reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolIdRegExp).optional(),
+  "unit": zod.number().int().min(1).optional(),
+  "bodyStyle": zod.number().int().min(1).optional(),
+  "rotation": zod.union([zod.literal(0),zod.literal(90),zod.literal(180),zod.literal(270)]).optional(),
+  "symbolData": zod.object({
+  "id": zod.string(),
+  "units": zod.array(zod.object({
+  "unit": zod.number().int().min(1),
+  "bodyStyle": zod.number().int().min(1),
+  "pins": zod.array(zod.object({
+  "number": zod.string(),
+  "name": zod.string(),
+  "electricalType": zod.string(),
+  "shape": zod.string(),
+  "point": zod.array(zod.number()).min(reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemPinsItemPointMin).max(reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemPinsItemPointMax),
+  "bodyPoint": zod.array(zod.number()).min(reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin).max(reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax),
+  "showName": zod.boolean(),
+  "showNumber": zod.boolean()
+})).max(reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemPinsMax),
+  "graphics": zod.array(zod.object({
+  "type": zod.enum(['polyline', 'rectangle', 'circle', 'arc', 'bezier', 'text']),
+  "points": zod.array(zod.array(zod.number()).min(reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin).max(reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax)).optional(),
+  "radius": zod.number().min(reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin).optional(),
+  "text": zod.string().optional(),
+  "fontSize": zod.number().min(reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin).optional(),
+  "strokeWidth": zod.number().min(reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin).optional(),
+  "fillType": zod.enum(['none', 'background', 'outline']).optional(),
+  "closed": zod.boolean().optional()
+})).max(reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemGraphicsMax)
+})).min(1).max(reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsMax)
+}).optional(),
+  "points": zod.array(zod.array(zod.number()).min(reviewExternalCircuitFixBodyCandidateSpecElementsItemPointsItemMin).max(reviewExternalCircuitFixBodyCandidateSpecElementsItemPointsItemMax)).optional(),
+  "x": zod.number().optional(),
+  "y": zod.number().optional(),
+  "w": zod.number().optional(),
+  "h": zod.number().optional(),
+  "height": zod.number().optional(),
+  "open": zod.boolean().optional(),
+  "closed": zod.boolean().optional(),
+  "flip": zod.boolean().optional(),
+  "circle": zod.boolean().optional(),
+  "swap": zod.boolean().optional(),
+  "style": zod.string().optional(),
+  "labelPos": zod.string().optional(),
+  "labelNudge": zod.array(zod.number()).min(reviewExternalCircuitFixBodyCandidateSpecElementsItemLabelNudgeMin).max(reviewExternalCircuitFixBodyCandidateSpecElementsItemLabelNudgeMax).optional(),
+  "labelAt": zod.array(zod.number()).min(reviewExternalCircuitFixBodyCandidateSpecElementsItemLabelAtMin).max(reviewExternalCircuitFixBodyCandidateSpecElementsItemLabelAtMax).optional(),
+  "labelAnchor": zod.string().optional(),
+  "text": zod.string().optional(),
+  "anchor": zod.string().optional(),
+  "size": zod.number().optional(),
+  "bold": zod.boolean().optional(),
+  "muted": zod.boolean().optional()
+}))
+}),
+  "reportedProblems": zod.array(zod.string().min(1).max(reviewExternalCircuitFixBodyReportedProblemsItemMax)).min(1).max(reviewExternalCircuitFixBodyReportedProblemsMax),
+  "advisoryWarnings": zod.array(zod.string().min(1).max(reviewExternalCircuitFixBodyAdvisoryWarningsItemMax)).max(reviewExternalCircuitFixBodyAdvisoryWarningsMax).optional(),
+  "originalRequest": zod.string().max(reviewExternalCircuitFixBodyOriginalRequestMax).optional(),
+  "designBrief": zod.object({
+  "goal": zod.string().max(reviewExternalCircuitFixBodyDesignBriefGoalMax),
+  "requirements": zod.array(zod.string().max(reviewExternalCircuitFixBodyDesignBriefRequirementsItemMax)).max(reviewExternalCircuitFixBodyDesignBriefRequirementsMax),
+  "assumptions": zod.array(zod.string().max(reviewExternalCircuitFixBodyDesignBriefAssumptionsItemMax)).max(reviewExternalCircuitFixBodyDesignBriefAssumptionsMax),
+  "openQuestions": zod.array(zod.string().max(reviewExternalCircuitFixBodyDesignBriefOpenQuestionsItemMax)).max(reviewExternalCircuitFixBodyDesignBriefOpenQuestionsMax)
+}),
+  "history": zod.array(zod.object({
+  "role": zod.enum(['user', 'assistant']),
+  "content": zod.string().max(reviewExternalCircuitFixBodyHistoryItemContentMax)
+})).max(reviewExternalCircuitFixBodyHistoryMax)
+})
+
+export const reviewExternalCircuitFixResponseSummaryMax = 800;
+
+export const reviewExternalCircuitFixResponseConcernsItemMax = 500;
+
+export const reviewExternalCircuitFixResponseConcernsMax = 8;
+
+
+
+export const ReviewExternalCircuitFixResponse = zod.object({
+  "approved": zod.boolean().describe('Studio AI\'s review verdict; never a simulation or safety result.'),
+  "summary": zod.string().min(1).max(reviewExternalCircuitFixResponseSummaryMax),
+  "concerns": zod.array(zod.string().min(1).max(reviewExternalCircuitFixResponseConcernsItemMax)).max(reviewExternalCircuitFixResponseConcernsMax)
+})
+
+
+/**
  * @summary List saved Circuit Studio assumptions
  */
 

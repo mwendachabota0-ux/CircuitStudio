@@ -209,6 +209,55 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+  /circuits/external-fix/review:
+    post:
+      operationId: reviewExternalCircuitFix
+      tags: [tutor]
+      summary: Review a user-pasted correction to a rejected circuit
+      description: Checks a candidate CircuitSpec against a rejected proposal and its reported problems. The response is an AI review, not proof of electrical correctness or safety.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExternalCircuitFixReviewInput"
+      responses:
+        "200":
+          description: AI review verdict and reasons
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExternalCircuitFixReviewResponse"
+        "400":
+          description: Invalid or unsupported candidate CircuitSpec
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Authentication is required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "429":
+          description: Review rate limit reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "502":
+          description: Studio AI could not produce a usable review
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "503":
+          description: AI usage could not be recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
   /circuit-builder/memories:
     get:
       operationId: listCircuitBuilderMemories
@@ -925,6 +974,59 @@ components:
           $ref: "#/components/schemas/CircuitSpec"
       required: [spec]
       additionalProperties: false
+    ExternalCircuitFixReviewInput:
+      type: object
+      properties:
+        rejectedSpec:
+          $ref: "#/components/schemas/RejectedCircuitSpec"
+        candidateSpec:
+          $ref: "#/components/schemas/CircuitSpec"
+        reportedProblems:
+          type: array
+          minItems: 1
+          maxItems: 30
+          items:
+            type: string
+            minLength: 1
+            maxLength: 1000
+        advisoryWarnings:
+          type: array
+          maxItems: 30
+          items:
+            type: string
+            minLength: 1
+            maxLength: 1000
+        originalRequest:
+          type: string
+          maxLength: 6000
+        designBrief:
+          $ref: "#/components/schemas/CircuitDesignBrief"
+        history:
+          type: array
+          maxItems: 8
+          items:
+            $ref: "#/components/schemas/CircuitBuildChatMessage"
+      required: [rejectedSpec, candidateSpec, reportedProblems, designBrief, history]
+      additionalProperties: false
+    ExternalCircuitFixReviewResponse:
+      type: object
+      properties:
+        approved:
+          type: boolean
+          description: Studio AI's review verdict; never a simulation or safety result.
+        summary:
+          type: string
+          minLength: 1
+          maxLength: 800
+        concerns:
+          type: array
+          maxItems: 8
+          items:
+            type: string
+            minLength: 1
+            maxLength: 500
+      required: [approved, summary, concerns]
+      additionalProperties: false
     CircuitReviewResponse:
       type: object
       properties:
@@ -1164,5 +1266,9 @@ components:
       required:
         - title
         - elements
+      additionalProperties: true
+    RejectedCircuitSpec:
+      type: object
+      description: Untrusted snapshot of a rejected model proposal; intentionally permissive so invalid elements can be reviewed.
       additionalProperties: true
 

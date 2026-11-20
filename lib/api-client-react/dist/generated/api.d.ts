@@ -1,5 +1,5 @@
 import type { QueryKey, UseMutationOptions, UseMutationResult, UseQueryOptions, UseQueryResult } from '@tanstack/react-query';
-import type { AiKeySelectionRequest, AiStatus, AiUsage, ApiError, CircuitBuildChatInput, CircuitBuildChatResponse, CircuitBuilderHistoryImportInput, CircuitBuilderHistoryImportResponse, CircuitBuilderHistorySession, CircuitBuilderHistorySyncInput, CircuitBuilderHistorySyncResponse, CircuitBuilderMemory, CircuitBuilderMemoryInput, CircuitPrompt, CircuitReviewRequest, CircuitReviewResponse, CircuitSpec, CircuitSymbolSearchResponse, HealthStatus, SearchCircuitSymbolsParams, TutorRequest, TutorResponse } from './api.schemas';
+import type { AiKeySelectionRequest, AiStatus, AiUsage, ApiError, CircuitBuildChatInput, CircuitBuildChatResponse, CircuitBuilderHistoryImportInput, CircuitBuilderHistoryImportResponse, CircuitBuilderHistorySession, CircuitBuilderHistorySyncInput, CircuitBuilderHistorySyncResponse, CircuitBuilderMemory, CircuitBuilderMemoryInput, CircuitPrompt, CircuitReviewRequest, CircuitReviewResponse, CircuitSpec, CircuitSymbolSearchResponse, ExternalCircuitFixReviewInput, ExternalCircuitFixReviewResponse, HealthStatus, SearchCircuitSymbolsParams, TutorRequest, TutorResponse } from './api.schemas';
 import { customFetch } from '../custom-fetch';
 import type { ErrorType, BodyType } from '../custom-fetch';
 type AwaitedInput<T> = PromiseLike<T> | T;
@@ -124,6 +124,30 @@ export declare const useChatWithCircuitBuilder: <TError = ErrorType<ApiError>, T
     mutation?: UseMutationOptions<Awaited<ReturnType<typeof chatWithCircuitBuilder>>, TError, ChatWithCircuitBuilderMutationVariables, TContext>;
     request?: SecondParameter<typeof customFetch>;
 }) => UseMutationResult<Awaited<ReturnType<typeof chatWithCircuitBuilder>>, TError, ChatWithCircuitBuilderMutationVariables, TContext>;
+export declare const getReviewExternalCircuitFixUrl: () => string;
+/**
+ * Checks a candidate CircuitSpec against a rejected proposal and its reported problems. The response is an AI review, not proof of electrical correctness or safety.
+ * @summary Review a user-pasted correction to a rejected circuit
+ */
+export declare const reviewExternalCircuitFix: (externalCircuitFixReviewInput: ExternalCircuitFixReviewInput, options?: Parameters<typeof customFetch>[1]) => Promise<ExternalCircuitFixReviewResponse>;
+export declare const getReviewExternalCircuitFixMutationKey: () => readonly ["reviewExternalCircuitFix"];
+export declare const getReviewExternalCircuitFixMutationOptions: <TError = ErrorType<ApiError>, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<Awaited<ReturnType<typeof reviewExternalCircuitFix>>, TError, ReviewExternalCircuitFixMutationVariables, TContext>;
+    request?: SecondParameter<typeof customFetch>;
+}) => UseMutationOptions<Awaited<ReturnType<typeof reviewExternalCircuitFix>>, TError, ReviewExternalCircuitFixMutationVariables, TContext>;
+export type ReviewExternalCircuitFixMutationResult = NonNullable<Awaited<ReturnType<typeof reviewExternalCircuitFix>>>;
+export type ReviewExternalCircuitFixMutationBody = BodyType<ExternalCircuitFixReviewInput>;
+export type ReviewExternalCircuitFixMutationError = ErrorType<ApiError>;
+export type ReviewExternalCircuitFixMutationVariables = {
+    data: BodyType<ExternalCircuitFixReviewInput>;
+};
+/**
+* @summary Review a user-pasted correction to a rejected circuit
+*/
+export declare const useReviewExternalCircuitFix: <TError = ErrorType<ApiError>, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<Awaited<ReturnType<typeof reviewExternalCircuitFix>>, TError, ReviewExternalCircuitFixMutationVariables, TContext>;
+    request?: SecondParameter<typeof customFetch>;
+}) => UseMutationResult<Awaited<ReturnType<typeof reviewExternalCircuitFix>>, TError, ReviewExternalCircuitFixMutationVariables, TContext>;
 export declare const getListCircuitBuilderMemoriesUrl: () => string;
 /**
  * @summary List saved Circuit Studio assumptions

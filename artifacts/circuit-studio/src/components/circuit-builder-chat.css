@@ -376,10 +376,78 @@
 
 .builder-chat__validation-findings li { padding: 0 2px 3px 0; }
 .builder-chat__rejected summary { cursor: pointer; font-weight: 700; }
-.builder-chat__rejected-copy-row { display:flex;align-items:center;gap:9px;margin-top:5px; }
+.builder-chat__rejected-copy-row { display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:5px; }
 .builder-chat__rejected-copy { display:inline-flex;align-items:center;gap:4px; }
 .builder-chat__rejected-copy svg { width:12px;height:12px; }
 .builder-chat__rejected-copy-error { color:#a4453e;font-size:9px; }
+.builder-chat__external-fix {
+  display: grid;
+  gap: 7px;
+  margin: 0 12px 10px;
+  padding: 10px;
+  border: 1px solid #cbded4;
+  border-radius: 7px;
+  background: #f4faf5;
+  color: #34483d;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.builder-chat__external-fix h3 { margin: 0; color: #244c3e; font-size: 12px; }
+.builder-chat__external-fix > p { margin: 0; color: #68766d; }
+.builder-chat__external-fix label { color: #476052; font-weight: 700; }
+.builder-chat__external-fix textarea {
+  width: 100%;
+  min-height: 120px;
+  resize: vertical;
+  padding: 8px;
+  border: 1px solid #cdd9d1;
+  border-radius: 5px;
+  background: #fff;
+  color: #26352e;
+  font: 9px/1.5 var(--app-font-mono);
+  overflow-wrap: anywhere;
+}
+.builder-chat__external-fix textarea:focus-visible {
+  outline: 2px solid #2d8062;
+  outline-offset: 1px;
+}
+.builder-chat__external-fix-submit {
+  justify-self: start;
+  min-height: 30px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 5px;
+  background: #176b55;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.builder-chat__external-fix-submit:hover:not(:disabled) { background: #105643; }
+.builder-chat__external-fix-submit:disabled { cursor: not-allowed; opacity: .55; }
+.builder-chat__external-fix-feedback {
+  padding: 8px;
+  border: 1px solid #d9e3dc;
+  border-radius: 5px;
+  background: #fff;
+}
+.builder-chat__external-fix-feedback.is-error {
+  border-color: #e6c3bc;
+  background: #fff8f5;
+  color: #8c4138;
+}
+.builder-chat__external-fix-feedback.is-approved {
+  border-color: #b9d9c7;
+  background: #f2faf5;
+  color: #256349;
+}
+.builder-chat__external-fix-feedback p { margin: 4px 0 0; }
+.builder-chat__external-fix-feedback ul {
+  margin: 5px 0 0;
+  padding-left: 18px;
+}
+.builder-chat__external-fix-feedback li { margin: 2px 0; overflow-wrap: anywhere; }
+.builder-chat__external-fix-note { font-size: 9px; }
 .builder-chat__rejected pre {
   max-height: 260px;
   overflow: auto;
@@ -525,7 +593,8 @@
 .builder-chat__brief {
   min-width: 0;
   min-height: 0;
-  max-height: 514px;
+  height: 100%;
+  align-self: stretch;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
@@ -703,6 +772,37 @@
   font-size: 9px;
   font-weight: 600;
 }
+.builder-chat__rejected-preview-title {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.builder-chat__rejected-preview-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  gap: 4px;
+  min-height: 25px;
+  padding: 4px 7px;
+  border: 1px solid #e4d0bc;
+  border-radius: 6px;
+  background: #fffefa;
+  color: #765c46;
+  font-size: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+.builder-chat__rejected-preview-toggle > svg { width: 12px; height: 12px; }
+.builder-chat__rejected-preview-toggle:hover {
+  border-color: #cfae8d;
+  background: #fff4e8;
+}
+.builder-chat__rejected-preview-toggle:focus-visible {
+  outline: 2px solid #7c9d87;
+  outline-offset: 2px;
+}
 .builder-chat__repair-badge {
   flex: none;
   padding: 3px 6px;
@@ -718,6 +818,15 @@
   margin-top: 7px;
 }
 .builder-chat__rejected-preview-canvas .builder-chat__svg svg { max-height: 220px; }
+.builder-chat__rejected-preview.is-expanded .builder-chat__rejected-preview-canvas {
+  max-height: min(58vh, 560px);
+}
+.builder-chat__rejected-preview.is-expanded .builder-chat__rejected-preview-canvas .builder-chat__svg {
+  min-height: min(56vh, 540px);
+}
+.builder-chat__rejected-preview.is-expanded .builder-chat__rejected-preview-canvas .builder-chat__svg svg {
+  max-height: min(54vh, 520px);
+}
 .builder-chat__rejected-preview-empty,
 .builder-chat__rejected-preview-note {
   margin: 6px 0 0;
@@ -756,6 +865,7 @@
   .builder-chat__conversation { border-right: 0; }
   .builder-chat__thread { min-height: 220px; max-height: 360px; }
   .builder-chat__brief {
+    height: auto;
     max-height: 280px;
     border-top: 1px solid var(--chat-rule);
     padding: 12px 14px;

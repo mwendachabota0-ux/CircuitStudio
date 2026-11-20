@@ -329,6 +329,76 @@ export interface CircuitBuilderHistoryImportResponse {
     /** @minimum 0 */
     learnedCount: number;
 }
+export type CircuitBuilderHistoryMessageRole = typeof CircuitBuilderHistoryMessageRole[keyof typeof CircuitBuilderHistoryMessageRole];
+export declare const CircuitBuilderHistoryMessageRole: {
+    readonly user: "user";
+    readonly assistant: "assistant";
+};
+export interface CircuitBuilderHistoryMessage {
+    /**
+       * @minLength 1
+       * @maxLength 128
+       */
+    id: string;
+    role: CircuitBuilderHistoryMessageRole;
+    /** @maxLength 6000 */
+    content: string;
+    /**
+       * @minimum 0
+       * @maximum 8640000000000000
+       */
+    createdAt: number;
+    /** @maxItems 2 */
+    suggestedActions?: CircuitBuilderSuggestedAction[];
+    buildApprovalRequest?: boolean;
+}
+export interface CircuitBuilderSavedState {
+    brief: CircuitDesignBrief;
+    aiBrief: CircuitDesignBrief;
+    /**
+       * @minItems 1
+       * @maxItems 60
+       */
+    messages: CircuitBuilderHistoryMessage[];
+}
+export type CircuitBuilderHistorySessionMode = typeof CircuitBuilderHistorySessionMode[keyof typeof CircuitBuilderHistorySessionMode];
+export declare const CircuitBuilderHistorySessionMode: {
+    readonly chat: "chat";
+    readonly build: "build";
+};
+export interface CircuitBuilderHistorySession {
+    /**
+       * @minLength 1
+       * @maxLength 128
+       */
+    id: string;
+    /** @maxLength 64 */
+    title: string;
+    /**
+       * @minimum 0
+       * @maximum 8640000000000000
+       */
+    createdAt: number;
+    /**
+       * @minimum 0
+       * @maximum 8640000000000000
+       */
+    updatedAt: number;
+    mode: CircuitBuilderHistorySessionMode;
+    saved: CircuitBuilderSavedState;
+    currentSpec: CircuitSpec;
+}
+export interface CircuitBuilderHistorySyncInput {
+    /**
+       * @minItems 1
+       * @maxItems 10
+       */
+    sessions: CircuitBuilderHistorySession[];
+}
+export interface CircuitBuilderHistorySyncResponse {
+    /** @minimum 0 */
+    savedCount: number;
+}
 export interface CircuitSymbolSearchItem {
     id: string;
     library: string;

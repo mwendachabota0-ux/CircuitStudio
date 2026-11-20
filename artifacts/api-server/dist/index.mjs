@@ -20636,27 +20636,27 @@ var require_router = __commonJS({
     var slice = Array.prototype.slice;
     var flatten = Array.prototype.flat;
     var methods = METHODS.map((method) => method.toLowerCase());
-    module.exports = Router9;
+    module.exports = Router10;
     module.exports.Route = Route;
-    function Router9(options) {
-      if (!(this instanceof Router9)) {
-        return new Router9(options);
+    function Router10(options) {
+      if (!(this instanceof Router10)) {
+        return new Router10(options);
       }
       const opts = options || {};
-      function router9(req, res, next) {
-        router9.handle(req, res, next);
+      function router10(req, res, next) {
+        router10.handle(req, res, next);
       }
-      Object.setPrototypeOf(router9, this);
-      router9.caseSensitive = opts.caseSensitive;
-      router9.mergeParams = opts.mergeParams;
-      router9.params = {};
-      router9.strict = opts.strict;
-      router9.stack = [];
-      return router9;
+      Object.setPrototypeOf(router10, this);
+      router10.caseSensitive = opts.caseSensitive;
+      router10.mergeParams = opts.mergeParams;
+      router10.params = {};
+      router10.strict = opts.strict;
+      router10.stack = [];
+      return router10;
     }
-    Router9.prototype = function() {
+    Router10.prototype = function() {
     };
-    Router9.prototype.param = function param(name, fn) {
+    Router10.prototype.param = function param(name, fn) {
       if (!name) {
         throw new TypeError("argument name is required");
       }
@@ -20676,7 +20676,7 @@ var require_router = __commonJS({
       params.push(fn);
       return this;
     };
-    Router9.prototype.handle = function handle(req, res, callback) {
+    Router10.prototype.handle = function handle(req, res, callback) {
       if (!callback) {
         throw new TypeError("argument callback is required");
       }
@@ -20803,7 +20803,7 @@ var require_router = __commonJS({
         }
       }
     };
-    Router9.prototype.use = function use(handler) {
+    Router10.prototype.use = function use(handler) {
       let offset = 0;
       let path2 = "/";
       if (typeof handler !== "function") {
@@ -20836,7 +20836,7 @@ var require_router = __commonJS({
       }
       return this;
     };
-    Router9.prototype.route = function route(path2) {
+    Router10.prototype.route = function route(path2) {
       const route2 = new Route(path2);
       const layer = new Layer(path2, {
         sensitive: this.caseSensitive,
@@ -20851,7 +20851,7 @@ var require_router = __commonJS({
       return route2;
     };
     methods.concat("all").forEach(function(method) {
-      Router9.prototype[method] = function(path2) {
+      Router10.prototype[method] = function(path2) {
         const route = this.route(path2);
         route[method].apply(route, slice.call(arguments, 1));
         return this;
@@ -21034,13 +21034,13 @@ var require_application = __commonJS({
     var compileTrust = require_utils3().compileTrust;
     var resolve = __require("node:path").resolve;
     var once = require_once();
-    var Router9 = require_router();
+    var Router10 = require_router();
     var slice = Array.prototype.slice;
     var flatten = Array.prototype.flat;
     var app2 = exports = module.exports = {};
     var trustProxyDefaultSymbol = "@@symbol:trust_proxy_default";
     app2.init = function init() {
-      var router9 = null;
+      var router10 = null;
       this.cache = /* @__PURE__ */ Object.create(null);
       this.engines = /* @__PURE__ */ Object.create(null);
       this.settings = /* @__PURE__ */ Object.create(null);
@@ -21049,13 +21049,13 @@ var require_application = __commonJS({
         configurable: true,
         enumerable: true,
         get: function getrouter() {
-          if (router9 === null) {
-            router9 = new Router9({
+          if (router10 === null) {
+            router10 = new Router10({
               caseSensitive: this.enabled("case sensitive routing"),
               strict: this.enabled("strict routing")
             });
           }
-          return router9;
+          return router10;
         }
       });
     };
@@ -21126,15 +21126,15 @@ var require_application = __commonJS({
       if (fns.length === 0) {
         throw new TypeError("app.use() requires a middleware function");
       }
-      var router9 = this.router;
+      var router10 = this.router;
       fns.forEach(function(fn2) {
         if (!fn2 || !fn2.handle || !fn2.set) {
-          return router9.use(path2, fn2);
+          return router10.use(path2, fn2);
         }
         debug7(".use app under %s", path2);
         fn2.mountpath = path2;
         fn2.parent = this;
-        router9.use(path2, function mounted_app(req, res, next) {
+        router10.use(path2, function mounted_app(req, res, next) {
           var orig = req.app;
           fn2.handle(req, res, function(err) {
             Object.setPrototypeOf(req, orig.request);
@@ -23723,7 +23723,7 @@ var require_express = __commonJS({
     var EventEmitter2 = __require("node:events").EventEmitter;
     var mixin = require_merge_descriptors();
     var proto = require_application();
-    var Router9 = require_router();
+    var Router10 = require_router();
     var req = require_request();
     var res = require_response();
     exports = module.exports = createApplication;
@@ -23745,8 +23745,8 @@ var require_express = __commonJS({
     exports.application = proto;
     exports.request = req;
     exports.response = res;
-    exports.Route = Router9.Route;
-    exports.Router = Router9;
+    exports.Route = Router10.Route;
+    exports.Router = Router10;
     exports.json = bodyParser.json;
     exports.raw = bodyParser.raw;
     exports.static = require_serve_static();
@@ -39384,7 +39384,7 @@ var require_micromatch = __commonJS({
 });
 
 // src/app.ts
-var import_express15 = __toESM(require_express2(), 1);
+var import_express17 = __toESM(require_express2(), 1);
 var import_cors = __toESM(require_lib3(), 1);
 var import_pino_http = __toESM(require_logger(), 1);
 
@@ -49675,7 +49675,7 @@ var getAuth = ((req, options) => {
 });
 
 // src/routes/index.ts
-var import_express14 = __toESM(require_express2(), 1);
+var import_express16 = __toESM(require_express2(), 1);
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/helpers/util.js
 var util;
@@ -54159,6 +54159,320 @@ var LearnFromCircuitBuilderHistoryBody = objectType({
 var learnFromCircuitBuilderHistoryResponseLearnedCountMin = 0;
 var LearnFromCircuitBuilderHistoryResponse = objectType({
   "learnedCount": numberType().int().min(learnFromCircuitBuilderHistoryResponseLearnedCountMin)
+});
+var listCircuitBuilderHistoryResponseIdMax = 128;
+var listCircuitBuilderHistoryResponseTitleMax = 64;
+var listCircuitBuilderHistoryResponseCreatedAtMin = 0;
+var listCircuitBuilderHistoryResponseCreatedAtMax = 864e13;
+var listCircuitBuilderHistoryResponseUpdatedAtMin = 0;
+var listCircuitBuilderHistoryResponseUpdatedAtMax = 864e13;
+var listCircuitBuilderHistoryResponseSavedBriefGoalMax = 1e3;
+var listCircuitBuilderHistoryResponseSavedBriefRequirementsItemMax = 300;
+var listCircuitBuilderHistoryResponseSavedBriefRequirementsMax = 12;
+var listCircuitBuilderHistoryResponseSavedBriefAssumptionsItemMax = 300;
+var listCircuitBuilderHistoryResponseSavedBriefAssumptionsMax = 12;
+var listCircuitBuilderHistoryResponseSavedBriefOpenQuestionsItemMax = 300;
+var listCircuitBuilderHistoryResponseSavedBriefOpenQuestionsMax = 12;
+var listCircuitBuilderHistoryResponseSavedAiBriefGoalMax = 1e3;
+var listCircuitBuilderHistoryResponseSavedAiBriefRequirementsItemMax = 300;
+var listCircuitBuilderHistoryResponseSavedAiBriefRequirementsMax = 12;
+var listCircuitBuilderHistoryResponseSavedAiBriefAssumptionsItemMax = 300;
+var listCircuitBuilderHistoryResponseSavedAiBriefAssumptionsMax = 12;
+var listCircuitBuilderHistoryResponseSavedAiBriefOpenQuestionsItemMax = 300;
+var listCircuitBuilderHistoryResponseSavedAiBriefOpenQuestionsMax = 12;
+var listCircuitBuilderHistoryResponseSavedMessagesItemIdMax = 128;
+var listCircuitBuilderHistoryResponseSavedMessagesItemContentMax = 6e3;
+var listCircuitBuilderHistoryResponseSavedMessagesItemCreatedAtMin = 0;
+var listCircuitBuilderHistoryResponseSavedMessagesItemCreatedAtMax = 864e13;
+var listCircuitBuilderHistoryResponseSavedMessagesItemSuggestedActionsItemLabelMax = 90;
+var listCircuitBuilderHistoryResponseSavedMessagesItemSuggestedActionsItemPromptMax = 1e3;
+var listCircuitBuilderHistoryResponseSavedMessagesItemSuggestedActionsItemReplyToMax = 300;
+var listCircuitBuilderHistoryResponseSavedMessagesItemSuggestedActionsMax = 2;
+var listCircuitBuilderHistoryResponseSavedMessagesMax = 60;
+var listCircuitBuilderHistoryResponseCurrentSpecElementsItemFromMin = 2;
+var listCircuitBuilderHistoryResponseCurrentSpecElementsItemFromMax = 2;
+var listCircuitBuilderHistoryResponseCurrentSpecElementsItemToMin = 2;
+var listCircuitBuilderHistoryResponseCurrentSpecElementsItemToMax = 2;
+var listCircuitBuilderHistoryResponseCurrentSpecElementsItemAtMin = 2;
+var listCircuitBuilderHistoryResponseCurrentSpecElementsItemAtMax = 2;
+var listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolIdRegExp = new RegExp("^[^:\\s]+:[^:\\s]+$");
+var listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemPinsItemPointMin = 2;
+var listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemPinsItemPointMax = 2;
+var listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin = 2;
+var listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax = 2;
+var listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemPinsMax = 512;
+var listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin = 2;
+var listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax = 2;
+var listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin = 0;
+var listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin = 0;
+var listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin = 0;
+var listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemGraphicsMax = 2048;
+var listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsMax = 256;
+var listCircuitBuilderHistoryResponseCurrentSpecElementsItemPointsItemMin = 2;
+var listCircuitBuilderHistoryResponseCurrentSpecElementsItemPointsItemMax = 2;
+var listCircuitBuilderHistoryResponseCurrentSpecElementsItemLabelNudgeMin = 2;
+var listCircuitBuilderHistoryResponseCurrentSpecElementsItemLabelNudgeMax = 2;
+var listCircuitBuilderHistoryResponseCurrentSpecElementsItemLabelAtMin = 2;
+var listCircuitBuilderHistoryResponseCurrentSpecElementsItemLabelAtMax = 2;
+var ListCircuitBuilderHistoryResponseItem = objectType({
+  "id": stringType().min(1).max(listCircuitBuilderHistoryResponseIdMax),
+  "title": stringType().max(listCircuitBuilderHistoryResponseTitleMax),
+  "createdAt": numberType().int().min(listCircuitBuilderHistoryResponseCreatedAtMin).max(listCircuitBuilderHistoryResponseCreatedAtMax),
+  "updatedAt": numberType().int().min(listCircuitBuilderHistoryResponseUpdatedAtMin).max(listCircuitBuilderHistoryResponseUpdatedAtMax),
+  "mode": enumType(["chat", "build"]),
+  "saved": objectType({
+    "brief": objectType({
+      "goal": stringType().max(listCircuitBuilderHistoryResponseSavedBriefGoalMax),
+      "requirements": arrayType(stringType().max(listCircuitBuilderHistoryResponseSavedBriefRequirementsItemMax)).max(listCircuitBuilderHistoryResponseSavedBriefRequirementsMax),
+      "assumptions": arrayType(stringType().max(listCircuitBuilderHistoryResponseSavedBriefAssumptionsItemMax)).max(listCircuitBuilderHistoryResponseSavedBriefAssumptionsMax),
+      "openQuestions": arrayType(stringType().max(listCircuitBuilderHistoryResponseSavedBriefOpenQuestionsItemMax)).max(listCircuitBuilderHistoryResponseSavedBriefOpenQuestionsMax)
+    }),
+    "aiBrief": objectType({
+      "goal": stringType().max(listCircuitBuilderHistoryResponseSavedAiBriefGoalMax),
+      "requirements": arrayType(stringType().max(listCircuitBuilderHistoryResponseSavedAiBriefRequirementsItemMax)).max(listCircuitBuilderHistoryResponseSavedAiBriefRequirementsMax),
+      "assumptions": arrayType(stringType().max(listCircuitBuilderHistoryResponseSavedAiBriefAssumptionsItemMax)).max(listCircuitBuilderHistoryResponseSavedAiBriefAssumptionsMax),
+      "openQuestions": arrayType(stringType().max(listCircuitBuilderHistoryResponseSavedAiBriefOpenQuestionsItemMax)).max(listCircuitBuilderHistoryResponseSavedAiBriefOpenQuestionsMax)
+    }),
+    "messages": arrayType(objectType({
+      "id": stringType().min(1).max(listCircuitBuilderHistoryResponseSavedMessagesItemIdMax),
+      "role": enumType(["user", "assistant"]),
+      "content": stringType().max(listCircuitBuilderHistoryResponseSavedMessagesItemContentMax),
+      "createdAt": numberType().int().min(listCircuitBuilderHistoryResponseSavedMessagesItemCreatedAtMin).max(listCircuitBuilderHistoryResponseSavedMessagesItemCreatedAtMax),
+      "suggestedActions": arrayType(objectType({
+        "label": stringType().min(1).max(listCircuitBuilderHistoryResponseSavedMessagesItemSuggestedActionsItemLabelMax),
+        "prompt": stringType().min(1).max(listCircuitBuilderHistoryResponseSavedMessagesItemSuggestedActionsItemPromptMax),
+        "replyTo": stringType().min(1).max(listCircuitBuilderHistoryResponseSavedMessagesItemSuggestedActionsItemReplyToMax).optional().describe("Exact assistant question this suggested reply answers.")
+      })).max(listCircuitBuilderHistoryResponseSavedMessagesItemSuggestedActionsMax).optional(),
+      "buildApprovalRequest": booleanType().optional()
+    })).min(1).max(listCircuitBuilderHistoryResponseSavedMessagesMax)
+  }),
+  "currentSpec": objectType({
+    "title": stringType(),
+    "width": numberType().optional(),
+    "height": numberType().optional(),
+    "elements": arrayType(objectType({
+      "type": stringType(),
+      "id": stringType().optional(),
+      "label": stringType().optional(),
+      "value": stringType().optional(),
+      "from": arrayType(numberType()).min(listCircuitBuilderHistoryResponseCurrentSpecElementsItemFromMin).max(listCircuitBuilderHistoryResponseCurrentSpecElementsItemFromMax).optional(),
+      "to": arrayType(numberType()).min(listCircuitBuilderHistoryResponseCurrentSpecElementsItemToMin).max(listCircuitBuilderHistoryResponseCurrentSpecElementsItemToMax).optional(),
+      "at": arrayType(numberType()).min(listCircuitBuilderHistoryResponseCurrentSpecElementsItemAtMin).max(listCircuitBuilderHistoryResponseCurrentSpecElementsItemAtMax).optional(),
+      "symbolId": stringType().regex(listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolIdRegExp).optional(),
+      "unit": numberType().int().min(1).optional(),
+      "bodyStyle": numberType().int().min(1).optional(),
+      "rotation": unionType([literalType(0), literalType(90), literalType(180), literalType(270)]).optional(),
+      "symbolData": objectType({
+        "id": stringType(),
+        "units": arrayType(objectType({
+          "unit": numberType().int().min(1),
+          "bodyStyle": numberType().int().min(1),
+          "pins": arrayType(objectType({
+            "number": stringType(),
+            "name": stringType(),
+            "electricalType": stringType(),
+            "shape": stringType(),
+            "point": arrayType(numberType()).min(listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemPinsItemPointMin).max(listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemPinsItemPointMax),
+            "bodyPoint": arrayType(numberType()).min(listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin).max(listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax),
+            "showName": booleanType(),
+            "showNumber": booleanType()
+          })).max(listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemPinsMax),
+          "graphics": arrayType(objectType({
+            "type": enumType(["polyline", "rectangle", "circle", "arc", "bezier", "text"]),
+            "points": arrayType(arrayType(numberType()).min(listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin).max(listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax)).optional(),
+            "radius": numberType().min(listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin).optional(),
+            "text": stringType().optional(),
+            "fontSize": numberType().min(listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin).optional(),
+            "strokeWidth": numberType().min(listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin).optional(),
+            "fillType": enumType(["none", "background", "outline"]).optional(),
+            "closed": booleanType().optional()
+          })).max(listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemGraphicsMax)
+        })).min(1).max(listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsMax)
+      }).optional(),
+      "points": arrayType(arrayType(numberType()).min(listCircuitBuilderHistoryResponseCurrentSpecElementsItemPointsItemMin).max(listCircuitBuilderHistoryResponseCurrentSpecElementsItemPointsItemMax)).optional(),
+      "x": numberType().optional(),
+      "y": numberType().optional(),
+      "w": numberType().optional(),
+      "h": numberType().optional(),
+      "height": numberType().optional(),
+      "open": booleanType().optional(),
+      "closed": booleanType().optional(),
+      "flip": booleanType().optional(),
+      "circle": booleanType().optional(),
+      "swap": booleanType().optional(),
+      "style": stringType().optional(),
+      "labelPos": stringType().optional(),
+      "labelNudge": arrayType(numberType()).min(listCircuitBuilderHistoryResponseCurrentSpecElementsItemLabelNudgeMin).max(listCircuitBuilderHistoryResponseCurrentSpecElementsItemLabelNudgeMax).optional(),
+      "labelAt": arrayType(numberType()).min(listCircuitBuilderHistoryResponseCurrentSpecElementsItemLabelAtMin).max(listCircuitBuilderHistoryResponseCurrentSpecElementsItemLabelAtMax).optional(),
+      "labelAnchor": stringType().optional(),
+      "text": stringType().optional(),
+      "anchor": stringType().optional(),
+      "size": numberType().optional(),
+      "bold": booleanType().optional(),
+      "muted": booleanType().optional()
+    }))
+  })
+});
+var ListCircuitBuilderHistoryResponse = arrayType(ListCircuitBuilderHistoryResponseItem);
+var syncCircuitBuilderHistoryBodySessionsItemIdMax = 128;
+var syncCircuitBuilderHistoryBodySessionsItemTitleMax = 64;
+var syncCircuitBuilderHistoryBodySessionsItemCreatedAtMin = 0;
+var syncCircuitBuilderHistoryBodySessionsItemCreatedAtMax = 864e13;
+var syncCircuitBuilderHistoryBodySessionsItemUpdatedAtMin = 0;
+var syncCircuitBuilderHistoryBodySessionsItemUpdatedAtMax = 864e13;
+var syncCircuitBuilderHistoryBodySessionsItemSavedBriefGoalMax = 1e3;
+var syncCircuitBuilderHistoryBodySessionsItemSavedBriefRequirementsItemMax = 300;
+var syncCircuitBuilderHistoryBodySessionsItemSavedBriefRequirementsMax = 12;
+var syncCircuitBuilderHistoryBodySessionsItemSavedBriefAssumptionsItemMax = 300;
+var syncCircuitBuilderHistoryBodySessionsItemSavedBriefAssumptionsMax = 12;
+var syncCircuitBuilderHistoryBodySessionsItemSavedBriefOpenQuestionsItemMax = 300;
+var syncCircuitBuilderHistoryBodySessionsItemSavedBriefOpenQuestionsMax = 12;
+var syncCircuitBuilderHistoryBodySessionsItemSavedAiBriefGoalMax = 1e3;
+var syncCircuitBuilderHistoryBodySessionsItemSavedAiBriefRequirementsItemMax = 300;
+var syncCircuitBuilderHistoryBodySessionsItemSavedAiBriefRequirementsMax = 12;
+var syncCircuitBuilderHistoryBodySessionsItemSavedAiBriefAssumptionsItemMax = 300;
+var syncCircuitBuilderHistoryBodySessionsItemSavedAiBriefAssumptionsMax = 12;
+var syncCircuitBuilderHistoryBodySessionsItemSavedAiBriefOpenQuestionsItemMax = 300;
+var syncCircuitBuilderHistoryBodySessionsItemSavedAiBriefOpenQuestionsMax = 12;
+var syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemIdMax = 128;
+var syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemContentMax = 6e3;
+var syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemCreatedAtMin = 0;
+var syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemCreatedAtMax = 864e13;
+var syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemSuggestedActionsItemLabelMax = 90;
+var syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemSuggestedActionsItemPromptMax = 1e3;
+var syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemSuggestedActionsItemReplyToMax = 300;
+var syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemSuggestedActionsMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedMessagesMax = 60;
+var syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemFromMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemFromMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemToMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemToMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemAtMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemAtMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolIdRegExp = new RegExp("^[^:\\s]+:[^:\\s]+$");
+var syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemPinsItemPointMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemPinsItemPointMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemPinsMax = 512;
+var syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin = 0;
+var syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin = 0;
+var syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin = 0;
+var syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemGraphicsMax = 2048;
+var syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsMax = 256;
+var syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemPointsItemMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemPointsItemMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemLabelNudgeMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemLabelNudgeMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemLabelAtMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemLabelAtMax = 2;
+var syncCircuitBuilderHistoryBodySessionsMax = 10;
+var SyncCircuitBuilderHistoryBody = objectType({
+  "sessions": arrayType(objectType({
+    "id": stringType().min(1).max(syncCircuitBuilderHistoryBodySessionsItemIdMax),
+    "title": stringType().max(syncCircuitBuilderHistoryBodySessionsItemTitleMax),
+    "createdAt": numberType().int().min(syncCircuitBuilderHistoryBodySessionsItemCreatedAtMin).max(syncCircuitBuilderHistoryBodySessionsItemCreatedAtMax),
+    "updatedAt": numberType().int().min(syncCircuitBuilderHistoryBodySessionsItemUpdatedAtMin).max(syncCircuitBuilderHistoryBodySessionsItemUpdatedAtMax),
+    "mode": enumType(["chat", "build"]),
+    "saved": objectType({
+      "brief": objectType({
+        "goal": stringType().max(syncCircuitBuilderHistoryBodySessionsItemSavedBriefGoalMax),
+        "requirements": arrayType(stringType().max(syncCircuitBuilderHistoryBodySessionsItemSavedBriefRequirementsItemMax)).max(syncCircuitBuilderHistoryBodySessionsItemSavedBriefRequirementsMax),
+        "assumptions": arrayType(stringType().max(syncCircuitBuilderHistoryBodySessionsItemSavedBriefAssumptionsItemMax)).max(syncCircuitBuilderHistoryBodySessionsItemSavedBriefAssumptionsMax),
+        "openQuestions": arrayType(stringType().max(syncCircuitBuilderHistoryBodySessionsItemSavedBriefOpenQuestionsItemMax)).max(syncCircuitBuilderHistoryBodySessionsItemSavedBriefOpenQuestionsMax)
+      }),
+      "aiBrief": objectType({
+        "goal": stringType().max(syncCircuitBuilderHistoryBodySessionsItemSavedAiBriefGoalMax),
+        "requirements": arrayType(stringType().max(syncCircuitBuilderHistoryBodySessionsItemSavedAiBriefRequirementsItemMax)).max(syncCircuitBuilderHistoryBodySessionsItemSavedAiBriefRequirementsMax),
+        "assumptions": arrayType(stringType().max(syncCircuitBuilderHistoryBodySessionsItemSavedAiBriefAssumptionsItemMax)).max(syncCircuitBuilderHistoryBodySessionsItemSavedAiBriefAssumptionsMax),
+        "openQuestions": arrayType(stringType().max(syncCircuitBuilderHistoryBodySessionsItemSavedAiBriefOpenQuestionsItemMax)).max(syncCircuitBuilderHistoryBodySessionsItemSavedAiBriefOpenQuestionsMax)
+      }),
+      "messages": arrayType(objectType({
+        "id": stringType().min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemIdMax),
+        "role": enumType(["user", "assistant"]),
+        "content": stringType().max(syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemContentMax),
+        "createdAt": numberType().int().min(syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemCreatedAtMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemCreatedAtMax),
+        "suggestedActions": arrayType(objectType({
+          "label": stringType().min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemSuggestedActionsItemLabelMax),
+          "prompt": stringType().min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemSuggestedActionsItemPromptMax),
+          "replyTo": stringType().min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemSuggestedActionsItemReplyToMax).optional().describe("Exact assistant question this suggested reply answers.")
+        })).max(syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemSuggestedActionsMax).optional(),
+        "buildApprovalRequest": booleanType().optional()
+      })).min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedMessagesMax)
+    }),
+    "currentSpec": objectType({
+      "title": stringType(),
+      "width": numberType().optional(),
+      "height": numberType().optional(),
+      "elements": arrayType(objectType({
+        "type": stringType(),
+        "id": stringType().optional(),
+        "label": stringType().optional(),
+        "value": stringType().optional(),
+        "from": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemFromMin).max(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemFromMax).optional(),
+        "to": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemToMin).max(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemToMax).optional(),
+        "at": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemAtMin).max(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemAtMax).optional(),
+        "symbolId": stringType().regex(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolIdRegExp).optional(),
+        "unit": numberType().int().min(1).optional(),
+        "bodyStyle": numberType().int().min(1).optional(),
+        "rotation": unionType([literalType(0), literalType(90), literalType(180), literalType(270)]).optional(),
+        "symbolData": objectType({
+          "id": stringType(),
+          "units": arrayType(objectType({
+            "unit": numberType().int().min(1),
+            "bodyStyle": numberType().int().min(1),
+            "pins": arrayType(objectType({
+              "number": stringType(),
+              "name": stringType(),
+              "electricalType": stringType(),
+              "shape": stringType(),
+              "point": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemPinsItemPointMin).max(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemPinsItemPointMax),
+              "bodyPoint": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin).max(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax),
+              "showName": booleanType(),
+              "showNumber": booleanType()
+            })).max(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemPinsMax),
+            "graphics": arrayType(objectType({
+              "type": enumType(["polyline", "rectangle", "circle", "arc", "bezier", "text"]),
+              "points": arrayType(arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin).max(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax)).optional(),
+              "radius": numberType().min(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin).optional(),
+              "text": stringType().optional(),
+              "fontSize": numberType().min(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin).optional(),
+              "strokeWidth": numberType().min(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin).optional(),
+              "fillType": enumType(["none", "background", "outline"]).optional(),
+              "closed": booleanType().optional()
+            })).max(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemGraphicsMax)
+          })).min(1).max(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsMax)
+        }).optional(),
+        "points": arrayType(arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemPointsItemMin).max(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemPointsItemMax)).optional(),
+        "x": numberType().optional(),
+        "y": numberType().optional(),
+        "w": numberType().optional(),
+        "h": numberType().optional(),
+        "height": numberType().optional(),
+        "open": booleanType().optional(),
+        "closed": booleanType().optional(),
+        "flip": booleanType().optional(),
+        "circle": booleanType().optional(),
+        "swap": booleanType().optional(),
+        "style": stringType().optional(),
+        "labelPos": stringType().optional(),
+        "labelNudge": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemLabelNudgeMin).max(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemLabelNudgeMax).optional(),
+        "labelAt": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemLabelAtMin).max(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemLabelAtMax).optional(),
+        "labelAnchor": stringType().optional(),
+        "text": stringType().optional(),
+        "anchor": stringType().optional(),
+        "size": numberType().optional(),
+        "bold": booleanType().optional(),
+        "muted": booleanType().optional()
+      }))
+    })
+  })).min(1).max(syncCircuitBuilderHistoryBodySessionsMax)
+});
+var syncCircuitBuilderHistoryResponseSavedCountMin = 0;
+var SyncCircuitBuilderHistoryResponse = objectType({
+  "savedCount": numberType().int().min(syncCircuitBuilderHistoryResponseSavedCountMin)
 });
 var UpdateCircuitBuilderMemoryParams = objectType({
   "id": coerce.number().int().min(1)
@@ -58679,6 +58993,9 @@ var Index = class {
 function index(name) {
   return new IndexBuilderOn(false, name);
 }
+function uniqueIndex(name) {
+  return new IndexBuilderOn(true, name);
+}
 
 // ../../node_modules/.pnpm/drizzle-orm@0.45.4_@types+pg@8.23.1_pg@8.23.1/node_modules/drizzle-orm/pg-core/primary-keys.js
 var PrimaryKeyBuilder = class {
@@ -62716,6 +63033,7 @@ var schema_exports = {};
 __export(schema_exports, {
   circuitAiReservations: () => circuitAiReservations,
   circuitAiUsage: () => circuitAiUsage,
+  circuitBuilderHistory: () => circuitBuilderHistory,
   circuitBuilderMemories: () => circuitBuilderMemories
 });
 
@@ -62758,6 +63076,31 @@ var circuitBuilderMemories = pgTable(
   (table) => ({
     userIdIndex: index("circuit_studio_memories_user_idx").on(table.userId),
     updatedAtIndex: index("circuit_studio_memories_updated_idx").on(
+      table.updatedAt
+    )
+  })
+);
+
+// ../../lib/db/src/schema/circuitBuilderHistory.ts
+var circuitBuilderHistory = pgTable(
+  "circuit_studio_history",
+  {
+    userId: text("user_id").notNull(),
+    sessionId: text("session_id").notNull(),
+    title: text("title").notNull(),
+    mode: text("mode").notNull(),
+    savedState: jsonb("saved_state").$type().notNull(),
+    currentSpec: jsonb("current_spec").$type().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull()
+  },
+  (table) => ({
+    userSessionIndex: uniqueIndex("circuit_studio_history_user_session_idx").on(
+      table.userId,
+      table.sessionId
+    ),
+    userUpdatedIndex: index("circuit_studio_history_user_updated_idx").on(
+      table.userId,
       table.updatedAt
     )
   })
@@ -64839,10 +65182,87 @@ ${contents}`,
 );
 var circuitBuilder_default = router5;
 
-// src/routes/circuitBuilderMemories.ts
+// src/routes/circuitBuilderHistory.ts
 var import_express11 = __toESM(require_express2(), 1);
 var router6 = (0, import_express11.Router)();
 var requireAuth5 = (req, res, next) => {
+  if (!getAuth(req).userId) {
+    res.status(401).json({ error: "Sign in to access saved conversations." });
+    return;
+  }
+  next();
+};
+router6.get(
+  "/circuit-builder/history",
+  requireAuth5,
+  async (req, res) => {
+    const userId = getAuth(req).userId;
+    const records = await db.select().from(circuitBuilderHistory).where(eq(circuitBuilderHistory.userId, userId)).orderBy(desc(circuitBuilderHistory.updatedAt));
+    res.json(
+      ListCircuitBuilderHistoryResponse.parse(
+        records.map((record) => ({
+          id: record.sessionId,
+          title: record.title,
+          createdAt: record.createdAt.getTime(),
+          updatedAt: record.updatedAt.getTime(),
+          mode: record.mode,
+          saved: record.savedState,
+          currentSpec: record.currentSpec
+        }))
+      )
+    );
+  }
+);
+router6.put(
+  "/circuit-builder/history",
+  requireAuth5,
+  async (req, res) => {
+    const parsed = SyncCircuitBuilderHistoryBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
+      return;
+    }
+    const userId = getAuth(req).userId;
+    const uniqueSessions = [
+      ...new Map(parsed.data.sessions.map((session) => [session.id, session])).values()
+    ];
+    let savedCount = 0;
+    await db.transaction(async (transaction) => {
+      for (const session of uniqueSessions) {
+        const updatedAt = new Date(session.updatedAt);
+        const [saved] = await transaction.insert(circuitBuilderHistory).values({
+          userId,
+          sessionId: session.id,
+          title: session.title,
+          mode: session.mode,
+          savedState: session.saved,
+          currentSpec: session.currentSpec,
+          createdAt: new Date(session.createdAt),
+          updatedAt
+        }).onConflictDoUpdate({
+          target: [circuitBuilderHistory.userId, circuitBuilderHistory.sessionId],
+          set: {
+            title: session.title,
+            mode: session.mode,
+            savedState: session.saved,
+            currentSpec: session.currentSpec,
+            createdAt: new Date(session.createdAt),
+            updatedAt
+          },
+          setWhere: lte(circuitBuilderHistory.updatedAt, updatedAt)
+        }).returning({ sessionId: circuitBuilderHistory.sessionId });
+        if (saved) savedCount += 1;
+      }
+    });
+    res.json(SyncCircuitBuilderHistoryResponse.parse({ savedCount }));
+  }
+);
+var circuitBuilderHistory_default = router6;
+
+// src/routes/circuitBuilderMemories.ts
+var import_express13 = __toESM(require_express2(), 1);
+var router7 = (0, import_express13.Router)();
+var requireAuth6 = (req, res, next) => {
   if (!getAuth(req).userId) {
     res.status(401).json({ error: "Sign in to manage saved assumptions." });
     return;
@@ -64866,9 +65286,9 @@ var emptyBrief2 = {
 function isRecord3(value) {
   return !!value && typeof value === "object" && !Array.isArray(value);
 }
-router6.post(
+router7.post(
   "/circuit-builder/memories/import",
-  requireAuth5,
+  requireAuth6,
   historyImportLimiter,
   async (req, res) => {
     const parsed = LearnFromCircuitBuilderHistoryBody.safeParse(req.body);
@@ -64944,27 +65364,27 @@ ${learningInput}`,
     }
   }
 );
-router6.get(
+router7.get(
   "/circuit-builder/memories",
-  requireAuth5,
+  requireAuth6,
   async (req, res) => {
     const userId = getAuth(req).userId;
     const memories = await listUserCircuitBuilderMemories(userId);
     res.json(ListCircuitBuilderMemoriesResponse.parse(memories));
   }
 );
-router6.delete(
+router7.delete(
   "/circuit-builder/memories",
-  requireAuth5,
+  requireAuth6,
   async (req, res) => {
     const userId = getAuth(req).userId;
     await db.delete(circuitBuilderMemories).where(eq(circuitBuilderMemories.userId, userId));
     res.sendStatus(204);
   }
 );
-router6.patch(
+router7.patch(
   "/circuit-builder/memories/:id",
-  requireAuth5,
+  requireAuth6,
   async (req, res) => {
     const params = UpdateCircuitBuilderMemoryParams.safeParse(req.params);
     if (!params.success) {
@@ -65000,9 +65420,9 @@ router6.patch(
     res.json(UpdateCircuitBuilderMemoryResponse.parse(memory));
   }
 );
-router6.delete(
+router7.delete(
   "/circuit-builder/memories/:id",
-  requireAuth5,
+  requireAuth6,
   async (req, res) => {
     const params = DeleteCircuitBuilderMemoryParams.safeParse(req.params);
     if (!params.success) {
@@ -65023,12 +65443,12 @@ router6.delete(
     res.sendStatus(204);
   }
 );
-var circuitBuilderMemories_default = router6;
+var circuitBuilderMemories_default = router7;
 
 // src/routes/kicadSymbols.ts
-var import_express13 = __toESM(require_express2(), 1);
-var router7 = (0, import_express13.Router)();
-var requireAuth6 = (req, res, next) => {
+var import_express15 = __toESM(require_express2(), 1);
+var router8 = (0, import_express15.Router)();
+var requireAuth7 = (req, res, next) => {
   if (!getAuth(req).userId) {
     res.status(401).json({ error: "Sign in to search schematic symbols." });
     return;
@@ -65042,9 +65462,9 @@ var searchLimiter = rate_limit_default({
   legacyHeaders: false,
   message: { error: "Please wait before searching the symbol library again." }
 });
-router7.get(
+router8.get(
   "/circuits/library/search",
-  requireAuth6,
+  requireAuth7,
   searchLimiter,
   async (req, res) => {
     const query = typeof req.query.q === "string" ? req.query.q.slice(0, 120) : "";
@@ -65067,18 +65487,19 @@ router7.get(
     }
   }
 );
-var kicadSymbols_default = router7;
+var kicadSymbols_default = router8;
 
 // src/routes/index.ts
-var router8 = (0, import_express14.Router)();
-router8.use(health_default);
-router8.use(circuits_default);
-router8.use(tutor_default);
-router8.use(circuitBuilder_default);
-router8.use(circuitBuilderMemories_default);
-router8.use(kicadSymbols_default);
-router8.use(aiUsage_default);
-var routes_default = router8;
+var router9 = (0, import_express16.Router)();
+router9.use(health_default);
+router9.use(circuits_default);
+router9.use(tutor_default);
+router9.use(circuitBuilder_default);
+router9.use(circuitBuilderHistory_default);
+router9.use(circuitBuilderMemories_default);
+router9.use(kicadSymbols_default);
+router9.use(aiUsage_default);
+var routes_default = router9;
 
 // src/lib/logger.ts
 var import_pino = __toESM(require_pino(), 1);
@@ -66183,11 +66604,11 @@ function parsePathRewriteRules(rewriteConfig) {
 var debug4 = Debug.extend("router");
 async function getTarget(req, res, config) {
   let newTarget;
-  const router9 = config.router;
-  if (isPlainObject(router9)) {
-    newTarget = getTargetFromProxyTable(req, router9);
-  } else if (typeof router9 === "function") {
-    newTarget = await router9(req, res, config);
+  const router10 = config.router;
+  if (isPlainObject(router10)) {
+    newTarget = getTargetFromProxyTable(req, router10);
+  } else if (typeof router10 === "function") {
+    newTarget = await router10(req, res, config);
   }
   return newTarget;
 }
@@ -66539,7 +66960,7 @@ function clerkProxyMiddleware() {
 }
 
 // src/app.ts
-var app = (0, import_express15.default)();
+var app = (0, import_express17.default)();
 app.set("trust proxy", 1);
 app.use(
   (0, import_pino_http.default)({
@@ -66562,8 +66983,8 @@ app.use(
 );
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 app.use((0, import_cors.default)({ credentials: true, origin: true }));
-app.use(import_express15.default.json({ limit: "6mb" }));
-app.use(import_express15.default.urlencoded({ extended: true }));
+app.use(import_express17.default.json({ limit: "6mb" }));
+app.use(import_express17.default.urlencoded({ extended: true }));
 app.use(
   clerkMiddleware((req) => ({
     publishableKey: publishableKeyFromHost(

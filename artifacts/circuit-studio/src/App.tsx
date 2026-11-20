@@ -980,6 +980,7 @@ function Studio({ userId }: { userId: string }) {
 
         <section className="workbench workbench--conversational" aria-label="Circuit workbench">
           <CircuitBuilderChat
+            key={userId}
             userId={userId}
             currentSpec={spec}
             validationFindings={jsonError || jsonEditorDirty ? [] : report.errors}
@@ -990,10 +991,12 @@ function Studio({ userId }: { userId: string }) {
             onJsonRepairRequestHandled={(id) => {
               setJsonRepairRequest((current) => current?.id === id ? null : current);
             }}
-            onApplySpec={(nextSpec) => {
+            onApplySpec={(nextSpec, source = 'proposal') => {
               acceptSpec(nextSpec as CircuitSpec);
               setJsonRepairRequest(null);
-              setToast('Proposal applied to the workbench.');
+              setToast(source === 'history'
+                ? 'Conversation and circuit restored.'
+                : 'Proposal applied to the workbench.');
             }}
             onTaskComplete={(mode) => {
               sendDesktopNotification(

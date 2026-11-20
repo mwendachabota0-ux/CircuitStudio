@@ -5,6 +5,8 @@ import {
   getBuilderHistoryMemoryExcerpts,
   getBuilderHistoryPreview,
   getBuilderHistoryTitle,
+  getBuilderHistorySyncCandidates,
+  mergeBuilderHistorySessions,
   upsertBuilderHistorySession,
 } from './circuit-builder-history.ts';
 
@@ -92,6 +94,44 @@ test('unfinished chat-mode conversations are valid history sessions before Build
   assert.equal(history[0].title, 'I want a flasher, but need help choosing the timing.');
   assert.equal(history[0].saved.messages.length, 2);
   assert.equal(history[0].currentSpec.title, 'Example');
+});
+
+test('account history wins over stale local sessions and newer local sessions sync', () => {
+  const local = [
+    createBuilderHistorySession({
+      id: 'same-session',
+      saved: { messages: [{ role: 'user', content: 'Older device copy.' }] },
+      currentSpec: { title: 'Local older', elements: [] },
+      mode: 'chat',
+      now: 100,
+      createdAt: 50,
+    }),
+    createBuilderHistorySession({
+      id: 'local-only',
+      saved: { messages: [{ role: 'user', content: 'Only on this device.' }] },
+      currentSpec: { title: 'Local only', elements: [] },
+      mode: 'chat',
+      now: 200,
+      createdAt: 200,
+    }),
+  ];
+  const account = [
+    createBuilderHistorySession({
+      id: 'same-session',
+      saved: { messages: [{ role: 'user', content: 'Newer account copy.' }] },
+      currentSpec: { title: 'Account newer', elements: [] },
+      mode: 'build',
+      now: 300,
+      createdAt: 50,
+    }),
+  ];
+
+  const merged = mergeBuilderHistorySessions(local, account);
+  const candidates = getBuilderHistorySyncCandidates(local, account);
+
+  assert.deepEqual(merged.map((session) => session.id), ['same-session', 'local-only']);
+  assert.equal(merged[0].saved.messages[0].content, 'Newer account copy.');
+  assert.deepEqual(candidates.map((session) => session.id), ['local-only']);
 });
 
 test('memory import uses bounded user statements and brief details, not empty chats', () => {

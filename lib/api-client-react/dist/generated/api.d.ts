@@ -1,5 +1,5 @@
 import type { QueryKey, UseMutationOptions, UseMutationResult, UseQueryOptions, UseQueryResult } from '@tanstack/react-query';
-import type { AiKeySelectionRequest, AiStatus, AiUsage, ApiError, CircuitBuildChatInput, CircuitBuildChatResponse, CircuitBuilderHistoryImportInput, CircuitBuilderHistoryImportResponse, CircuitBuilderMemory, CircuitBuilderMemoryInput, CircuitPrompt, CircuitReviewRequest, CircuitReviewResponse, CircuitSpec, CircuitSymbolSearchResponse, HealthStatus, SearchCircuitSymbolsParams, TutorRequest, TutorResponse } from './api.schemas';
+import type { AiKeySelectionRequest, AiStatus, AiUsage, ApiError, CircuitBuildChatInput, CircuitBuildChatResponse, CircuitBuilderHistoryImportInput, CircuitBuilderHistoryImportResponse, CircuitBuilderHistorySession, CircuitBuilderHistorySyncInput, CircuitBuilderHistorySyncResponse, CircuitBuilderMemory, CircuitBuilderMemoryInput, CircuitPrompt, CircuitReviewRequest, CircuitReviewResponse, CircuitSpec, CircuitSymbolSearchResponse, HealthStatus, SearchCircuitSymbolsParams, TutorRequest, TutorResponse } from './api.schemas';
 import { customFetch } from '../custom-fetch';
 import type { ErrorType, BodyType } from '../custom-fetch';
 type AwaitedInput<T> = PromiseLike<T> | T;
@@ -190,6 +190,54 @@ export declare const useLearnFromCircuitBuilderHistory: <TError = ErrorType<ApiE
     mutation?: UseMutationOptions<Awaited<ReturnType<typeof learnFromCircuitBuilderHistory>>, TError, LearnFromCircuitBuilderHistoryMutationVariables, TContext>;
     request?: SecondParameter<typeof customFetch>;
 }) => UseMutationResult<Awaited<ReturnType<typeof learnFromCircuitBuilderHistory>>, TError, LearnFromCircuitBuilderHistoryMutationVariables, TContext>;
+export declare const getListCircuitBuilderHistoryUrl: () => string;
+/**
+ * Returns the signed-in user's complete chat and build history.
+ * @summary List saved Circuit Studio conversations
+ */
+export declare const listCircuitBuilderHistory: (options?: Parameters<typeof customFetch>[1]) => Promise<CircuitBuilderHistorySession[]>;
+export declare const getListCircuitBuilderHistoryQueryKey: () => readonly ["/api/circuit-builder/history"];
+export declare const getListCircuitBuilderHistoryQueryOptions: <TData = Awaited<ReturnType<typeof listCircuitBuilderHistory>>, TError = ErrorType<ApiError>>(options?: {
+    query?: UseQueryOptions<Awaited<ReturnType<typeof listCircuitBuilderHistory>>, TError, TData>;
+    request?: SecondParameter<typeof customFetch>;
+}) => UseQueryOptions<Awaited<ReturnType<typeof listCircuitBuilderHistory>>, TError, TData> & {
+    queryKey: QueryKey;
+};
+export type ListCircuitBuilderHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof listCircuitBuilderHistory>>>;
+export type ListCircuitBuilderHistoryQueryError = ErrorType<ApiError>;
+/**
+ * @summary List saved Circuit Studio conversations
+ */
+export declare function useListCircuitBuilderHistory<TData = Awaited<ReturnType<typeof listCircuitBuilderHistory>>, TError = ErrorType<ApiError>>(options?: {
+    query?: UseQueryOptions<Awaited<ReturnType<typeof listCircuitBuilderHistory>>, TError, TData>;
+    request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+};
+export declare const getSyncCircuitBuilderHistoryUrl: () => string;
+/**
+ * Saves or updates account-owned sessions, including unfinished chats and circuit snapshots.
+ * @summary Save Circuit Studio conversations
+ */
+export declare const syncCircuitBuilderHistory: (circuitBuilderHistorySyncInput: CircuitBuilderHistorySyncInput, options?: Parameters<typeof customFetch>[1]) => Promise<CircuitBuilderHistorySyncResponse>;
+export declare const getSyncCircuitBuilderHistoryMutationKey: () => readonly ["syncCircuitBuilderHistory"];
+export declare const getSyncCircuitBuilderHistoryMutationOptions: <TError = ErrorType<ApiError>, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<Awaited<ReturnType<typeof syncCircuitBuilderHistory>>, TError, SyncCircuitBuilderHistoryMutationVariables, TContext>;
+    request?: SecondParameter<typeof customFetch>;
+}) => UseMutationOptions<Awaited<ReturnType<typeof syncCircuitBuilderHistory>>, TError, SyncCircuitBuilderHistoryMutationVariables, TContext>;
+export type SyncCircuitBuilderHistoryMutationResult = NonNullable<Awaited<ReturnType<typeof syncCircuitBuilderHistory>>>;
+export type SyncCircuitBuilderHistoryMutationBody = BodyType<CircuitBuilderHistorySyncInput>;
+export type SyncCircuitBuilderHistoryMutationError = ErrorType<ApiError>;
+export type SyncCircuitBuilderHistoryMutationVariables = {
+    data: BodyType<CircuitBuilderHistorySyncInput>;
+};
+/**
+* @summary Save Circuit Studio conversations
+*/
+export declare const useSyncCircuitBuilderHistory: <TError = ErrorType<ApiError>, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<Awaited<ReturnType<typeof syncCircuitBuilderHistory>>, TError, SyncCircuitBuilderHistoryMutationVariables, TContext>;
+    request?: SecondParameter<typeof customFetch>;
+}) => UseMutationResult<Awaited<ReturnType<typeof syncCircuitBuilderHistory>>, TError, SyncCircuitBuilderHistoryMutationVariables, TContext>;
 export declare const getUpdateCircuitBuilderMemoryUrl: (id: number) => string;
 /**
  * @summary Edit a saved Circuit Studio assumption

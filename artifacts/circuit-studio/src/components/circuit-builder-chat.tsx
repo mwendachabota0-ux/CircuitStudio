@@ -3,12 +3,16 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   getChatWithCircuitBuilderMutationKey,
   getGetAiUsageQueryKey,
+  getListCircuitBuilderHistoryQueryKey,
   getListCircuitBuilderMemoriesQueryKey,
   useChatWithCircuitBuilder,
   useGetAiUsage,
+  useListCircuitBuilderHistory,
   useLearnFromCircuitBuilderHistory,
+  useSyncCircuitBuilderHistory,
 } from '@workspace/api-client-react';
 import type {
+  CircuitBuilderHistorySession as ApiBuilderHistoryEntry,
   CircuitBuilderHistoryExcerpt,
   CircuitBuilderSuggestedAction,
   CircuitBuildChatInput,
@@ -71,6 +75,8 @@ import {
   getBuilderHistoryTitle,
   upsertBuilderHistorySession,
   getBuilderHistoryMemoryExcerpts,
+  getBuilderHistorySyncCandidates,
+  mergeBuilderHistorySessions,
   type BuilderHistorySession,
 } from '../lib/circuit-builder-history';
 import { ComponentLibraryDialog } from './component-library-dialog';
@@ -316,11 +322,17 @@ function readBuilderHistoryBootstrap(storageKey: string, currentSpec: CircuitBui
   const historyKey = `${storageKey}:history-v1`;
   const sessions = readBuilderHistorySessions(historyKey);
   const hasStoredHistory = sessions.length > 0;
+  const legacySaved = readSavedState(storageKey);
+  const hasLegacyConversation = legacySaved.messages.some((message) => message.id !== 'welcome') ||
+    !!legacySaved.brief.goal ||
+    !!legacySaved.brief.requirements.length ||
+    !!legacySaved.brief.assumptions.length ||
+    !!legacySaved.brief.openQuestions.length;
   const availableSessions = hasStoredHistory
     ? sessions
     : [createBuilderHistorySession({
         id: createHistoryId(),
-        saved: readSavedState(storageKey),
+        saved: legacySaved,
         currentSpec,
         mode: 'chat',
       })];
@@ -334,7 +346,31 @@ function readBuilderHistoryBootstrap(storageKey: string, currentSpec: CircuitBui
   return {
     sessions: availableSessions,
     active,
+    hasStoredHistory,
+    hasLegacyConversation,
     restoreSpec: hasStoredHistory ? active.currentSpec : null,
+  };
+}
+
+function normalizeAccountHistorySession(value: ApiBuilderHistoryEntry): BuilderHistoryEntry | null {
+  if (
+    typeof value.id !== 'string' ||
+    !value.id ||
+    !isCircuitSpec(value.currentSpec) ||
+    !isHistoryTimestamp(value.createdAt) ||
+    !isHistoryTimestamp(value.updatedAt) ||
+    (value.mode !== 'chat' && value.mode !== 'build')
+  ) return null;
+
+  const saved = normalizeSavedState(value.saved);
+  return {
+    id: value.id,
+    title: getBuilderHistoryTitle(saved.messages),
+    createdAt: value.createdAt,
+    updatedAt: value.updatedAt,
+    mode: value.mode,
+    saved,
+    currentSpec: value.currentSpec,
   };
 }
 
@@ -379,7 +415,10 @@ export type CircuitBuilderChatProps = {
   jsonRepairRequest: JsonRepairRequest | null;
   onJsonRepairRequestHandled: (id: number) => void;
   onProposalStateChange: (hasProposal: boolean) => void;
-  onApplySpec: (spec: CircuitBuildChatInput['currentSpec']) => void;
+  onApplySpec: (
+    spec: CircuitBuildChatInput['currentSpec'],
+    source?: 'proposal' | 'history',
+  ) => void;
   onTaskComplete: (mode: 'chat' | 'build') => void;
 };
 
@@ -407,6 +446,14 @@ export function CircuitBuilderChat({
   const historyStorageKey = `${storageKey}:history-v1`;
   const activeSessionStorageKey = `${storageKey}:active-session-v1`;
   const queryClient = useQueryClient();
+  const historyQuery = useListCircuitBuilderHistory({
+    query: {
+      queryKey: [...getListCircuitBuilderHistoryQueryKey(), userId],
+      retry: 1,
+      refetchOnMount: 'always',
+    },
+  });
+  const historySyncMutation = useSyncCircuitBuilderHistory();
   const chatMutation = useChatWithCircuitBuilder({
     mutation: { mutationKey: getChatWithCircuitBuilderMutationKey() },
   });
@@ -422,6 +469,7 @@ export function CircuitBuilderChat({
   const [historyOpen, setHistoryOpen] = useState(false);
   const [memoryOpen, setMemoryOpen] = useState(false);
   const [historySaveError, setHistorySaveError] = useState('');
+  const [historyHydrated, setHistoryHydrated] = useState(false);
   const [historyImportStatus, setHistoryImportStatus] =
     useState<CircuitBuilderMemoryImportStatus>({ kind: 'idle' });
   const [clearChatOpen, setClearChatOpen] = useState(false);
@@ -462,6 +510,8 @@ export function CircuitBuilderChat({
       : null,
   );
   const historyImportAttemptedForUser = useRef<string | null>(null);
+  const historyBootstrapCompleteRef = useRef(false);
+  const lastHistorySaveSignatureRef = useRef('');
   const activeSession = sessions.find((session) => session.id === activeSessionId) ?? historyBootstrap.active;
   const historyForMemory = useMemo(() => {
     const currentSession = createBuilderHistorySession({
@@ -476,6 +526,13 @@ export function CircuitBuilderChat({
       upsertBuilderHistorySession(sessions, currentSession),
     );
   }, [activeSession.createdAt, activeSessionId, currentSpec, mode, saved, sessions]);
+  const syncHistorySessions = useCallback(async (historySessions: readonly BuilderHistoryEntry[]) => {
+    for (let offset = 0; offset < historySessions.length; offset += 5) {
+      await historySyncMutation.mutateAsync({
+        data: { sessions: historySessions.slice(offset, offset + 5) },
+      });
+    }
+  }, [historySyncMutation.mutateAsync]);
   const runHistoryImport = useCallback(async () => {
     if (!historyForMemory.length) return;
     setHistoryImportStatus({ kind: 'loading' });
@@ -505,7 +562,76 @@ export function CircuitBuilderChat({
   }, [historyForMemory, historyImportMutation.mutateAsync, queryClient, userId]);
 
   useEffect(() => {
+    if (historyBootstrapCompleteRef.current) return;
+
+    if (historyQuery.isError) {
+      setHistoryHydrated(true);
+      setHistorySaveError('Could not load account history. Existing conversations remain available on this device.');
+      return;
+    }
+    if (!historyQuery.isSuccess) return;
+
+    const accountSessions = (historyQuery.data ?? [])
+      .map(normalizeAccountHistorySession)
+      .filter((session): session is BuilderHistoryEntry => !!session);
+    const hasLocalHistory = historyBootstrap.hasStoredHistory ||
+      historyBootstrap.hasLegacyConversation ||
+      sessions.some((session) => session.saved.messages.some((message) => message.id !== 'welcome'));
+    const localSessions = hasLocalHistory ? sessions : [];
+    const mergedSessions = mergeBuilderHistorySessions(localSessions, accountSessions);
+    const availableSessions = mergedSessions.length ? mergedSessions : [historyBootstrap.active];
+    const localActiveId = hasLocalHistory ? activeSessionId : '';
+    const restoredSession = availableSessions.find((session) => session.id === localActiveId) ??
+      availableSessions[0];
+
+    historyBootstrapCompleteRef.current = true;
+    setHistoryHydrated(true);
+    setSessions(availableSessions);
+    setActiveSessionId(restoredSession.id);
+    setSaved(restoredSession.saved);
+    setMode(restoredSession.mode);
+    if (accountSessions.length) historyImportAttemptedForUser.current = userId;
+
+    try {
+      window.localStorage.setItem(activeSessionStorageKey, restoredSession.id);
+    } catch {
+      // The account copy is still available if browser storage is blocked.
+    }
+
+    if (JSON.stringify(currentSpec) !== JSON.stringify(restoredSession.currentSpec)) {
+      pendingRestoreRef.current = {
+        sessionId: restoredSession.id,
+        specSignature: JSON.stringify(restoredSession.currentSpec),
+        spec: restoredSession.currentSpec,
+      };
+      onApplySpec(restoredSession.currentSpec, 'history');
+    }
+
+    const sessionsToSync = getBuilderHistorySyncCandidates(localSessions, accountSessions);
+    if (sessionsToSync.length) {
+      void syncHistorySessions(sessionsToSync)
+        .then(() => setHistorySaveError(''))
+        .catch(() => {
+          setHistorySaveError('Could not sync conversation history to your account. This device still has its local copy.');
+        });
+    }
+  }, [
+    activeSessionId,
+    activeSessionStorageKey,
+    currentSpec,
+    historyBootstrap,
+    historyQuery.data,
+    historyQuery.isError,
+    historyQuery.isSuccess,
+    onApplySpec,
+    sessions,
+    syncHistorySessions,
+    userId,
+  ]);
+
+  useEffect(() => {
     if (
+      !historyBootstrapCompleteRef.current ||
       !historyForMemory.length ||
       historyImportAttemptedForUser.current === userId
     ) {
@@ -596,10 +722,41 @@ export function CircuitBuilderChat({
       window.localStorage.setItem(activeSessionStorageKey, activeSessionId);
       setHistorySaveError('');
     } catch {
-      setHistorySaveError('Recent conversations could not be saved in this browser. Your current chat is still open.');
+      setHistorySaveError('This browser could not save a local copy. Account sync may still be available.');
     }
 
   }, [activeSessionId, saved, currentSpec, mode, sessions, historyStorageKey, activeSessionStorageKey]);
+
+  useEffect(() => {
+    if (
+      !historyHydrated ||
+      !historyBootstrapCompleteRef.current ||
+      !historyQuery.isSuccess
+    ) return;
+
+    const restore = pendingRestoreRef.current;
+    if (
+      restore?.sessionId === activeSession.id &&
+      JSON.stringify(currentSpec) !== restore.specSignature
+    ) return;
+
+    const signature = JSON.stringify(activeSession);
+    if (lastHistorySaveSignatureRef.current === signature) return;
+    lastHistorySaveSignatureRef.current = signature;
+
+    void syncHistorySessions([activeSession])
+      .then(() => setHistorySaveError(''))
+      .catch(() => {
+        lastHistorySaveSignatureRef.current = '';
+        setHistorySaveError('Could not sync conversation history to your account. This device still has its local copy.');
+      });
+  }, [
+    activeSession,
+    currentSpec,
+    historyHydrated,
+    historyQuery.isSuccess,
+    syncHistorySessions,
+  ]);
 
   const visibleMessages = saved.messages;
   const aiUnavailable = usageQuery.data ? !usageQuery.data.canUseAi : false;
@@ -1071,7 +1228,7 @@ export function CircuitBuilderChat({
     setActiveSessionId(session.id);
     setSaved(session.saved);
     setMode(session.mode);
-    onApplySpec(session.currentSpec);
+    onApplySpec(session.currentSpec, 'history');
     clearTransientConversationState();
     setHistoryOpen(false);
   };
@@ -1116,6 +1273,18 @@ export function CircuitBuilderChat({
       : 'The request did not go through. Your message is still here.'
   );
   const hasBrief = Boolean(saved.brief.goal || saved.brief.requirements.length || saved.brief.assumptions.length || saved.brief.openQuestions.length);
+  const retryHistorySync = () => {
+    if (!historyQuery.isSuccess) {
+      void historyQuery.refetch();
+      return;
+    }
+
+    void syncHistorySessions(sessions)
+      .then(() => setHistorySaveError(''))
+      .catch(() => {
+        setHistorySaveError('Could not sync conversation history to your account. This device still has its local copy.');
+      });
+  };
 
   return (
     <section className="builder-chat" aria-label="Conversational circuit builder" data-testid="panel-circuit-builder-chat">
@@ -1131,7 +1300,7 @@ export function CircuitBuilderChat({
             className="builder-chat__icon-link"
             type="button"
             onClick={startNewConversation}
-            disabled={chatMutation.isPending || requestCycleActive}
+            disabled={!historyHydrated || chatMutation.isPending || requestCycleActive}
             aria-label="Start a new conversation"
             title="Start a new conversation"
             data-testid="button-new-builder-conversation"
@@ -1142,7 +1311,7 @@ export function CircuitBuilderChat({
             className={`builder-chat__icon-link${historyOpen ? ' is-active' : ''}`}
             type="button"
             onClick={() => setHistoryOpen((open) => !open)}
-            disabled={chatMutation.isPending || requestCycleActive}
+            disabled={!historyHydrated || chatMutation.isPending || requestCycleActive}
             aria-expanded={historyOpen}
             aria-controls="builder-conversation-history"
             aria-label={`Recent conversations, ${sessions.length} saved`}
@@ -1155,6 +1324,7 @@ export function CircuitBuilderChat({
             className={`builder-chat__icon-link${memoryOpen ? ' is-active' : ''}`}
             type="button"
             onClick={() => setMemoryOpen(true)}
+            disabled={!historyHydrated}
             aria-expanded={memoryOpen}
             aria-label="Review saved assumptions"
             title="What I remember"
@@ -1176,7 +1346,7 @@ export function CircuitBuilderChat({
             className="builder-chat__icon-link"
             type="button"
             onClick={() => setClearChatOpen(true)}
-            disabled={chatMutation.isPending || requestCycleActive}
+            disabled={!historyHydrated || chatMutation.isPending || requestCycleActive}
             aria-label="Clear current chat"
             title="Clear current chat"
             data-testid="button-clear-builder-chat"
@@ -1201,10 +1371,17 @@ export function CircuitBuilderChat({
           data-testid="panel-builder-history"
         >
           <div className="builder-chat__history-heading">
-            <div><strong>Recent conversations</strong><span>Auto-saved in this browser, including chats in progress</span></div>
+            <div><strong>Recent conversations</strong><span>Saved to your account, including chats in progress</span></div>
             <button type="button" className="builder-chat__text-link" onClick={() => setHistoryOpen(false)}>Close</button>
           </div>
-          {historySaveError && <p className="builder-chat__history-error" role="status">{historySaveError}</p>}
+          {historySaveError && (
+            <p className="builder-chat__history-error" role="status">
+              {historySaveError}{' '}
+              <button className="builder-chat__text-link" type="button" onClick={retryHistorySync} data-testid="button-retry-history-sync">
+                Retry sync
+              </button>
+            </p>
+          )}
           <div className="builder-chat__history-list" role="list">
             {sessions.map((session) => (
               <div key={session.id} role="listitem">
@@ -1212,7 +1389,7 @@ export function CircuitBuilderChat({
                   type="button"
                   className={`builder-chat__history-item${session.id === activeSessionId ? ' is-current' : ''}`}
                   onClick={() => openHistorySession(session)}
-                  disabled={chatMutation.isPending || requestCycleActive}
+                  disabled={!historyHydrated || chatMutation.isPending || requestCycleActive}
                   aria-current={session.id === activeSessionId ? 'page' : undefined}
                   data-testid={`button-builder-history-${session.id}`}
                 >
@@ -1227,14 +1404,21 @@ export function CircuitBuilderChat({
         </section>
       )}
 
-      {historySaveError && !historyOpen && <p className="builder-chat__history-error" role="status">{historySaveError}</p>}
+      {historySaveError && !historyOpen && (
+        <p className="builder-chat__history-error" role="status">
+          {historySaveError}{' '}
+          <button className="builder-chat__text-link" type="button" onClick={retryHistorySync} data-testid="button-retry-history-sync">
+            Retry sync
+          </button>
+        </p>
+      )}
 
       <div className="builder-chat__mode-row">
         <div className="builder-chat__mode-tabs" role="tablist" aria-label="Conversation mode" data-testid="group-builder-modes">
-          <button type="button" role="tab" aria-selected={mode === 'chat'} className={mode === 'chat' ? 'is-active' : ''} onClick={() => setMode('chat')} data-testid="button-builder-mode-chat">
+          <button type="button" role="tab" aria-selected={mode === 'chat'} className={mode === 'chat' ? 'is-active' : ''} onClick={() => setMode('chat')} disabled={!historyHydrated} data-testid="button-builder-mode-chat">
             <MessageCircle aria-hidden="true" /> Chat
           </button>
-          <button type="button" role="tab" aria-selected={mode === 'build'} className={mode === 'build' ? 'is-active' : ''} onClick={() => setMode('build')} data-testid="button-builder-mode-build">
+          <button type="button" role="tab" aria-selected={mode === 'build'} className={mode === 'build' ? 'is-active' : ''} onClick={() => setMode('build')} disabled={!historyHydrated} data-testid="button-builder-mode-build">
             <Wrench aria-hidden="true" /> Build
           </button>
         </div>
@@ -1431,6 +1615,7 @@ export function CircuitBuilderChat({
             activeKeyNumber={usageQuery.data?.activeKeyNumber}
             retryAttempt={retryAttempt}
             retryKind={retryKind}
+            isHistoryLoading={!historyHydrated}
             onSubmitMessage={handleSubmitMessage}
           />
         </div>
@@ -1470,7 +1655,13 @@ export function CircuitBuilderChat({
             </div>
           )}
           <div className="builder-chat__brief-footer">
-            <p>Saved in this browser for your account</p>
+            <p>{!historyHydrated
+              ? 'Loading your account history…'
+              : historySaveError
+                ? 'Only this device is up to date until sync succeeds.'
+                : historySyncMutation.isPending
+                  ? 'Saving to your account…'
+                  : 'Available on any device you sign in to'}</p>
           </div>
         </aside>
       </div>

@@ -168,3 +168,35 @@ export function upsertBuilderHistorySession<SavedState, CircuitSpec>(
     ...sessions.filter((session) => session.id !== nextSession.id),
   ].sort((left, right) => right.updatedAt - left.updatedAt);
 }
+
+export function mergeBuilderHistorySessions<SavedState, CircuitSpec>(
+  localSessions: readonly BuilderHistorySession<SavedState, CircuitSpec>[],
+  accountSessions: readonly BuilderHistorySession<SavedState, CircuitSpec>[],
+): BuilderHistorySession<SavedState, CircuitSpec>[] {
+  const merged = new Map(
+    accountSessions.map((session) => [session.id, session] as const),
+  );
+
+  for (const localSession of localSessions) {
+    const accountSession = merged.get(localSession.id);
+    if (!accountSession || localSession.updatedAt >= accountSession.updatedAt) {
+      merged.set(localSession.id, localSession);
+    }
+  }
+
+  return [...merged.values()].sort((left, right) => right.updatedAt - left.updatedAt);
+}
+
+export function getBuilderHistorySyncCandidates<SavedState, CircuitSpec>(
+  localSessions: readonly BuilderHistorySession<SavedState, CircuitSpec>[],
+  accountSessions: readonly BuilderHistorySession<SavedState, CircuitSpec>[],
+): BuilderHistorySession<SavedState, CircuitSpec>[] {
+  const accountById = new Map(accountSessions.map((session) => [session.id, session]));
+  return localSessions.filter((localSession) => {
+    const accountSession = accountById.get(localSession.id);
+    return !accountSession || (
+      localSession.updatedAt >= accountSession.updatedAt &&
+      JSON.stringify(localSession) !== JSON.stringify(accountSession)
+    );
+  });
+}

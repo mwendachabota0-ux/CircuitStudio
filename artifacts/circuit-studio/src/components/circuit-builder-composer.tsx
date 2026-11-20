@@ -27,6 +27,7 @@ type CircuitBuilderComposerProps = {
   activeKeyNumber?: number;
   retryAttempt: number;
   retryKind: BuildRetryKind | null;
+  isHistoryLoading: boolean;
   onSubmitMessage: (content: string, draftRevisionAtStart: number) => void | Promise<void>;
 };
 
@@ -42,11 +43,12 @@ const CircuitBuilderComposer = forwardRef<
   activeKeyNumber,
   retryAttempt,
   retryKind,
+  isHistoryLoading,
   onSubmitMessage,
 }, ref) {
   const [draft, setDraft] = useState('');
   const draftRevisionRef = useRef(0);
-  const canSend = draft.trim().length > 0 && !isWorking && !hasProposal && !briefEditing && !hasUnappliedJsonEdits;
+  const canSend = draft.trim().length > 0 && !isWorking && !isHistoryLoading && !hasProposal && !briefEditing && !hasUnappliedJsonEdits;
 
   useImperativeHandle(ref, () => ({
     getDraftRevision: () => draftRevisionRef.current,
@@ -84,7 +86,9 @@ const CircuitBuilderComposer = forwardRef<
     }
   };
 
-  const composerHint = isWorking
+  const composerHint = isHistoryLoading
+    ? 'Loading your account history…'
+    : isWorking
     ? 'You can draft a follow-up while the AI works'
     : briefEditing
       ? 'Save or cancel your notes before sending'
@@ -96,7 +100,9 @@ const CircuitBuilderComposer = forwardRef<
           ? 'Enter to send · Shift + Enter for a new line'
           : 'A proposal is staged for your review, never applied automatically';
 
-  const sendLabel = isWorking
+  const sendLabel = isHistoryLoading
+    ? 'Loading'
+    : isWorking
     ? retryAttempt > 0
       ? retryKind === 'repair' ? 'Repairing' : 'Retrying'
       : 'Thinking'

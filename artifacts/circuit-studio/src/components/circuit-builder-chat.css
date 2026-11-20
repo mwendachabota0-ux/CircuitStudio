@@ -66,8 +66,7 @@
   white-space: nowrap;
 }
 
-.builder-chat__availability,
-.builder-chat__brief-led {
+.builder-chat__availability {
   width: 7px;
   height: 7px;
   flex: none;
@@ -552,12 +551,10 @@
 .builder-chat__brief-footer {
   display: flex;
   align-items: center;
-  gap: 7px;
   margin-top: auto;
   padding-top: 12px;
 }
 
-.builder-chat__brief-led { width: 6px; height: 6px; box-shadow: 0 0 0 2px #dcebe0; }
 .builder-chat__brief-footer p { margin: 0; color: #9aa097; font-size: 8px; line-height: 1.4; }
 
 .builder-chat__proposal {

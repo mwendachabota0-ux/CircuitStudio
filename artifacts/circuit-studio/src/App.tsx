@@ -977,7 +977,7 @@ function Studio({ userId }: { userId: string }) {
                   : svg ? <SchematicViewer svg={svg} onFullscreenError={() => setToast('Fullscreen mode is unavailable in this browser.')} />
                     : <div className="schematic-paper canvas-empty"><div className="empty-icon"><CircuitBoard /></div><h3>Ready to draw</h3><p>Your schematic will appear here once the drawing engine is available.</p></div>}
             </div>
-            <div className="canvas-foot"><span className="zoom-label" data-testid="status-canvas">{report.errors.length ? 'Drawing paused' : 'Vector schematic'}</span><span>Canvas {spec.width || 'auto'} × {spec.height || 'auto'}</span></div>
+            <div className="canvas-foot"><span data-testid="status-canvas">{report.errors.length ? 'Drawing paused' : 'Vector schematic'}</span><span>Canvas {spec.width || 'auto'} × {spec.height || 'auto'}</span></div>
           </div>
         </section>
 

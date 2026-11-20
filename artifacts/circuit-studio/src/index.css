@@ -172,8 +172,6 @@ a { color: inherit; text-decoration: none; }
 .canvas-empty h3 { font:700 16px var(--app-font-display);color:#304640;margin:0 0 7px; }
 .canvas-empty p { font-size:12px;line-height:1.6;margin:0; }
 .canvas-foot { display:flex;justify-content:space-between;align-items:center;padding:12px 18px;border-top:1px solid #e6e2d9;color:#83908a;font:10px var(--app-font-mono); }
-.zoom-label { display:flex;gap:8px;align-items:center; }
-.zoom-label:before { content:"";width:6px;height:6px;border-radius:50%;background:#57967c; }
 .details-grid { display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:18px;margin-top:18px; }
 .bom-toggle-row { display:flex;align-items:center;gap:12px;margin-top:12px; }
 .bom-toggle-row > .toolbar-link-button { padding-left:0; }

@@ -711,7 +711,6 @@ export function CircuitBuilderChat({
             </div>
           )}
           <div className="builder-chat__brief-footer">
-            <span className="builder-chat__brief-led" />
             <p>Saved in this browser for your account</p>
           </div>
         </aside>

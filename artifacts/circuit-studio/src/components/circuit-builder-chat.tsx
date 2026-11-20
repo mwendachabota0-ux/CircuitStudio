@@ -232,7 +232,6 @@ export function CircuitBuilderChat({
   const [retryKind, setRetryKind] = useState<BuildRetryKind | null>(null);
   const [retryFeedback, setRetryFeedback] = useState<RetryFeedback | null>(null);
   const composerRef = useRef<CircuitBuilderComposerHandle>(null);
-  const threadEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     try {
@@ -241,10 +240,6 @@ export function CircuitBuilderChat({
       // Storage can be unavailable in private browsing; the session remains usable.
     }
   }, [saved, storageKey]);
-
-  useEffect(() => {
-    threadEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [saved.messages, chatMutation.isPending, requestCycleActive, retryAttempt]);
 
   const visibleMessages = saved.messages;
   const aiUnavailable = usageQuery.data ? !usageQuery.data.canUseAi : false;
@@ -582,7 +577,6 @@ export function CircuitBuilderChat({
                   : mode === 'build' ? 'Working through a draft' : 'Thinking it through'}</small>
               </div>
             )}
-            <div ref={threadEndRef} />
           </div>
           {retryFeedback && !requestCycleActive && (
             <>

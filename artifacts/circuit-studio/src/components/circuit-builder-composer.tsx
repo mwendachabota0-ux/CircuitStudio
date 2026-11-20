@@ -14,6 +14,7 @@ type ChatMode = 'chat' | 'build';
 
 export type CircuitBuilderComposerHandle = {
   getDraftRevision: () => number;
+  setDraft: (value: string) => void;
   clearDraftIfUnchanged: (revisionAtStart: number, submittedText: string) => void;
 };
 
@@ -45,6 +46,10 @@ const CircuitBuilderComposer = forwardRef<
 
   useImperativeHandle(ref, () => ({
     getDraftRevision: () => draftRevisionRef.current,
+    setDraft: (value) => {
+      draftRevisionRef.current += 1;
+      setDraft(value.slice(0, 3000));
+    },
     clearDraftIfUnchanged: (revisionAtStart, submittedText) => {
       setDraft((current) =>
         shouldClearSubmittedDraft(

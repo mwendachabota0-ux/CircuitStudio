@@ -12,6 +12,7 @@ import {
   generateWithThinkingBudgetFallback,
   getBuilderThinkingBudgets,
 } from "../lib/circuitBuilderGeneration";
+import { isMainsChargerBuildRequest } from "../lib/circuitBuilderSafety";
 import { normalizeCircuitBuilderResponse } from "../lib/circuitBuilderResponse";
 import {
   CircuitSpecCompatibilityError,
@@ -39,7 +40,7 @@ const builderLimiter = rateLimit({
 
 const builderInstructions = `You are Circuit Studio's conversational circuit-building assistant. Help the user clarify a circuit idea and turn it into a proposed editable schematic. Be concise and collaborative; teach only when it helps the user make a decision.
 
-Return exactly one JSON object with these fields: nextMode ("chat" or "build"), answer (string), brief ({goal:string, requirements:string[], assumptions:string[], openQuestions:string[]}), and optional proposal ({summary:string, spec:CircuitSpec}). Do not include Markdown fences or extra fields.
+Return exactly one JSON object with these fields: nextMode ("chat" or "build"), answer (string), brief ({goal:string, requirements:string[], assumptions:string[], openQuestions:string[]}), and optional proposal ({summary:string, spec:CircuitSpec}) and suggestedActions (up to two {label:string, prompt:string} items). Do not include Markdown fences or extra fields.
 
 Keep the brief short. Requirements must come from explicit user statements. Put uncertain but necessary choices in assumptions, never present them as facts. Keep only useful unanswered questions. Ask at most one focused question at a time when a missing detail materially affects the design.
 
@@ -53,6 +54,11 @@ In build mode, if the request is clear enough, include a complete proposed Circu
 
 Use only the component types, required properties, pin locations, and minimum lengths in this actual CircuitDraw reference:
 ${formatCircuitComponentGuide()}
+
+Safety and component support:
+- Do not generate a schematic proposal for a phone/device charger or AC/DC supply wired directly to household mains, high-voltage AC, or a switch-mode mains primary. Explain that this is hazardous and safety-critical, and offer a low-voltage-only follow-up that uses a certified, isolated commercial adapter as an external source. Never claim a generated drawing is safe, certified, or ready to connect to mains.
+- For unsupported symbols or missing verified IC/connector pinouts, explain the exact limitation without inventing symbols, pins, ratings, or part numbers. Suggest up to two concrete next prompts when a safe alternative exists. Suggested actions must be short, specific, and compatible with the user's goal; never suggest a way to recreate a rejected hazardous design.
+- If the user requests an IC but has not supplied a verified pinout, ask for the exact part and pinout before proposing that block. Generic pin blocks are drawing aids, not validation of the IC's actual pin mapping.
 
 Use clear reference designators and unique wire IDs (W1, W2, ...). Keep wire segments horizontal or vertical, avoid zero-length segments and routes through two-terminal parts, and connect wire endpoints exactly to pins or other wire endpoints. Set open:true on a wire only when it is intentionally left disconnected. If a requested component has no supported equivalent, state the limitation instead of inventing a type or pin model.
 
@@ -118,6 +124,24 @@ router.post(
 
     const history = parsed.data.history ?? [];
     const brief = parsed.data.brief ?? emptyBrief;
+    if (isMainsChargerBuildRequest(parsed.data.message)) {
+      res.json({
+        nextMode: "chat",
+        answer: "A phone charger wired directly to household mains is a hazardous, safety-critical design. Circuit Studio will not generate mains-side or switch-mode charger circuitry. A safer route is to use a certified, isolated commercial 5 V adapter as a sealed power source, then work only on a low-voltage output-side schematic. That drawing is still educational and is not a complete or certified charger.",
+        brief,
+        suggestedActions: [
+          {
+            label: "Draft the low-voltage output side",
+            prompt: "Create an educational schematic for only the low-voltage 5 V output side, powered by an external certified isolated adapter. Do not include any input power-conversion circuitry. Ask whether the output connector should be USB-A or USB-C before choosing connector pins.",
+          },
+          {
+            label: "Explain the adapter approach",
+            prompt: "Explain at a high level how a certified isolated 5 V adapter changes the scope of a phone-charger project, and what the low-voltage output schematic still needs to specify.",
+          },
+        ],
+      });
+      return;
+    }
     const conversation = history
       .map((message) => `${message.role === "assistant" ? "Assistant" : "User"}: ${message.content}`)
       .join("\n");

@@ -160,6 +160,46 @@ test("diagonal routing remains an advisory warning rather than a blocking error"
   assert.ok(report.warnings.some((warning) => warning.includes("is diagonal")));
 });
 
+test("a wire-crossing bridge renders an overpass and keeps the two nets separate", () => {
+  const spec = {
+    title: "Non-connecting wire bridge",
+    elements: [
+      { type: "wire", id: "WH", points: [[0, 50], [100, 50]] },
+      { type: "wire", id: "WV", points: [[50, 0], [50, 100]] },
+      { type: "battery", id: "B_HL", from: [0, 50], to: [0, 70] },
+      { type: "battery", id: "B_HR", from: [100, 50], to: [100, 70] },
+      { type: "battery", id: "B_VT", from: [50, 0], to: [70, 0] },
+      { type: "battery", id: "B_VB", from: [50, 100], to: [70, 100] },
+      { type: "crossing", id: "BR1", at: [50, 50], orientation: "horizontal" },
+    ],
+  };
+  const validation = CircuitDraw.validate(spec);
+  assert.deepEqual(Array.from(validation.errors), []);
+  assert.match(CircuitDraw.render(spec), /<path d="M38 50 Q50 36 62 50"/);
+
+  const nets = CircuitDraw.netlist(spec).nets;
+  const horizontal = nets.find((net) => net.pins.includes("B_HL.+"));
+  const vertical = nets.find((net) => net.pins.includes("B_VT.+"));
+  assert.ok(horizontal);
+  assert.ok(vertical);
+  assert.ok(horizontal.pins.includes("B_HR.+"));
+  assert.ok(vertical.pins.includes("B_VB.+"));
+  assert.equal(horizontal.pins.includes("B_VT.+"), false);
+  assert.equal(vertical.pins.includes("B_HL.+"), false);
+});
+
+test("a crossing bridge must be placed on one horizontal and one vertical wire", () => {
+  const report = CircuitDraw.validate({
+    title: "Misplaced bridge",
+    elements: [
+      { type: "wire", id: "WH", open: true, points: [[0, 50], [100, 50]] },
+      { type: "wire", id: "WV", open: true, points: [[50, 0], [50, 100]] },
+      { type: "crossing", id: "BR1", at: [25, 50] },
+    ],
+  });
+  assert.ok(report.errors.some((error) => error.includes("must sit at the interior crossing")));
+});
+
 test("wire crossing a component is a blocking short-circuit error", () => {
   const report = CircuitDraw.validate({
     title: "Wire across resistor",

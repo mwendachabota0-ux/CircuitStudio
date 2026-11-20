@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { CircuitBuildChatResponseNextMode } from './circuitBuildChatResponseNextMode';
+import type { CircuitBuilderSuggestedAction } from './circuitBuilderSuggestedAction';
 import type { CircuitBuildProposal } from './circuitBuildProposal';
 import type { CircuitDesignBrief } from './circuitDesignBrief';
 export interface CircuitBuildChatResponse {
@@ -17,5 +18,7 @@ export interface CircuitBuildChatResponse {
     answer: string;
     brief: CircuitDesignBrief;
     proposal?: CircuitBuildProposal;
+    /** @maxItems 2 */
+    suggestedActions?: CircuitBuilderSuggestedAction[];
 }
 //# sourceMappingURL=circuitBuildChatResponse.d.ts.map

@@ -7,6 +7,7 @@ import {
   useGetAiUsage,
 } from '@workspace/api-client-react';
 import type {
+  CircuitBuilderSuggestedAction,
   CircuitBuildChatInput,
   CircuitBuildChatMessage,
   CircuitDesignBrief,
@@ -29,6 +30,7 @@ import {
   Check,
   CheckCircle2,
   Copy,
+  Library,
   MessageCircle,
   Plus,
   Sparkles,
@@ -37,12 +39,17 @@ import {
   X,
 } from 'lucide-react';
 import './circuit-builder-chat.css';
+import { ComponentLibraryDialog } from './component-library-dialog';
 import CircuitBuilderComposer, {
   type CircuitBuilderComposerHandle,
 } from './circuit-builder-composer';
 
 type ChatMode = 'chat' | 'build';
-type ThreadMessage = CircuitBuildChatMessage & { id: string; createdAt: number };
+type ThreadMessage = CircuitBuildChatMessage & {
+  id: string;
+  createdAt: number;
+  suggestedActions?: CircuitBuilderSuggestedAction[];
+};
 type SavedState = { brief: CircuitDesignBrief; aiBrief: CircuitDesignBrief; messages: ThreadMessage[] };
 type ValidationReport = { errors: string[]; warnings: string[] };
 type RetryFeedback = {
@@ -169,7 +176,15 @@ function readSavedState(key: string): SavedState {
           typeof message.content === 'string' &&
           typeof message.id === 'string' &&
           typeof message.createdAt === 'number',
-        ).slice(-60)
+          ).slice(-60).map((message) => {
+            const actions = Array.isArray(message.suggestedActions)
+              ? message.suggestedActions.filter(isSuggestedAction).slice(0, 2)
+              : [];
+            return {
+              ...message,
+              ...(actions.length ? { suggestedActions: actions } : { suggestedActions: undefined }),
+            };
+          })
       : [];
     const brief = normalizeBrief(parsed.brief);
     // Older saved sessions did not record the AI's last draft separately.
@@ -185,8 +200,24 @@ function readSavedState(key: string): SavedState {
   }
 }
 
-function newMessage(role: CircuitBuildChatMessage['role'], content: string): ThreadMessage {
-  return { id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`, role, content, createdAt: Date.now() };
+function newMessage(
+  role: CircuitBuildChatMessage['role'],
+  content: string,
+  suggestedActions?: CircuitBuilderSuggestedAction[],
+): ThreadMessage {
+  return {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    role,
+    content,
+    createdAt: Date.now(),
+    ...(suggestedActions?.length ? { suggestedActions: suggestedActions.slice(0, 2) } : {}),
+  };
+}
+
+function isSuggestedAction(value: unknown): value is CircuitBuilderSuggestedAction {
+  if (!value || typeof value !== 'object') return false;
+  const action = value as Record<string, unknown>;
+  return typeof action.label === 'string' && typeof action.prompt === 'string';
 }
 
 export type CircuitBuilderChatProps = {
@@ -222,6 +253,7 @@ export function CircuitBuilderChat({
   const [proposalError, setProposalError] = useState('');
   const [rejectedProposalSpec, setRejectedProposalSpec] = useState<CircuitBuildChatInput['currentSpec'] | null>(null);
   const [rejectedSpecCopyState, setRejectedSpecCopyState] = useState<RejectedSpecCopyState>('idle');
+  const [componentLibraryOpen, setComponentLibraryOpen] = useState(false);
   const [briefEditing, setBriefEditing] = useState(false);
   const [briefGoalDraft, setBriefGoalDraft] = useState('');
   const [briefRequirementsDraft, setBriefRequirementsDraft] = useState('');
@@ -345,7 +377,10 @@ export function CircuitBuilderChat({
         setSaved((current) => ({
           brief: mergeBriefPreservingManualEdits(current.aiBrief, current.brief, nextBrief),
           aiBrief: nextBrief,
-          messages: [...current.messages, newMessage('assistant', response.answer)].slice(-60),
+          messages: [
+            ...current.messages,
+            newMessage('assistant', response.answer, response.suggestedActions),
+          ].slice(-60),
         }));
         setRejectedProposalSpec(null);
         setRepairDiagnostics(completedRepairDiagnostics);
@@ -517,6 +552,20 @@ export function CircuitBuilderChat({
     setLastRequest(null);
   };
 
+  const prepareComponentPrompt = (entry: { type: string; displayName: string; category: string }) => {
+    setMode('build');
+    composerRef.current?.setDraft(
+      entry.category === 'Drawing'
+        ? `Add a ${entry.displayName} (${entry.type}) drawing annotation to my current schematic. Do not treat it as an electrical component.`
+        : `Use a ${entry.displayName} (${entry.type}) in my current design. Use its supported pin model and ask me for any missing ratings or verified pinout before assuming them.`,
+    );
+  };
+
+  const prepareSuggestedAction = (action: CircuitBuilderSuggestedAction) => {
+    setMode('build');
+    composerRef.current?.setDraft(action.prompt);
+  };
+
   const applyProposal = () => {
     if (!proposal || !proposalSvg || !proposalValidation || proposalValidation.errors.length) return;
     onApplySpec(proposal.spec);
@@ -541,6 +590,16 @@ export function CircuitBuilderChat({
           </div>
         </div>
         <div className="builder-chat__header-tools">
+          <button
+            className="builder-chat__icon-link"
+            type="button"
+            onClick={() => setComponentLibraryOpen(true)}
+            aria-label="Open component library"
+            title="Browse component library"
+            data-testid="button-open-component-library"
+          >
+            <Library aria-hidden="true" />
+          </button>
           <button className="builder-chat__icon-link" type="button" onClick={clearConversation} aria-label="Clear conversation and brief" title="Clear conversation" data-testid="button-clear-builder-chat">
             <Trash2 aria-hidden="true" />
           </button>
@@ -585,6 +644,23 @@ export function CircuitBuilderChat({
               <article className={`builder-chat__message is-${message.role}`} key={message.id} data-testid={`message-builder-${message.role}-${index}`}>
                 <span className="builder-chat__message-label">{message.role === 'assistant' ? 'Studio' : 'You'}</span>
                 <p>{message.content}</p>
+                {message.role === 'assistant' && Array.isArray(message.suggestedActions) && message.suggestedActions.some(isSuggestedAction) && (
+                  <div className="builder-chat__suggested-actions" data-testid={`list-builder-suggested-actions-${index}`}>
+                    <span>Suggested next steps · review before sending</span>
+                    <div>
+                      {message.suggestedActions.filter(isSuggestedAction).slice(0, 2).map((action, actionIndex) => (
+                        <button
+                          key={`${message.id}-action-${actionIndex}`}
+                          type="button"
+                          onClick={() => prepareSuggestedAction(action)}
+                          data-testid={`button-builder-suggested-action-${index}-${actionIndex}`}
+                        >
+                          {action.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </article>
             ))}
             {(chatMutation.isPending || requestCycleActive) && (
@@ -744,6 +820,11 @@ export function CircuitBuilderChat({
           </div>
         </aside>
       </div>
+      <ComponentLibraryDialog
+        open={componentLibraryOpen}
+        onOpenChange={setComponentLibraryOpen}
+        onSelect={prepareComponentPrompt}
+      />
     </section>
   );
 }

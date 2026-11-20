@@ -357,6 +357,12 @@ export const chatWithCircuitBuilderResponseProposalSpecElementsItemLabelNudgeMax
 export const chatWithCircuitBuilderResponseProposalSpecElementsItemLabelAtMin = 2;
 export const chatWithCircuitBuilderResponseProposalSpecElementsItemLabelAtMax = 2;
 
+export const chatWithCircuitBuilderResponseSuggestedActionsItemLabelMax = 90;
+
+export const chatWithCircuitBuilderResponseSuggestedActionsItemPromptMax = 1000;
+
+export const chatWithCircuitBuilderResponseSuggestedActionsMax = 2;
+
 
 
 export const ChatWithCircuitBuilderResponse = zod.object({
@@ -405,7 +411,11 @@ export const ChatWithCircuitBuilderResponse = zod.object({
   "muted": zod.boolean().optional()
 }))
 })
-}).optional()
+}).optional(),
+  "suggestedActions": zod.array(zod.object({
+  "label": zod.string().min(1).max(chatWithCircuitBuilderResponseSuggestedActionsItemLabelMax),
+  "prompt": zod.string().min(1).max(chatWithCircuitBuilderResponseSuggestedActionsItemPromptMax)
+})).max(chatWithCircuitBuilderResponseSuggestedActionsMax).optional()
 })
 
 

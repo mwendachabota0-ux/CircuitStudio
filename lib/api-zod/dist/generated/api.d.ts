@@ -1163,6 +1163,9 @@ export declare const chatWithCircuitBuilderResponseProposalSpecElementsItemLabel
 export declare const chatWithCircuitBuilderResponseProposalSpecElementsItemLabelNudgeMax = 2;
 export declare const chatWithCircuitBuilderResponseProposalSpecElementsItemLabelAtMin = 2;
 export declare const chatWithCircuitBuilderResponseProposalSpecElementsItemLabelAtMax = 2;
+export declare const chatWithCircuitBuilderResponseSuggestedActionsItemLabelMax = 90;
+export declare const chatWithCircuitBuilderResponseSuggestedActionsItemPromptMax = 1000;
+export declare const chatWithCircuitBuilderResponseSuggestedActionsMax = 2;
 export declare const ChatWithCircuitBuilderResponse: zod.ZodObject<{
     nextMode: zod.ZodOptional<zod.ZodEnum<["chat", "build"]>>;
     answer: zod.ZodString;
@@ -1420,6 +1423,16 @@ export declare const ChatWithCircuitBuilderResponse: zod.ZodObject<{
             height?: number | undefined;
         };
     }>>;
+    suggestedActions: zod.ZodOptional<zod.ZodArray<zod.ZodObject<{
+        label: zod.ZodString;
+        prompt: zod.ZodString;
+    }, "strip", zod.ZodTypeAny, {
+        prompt: string;
+        label: string;
+    }, {
+        prompt: string;
+        label: string;
+    }>, "many">>;
 }, "strip", zod.ZodTypeAny, {
     answer: string;
     brief: {
@@ -1467,6 +1480,10 @@ export declare const ChatWithCircuitBuilderResponse: zod.ZodObject<{
             height?: number | undefined;
         };
     } | undefined;
+    suggestedActions?: {
+        prompt: string;
+        label: string;
+    }[] | undefined;
 }, {
     answer: string;
     brief: {
@@ -1514,6 +1531,10 @@ export declare const ChatWithCircuitBuilderResponse: zod.ZodObject<{
             height?: number | undefined;
         };
     } | undefined;
+    suggestedActions?: {
+        prompt: string;
+        label: string;
+    }[] | undefined;
 }>;
 /**
  * Returns a concise educational review of a structurally valid draft. It does not check electrical safety or correctness.

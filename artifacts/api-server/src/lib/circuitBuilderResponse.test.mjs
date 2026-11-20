@@ -54,3 +54,38 @@ test("build proposals are retained for strict schema and circuit validation", ()
 
   assert.equal(result.proposal, proposal);
 });
+
+test("valid suggested actions survive response normalization", () => {
+  const suggestedActions = [
+    {
+      label: "Draft a safe low-voltage stage",
+      prompt: "Create an educational schematic using only a certified 5V DC adapter.",
+    },
+  ];
+  const result = normalizeCircuitBuilderResponse({
+    nextMode: "chat",
+    answer: "I can help with a safer low-voltage version.",
+    brief,
+    suggestedActions,
+  }, brief);
+
+  assert.deepEqual(result.suggestedActions, suggestedActions);
+});
+
+test("malformed and excess suggested actions are removed or capped", () => {
+  const result = normalizeCircuitBuilderResponse({
+    answer: "Choose a supported alternative.",
+    brief,
+    suggestedActions: [
+      { label: " Good action ", prompt: " Keep the prompt " },
+      { label: "", prompt: "Missing a label" },
+      { label: "Second", prompt: "Second prompt" },
+      { label: "Third", prompt: "This one is capped" },
+    ],
+  }, brief);
+
+  assert.deepEqual(result.suggestedActions, [
+    { label: "Good action", prompt: "Keep the prompt" },
+    { label: "Second", prompt: "Second prompt" },
+  ]);
+});

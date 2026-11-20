@@ -15,6 +15,7 @@ export * from './circuitBuildChatMessage';
 export * from './circuitBuildChatMessageRole';
 export * from './circuitBuildChatResponse';
 export * from './circuitBuildChatResponseNextMode';
+export * from './circuitBuilderSuggestedAction';
 export * from './circuitBuildProposal';
 export * from './circuitDesignBrief';
 export * from './circuitElement';

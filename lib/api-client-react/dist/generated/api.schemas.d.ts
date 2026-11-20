@@ -153,6 +153,18 @@ export interface CircuitBuildProposal {
     summary: string;
     spec: CircuitSpec;
 }
+export interface CircuitBuilderSuggestedAction {
+    /**
+       * @minLength 1
+       * @maxLength 90
+       */
+    label: string;
+    /**
+       * @minLength 1
+       * @maxLength 1000
+       */
+    prompt: string;
+}
 export type CircuitBuildChatResponseNextMode = typeof CircuitBuildChatResponseNextMode[keyof typeof CircuitBuildChatResponseNextMode];
 export declare const CircuitBuildChatResponseNextMode: {
     readonly chat: "chat";
@@ -167,6 +179,8 @@ export interface CircuitBuildChatResponse {
     answer: string;
     brief: CircuitDesignBrief;
     proposal?: CircuitBuildProposal;
+    /** @maxItems 2 */
+    suggestedActions?: CircuitBuilderSuggestedAction[];
 }
 export interface CircuitReviewRequest {
     spec: CircuitSpec;

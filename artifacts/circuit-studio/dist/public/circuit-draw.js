@@ -124,14 +124,64 @@
     } },
     crystal: { hl: 9, hr: 9, hp: 14, draw: function (c) {
       return { s: '<rect x="' + f(c - 5) + '" y="-9" width="10" height="18"/>' + ln(c - 9, -13, c - 9, 13) + ln(c + 9, -13, c + 9, 13) };
+    } },
+    fuse: { hl: 18, hr: 18, hp: 12, draw: function (c) {
+      return { s: '<rect x="' + f(c - 18) + '" y="-9" width="36" height="18" rx="2"/>' +
+        ln(c - 10, -5, c + 10, 5) };
+    } },
+    thermistor: { hl: 25, hr: 25, hp: 15, draw: function (c) {
+      return { s: '<rect x="' + f(c - 18) + '" y="-10" width="36" height="20"/>' +
+        ln(c - 18, 15, c + 18, -15), t: [{ x: c + 23, y: -13, s: 'T', anchor: 'start', size: 9 }] };
+    } },
+    photoresistor: { hl: 25, hr: 25, hp: 18, draw: function (c) {
+      return { s: '<rect x="' + f(c - 18) + '" y="-10" width="36" height="20"/>' +
+        ln(c - 31, -20, c - 20, -9, ARROW) + ln(c - 19, -27, c - 8, -16, ARROW) };
+    } },
+    varistor: { hl: 25, hr: 25, hp: 16, draw: function (c) {
+      return { s: '<rect x="' + f(c - 18) + '" y="-10" width="36" height="20"/>' +
+        ln(c - 25, 17, c + 25, -17, ARROW) };
+    } },
+    photodiode: { hl: 10, hr: 10, hp: 24, draw: function (c) {
+      return { s: diodeBody(c) + ln(c - 24, -22, c - 12, -10, ARROW) +
+        ln(c - 12, -29, c, -17, ARROW) };
+    } },
+    schottky: { hl: 12, hr: 12, hp: 12, draw: function (c) {
+      return { s: '<polygon points="' + f(c - 10) + ',-10 ' + f(c - 10) + ',10 ' + f(c + 10) + ',0"/>' +
+        ln(c + 10, -10, c + 10, 10) + ln(c + 10, -10, c + 15, -5) + ln(c + 10, 10, c + 15, 5) };
+    } },
+    dcsource: { hl: 21, hr: 21, hp: 21, draw: function (c) {
+      return { s: '<circle cx="' + f(c) + '" cy="0" r="21"/>' +
+        ln(c - 12, 0, c - 4, 0) + ln(c - 8, -4, c - 8, 4) + ln(c + 5, 0, c + 13, 0) };
+    } },
+    currentsource: { hl: 21, hr: 21, hp: 21, draw: function (c) {
+      return { s: '<circle cx="' + f(c) + '" cy="0" r="21"/>' +
+        ln(c, 11, c, -11, ARROW) };
+    } },
+    motor: { hl: 22, hr: 22, hp: 20, draw: function (c) {
+      return { s: '<circle cx="' + f(c) + '" cy="0" r="22"/>',
+        t: [{ x: c, y: 4, s: 'M', anchor: 'middle', size: 15 }] };
+    } },
+    buzzer: { hl: 22, hr: 22, hp: 22, draw: function (c) {
+      return { s: '<circle cx="' + f(c) + '" cy="0" r="22"/>' +
+        '<path d="M' + f(c + 9) + ' -12 q13 12 0 24 M' + f(c + 14) + ' -17 q19 17 0 34"/>' };
+    } },
+    solarcell: { hl: 22, hr: 22, hp: 22, draw: function (c) {
+      return { s: '<rect x="' + f(c - 20) + '" y="-15" width="40" height="30"/>' +
+        ln(c - 24, -25, c - 15, -16, ARROW) + ln(c - 8, -27, c + 1, -18, ARROW) +
+        ln(c - 9, -4, c + 9, -4) + ln(c, -13, c, 5, ARROW) };
     } }
   };
 
-  var MULTI = { npn: 1, pnp: 1, opamp: 1 };
+  var MULTI = {
+    npn: 1, pnp: 1, opamp: 1, potentiometer: 1, nmos: 1, pmos: 1, mosfet: 1, njfet: 1, pjfet: 1,
+    regulator: 1, comparator: 1, transformer: 1, relay: 1, bridge: 1, opto: 1, ic: 1, connector: 1
+  };
   var SINGLE = { ground: 1, antenna: 1, terminal: 1 };
-  var OTHER = { wire: 1, junction: 1, label: 1, box: 1 };
+  var OTHER = { wire: 1, junction: 1, crossing: 1, label: 1, box: 1 };
 
-  function knownType(t) { return !!(TWO[t] || MULTI[t] || SINGLE[t] || OTHER[t]); }
+  function knownType(t) {
+    return CircuitGeometry.isSupportedCircuitElementType(t);
+  }
 
   /* ---------- pins ---------- */
 
@@ -171,7 +221,7 @@
   }
 
   function analyse(spec) {
-    var res = { errors: [], warnings: [], junctions: [], bbox: null, freeEnds: [] };
+    var res = { errors: [], warnings: [], junctions: [], crossings: [], bbox: null, freeEnds: [] };
     var ends = {}, segs = [], allPins = [];
     var bb = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
 
@@ -196,8 +246,15 @@
     spec.elements.forEach(function (el, i) {
       var id = elementName(el, i);
       if (!el || typeof el !== 'object' || typeof el.type !== 'string') { res.errors.push('Element #' + (i + 1) + ' has no "type".'); return; }
-      if (!knownType(el.type)) { res.errors.push(id + ': unknown type "' + el.type + '".'); return; }
+      if (!knownType(el.type)) {
+        res.errors.push(id + ': unsupported CircuitDraw type "' + el.type + '". No pin model exists for this element. Use only: ' + CircuitGeometry.CIRCUIT_SUPPORTED_ELEMENT_TYPES.join(', ') + '; otherwise report the requested part as unsupported instead of inventing a symbol or pins.');
+        return;
+      }
       var t = el.type;
+      if (t === 'ic' || t === 'connector') {
+        var pinSchemaError = CircuitGeometry.getCircuitElementSchemaError(el);
+        if (pinSchemaError) { res.errors.push(id + ': ' + pinSchemaError); return; }
+      }
 
       if (t === 'wire') {
         if (!Array.isArray(el.points) || el.points.length < 2) { res.errors.push(id + ': "points" needs at least 2 [x,y] points.'); return; }
@@ -206,9 +263,9 @@
         }
         for (var s = 0; s < el.points.length - 1; s++) {
           var a = el.points[s], b = el.points[s + 1];
-          if (a[0] === b[0] && a[1] === b[1]) { res.warnings.push(id + ': has a zero-length segment at (' + a[0] + ',' + a[1] + ').'); continue; }
-          if (a[0] !== b[0] && a[1] !== b[1]) res.warnings.push(id + ': segment (' + a[0] + ',' + a[1] + ')->(' + b[0] + ',' + b[1] + ') is diagonal; use horizontal and vertical wires.');
-          segs.push([a, b]);
+          if (a[0] === b[0] && a[1] === b[1]) { res.warnings.push(id + ': has a zero-length segment at (' + a[0] + ',' + a[1] + '); remove the duplicate point.'); continue; }
+          if (a[0] !== b[0] && a[1] !== b[1]) res.warnings.push(id + ': segment (' + a[0] + ',' + a[1] + ')->(' + b[0] + ',' + b[1] + ') is diagonal; add an orthogonal corner point to route horizontally and vertically.');
+          segs.push({ a: a, b: b, owner: id, number: s + 1 });
            addEnd(a, id, 'wire'); addEnd(b, id, 'wire');
           if (el.open) { ends[key(a[0], a[1])].open = true; ends[key(b[0], b[1])].open = true; }
         }
@@ -218,6 +275,16 @@
       if (t === 'junction') {
         if (!isNum(el.x) || !isNum(el.y)) { res.errors.push(id + ': needs numeric "x" and "y".'); return; }
         res.junctions.push([el.x, el.y]); track(el.x, el.y);
+        return;
+      }
+      if (t === 'crossing') {
+        var crossingSchemaError = CircuitGeometry.getCircuitElementSchemaError(el);
+        if (crossingSchemaError) { res.errors.push(id + ': ' + crossingSchemaError); return; }
+        if (!isPt(el.at)) { res.errors.push(id + ': needs "at":[x,y].'); return; }
+        var orientation = el.orientation || 'horizontal';
+        res.crossings.push({ at: el.at, orientation: orientation, owner: id });
+        track(el.at[0] - 14, el.at[1] - 14);
+        track(el.at[0] + 14, el.at[1] + 14);
         return;
       }
       if (t === 'label') {
@@ -248,8 +315,44 @@
       });
       if (t === 'npn' || t === 'pnp') { track(el.at[0] - 44, el.at[1] - 44); track(el.at[0] + 44, el.at[1] + 80); }
       if (t === 'opamp') { track(el.at[0] - 40, el.at[1] - 70); track(el.at[0] + 40, el.at[1] + 40); }
+      if (t === 'comparator') { track(el.at[0] - 48, el.at[1] - 50); track(el.at[0] + 48, el.at[1] + 50); }
+      if (t === 'potentiometer') { track(el.at[0] - 30, el.at[1] - 55); track(el.at[0] + 30, el.at[1] + 15); }
+      if (t === 'regulator') { track(el.at[0] - 34, el.at[1] - 28); track(el.at[0] + 34, el.at[1] + 28); }
+      if (t === 'transformer') { track(el.at[0] - 40, el.at[1] - 46); track(el.at[0] + 40, el.at[1] + 46); }
+      if (t === 'relay') { track(el.at[0] - 42, el.at[1] - 44); track(el.at[0] + 42, el.at[1] + 44); }
+      if (t === 'opto') { track(el.at[0] - 40, el.at[1] - 38); track(el.at[0] + 40, el.at[1] + 38); }
+      if (t === 'ic' || t === 'connector') {
+        var leftPinCount = el.pins.filter(function (pin) { return pin.side === 'left'; }).length;
+        var rightPinCount = el.pins.filter(function (pin) { return pin.side === 'right'; }).length;
+        var blockHeight = Math.max(48, Math.max(leftPinCount, rightPinCount) * 24 + 16);
+        track(el.at[0] - 44, el.at[1] - blockHeight / 2);
+        track(el.at[0] + 44, el.at[1] + blockHeight / 2);
+      }
       if (t === 'antenna') track(el.at[0], el.at[1] - (el.height || 55) - 40);
       if (t === 'ground') track(el.at[0], el.at[1] + 50);
+    });
+
+    res.crossings.forEach(function (crossing) {
+      var horizontal = [], vertical = [];
+      segs.forEach(function (sg) {
+        if (!onSegInterior(crossing.at[0], crossing.at[1], sg.a, sg.b)) return;
+        if (sg.a[1] === sg.b[1]) horizontal.push(sg);
+        if (sg.a[0] === sg.b[0]) vertical.push(sg);
+      });
+      if (
+        horizontal.length !== 1 ||
+        vertical.length !== 1 ||
+        horizontal[0].owner === vertical[0].owner
+      ) {
+        res.errors.push(
+          crossing.owner + ' must sit at the interior crossing of one horizontal and one vertical segment from different wires.',
+        );
+      }
+      if (res.junctions.some(function (junction) {
+        return key(junction[0], junction[1]) === key(crossing.at[0], crossing.at[1]);
+      })) {
+        res.errors.push(crossing.owner + ' conflicts with a junction at the same point; use either a crossing bridge or a junction.');
+      }
     });
 
     spec.elements.forEach(function (el, i) {
@@ -257,20 +360,23 @@
       var a0 = el.from, b0 = el.to, L2 = Math.pow(b0[0] - a0[0], 2) + Math.pow(b0[1] - a0[1], 2);
       var nm = el.type + ' "' + (el.label || el.id || '#' + (i + 1)) + '"';
       segs.forEach(function (sg) {
-        var c1 = (b0[0] - a0[0]) * (sg[0][1] - a0[1]) - (b0[1] - a0[1]) * (sg[0][0] - a0[0]);
-        var c2 = (b0[0] - a0[0]) * (sg[1][1] - a0[1]) - (b0[1] - a0[1]) * (sg[1][0] - a0[0]);
+        var c1 = (b0[0] - a0[0]) * (sg.a[1] - a0[1]) - (b0[1] - a0[1]) * (sg.a[0] - a0[0]);
+        var c2 = (b0[0] - a0[0]) * (sg.b[1] - a0[1]) - (b0[1] - a0[1]) * (sg.b[0] - a0[0]);
         if (Math.abs(c1) > 0.01 || Math.abs(c2) > 0.01) return;
-        var t1 = ((sg[0][0] - a0[0]) * (b0[0] - a0[0]) + (sg[0][1] - a0[1]) * (b0[1] - a0[1])) / L2;
-        var t2 = ((sg[1][0] - a0[0]) * (b0[0] - a0[0]) + (sg[1][1] - a0[1]) * (b0[1] - a0[1])) / L2;
+        var t1 = ((sg.a[0] - a0[0]) * (b0[0] - a0[0]) + (sg.a[1] - a0[1]) * (b0[1] - a0[1])) / L2;
+        var t2 = ((sg.b[0] - a0[0]) * (b0[0] - a0[0]) + (sg.b[1] - a0[1]) * (b0[1] - a0[1])) / L2;
         var lo = Math.max(0, Math.min(t1, t2)), hi = Math.min(1, Math.max(t1, t2));
-        if (hi - lo > 0.01) res.warnings.push('A wire runs over ' + nm + ' and would short it out. Wires must stop at its from/to points, not pass through.');
+        if (hi - lo > 0.01) {
+          var pins = pinsOf(el);
+          res.errors.push(sg.owner + ' segment ' + sg.number + ' (' + f(sg.a[0]) + ',' + f(sg.a[1]) + ')->(' + f(sg.b[0]) + ',' + f(sg.b[1]) + ') passes through ' + nm + ' between pins ' + pins[0].n + ' and ' + pins[1].n + ', directly shorting it. Reroute around the symbol; terminate wires only at its actual pin coordinates.');
+        }
       });
     });
 
     // degree of every point = segment ends touching it + 2 for every wire passing straight through it
     Object.keys(ends).forEach(function (k) {
       var e = ends[k], deg = e.n;
-      segs.forEach(function (sg) { if (onSegInterior(e.x, e.y, sg[0], sg[1])) deg += 2; });
+      segs.forEach(function (sg) { if (onSegInterior(e.x, e.y, sg.a, sg.b)) deg += 2; });
       if (deg >= 3 && spec.autoJunctions !== false) res.junctions.push([e.x, e.y]);
       if (deg === 1 && !e.open) {
         var owner = e.owners[0];
@@ -281,10 +387,12 @@
           ? ' Nearest pin is ' + nearest.owner + ' at (' + f(nearest.point[0]) + ',' + f(nearest.point[1]) + '), ' + f(nearest.distance) + ' px away.'
           : ' No component pin was found.';
         if (e.wireOwners.length) {
-          res.warnings.push(owner + ' endpoint at ' + location + ' is not connected.' + detail);
+          res.errors.push(owner + ' endpoint at ' + location + ' is not connected.' + detail + (nearest
+            ? ' Move this endpoint exactly to (' + f(nearest.point[0]) + ',' + f(nearest.point[1]) + ') if that is the intended connection; set open:true only if the wire is intentionally left open.'
+            : ' Connect it to a supported component pin or another wire endpoint; set open:true only if it is intentionally left open.'));
           res.freeEnds.push({ point: point, kind: 'wire' });
         } else {
-          res.warnings.push(owner + ' at ' + location + ' is not connected to a wire.' + detail);
+          res.warnings.push(owner + ' at ' + location + ' is not connected to a wire.' + detail + ' If this pin should be connected, route a wire endpoint exactly to (' + f(e.x) + ',' + f(e.y) + '); otherwise leave it intentionally unused.');
           res.freeEnds.push({ point: point, kind: 'pin' });
         }
       }
@@ -296,7 +404,7 @@
 
   function validate(spec) {
     var a = analyse(spec);
-    if (!a.errors.length) a.errors = a.errors.concat(astableTopologyFindings(spec));
+    a.errors = a.errors.concat(astableTopologyFindings(spec));
     return { errors: a.errors, warnings: a.warnings };
   }
 
@@ -325,7 +433,7 @@
 
     var connectivity;
     try {
-      connectivity = netlist(spec);
+      connectivity = netlist(spec, true);
     } catch (error) {
       return findings;
     }
@@ -340,6 +448,7 @@
       var name = partName(transistor);
       return {
         name: String(name || transistor.type),
+        type: transistor.type,
         base: netFor(name, 'B'),
         collector: netFor(name, 'C'),
         emitter: netFor(name, 'E'),
@@ -347,6 +456,9 @@
     });
 
     transistorNets.forEach(function (transistor) {
+      if (sameNet(transistor.base, transistor.collector)) {
+        findings.push(transistor.name + '.B and ' + transistor.name + '.C share one net; this shorts the base to the collector and prevents normal astable switching.');
+      }
       if (sameNet(transistor.base, transistor.emitter)) {
         findings.push(transistor.name + '.B and ' + transistor.name + '.E share one net; an astable base must not be shorted to its emitter.');
       }
@@ -355,15 +467,28 @@
     var positiveSupply = connectivity.nets.filter(function (net) {
       return /^(VCC|VDD|V\d+(?:p\d+)?)$/i.test(net.name);
     })[0] || null;
-    transistorNets.forEach(function (transistor) {
-      var hasBaseFeed = !!positiveSupply && spec.elements.some(function (element) {
+    var groundSupply = connectivity.nets.filter(function (net) {
+      return /^(GND|GROUND|VSS|0V|COM)$/i.test(net.name);
+    })[0] || null;
+    function hasResistorBetween(firstNet, secondNet) {
+      return !!firstNet && !!secondNet && spec.elements.some(function (element) {
         if (!element || element.type !== 'resistor') return false;
         var name = partName(element);
-        return (sameNet(netFor(name, '1'), transistor.base) && sameNet(netFor(name, '2'), positiveSupply)) ||
-          (sameNet(netFor(name, '2'), transistor.base) && sameNet(netFor(name, '1'), positiveSupply));
+        return (sameNet(netFor(name, '1'), firstNet) && sameNet(netFor(name, '2'), secondNet)) ||
+          (sameNet(netFor(name, '2'), firstNet) && sameNet(netFor(name, '1'), secondNet));
       });
+    }
+    transistorNets.forEach(function (transistor) {
+      var baseRail = transistor.type === 'pnp' ? groundSupply : positiveSupply;
+      var emitterRail = transistor.type === 'pnp' ? positiveSupply : groundSupply;
+      var baseFeedLabel = transistor.type === 'pnp' ? 'ground' : 'the positive supply';
+      var emitterRailLabel = transistor.type === 'pnp' ? 'the positive supply' : 'ground';
+      var hasBaseFeed = hasResistorBetween(transistor.base, baseRail);
       if (!hasBaseFeed) {
-        findings.push(transistor.name + '.B needs its own resistor to the positive supply.');
+        findings.push(transistor.name + '.B needs its own resistor to ' + baseFeedLabel + '.');
+      }
+      if (!sameNet(transistor.emitter, emitterRail) && !hasResistorBetween(transistor.emitter, emitterRail)) {
+        findings.push(transistor.name + '.E must connect to ' + emitterRailLabel + ' directly or through a resistor.');
       }
     });
 
@@ -612,6 +737,127 @@
     parts.text += placeLabel(lines, x - 5, y - 40, el.labelPos || 'above', 6, el.labelNudge);
   }
 
+  function drawPotentiometer(el, parts) {
+    var x = el.at[0], y = el.at[1];
+    parts.comp += '<rect x="' + f(x - 20) + '" y="' + f(y - 10) + '" width="40" height="20"/>' +
+      ln(x - 44, y, x - 20, y) + ln(x + 20, y, x + 44, y) +
+      ln(x, y - 52, x, y - 15, ARROW);
+    var lines = linesOf(el);
+    if (el.labelAt) { parts.text += placeAt(lines, el); return; }
+    parts.text += placeLabel(lines, x, y - 10, el.labelPos || 'above', 18, el.labelNudge);
+  }
+
+  function drawFieldEffectTransistor(el, parts) {
+    var x = el.at[0], y = el.at[1], mirror = el.flip ? -1 : 1;
+    var typeIsP = el.type === 'pmos' || el.type === 'pjfet' || (el.type === 'mosfet' && el.channel === 'p');
+    var symbol = '<g transform="translate(' + f(x) + ' ' + f(y) + ') scale(' + mirror + ' 1)">' +
+      ln(-40, 0, -12, 0) + ln(-12, -27, -12, 27, ' stroke-width="3"') +
+      ln(0, -25, 0, 25, ' stroke-width="3"') +
+      ln(20, -40, 20, -25) + ln(20, -25, 4, -25) +
+      ln(20, 40, 20, 25) + ln(20, 25, 4, 25) +
+      ln(-4, -13, 0, -13, typeIsP ? ARROW : '') + '</g>';
+    parts.comp += symbol;
+    var lines = linesOf(el);
+    if (!lines.length) return;
+    if (el.labelAt) { parts.text += placeAt(lines, el); return; }
+    parts.text += placeLabel(lines, x, y + 48, el.labelPos || 'below', 8, el.labelNudge);
+  }
+
+  function drawRegulator(el, parts) {
+    var x = el.at[0], y = el.at[1];
+    parts.comp += '<rect x="' + f(x - 28) + '" y="' + f(y - 22) + '" width="56" height="44"/>' +
+      ln(x - 50, y, x - 28, y) + ln(x + 28, y, x + 50, y) + ln(x, y + 22, x, y + 50);
+    parts.text += textEl(x, y + 4, 'REG', 'middle', 10, true, 'text');
+    var lines = linesOf(el);
+    if (el.labelAt) { parts.text += placeAt(lines, el); return; }
+    parts.text += placeLabel(lines, x, y - 22, el.labelPos || 'above', 5, el.labelNudge);
+  }
+
+  function drawTransformer(el, parts) {
+    var x = el.at[0], y = el.at[1], coils = '';
+    for (var i = 0; i < 3; i++) {
+      var cy = y - 24 + i * 16;
+      coils += '<path d="M' + f(x - 18) + ' ' + f(cy) + ' a8 8 0 0 1 16 0"/>' +
+        '<path d="M' + f(x + 18) + ' ' + f(cy) + ' a8 8 0 0 0 -16 0"/>';
+    }
+    parts.comp += coils + ln(x - 2, y - 43, x - 2, y + 43) + ln(x + 2, y - 43, x + 2, y + 43);
+    parts.comp += '<circle cx="' + f(x - 31) + '" cy="' + f(y - 30) + '" r="2.5" fill="' + T.stroke + '"/>' +
+      '<circle cx="' + f(x + 31) + '" cy="' + f(y - 30) + '" r="2.5" fill="' + T.stroke + '"/>';
+    var lines = linesOf(el);
+    if (el.labelAt) { parts.text += placeAt(lines, el); return; }
+    parts.text += placeLabel(lines, x, y + 52, el.labelPos || 'below', 8, el.labelNudge);
+  }
+
+  function drawRelay(el, parts) {
+    var x = el.at[0], y = el.at[1];
+    parts.comp += '<rect x="' + f(x - 36) + '" y="' + f(y - 28) + '" width="70" height="56" rx="3"/>' +
+      '<path d="M' + f(x - 24) + ' ' + f(y - 10) + ' q12 -18 24 0 t24 0"/>' +
+      ln(x + 34, y, x + 45, y) + ln(x + 45, y, x + 55, y - 30) +
+      ln(x + 45, y, x + 55, y + 30);
+    parts.comp += '<circle cx="' + f(x + 45) + '" cy="' + f(y) + '" r="2.5" fill="' + T.stroke + '"/>' +
+      '<circle cx="' + f(x + 55) + '" cy="' + f(y - 30) + '" r="2.5" fill="' + T.stroke + '"/>' +
+      '<circle cx="' + f(x + 55) + '" cy="' + f(y + 30) + '" r="2.5" fill="' + T.stroke + '"/>';
+    var lines = linesOf(el);
+    if (el.labelAt) { parts.text += placeAt(lines, el); return; }
+    parts.text += placeLabel(lines, x, y - 32, el.labelPos || 'above', 7, el.labelNudge);
+  }
+
+  function drawBridge(el, parts) {
+    var x = el.at[0], y = el.at[1];
+    parts.comp += '<polygon points="' + f(x) + ',' + f(y - 30) + ' ' + f(x + 30) + ',' + f(y) + ' ' +
+      f(x) + ',' + f(y + 30) + ' ' + f(x - 30) + ',' + f(y) + '"/>' +
+      '<path d="M' + f(x - 14) + ' ' + f(y - 8) + ' l12 0 l-6 -6 z M' + f(x + 14) + ' ' + f(y + 8) +
+      ' l-12 0 l6 6 z M' + f(x - 8) + ' ' + f(y + 14) + ' l0 -12 l-6 6 z M' + f(x + 8) + ' ' + f(y - 14) + ' l0 12 l6 -6 z"/>';
+    var lines = linesOf(el);
+    if (el.labelAt) { parts.text += placeAt(lines, el); return; }
+    parts.text += placeLabel(lines, x, y - 34, el.labelPos || 'above', 7, el.labelNudge);
+  }
+
+  function drawOptocoupler(el, parts) {
+    var x = el.at[0], y = el.at[1];
+    parts.comp += '<rect x="' + f(x - 34) + '" y="' + f(y - 30) + '" width="68" height="60" rx="4"/>' +
+      ln(x, y - 28, x, y + 28, ' stroke-dasharray="4 3"') +
+      ln(x - 26, y - 12, x - 10, y - 12) + ln(x - 26, y + 12, x - 10, y + 12) +
+      ln(x - 10, y - 20, x - 10, y + 20) +
+      '<path d="M' + f(x + 8) + ' ' + f(y - 18) + ' l14 12 l-14 12 z"/>' +
+      ln(x + 22, y - 18, x + 22, y + 6) + ln(x + 22, y - 15, x + 30, y - 24, ARROW);
+    var lines = linesOf(el);
+    if (el.labelAt) { parts.text += placeAt(lines, el); return; }
+    parts.text += placeLabel(lines, x, y - 34, el.labelPos || 'above', 8, el.labelNudge);
+  }
+
+  function drawPinBlock(el, parts) {
+    var x = el.at[0], y = el.at[1];
+    var left = el.pins.filter(function (pin) { return pin.side === 'left'; });
+    var right = el.pins.filter(function (pin) { return pin.side === 'right'; });
+    var height = Math.max(48, Math.max(left.length, right.length) * 24 + 16);
+    parts.comp += '<rect x="' + f(x - 44) + '" y="' + f(y - height / 2) + '" width="88" height="' + f(height) + '"/>';
+    pinsOf(el).forEach(function (pin) {
+      var leftSide = el.pins.filter(function (item) { return item.side === 'left'; });
+      var index = leftSide.findIndex(function (item) { return item.name === pin.n; });
+      var side = index >= 0 ? 'left' : 'right';
+      var group = side === 'left' ? left : right;
+      index = group.findIndex(function (item) { return item.name === pin.n; });
+      var offsetY = (index - (group.length - 1) / 2) * 24;
+      var pinX = x + (side === 'left' ? -64 : 64);
+      parts.comp += ln(pinX, y + offsetY, x + (side === 'left' ? -44 : 44), y + offsetY);
+      parts.text += textEl(x + (side === 'left' ? -48 : 48), y + offsetY + 3, pin.n, side === 'left' ? 'end' : 'start', 9, false, 'muted');
+    });
+    if (el.value) parts.text += textEl(x, y + 4, el.value, 'middle', 11, true, 'text');
+    if (el.label) parts.text += textEl(x, y + height / 2 + 17, el.label, 'middle', 11, true, 'text');
+  }
+
+  function drawWireCrossing(el, parts) {
+    var x = el.at[0], y = el.at[1], orientation = el.orientation || 'horizontal';
+    var mask = T.background || '#fff';
+    var path = orientation === 'vertical'
+      ? 'M' + f(x) + ' ' + f(y - 12) + ' Q' + f(x - 14) + ' ' + f(y) + ' ' + f(x) + ' ' + f(y + 12)
+      : 'M' + f(x - 12) + ' ' + f(y) + ' Q' + f(x) + ' ' + f(y - 14) + ' ' + f(x + 12) + ' ' + f(y);
+    parts.comp += '<circle cx="' + f(x) + '" cy="' + f(y) + '" r="5" fill="' + mask + '" stroke="none"/>' +
+      '<path d="' + path + '" fill="none" stroke="' + T.stroke + '" stroke-width="' + T.lineWidth +
+      '" stroke-linecap="round" stroke-linejoin="round"/>';
+  }
+
   var WIRESEGS = [];
   function wireDirAt(x, y) {
     for (var i = 0; i < WIRESEGS.length; i++) {
@@ -673,9 +919,18 @@
       } else if (t === 'label') {
         var lsz = el.size || 14;
         parts.text += textEl(el.at[0], el.at[1], el.text, el.anchor || 'start', lsz, el.bold !== undefined ? !!el.bold : lsz >= 14, el.muted ? 'muted' : 'text');
+      } else if (t === 'crossing') { drawWireCrossing(el, parts);
       } else if (TWO[t]) { drawTwo(el, parts);
       } else if (t === 'npn' || t === 'pnp') { drawTransistor(el, parts);
-      } else if (t === 'opamp') { drawOpamp(el, parts);
+      } else if (t === 'nmos' || t === 'pmos' || t === 'mosfet' || t === 'njfet' || t === 'pjfet') { drawFieldEffectTransistor(el, parts);
+      } else if (t === 'potentiometer') { drawPotentiometer(el, parts);
+      } else if (t === 'opamp' || t === 'comparator') { drawOpamp(el, parts);
+      } else if (t === 'regulator') { drawRegulator(el, parts);
+      } else if (t === 'transformer') { drawTransformer(el, parts);
+      } else if (t === 'relay') { drawRelay(el, parts);
+      } else if (t === 'bridge') { drawBridge(el, parts);
+      } else if (t === 'opto') { drawOptocoupler(el, parts);
+      } else if (t === 'ic' || t === 'connector') { drawPinBlock(el, parts);
       } else if (SINGLE[t]) { drawSingle(el, parts); }
     });
 
@@ -712,12 +967,18 @@
 
   var NICE = { resistor: 'Resistor', capacitor: 'Capacitor', electrolytic: 'Electrolytic capacitor', inductor: 'Inductor / coil',
     diode: 'Diode', zener: 'Zener diode', led: 'LED', battery: 'Battery', switch: 'Switch', mic: 'Microphone', speaker: 'Speaker',
-    lamp: 'Lamp', acsource: 'AC source', crystal: 'Crystal', npn: 'NPN transistor', pnp: 'PNP transistor', opamp: 'Op-amp',
-    antenna: 'Antenna (a plain wire)' };
+    lamp: 'Lamp', acsource: 'AC source', crystal: 'Crystal', fuse: 'Fuse', thermistor: 'Thermistor',
+    photoresistor: 'Photoresistor', varistor: 'Varistor', photodiode: 'Photodiode', schottky: 'Schottky diode',
+    dcsource: 'DC voltage source', currentsource: 'Current source', motor: 'DC motor', buzzer: 'Buzzer',
+    solarcell: 'Solar cell', npn: 'NPN transistor', pnp: 'PNP transistor', nmos: 'N-channel MOSFET',
+    pmos: 'P-channel MOSFET', mosfet: 'MOSFET', njfet: 'N-channel JFET', pjfet: 'P-channel JFET',
+    potentiometer: 'Potentiometer', regulator: 'Voltage regulator', comparator: 'Comparator',
+    transformer: 'Transformer', relay: 'Relay', bridge: 'Bridge rectifier', opto: 'Optocoupler',
+    ic: 'Integrated circuit', connector: 'Connector', opamp: 'Op-amp', antenna: 'Antenna (a plain wire)' };
 
-  function netlist(spec) {
+  function netlist(spec, allowStructuralErrors) {
     var rep = analyse(spec);
-    if (rep.errors.length) throw new Error('Invalid circuit spec:\n- ' + rep.errors.join('\n- '));
+    if (rep.errors.length && !allowStructuralErrors) throw new Error('Invalid circuit spec:\n- ' + rep.errors.join('\n- '));
     var parent = {};
     function find(k) { if (parent[k] === undefined) parent[k] = k; while (parent[k] !== k) { parent[k] = parent[parent[k]]; k = parent[k]; } return k; }
     function union(a, b) { a = find(a); b = find(b); if (a !== b) parent[a] = b; }
@@ -794,7 +1055,7 @@
     nl.parts.forEach(function (x) { out.push('| ' + x.designator + ' | ' + x.type + ' | ' + (x.value || '-') + ' |'); });
     out.push('', '## Nets (everything on one line is joined together)', '');
     nl.nets.forEach(function (nt) { out.push('- ' + nt.name + ': ' + nt.pins.join(', ')); });
-    out.push('', 'Pin names: resistor / capacitor / inductor / switch pins are 1 and 2. Diode and LED: A = anode (the triangle side), K = cathode (the bar). Battery and electrolytic: + and -. Transistor: B, C, E. Op-amp: INV, NONINV, OUT.');
+    out.push('', 'Pin names: two-terminal parts use the names in their symbol reference. Diode-family parts: A = anode, K = cathode. Battery and polarized source: + and -. BJT: B, C, E. FET: G, D, S. Potentiometer: A, W, B. Op-amp/comparator: INV, NONINV, OUT. IC and connector pin names follow the declared pin list.');
     return out.join('\n');
   }
 
@@ -805,7 +1066,7 @@
     autoFix: autoFix,
     netlist: netlist,
     buildSheet: buildSheet,
-    types: Object.keys(TWO).concat(Object.keys(MULTI), Object.keys(SINGLE), Object.keys(OTHER)),
+    types: CircuitGeometry.CIRCUIT_SUPPORTED_ELEMENT_TYPES.slice(),
     defaults: DEFAULT_THEME
   };
 });

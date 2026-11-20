@@ -3,5 +3,5 @@
 - [Schematic view controls](schematic-view-controls.md) — keep Fit-to-view and fullscreen as separate actions; don't turn Fit into a fullscreen toggle.
 - [Working-note ownership](circuit-studio-working-notes.md) — AI adds context, but saved user edits remain protected and editable.
 - [Circuit Studio input focus](circuit-studio-input-focus.md) — treat broad focus loss as a client hit-testing issue unless fresh logs show API failures.
-- [Circuit topology checks](circuit-studio-topology-checks.md) — reject known wiring faults, pass findings into repair attempts, and preserve existing components.
+- [Circuit topology checks](circuit-studio-topology-checks.md) — validate known faults and restore original components onto repair proposals before retrying.
 - [Circuit builder intent](circuit-studio-builder-intent.md) — choose Chat or Build from the user's meaning and context, not a fixed phrase list.

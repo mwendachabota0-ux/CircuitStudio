@@ -185,6 +185,21 @@ export function getNonWireElementSignature(
   return JSON.stringify(protectedElements);
 }
 
+export function restoreProtectedNonWireElements(
+  protectedSpec: NonNullable<CircuitBuildChatInput['currentSpec']>,
+  proposedSpec: NonNullable<CircuitBuildChatInput['currentSpec']>,
+): NonNullable<CircuitBuildChatInput['currentSpec']> {
+  const { elements: protectedElements, ...protectedMetadata } = protectedSpec;
+  return {
+    ...proposedSpec,
+    ...protectedMetadata,
+    elements: [
+      ...protectedElements.filter((element) => element.type !== 'wire'),
+      ...proposedSpec.elements.filter((element) => element.type === 'wire'),
+    ],
+  };
+}
+
 export function buildOutputRepairRequest(
   originalRequest: CircuitBuildChatInput,
 ): CircuitBuildChatInput {

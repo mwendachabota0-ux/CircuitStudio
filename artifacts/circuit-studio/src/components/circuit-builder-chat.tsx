@@ -18,6 +18,7 @@ import {
   getNonWireElementSignature,
   getModeAfterFailedRequest,
   MAX_AUTO_RETRIES,
+  restoreProtectedNonWireElements,
   runCircuitBuildAttempts,
   type BuildRetryKind,
 } from '../lib/circuit-build-retry';
@@ -224,6 +225,8 @@ export function CircuitBuilderChat({
   const [briefAssumptionsDraft, setBriefAssumptionsDraft] = useState('');
   const [briefOpenQuestionsDraft, setBriefOpenQuestionsDraft] = useState('');
   const [lastRequest, setLastRequest] = useState<CircuitBuildChatInput | null>(null);
+  const [lastProtectedElementsBaseSpec, setLastProtectedElementsBaseSpec] =
+    useState<NonNullable<CircuitBuildChatInput['currentSpec']> | null>(null);
   const [requestCycleActive, setRequestCycleActive] = useState(false);
   const [retryAttempt, setRetryAttempt] = useState(0);
   const [retryKind, setRetryKind] = useState<BuildRetryKind | null>(null);
@@ -268,9 +271,10 @@ export function CircuitBuilderChat({
   const runRequest = async (
     request: CircuitBuildChatInput,
     draftRevisionAtStart: number,
-    initialProtectedElementsSignature?: string,
+    protectedElementsBaseSpec?: NonNullable<CircuitBuildChatInput['currentSpec']>,
   ) => {
     setLastRequest(request);
+    setLastProtectedElementsBaseSpec(protectedElementsBaseSpec ?? null);
     setRetryFeedback(null);
     setRejectedProposalSpec(null);
     setRejectedSpecCopyState('idle');
@@ -286,13 +290,25 @@ export function CircuitBuilderChat({
         getProposal: (result) => result.proposal?.spec ?? null,
         inspectProposal,
         prepareResponse: (result) => {
-          if (!result.proposal?.spec || !window.CircuitDraw) return result;
-          const autoFixed = window.CircuitDraw.autoFix(result.proposal.spec);
+          if (!result.proposal?.spec) return result;
+          const preservedSpec = protectedElementsBaseSpec
+            ? restoreProtectedNonWireElements(protectedElementsBaseSpec, result.proposal.spec)
+            : result.proposal.spec;
+          if (!window.CircuitDraw) {
+            return preservedSpec === result.proposal.spec
+              ? result
+              : { ...result, proposal: { ...result.proposal, spec: preservedSpec } };
+          }
+          const autoFixed = window.CircuitDraw.autoFix(preservedSpec);
           return autoFixed.changes.length
             ? { ...result, proposal: { ...result.proposal, spec: autoFixed.spec } }
-            : result;
+            : preservedSpec === result.proposal.spec
+              ? result
+              : { ...result, proposal: { ...result.proposal, spec: preservedSpec } };
         },
-        initialProtectedElementsSignature,
+        initialProtectedElementsSignature: protectedElementsBaseSpec
+          ? getNonWireElementSignature(protectedElementsBaseSpec)
+          : undefined,
         getProtectedElementsSignature: getNonWireElementSignature,
         makeRepairRequest: (result, findings) => buildRepairRequest(
           request,
@@ -408,7 +424,11 @@ export function CircuitBuilderChat({
 
   const retryRequest = async () => {
     if (!lastRequest || chatMutation.isPending || requestCycleActive) return;
-    await runRequest(lastRequest, composerRef.current?.getDraftRevision() ?? 0);
+    await runRequest(
+      lastRequest,
+      composerRef.current?.getDraftRevision() ?? 0,
+      lastProtectedElementsBaseSpec ?? undefined,
+    );
   };
 
   const repairCurrentDraft = () => {
@@ -445,7 +465,7 @@ export function CircuitBuilderChat({
       currentSpec,
       history,
       brief: saved.brief,
-    }, composerRef.current?.getDraftRevision() ?? 0, getNonWireElementSignature(currentSpec));
+    }, composerRef.current?.getDraftRevision() ?? 0, currentSpec);
   };
 
   const editBrief = () => {

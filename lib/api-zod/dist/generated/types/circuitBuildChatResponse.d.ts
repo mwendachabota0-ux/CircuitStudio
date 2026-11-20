@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { CircuitBuildChatResponseNextMode } from './circuitBuildChatResponseNextMode';
+import type { CircuitBuilderMemorySuggestion } from './circuitBuilderMemorySuggestion';
 import type { CircuitBuilderSuggestedAction } from './circuitBuilderSuggestedAction';
 import type { CircuitBuildProposal } from './circuitBuildProposal';
 import type { CircuitDesignBrief } from './circuitDesignBrief';
@@ -20,6 +21,13 @@ export interface CircuitBuildChatResponse {
     proposal?: CircuitBuildProposal;
     /** @maxItems 2 */
     suggestedActions?: CircuitBuilderSuggestedAction[];
+    /** @maxItems 2 */
+    memoryUpdates?: CircuitBuilderMemorySuggestion[];
+    /**
+       * @maxItems 10
+       * @items.minimum 1
+       */
+    memoryRemovals?: number[];
     /** Server-set marker that the assistant asked permission before creating a schematic. */
     buildApprovalRequested?: boolean;
 }

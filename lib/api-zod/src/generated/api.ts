@@ -655,6 +655,14 @@ export const chatWithCircuitBuilderResponseSuggestedActionsItemReplyToMax = 300;
 export const chatWithCircuitBuilderResponseSuggestedActionsMax = 2;
 
 
+export const chatWithCircuitBuilderResponseMemoryUpdatesItemContentMax = 300;
+
+export const chatWithCircuitBuilderResponseMemoryUpdatesMax = 2;
+
+
+export const chatWithCircuitBuilderResponseMemoryRemovalsMax = 10;
+
+
 
 export const ChatWithCircuitBuilderResponse = zod.object({
   "nextMode": zod.enum(['chat', 'build']).optional(),
@@ -739,8 +747,109 @@ export const ChatWithCircuitBuilderResponse = zod.object({
   "prompt": zod.string().min(1).max(chatWithCircuitBuilderResponseSuggestedActionsItemPromptMax),
   "replyTo": zod.string().min(1).max(chatWithCircuitBuilderResponseSuggestedActionsItemReplyToMax).optional().describe('Exact assistant question this suggested reply answers.')
 })).max(chatWithCircuitBuilderResponseSuggestedActionsMax).optional(),
+  "memoryUpdates": zod.array(zod.object({
+  "id": zod.number().int().min(1).optional().describe('Existing assumption to update; omit when adding a new one.'),
+  "category": zod.enum(['work-style', 'design-decision', 'past-context']),
+  "content": zod.string().min(1).max(chatWithCircuitBuilderResponseMemoryUpdatesItemContentMax)
+})).max(chatWithCircuitBuilderResponseMemoryUpdatesMax).optional(),
+  "memoryRemovals": zod.array(zod.number().int().min(1)).max(chatWithCircuitBuilderResponseMemoryRemovalsMax).optional(),
   "buildApprovalRequested": zod.boolean().optional().describe('Server-set marker that the assistant asked permission before creating a schematic.')
 })
+
+
+/**
+ * @summary List saved Circuit Studio assumptions
+ */
+
+export const listCircuitBuilderMemoriesResponseContentMax = 300;
+
+
+
+export const ListCircuitBuilderMemoriesResponseItem = zod.object({
+  "id": zod.number().int().min(1),
+  "category": zod.enum(['work-style', 'design-decision', 'past-context']),
+  "content": zod.string().min(1).max(listCircuitBuilderMemoriesResponseContentMax),
+  "updatedAt": zod.coerce.date()
+})
+export const ListCircuitBuilderMemoriesResponse = zod.array(ListCircuitBuilderMemoriesResponseItem)
+
+
+/**
+ * @summary Delete all saved Circuit Studio assumptions
+ */
+export const ClearCircuitBuilderMemoriesResponse = zod.void()
+
+
+/**
+ * Analyzes short summaries of recent local conversations and stores only reusable assumptions, not transcripts.
+ * @summary Learn reusable assumptions from saved chats
+ */
+export const learnFromCircuitBuilderHistoryBodyConversationsItemTitleMax = 160;
+
+export const learnFromCircuitBuilderHistoryBodyConversationsItemContextMax = 3000;
+
+export const learnFromCircuitBuilderHistoryBodyConversationsMax = 12;
+
+
+
+export const LearnFromCircuitBuilderHistoryBody = zod.object({
+  "conversations": zod.array(zod.object({
+  "title": zod.string().max(learnFromCircuitBuilderHistoryBodyConversationsItemTitleMax),
+  "context": zod.string().min(1).max(learnFromCircuitBuilderHistoryBodyConversationsItemContextMax)
+})).min(1).max(learnFromCircuitBuilderHistoryBodyConversationsMax)
+})
+
+export const learnFromCircuitBuilderHistoryResponseLearnedCountMin = 0;
+
+
+
+export const LearnFromCircuitBuilderHistoryResponse = zod.object({
+  "learnedCount": zod.number().int().min(learnFromCircuitBuilderHistoryResponseLearnedCountMin)
+})
+
+
+/**
+ * @summary Edit a saved Circuit Studio assumption
+ */
+
+
+
+export const UpdateCircuitBuilderMemoryParams = zod.object({
+  "id": zod.coerce.number().int().min(1)
+})
+
+export const updateCircuitBuilderMemoryBodyContentMax = 300;
+
+
+
+export const UpdateCircuitBuilderMemoryBody = zod.object({
+  "content": zod.string().min(1).max(updateCircuitBuilderMemoryBodyContentMax)
+})
+
+
+export const updateCircuitBuilderMemoryResponseContentMax = 300;
+
+
+
+export const UpdateCircuitBuilderMemoryResponse = zod.object({
+  "id": zod.number().int().min(1),
+  "category": zod.enum(['work-style', 'design-decision', 'past-context']),
+  "content": zod.string().min(1).max(updateCircuitBuilderMemoryResponseContentMax),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a saved Circuit Studio assumption
+ */
+
+
+
+export const DeleteCircuitBuilderMemoryParams = zod.object({
+  "id": zod.coerce.number().int().min(1)
+})
+
+export const DeleteCircuitBuilderMemoryResponse = zod.void()
 
 
 /**

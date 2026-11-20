@@ -247,6 +247,25 @@ export declare const CircuitBuildChatResponseNextMode: {
     readonly chat: "chat";
     readonly build: "build";
 };
+export type CircuitBuilderMemoryCategory = typeof CircuitBuilderMemoryCategory[keyof typeof CircuitBuilderMemoryCategory];
+export declare const CircuitBuilderMemoryCategory: {
+    readonly 'work-style': "work-style";
+    readonly 'design-decision': "design-decision";
+    readonly 'past-context': "past-context";
+};
+export interface CircuitBuilderMemorySuggestion {
+    /**
+       * Existing assumption to update; omit when adding a new one.
+       * @minimum 1
+       */
+    id?: number;
+    category: CircuitBuilderMemoryCategory;
+    /**
+       * @minLength 1
+       * @maxLength 300
+       */
+    content: string;
+}
 export interface CircuitBuildChatResponse {
     nextMode?: CircuitBuildChatResponseNextMode;
     /**
@@ -258,8 +277,57 @@ export interface CircuitBuildChatResponse {
     proposal?: CircuitBuildProposal;
     /** @maxItems 2 */
     suggestedActions?: CircuitBuilderSuggestedAction[];
+    /** @maxItems 2 */
+    memoryUpdates?: CircuitBuilderMemorySuggestion[];
+    /**
+       * @maxItems 10
+       * @items.minimum 1
+       */
+    memoryRemovals?: number[];
     /** Server-set marker that the assistant asked permission before creating a schematic. */
     buildApprovalRequested?: boolean;
+}
+export interface CircuitBuilderMemory {
+    /** @minimum 1 */
+    id: number;
+    category: CircuitBuilderMemoryCategory;
+    /**
+       * @minLength 1
+       * @maxLength 300
+       */
+    content: string;
+    updatedAt: string;
+}
+export interface CircuitBuilderMemoryInput {
+    /**
+       * @minLength 1
+       * @maxLength 300
+       */
+    content: string;
+}
+export interface CircuitBuilderHistoryExcerpt {
+    /** @maxLength 160 */
+    title: string;
+    /**
+       * @minLength 1
+       * @maxLength 3000
+       */
+    context: string;
+}
+export interface CircuitBuilderHistoryImportInput {
+    /**
+       * @minItems 1
+       * @maxItems 12
+       */
+    conversations: CircuitBuilderHistoryExcerpt[];
+}
+export interface CircuitBuilderMemoryLearningModelResponse {
+    /** @maxItems 12 */
+    memoryUpdates: CircuitBuilderMemorySuggestion[];
+}
+export interface CircuitBuilderHistoryImportResponse {
+    /** @minimum 0 */
+    learnedCount: number;
 }
 export interface CircuitSymbolSearchItem {
     id: string;

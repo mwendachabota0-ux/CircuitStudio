@@ -935,9 +935,157 @@
   outline-offset: 2px;
 }
 
+.builder-memory-dialog {
+  width: min(560px, calc(100vw - 28px));
+  max-width: 560px;
+  max-height: min(760px, calc(100vh - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow: hidden;
+  border-color: #dedbd1;
+  border-radius: 12px;
+  background: #fffefa;
+  color: #263b40;
+}
+
+.builder-memory-dialog [data-slot="dialog-title"] {
+  color: #263b40;
+  font: 700 17px/1.3 var(--app-font-display);
+}
+
+.builder-memory-dialog [data-slot="dialog-description"] {
+  color: #697871;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.builder-memory-dialog__list {
+  display: grid;
+  gap: 9px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 2px;
+}
+
+.builder-memory-dialog__item {
+  display: grid;
+  gap: 7px;
+  padding: 11px;
+  border: 1px solid #e7e4da;
+  border-radius: 8px;
+  background: #fbfaf5;
+}
+
+.builder-memory-dialog__item-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px;
+  color: #748078;
+  font-size: 9px;
+}
+
+.builder-memory-dialog__item-heading span:first-child {
+  color: #176b55;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.builder-memory-dialog__label {
+  color: #4c5d55;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.builder-memory-dialog__item textarea {
+  width: 100%;
+  min-height: 62px;
+  resize: vertical;
+  padding: 8px 9px;
+  border: 1px solid #dcd9cf;
+  border-radius: 6px;
+  background: #fffefa;
+  color: #263b40;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.builder-memory-dialog__item textarea:focus-visible {
+  outline: 2px solid #4b9278;
+  outline-offset: 1px;
+}
+
+.builder-memory-dialog__item-actions,
+.builder-memory-dialog__clear-confirm {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.builder-memory-dialog__item-actions button,
+.builder-memory-dialog__clear-confirm button,
+.builder-memory-dialog__clear {
+  min-height: 30px;
+  padding: 6px 10px;
+  border: 1px solid #d5ded3;
+  border-radius: 6px;
+  background: #f0f5ed;
+  color: #255744;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.builder-memory-dialog__item-actions button.is-danger,
+.builder-memory-dialog__clear-confirm button.is-danger {
+  border-color: #e3c3bc;
+  background: #fff3f0;
+  color: #9a493e;
+}
+
+.builder-memory-dialog button:disabled {
+  cursor: not-allowed;
+  opacity: .5;
+}
+
+.builder-memory-dialog__empty,
+.builder-memory-dialog__error {
+  margin: 0;
+  color: #697871;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.builder-memory-dialog__error { color: #9a493e; }
+.builder-memory-dialog__footer { justify-content: flex-start; }
+
+.builder-memory-dialog__clear {
+  border-color: #e3c3bc;
+  background: #fff3f0;
+  color: #9a493e;
+}
+
+.builder-memory-dialog__clear-confirm {
+  width: 100%;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+
+.builder-memory-dialog__clear-confirm span {
+  flex: 1 1 100%;
+  color: #9a493e;
+  font-size: 10px;
+}
+
 @media (max-width: 760px) {
   .builder-chat__session-title { max-width: 180px; }
   .builder-chat__history { padding-right: 10px; padding-left: 10px; }
+
+  .builder-memory-dialog {
+    width: min(560px, calc(100vw - 20px));
+    max-height: calc(100vh - 20px);
+  }
 }
 
 @media (max-width: 430px) {

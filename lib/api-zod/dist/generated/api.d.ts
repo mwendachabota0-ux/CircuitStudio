@@ -2715,6 +2715,9 @@ export declare const chatWithCircuitBuilderResponseSuggestedActionsItemLabelMax 
 export declare const chatWithCircuitBuilderResponseSuggestedActionsItemPromptMax = 1000;
 export declare const chatWithCircuitBuilderResponseSuggestedActionsItemReplyToMax = 300;
 export declare const chatWithCircuitBuilderResponseSuggestedActionsMax = 2;
+export declare const chatWithCircuitBuilderResponseMemoryUpdatesItemContentMax = 300;
+export declare const chatWithCircuitBuilderResponseMemoryUpdatesMax = 2;
+export declare const chatWithCircuitBuilderResponseMemoryRemovalsMax = 10;
 export declare const ChatWithCircuitBuilderResponse: zod.ZodObject<{
     nextMode: zod.ZodOptional<zod.ZodEnum<["chat", "build"]>>;
     answer: zod.ZodString;
@@ -3336,6 +3339,20 @@ export declare const ChatWithCircuitBuilderResponse: zod.ZodObject<{
         label: string;
         replyTo?: string | undefined;
     }>, "many">>;
+    memoryUpdates: zod.ZodOptional<zod.ZodArray<zod.ZodObject<{
+        id: zod.ZodOptional<zod.ZodNumber>;
+        category: zod.ZodEnum<["work-style", "design-decision", "past-context"]>;
+        content: zod.ZodString;
+    }, "strip", zod.ZodTypeAny, {
+        content: string;
+        category: "work-style" | "design-decision" | "past-context";
+        id?: number | undefined;
+    }, {
+        content: string;
+        category: "work-style" | "design-decision" | "past-context";
+        id?: number | undefined;
+    }>, "many">>;
+    memoryRemovals: zod.ZodOptional<zod.ZodArray<zod.ZodNumber, "many">>;
     buildApprovalRequested: zod.ZodOptional<zod.ZodBoolean>;
 }, "strip", zod.ZodTypeAny, {
     answer: string;
@@ -3420,6 +3437,12 @@ export declare const ChatWithCircuitBuilderResponse: zod.ZodObject<{
         label: string;
         replyTo?: string | undefined;
     }[] | undefined;
+    memoryUpdates?: {
+        content: string;
+        category: "work-style" | "design-decision" | "past-context";
+        id?: number | undefined;
+    }[] | undefined;
+    memoryRemovals?: number[] | undefined;
     buildApprovalRequested?: boolean | undefined;
 }, {
     answer: string;
@@ -3504,8 +3527,137 @@ export declare const ChatWithCircuitBuilderResponse: zod.ZodObject<{
         label: string;
         replyTo?: string | undefined;
     }[] | undefined;
+    memoryUpdates?: {
+        content: string;
+        category: "work-style" | "design-decision" | "past-context";
+        id?: number | undefined;
+    }[] | undefined;
+    memoryRemovals?: number[] | undefined;
     buildApprovalRequested?: boolean | undefined;
 }>;
+/**
+ * @summary List saved Circuit Studio assumptions
+ */
+export declare const listCircuitBuilderMemoriesResponseContentMax = 300;
+export declare const ListCircuitBuilderMemoriesResponseItem: zod.ZodObject<{
+    id: zod.ZodNumber;
+    category: zod.ZodEnum<["work-style", "design-decision", "past-context"]>;
+    content: zod.ZodString;
+    updatedAt: zod.ZodDate;
+}, "strip", zod.ZodTypeAny, {
+    id: number;
+    content: string;
+    category: "work-style" | "design-decision" | "past-context";
+    updatedAt: Date;
+}, {
+    id: number;
+    content: string;
+    category: "work-style" | "design-decision" | "past-context";
+    updatedAt: Date;
+}>;
+export declare const ListCircuitBuilderMemoriesResponse: zod.ZodArray<zod.ZodObject<{
+    id: zod.ZodNumber;
+    category: zod.ZodEnum<["work-style", "design-decision", "past-context"]>;
+    content: zod.ZodString;
+    updatedAt: zod.ZodDate;
+}, "strip", zod.ZodTypeAny, {
+    id: number;
+    content: string;
+    category: "work-style" | "design-decision" | "past-context";
+    updatedAt: Date;
+}, {
+    id: number;
+    content: string;
+    category: "work-style" | "design-decision" | "past-context";
+    updatedAt: Date;
+}>, "many">;
+/**
+ * @summary Delete all saved Circuit Studio assumptions
+ */
+export declare const ClearCircuitBuilderMemoriesResponse: zod.ZodVoid;
+/**
+ * Analyzes short summaries of recent local conversations and stores only reusable assumptions, not transcripts.
+ * @summary Learn reusable assumptions from saved chats
+ */
+export declare const learnFromCircuitBuilderHistoryBodyConversationsItemTitleMax = 160;
+export declare const learnFromCircuitBuilderHistoryBodyConversationsItemContextMax = 3000;
+export declare const learnFromCircuitBuilderHistoryBodyConversationsMax = 12;
+export declare const LearnFromCircuitBuilderHistoryBody: zod.ZodObject<{
+    conversations: zod.ZodArray<zod.ZodObject<{
+        title: zod.ZodString;
+        context: zod.ZodString;
+    }, "strip", zod.ZodTypeAny, {
+        title: string;
+        context: string;
+    }, {
+        title: string;
+        context: string;
+    }>, "many">;
+}, "strip", zod.ZodTypeAny, {
+    conversations: {
+        title: string;
+        context: string;
+    }[];
+}, {
+    conversations: {
+        title: string;
+        context: string;
+    }[];
+}>;
+export declare const learnFromCircuitBuilderHistoryResponseLearnedCountMin = 0;
+export declare const LearnFromCircuitBuilderHistoryResponse: zod.ZodObject<{
+    learnedCount: zod.ZodNumber;
+}, "strip", zod.ZodTypeAny, {
+    learnedCount: number;
+}, {
+    learnedCount: number;
+}>;
+/**
+ * @summary Edit a saved Circuit Studio assumption
+ */
+export declare const UpdateCircuitBuilderMemoryParams: zod.ZodObject<{
+    id: zod.ZodNumber;
+}, "strip", zod.ZodTypeAny, {
+    id: number;
+}, {
+    id: number;
+}>;
+export declare const updateCircuitBuilderMemoryBodyContentMax = 300;
+export declare const UpdateCircuitBuilderMemoryBody: zod.ZodObject<{
+    content: zod.ZodString;
+}, "strip", zod.ZodTypeAny, {
+    content: string;
+}, {
+    content: string;
+}>;
+export declare const updateCircuitBuilderMemoryResponseContentMax = 300;
+export declare const UpdateCircuitBuilderMemoryResponse: zod.ZodObject<{
+    id: zod.ZodNumber;
+    category: zod.ZodEnum<["work-style", "design-decision", "past-context"]>;
+    content: zod.ZodString;
+    updatedAt: zod.ZodDate;
+}, "strip", zod.ZodTypeAny, {
+    id: number;
+    content: string;
+    category: "work-style" | "design-decision" | "past-context";
+    updatedAt: Date;
+}, {
+    id: number;
+    content: string;
+    category: "work-style" | "design-decision" | "past-context";
+    updatedAt: Date;
+}>;
+/**
+ * @summary Delete a saved Circuit Studio assumption
+ */
+export declare const DeleteCircuitBuilderMemoryParams: zod.ZodObject<{
+    id: zod.ZodNumber;
+}, "strip", zod.ZodTypeAny, {
+    id: number;
+}, {
+    id: number;
+}>;
+export declare const DeleteCircuitBuilderMemoryResponse: zod.ZodVoid;
 /**
  * Returns a concise educational review of a structurally valid draft. It does not check electrical safety or correctness.
  * @summary Review a valid circuit draft

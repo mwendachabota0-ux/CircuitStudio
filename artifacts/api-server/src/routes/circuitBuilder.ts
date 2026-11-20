@@ -26,6 +26,14 @@ import {
   getKicadSymbolIndexEntry,
 } from "../lib/kicadSymbols";
 import { getSafeErrorType } from "../lib/providerErrorDiagnostics";
+import {
+  formatCircuitBuilderMemoryContext,
+  selectRelevantCircuitBuilderMemories,
+} from "../lib/circuitBuilderMemory";
+import {
+  applyGeneratedCircuitBuilderMemoryChanges,
+  listUserCircuitBuilderMemories,
+} from "../lib/circuitBuilderMemoryStore";
 
 const router: IRouter = Router();
 
@@ -47,7 +55,7 @@ const builderLimiter = rateLimit({
 
 const builderInstructions = `You are Circuit Studio's conversational circuit-building assistant. Help the user clarify a circuit idea and turn it into a proposed editable schematic. Be concise and collaborative; teach only when it helps the user make a decision.
 
-Return exactly one JSON object with these fields: nextMode ("chat" or "build"), answer (string), brief ({goal:string, requirements:string[], assumptions:string[], openQuestions:string[]}), and optional proposal ({summary:string, spec:CircuitSpec}) and suggestedActions (up to two {label:string, prompt:string, replyTo?:string} items). Do not include Markdown fences or extra fields.
+Return exactly one JSON object with these fields: nextMode ("chat" or "build"), answer (string), brief ({goal:string, requirements:string[], assumptions:string[], openQuestions:string[]}), optional proposal ({summary:string, spec:CircuitSpec}), suggestedActions (up to two {label:string, prompt:string, replyTo?:string} items), memoryUpdates (up to two {id?:number, category:"work-style"|"design-decision"|"past-context", content:string} items), and memoryRemovals (an array of saved assumption IDs to delete). If nothing should be remembered or removed, return empty arrays. Do not include Markdown fences or extra fields.
 
 Keep the brief short. Requirements must come from explicit user statements. Put uncertain but necessary choices in assumptions, never present them as facts. Keep only useful unanswered questions. Ask at most one focused question at a time when a missing detail materially affects the design.
 
@@ -56,6 +64,10 @@ Suggested actions must match the latest assistant answer. If answer ends with a 
 Example: if answer asks "What is the current draw of your 24V DC motor?" and no current value is known, suitable suggestions are "I'll check the motor label" / "I don't know the current yet". Do not suggest "Use a transistor instead" because that does not answer the current question.
 
 Treat the supplied brief as the source of truth. Retain accurate details unless the user explicitly changes or resolves them; incorporate new information without silently discarding existing notes.
+
+Saved assumptions from earlier chats are included only when they appear relevant. Treat them as tentative, never facts. The user's current message always wins. Ignore old context when the user starts a different topic, and do not make a new chat feel like a continuation unless the user signals that it is.
+
+Use memoryUpdates sparingly to preserve only concise, reusable information that can improve future conversations: explicit or repeated collaboration preferences, circuit decisions the user wants reused, or durable context about an ongoing project. Do not save one-off requests, complete transcripts, temporary values, assistant guesses, secrets, contact details, or sensitive personal information. For a correction, update the matching saved assumption by its exact id. Only remove an assumption when the user explicitly asks to forget it; put its id in memoryRemovals. Otherwise return empty memory arrays.
 
 Treat the requested mode as an authorization boundary. "Mode: build" means the user explicitly selected Build, directly requested a schematic, or approved a permission question; only then may you return nextMode "build" or a proposal. "Mode: chat" means permission has not been granted. In Chat, do not switch modes or return a proposal based on inferred intent, even when the user describes a concrete circuit goal or says an idea sounds right. Continue clarifying in Chat. When the design is ready for a schematic, ask exactly "Would you like me to switch to Build and prepare an editable schematic now?" and offer up to two direct yes/no replies whose replyTo exactly matches that question. Do not set buildApprovalRequested; it is server-owned. If the user asks an explanation, compares possibilities, brainstorms, speaks hypothetically, or asks to wait, answer in Chat without asking for build approval.
 
@@ -177,6 +189,29 @@ router.post(
       });
       return;
     }
+    let existingMemories: Awaited<
+      ReturnType<typeof listUserCircuitBuilderMemories>
+    > = [];
+    try {
+      existingMemories = await listUserCircuitBuilderMemories(userId!);
+    } catch (error) {
+      req.log.warn(
+        { errorType: getSafeErrorType(error) },
+        "Saved Circuit Studio assumptions could not be loaded",
+      );
+    }
+    const relevantMemories = selectRelevantCircuitBuilderMemories(
+      existingMemories,
+      [
+        parsed.data.message,
+        brief.goal,
+        ...brief.requirements,
+        ...brief.assumptions,
+      ].join(" "),
+    );
+    const savedMemoryContext = formatCircuitBuilderMemoryContext(
+      relevantMemories,
+    );
     let kicadDefinitions = "";
     try {
       currentSpec = await hydrateKicadSymbols(currentSpec);
@@ -227,6 +262,7 @@ router.post(
       conversation ? `Recent conversation:\n${conversation}` : "",
       kicadDefinitions,
       `Current CircuitSpec:\n${JSON.stringify(withoutKicadGeometry(currentSpec))}`,
+      savedMemoryContext,
       `Latest user message:\n${parsed.data.message.trim()}`,
     ]
       .filter(Boolean)
@@ -326,6 +362,20 @@ router.post(
       }
       if (result.nextMode !== "build") {
         delete result.proposal;
+      }
+
+      try {
+        await applyGeneratedCircuitBuilderMemoryChanges(
+          userId!,
+          existingMemories,
+          result.memoryUpdates ?? [],
+          result.memoryRemovals ?? [],
+        );
+      } catch (error) {
+        req.log.warn(
+          { errorType: getSafeErrorType(error) },
+          "Saved Circuit Studio assumptions could not be updated",
+        );
       }
 
       res.json(result);

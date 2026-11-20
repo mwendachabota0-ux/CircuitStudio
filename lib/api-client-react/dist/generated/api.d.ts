@@ -1,5 +1,5 @@
 import type { QueryKey, UseMutationOptions, UseMutationResult, UseQueryOptions, UseQueryResult } from '@tanstack/react-query';
-import type { AiKeySelectionRequest, AiStatus, AiUsage, ApiError, CircuitBuildChatInput, CircuitBuildChatResponse, CircuitPrompt, CircuitReviewRequest, CircuitReviewResponse, CircuitSpec, CircuitSymbolSearchResponse, HealthStatus, SearchCircuitSymbolsParams, TutorRequest, TutorResponse } from './api.schemas';
+import type { AiKeySelectionRequest, AiStatus, AiUsage, ApiError, CircuitBuildChatInput, CircuitBuildChatResponse, CircuitBuilderHistoryImportInput, CircuitBuilderHistoryImportResponse, CircuitBuilderMemory, CircuitBuilderMemoryInput, CircuitPrompt, CircuitReviewRequest, CircuitReviewResponse, CircuitSpec, CircuitSymbolSearchResponse, HealthStatus, SearchCircuitSymbolsParams, TutorRequest, TutorResponse } from './api.schemas';
 import { customFetch } from '../custom-fetch';
 import type { ErrorType, BodyType } from '../custom-fetch';
 type AwaitedInput<T> = PromiseLike<T> | T;
@@ -124,6 +124,118 @@ export declare const useChatWithCircuitBuilder: <TError = ErrorType<ApiError>, T
     mutation?: UseMutationOptions<Awaited<ReturnType<typeof chatWithCircuitBuilder>>, TError, ChatWithCircuitBuilderMutationVariables, TContext>;
     request?: SecondParameter<typeof customFetch>;
 }) => UseMutationResult<Awaited<ReturnType<typeof chatWithCircuitBuilder>>, TError, ChatWithCircuitBuilderMutationVariables, TContext>;
+export declare const getListCircuitBuilderMemoriesUrl: () => string;
+/**
+ * @summary List saved Circuit Studio assumptions
+ */
+export declare const listCircuitBuilderMemories: (options?: Parameters<typeof customFetch>[1]) => Promise<CircuitBuilderMemory[]>;
+export declare const getListCircuitBuilderMemoriesQueryKey: () => readonly ["/api/circuit-builder/memories"];
+export declare const getListCircuitBuilderMemoriesQueryOptions: <TData = Awaited<ReturnType<typeof listCircuitBuilderMemories>>, TError = ErrorType<ApiError>>(options?: {
+    query?: UseQueryOptions<Awaited<ReturnType<typeof listCircuitBuilderMemories>>, TError, TData>;
+    request?: SecondParameter<typeof customFetch>;
+}) => UseQueryOptions<Awaited<ReturnType<typeof listCircuitBuilderMemories>>, TError, TData> & {
+    queryKey: QueryKey;
+};
+export type ListCircuitBuilderMemoriesQueryResult = NonNullable<Awaited<ReturnType<typeof listCircuitBuilderMemories>>>;
+export type ListCircuitBuilderMemoriesQueryError = ErrorType<ApiError>;
+/**
+ * @summary List saved Circuit Studio assumptions
+ */
+export declare function useListCircuitBuilderMemories<TData = Awaited<ReturnType<typeof listCircuitBuilderMemories>>, TError = ErrorType<ApiError>>(options?: {
+    query?: UseQueryOptions<Awaited<ReturnType<typeof listCircuitBuilderMemories>>, TError, TData>;
+    request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+};
+export declare const getClearCircuitBuilderMemoriesUrl: () => string;
+/**
+ * @summary Delete all saved Circuit Studio assumptions
+ */
+export declare const clearCircuitBuilderMemories: (options?: Parameters<typeof customFetch>[1]) => Promise<void>;
+export declare const getClearCircuitBuilderMemoriesMutationKey: () => readonly ["clearCircuitBuilderMemories"];
+export declare const getClearCircuitBuilderMemoriesMutationOptions: <TError = ErrorType<ApiError>, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<Awaited<ReturnType<typeof clearCircuitBuilderMemories>>, TError, void, TContext>;
+    request?: SecondParameter<typeof customFetch>;
+}) => UseMutationOptions<Awaited<ReturnType<typeof clearCircuitBuilderMemories>>, TError, void, TContext>;
+export type ClearCircuitBuilderMemoriesMutationResult = NonNullable<Awaited<ReturnType<typeof clearCircuitBuilderMemories>>>;
+export type ClearCircuitBuilderMemoriesMutationError = ErrorType<ApiError>;
+/**
+* @summary Delete all saved Circuit Studio assumptions
+*/
+export declare const useClearCircuitBuilderMemories: <TError = ErrorType<ApiError>, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<Awaited<ReturnType<typeof clearCircuitBuilderMemories>>, TError, void, TContext>;
+    request?: SecondParameter<typeof customFetch>;
+}) => UseMutationResult<Awaited<ReturnType<typeof clearCircuitBuilderMemories>>, TError, void, TContext>;
+export declare const getLearnFromCircuitBuilderHistoryUrl: () => string;
+/**
+ * Analyzes short summaries of recent local conversations and stores only reusable assumptions, not transcripts.
+ * @summary Learn reusable assumptions from saved chats
+ */
+export declare const learnFromCircuitBuilderHistory: (circuitBuilderHistoryImportInput: CircuitBuilderHistoryImportInput, options?: Parameters<typeof customFetch>[1]) => Promise<CircuitBuilderHistoryImportResponse>;
+export declare const getLearnFromCircuitBuilderHistoryMutationKey: () => readonly ["learnFromCircuitBuilderHistory"];
+export declare const getLearnFromCircuitBuilderHistoryMutationOptions: <TError = ErrorType<ApiError>, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<Awaited<ReturnType<typeof learnFromCircuitBuilderHistory>>, TError, LearnFromCircuitBuilderHistoryMutationVariables, TContext>;
+    request?: SecondParameter<typeof customFetch>;
+}) => UseMutationOptions<Awaited<ReturnType<typeof learnFromCircuitBuilderHistory>>, TError, LearnFromCircuitBuilderHistoryMutationVariables, TContext>;
+export type LearnFromCircuitBuilderHistoryMutationResult = NonNullable<Awaited<ReturnType<typeof learnFromCircuitBuilderHistory>>>;
+export type LearnFromCircuitBuilderHistoryMutationBody = BodyType<CircuitBuilderHistoryImportInput>;
+export type LearnFromCircuitBuilderHistoryMutationError = ErrorType<ApiError>;
+export type LearnFromCircuitBuilderHistoryMutationVariables = {
+    data: BodyType<CircuitBuilderHistoryImportInput>;
+};
+/**
+* @summary Learn reusable assumptions from saved chats
+*/
+export declare const useLearnFromCircuitBuilderHistory: <TError = ErrorType<ApiError>, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<Awaited<ReturnType<typeof learnFromCircuitBuilderHistory>>, TError, LearnFromCircuitBuilderHistoryMutationVariables, TContext>;
+    request?: SecondParameter<typeof customFetch>;
+}) => UseMutationResult<Awaited<ReturnType<typeof learnFromCircuitBuilderHistory>>, TError, LearnFromCircuitBuilderHistoryMutationVariables, TContext>;
+export declare const getUpdateCircuitBuilderMemoryUrl: (id: number) => string;
+/**
+ * @summary Edit a saved Circuit Studio assumption
+ */
+export declare const updateCircuitBuilderMemory: (id: number, circuitBuilderMemoryInput: CircuitBuilderMemoryInput, options?: Parameters<typeof customFetch>[1]) => Promise<CircuitBuilderMemory>;
+export declare const getUpdateCircuitBuilderMemoryMutationKey: () => readonly ["updateCircuitBuilderMemory"];
+export declare const getUpdateCircuitBuilderMemoryMutationOptions: <TError = ErrorType<ApiError>, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<Awaited<ReturnType<typeof updateCircuitBuilderMemory>>, TError, UpdateCircuitBuilderMemoryMutationVariables, TContext>;
+    request?: SecondParameter<typeof customFetch>;
+}) => UseMutationOptions<Awaited<ReturnType<typeof updateCircuitBuilderMemory>>, TError, UpdateCircuitBuilderMemoryMutationVariables, TContext>;
+export type UpdateCircuitBuilderMemoryMutationResult = NonNullable<Awaited<ReturnType<typeof updateCircuitBuilderMemory>>>;
+export type UpdateCircuitBuilderMemoryMutationBody = BodyType<CircuitBuilderMemoryInput>;
+export type UpdateCircuitBuilderMemoryMutationError = ErrorType<ApiError>;
+export type UpdateCircuitBuilderMemoryMutationVariables = {
+    id: number;
+    data: BodyType<CircuitBuilderMemoryInput>;
+};
+/**
+* @summary Edit a saved Circuit Studio assumption
+*/
+export declare const useUpdateCircuitBuilderMemory: <TError = ErrorType<ApiError>, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<Awaited<ReturnType<typeof updateCircuitBuilderMemory>>, TError, UpdateCircuitBuilderMemoryMutationVariables, TContext>;
+    request?: SecondParameter<typeof customFetch>;
+}) => UseMutationResult<Awaited<ReturnType<typeof updateCircuitBuilderMemory>>, TError, UpdateCircuitBuilderMemoryMutationVariables, TContext>;
+export declare const getDeleteCircuitBuilderMemoryUrl: (id: number) => string;
+/**
+ * @summary Delete a saved Circuit Studio assumption
+ */
+export declare const deleteCircuitBuilderMemory: (id: number, options?: Parameters<typeof customFetch>[1]) => Promise<void>;
+export declare const getDeleteCircuitBuilderMemoryMutationKey: () => readonly ["deleteCircuitBuilderMemory"];
+export declare const getDeleteCircuitBuilderMemoryMutationOptions: <TError = ErrorType<ApiError>, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<Awaited<ReturnType<typeof deleteCircuitBuilderMemory>>, TError, DeleteCircuitBuilderMemoryMutationVariables, TContext>;
+    request?: SecondParameter<typeof customFetch>;
+}) => UseMutationOptions<Awaited<ReturnType<typeof deleteCircuitBuilderMemory>>, TError, DeleteCircuitBuilderMemoryMutationVariables, TContext>;
+export type DeleteCircuitBuilderMemoryMutationResult = NonNullable<Awaited<ReturnType<typeof deleteCircuitBuilderMemory>>>;
+export type DeleteCircuitBuilderMemoryMutationError = ErrorType<ApiError>;
+export type DeleteCircuitBuilderMemoryMutationVariables = {
+    id: number;
+};
+/**
+* @summary Delete a saved Circuit Studio assumption
+*/
+export declare const useDeleteCircuitBuilderMemory: <TError = ErrorType<ApiError>, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<Awaited<ReturnType<typeof deleteCircuitBuilderMemory>>, TError, DeleteCircuitBuilderMemoryMutationVariables, TContext>;
+    request?: SecondParameter<typeof customFetch>;
+}) => UseMutationResult<Awaited<ReturnType<typeof deleteCircuitBuilderMemory>>, TError, DeleteCircuitBuilderMemoryMutationVariables, TContext>;
 export declare const getReviewCircuitUrl: () => string;
 /**
  * Returns a concise educational review of a structurally valid draft. It does not check electrical safety or correctness.

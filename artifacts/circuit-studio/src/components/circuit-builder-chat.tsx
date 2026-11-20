@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   getChatWithCircuitBuilderMutationKey,
   getGetAiUsageQueryKey,
+  getListCircuitBuilderMemoriesQueryKey,
   useChatWithCircuitBuilder,
   useGetAiUsage,
 } from '@workspace/api-client-react';
@@ -43,6 +44,7 @@ import {
   Check,
   CheckCircle2,
   Copy,
+  Brain,
   History,
   Library,
   MessageCircle,
@@ -72,6 +74,7 @@ import { ComponentLibraryDialog } from './component-library-dialog';
 import CircuitBuilderComposer, {
   type CircuitBuilderComposerHandle,
 } from './circuit-builder-composer';
+import { CircuitBuilderMemoryDialog } from './circuit-builder-memory-dialog';
 
 type ChatMode = 'chat' | 'build';
 type ThreadMessage = CircuitBuildChatMessage & {
@@ -410,6 +413,7 @@ export function CircuitBuilderChat({
   const [saved, setSaved] = useState<SavedState>(historyBootstrap.active.saved);
   const [mode, setMode] = useState<ChatMode>(historyBootstrap.active.mode);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [memoryOpen, setMemoryOpen] = useState(false);
   const [historySaveError, setHistorySaveError] = useState('');
   const [clearChatOpen, setClearChatOpen] = useState(false);
   const [proposal, setProposal] = useState<{ summary: string; spec: CircuitBuildChatInput['currentSpec'] } | null>(null);
@@ -631,6 +635,7 @@ export function CircuitBuilderChat({
           setProposalSvg(proposalInspection.svg);
         }
         void queryClient.invalidateQueries({ queryKey: getGetAiUsageQueryKey() });
+        void queryClient.invalidateQueries({ queryKey: getListCircuitBuilderMemoriesQueryKey() });
         onTaskComplete(nextMode);
     } catch (error) {
       setSaved((current) => ({
@@ -1055,6 +1060,17 @@ export function CircuitBuilderChat({
             <History aria-hidden="true" />
           </button>
           <button
+            className={`builder-chat__icon-link${memoryOpen ? ' is-active' : ''}`}
+            type="button"
+            onClick={() => setMemoryOpen(true)}
+            aria-expanded={memoryOpen}
+            aria-label="Review saved assumptions"
+            title="What I remember"
+            data-testid="button-builder-memory"
+          >
+            <Brain aria-hidden="true" />
+          </button>
+          <button
             className="builder-chat__icon-link"
             type="button"
             onClick={() => setComponentLibraryOpen(true)}
@@ -1077,6 +1093,8 @@ export function CircuitBuilderChat({
           </button>
         </div>
       </header>
+
+      <CircuitBuilderMemoryDialog open={memoryOpen} onOpenChange={setMemoryOpen} />
 
       {historyOpen && (
         <section

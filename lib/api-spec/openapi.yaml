@@ -15,7 +15,7 @@ tags:
   - name: tutor
     description: Signed-in AI circuit education and review
   - name: account
-    description: Per-account AI usage and key selection
+    description: Per-account AI usage, memory, and key selection
 paths:
   /healthz:
     get:
@@ -205,6 +205,144 @@ paths:
                 $ref: "#/components/schemas/ApiError"
         "503":
           description: Gemini is unavailable or usage could not be recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /circuit-builder/memories:
+    get:
+      operationId: listCircuitBuilderMemories
+      tags: [account]
+      summary: List saved Circuit Studio assumptions
+      responses:
+        "200":
+          description: Saved assumptions for the signed-in user
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CircuitBuilderMemory"
+        "401":
+          description: Authentication is required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    delete:
+      operationId: clearCircuitBuilderMemories
+      tags: [account]
+      summary: Delete all saved Circuit Studio assumptions
+      responses:
+        "204":
+          description: All saved assumptions were deleted
+        "401":
+          description: Authentication is required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /circuit-builder/memories/import:
+    post:
+      operationId: learnFromCircuitBuilderHistory
+      tags: [account]
+      summary: Learn reusable assumptions from saved chats
+      description: Analyzes short summaries of recent local conversations and stores only reusable assumptions, not transcripts.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CircuitBuilderHistoryImportInput"
+      responses:
+        "200":
+          description: Reusable assumptions extracted from the submitted history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CircuitBuilderHistoryImportResponse"
+        "400":
+          description: Invalid history summaries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Authentication is required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "502":
+          description: The AI could not summarize the saved chats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "503":
+          description: AI usage could not be recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /circuit-builder/memories/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+    patch:
+      operationId: updateCircuitBuilderMemory
+      tags: [account]
+      summary: Edit a saved Circuit Studio assumption
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CircuitBuilderMemoryInput"
+      responses:
+        "200":
+          description: Updated saved assumption
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CircuitBuilderMemory"
+        "400":
+          description: Invalid assumption
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Authentication is required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Assumption not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    delete:
+      operationId: deleteCircuitBuilderMemory
+      tags: [account]
+      summary: Delete a saved Circuit Studio assumption
+      responses:
+        "204":
+          description: Assumption was deleted
+        "401":
+          description: Authentication is required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Assumption not found
           content:
             application/json:
               schema:
@@ -503,10 +641,106 @@ components:
           maxItems: 2
           items:
             $ref: "#/components/schemas/CircuitBuilderSuggestedAction"
+        memoryUpdates:
+          type: array
+          maxItems: 2
+          items:
+            $ref: "#/components/schemas/CircuitBuilderMemorySuggestion"
+        memoryRemovals:
+          type: array
+          maxItems: 10
+          items:
+            type: integer
+            minimum: 1
         buildApprovalRequested:
           type: boolean
           description: Server-set marker that the assistant asked permission before creating a schematic.
       required: [answer, brief]
+      additionalProperties: false
+    CircuitBuilderMemoryCategory:
+      type: string
+      enum: [work-style, design-decision, past-context]
+    CircuitBuilderMemory:
+      type: object
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        category:
+          $ref: "#/components/schemas/CircuitBuilderMemoryCategory"
+        content:
+          type: string
+          minLength: 1
+          maxLength: 300
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, category, content, updatedAt]
+      additionalProperties: false
+    CircuitBuilderMemoryInput:
+      type: object
+      properties:
+        content:
+          type: string
+          minLength: 1
+          maxLength: 300
+      required: [content]
+      additionalProperties: false
+    CircuitBuilderMemorySuggestion:
+      type: object
+      properties:
+        id:
+          type: integer
+          minimum: 1
+          description: Existing assumption to update; omit when adding a new one.
+        category:
+          $ref: "#/components/schemas/CircuitBuilderMemoryCategory"
+        content:
+          type: string
+          minLength: 1
+          maxLength: 300
+      required: [category, content]
+      additionalProperties: false
+    CircuitBuilderHistoryExcerpt:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 160
+        context:
+          type: string
+          minLength: 1
+          maxLength: 3000
+      required: [title, context]
+      additionalProperties: false
+    CircuitBuilderHistoryImportInput:
+      type: object
+      properties:
+        conversations:
+          type: array
+          minItems: 1
+          maxItems: 12
+          items:
+            $ref: "#/components/schemas/CircuitBuilderHistoryExcerpt"
+      required: [conversations]
+      additionalProperties: false
+    CircuitBuilderMemoryLearningModelResponse:
+      type: object
+      properties:
+        memoryUpdates:
+          type: array
+          maxItems: 12
+          items:
+            $ref: "#/components/schemas/CircuitBuilderMemorySuggestion"
+      required: [memoryUpdates]
+      additionalProperties: false
+    CircuitBuilderHistoryImportResponse:
+      type: object
+      properties:
+        learnedCount:
+          type: integer
+          minimum: 0
+      required: [learnedCount]
       additionalProperties: false
     CircuitSymbolSearchItem:
       type: object

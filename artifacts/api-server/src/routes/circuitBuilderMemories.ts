@@ -1,5 +1,8 @@
 import {
+  ChatWithCircuitBuilderResponse,
   DeleteCircuitBuilderMemoryParams,
+  LearnFromCircuitBuilderHistoryBody,
+  LearnFromCircuitBuilderHistoryResponse,
   ListCircuitBuilderMemoriesResponse,
   UpdateCircuitBuilderMemoryBody,
   UpdateCircuitBuilderMemoryParams,
@@ -7,10 +10,18 @@ import {
 } from "@workspace/api-zod";
 import { and, eq } from "drizzle-orm";
 import { getAuth } from "@clerk/express";
+import rateLimit from "express-rate-limit";
 import { Router, type IRouter, type RequestHandler } from "express";
 import { circuitBuilderMemories, db } from "@workspace/db";
-import { normalizeCircuitBuilderMemoryContent } from "../lib/circuitBuilderMemory";
-import { listUserCircuitBuilderMemories } from "../lib/circuitBuilderMemoryStore";
+import { CircuitAiError, generateWithAccountUsage } from "../lib/circuitAi";
+import {
+  formatCircuitBuilderHistoryLearningInput,
+  normalizeCircuitBuilderMemoryContent,
+} from "../lib/circuitBuilderMemory";
+import {
+  applyGeneratedCircuitBuilderMemoryChanges,
+  listUserCircuitBuilderMemories,
+} from "../lib/circuitBuilderMemoryStore";
 
 const router: IRouter = Router();
 
@@ -21,6 +32,112 @@ const requireAuth: RequestHandler = (req, res, next) => {
   }
   next();
 };
+
+const historyImportLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 2,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { error: "Please wait before reviewing saved chats again." },
+});
+
+const historyLearningInstructions = `You extract small, reusable user-specific assumptions from earlier Circuit Studio conversations. Do not continue or recap those conversations. Save only clearly stated preferences, repeated or explicitly chosen circuit decisions, and durable project context that is likely to help later. Do not infer preferences from assistant suggestions or a single temporary request. Ignore unrelated topics. Never treat old context as fact: future chats will present every saved item as tentative and let the user correct it. Do not ask questions or create/delete memories. Return one JSON object with a memoryUpdates array of at most two items, each containing category ("work-style", "design-decision", or "past-context"), content (at most 300 characters), and an existing id only when correcting that exact saved assumption. The array may be empty.`;
+
+const emptyBrief = {
+  goal: "",
+  requirements: [],
+  assumptions: [],
+  openQuestions: [],
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+router.post(
+  "/circuit-builder/memories/import",
+  requireAuth,
+  historyImportLimiter,
+  async (req, res): Promise<void> => {
+    const parsed = LearnFromCircuitBuilderHistoryBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
+      return;
+    }
+
+    const userId = getAuth(req).userId!;
+    let failureStage = "load_memories";
+    try {
+      const existingMemories = await listUserCircuitBuilderMemories(userId);
+      const learningInput = formatCircuitBuilderHistoryLearningInput(
+        parsed.data.conversations,
+        existingMemories,
+      );
+      failureStage = "model_generation";
+      const response = await generateWithAccountUsage(
+        userId,
+        {
+          inputText: `${historyLearningInstructions}\n\n${learningInput}`,
+          maxOutputTokens: 8192,
+        },
+        (client) =>
+          client.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: learningInput,
+            config: {
+              systemInstruction: historyLearningInstructions,
+              responseMimeType: "application/json",
+              maxOutputTokens: 8192,
+              temperature: 0.1,
+            },
+          }),
+      );
+
+      failureStage = "validate_model_response";
+      const text = response.text?.trim();
+      if (!text) throw new Error("Empty memory-learning response.");
+      const decoded: unknown = JSON.parse(text);
+      if (!isRecord(decoded) || !Array.isArray(decoded.memoryUpdates)) {
+        throw new Error("Memory-learning response has no memoryUpdates array.");
+      }
+
+      const validated = ChatWithCircuitBuilderResponse.parse({
+        answer: "Saved conversation review.",
+        brief: emptyBrief,
+        memoryUpdates: decoded.memoryUpdates,
+      });
+
+      failureStage = "save_memories";
+      const learnedCount = await applyGeneratedCircuitBuilderMemoryChanges(
+        userId,
+        existingMemories,
+        validated.memoryUpdates ?? [],
+        [],
+      );
+      res.json(LearnFromCircuitBuilderHistoryResponse.parse({ learnedCount }));
+    } catch (error) {
+      if (error instanceof CircuitAiError) {
+        req.log.warn(
+          { statusCode: error.statusCode, failureStage },
+          "Saved conversation learning failed",
+        );
+        res.status(error.statusCode).json({ error: error.message });
+        return;
+      }
+
+      req.log.warn(
+        { failureStage, errorType: error instanceof Error ? error.name : "unknown" },
+        "Saved conversation learning failed",
+      );
+      const isInvalidModelResponse = failureStage === "validate_model_response";
+      res.status(isInvalidModelResponse ? 502 : 503).json({
+        error: isInvalidModelResponse
+          ? "The assistant could not extract reusable assumptions from those chats."
+          : "Saved assumptions could not be updated. Please try again.",
+      });
+    }
+  },
+);
 
 router.get(
   "/circuit-builder/memories",

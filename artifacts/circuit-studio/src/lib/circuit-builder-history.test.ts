@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   createBuilderHistorySession,
+  getBuilderHistoryMemoryExcerpts,
   getBuilderHistoryPreview,
   getBuilderHistoryTitle,
   upsertBuilderHistorySession,
@@ -91,4 +92,53 @@ test('unfinished chat-mode conversations are valid history sessions before Build
   assert.equal(history[0].title, 'I want a flasher, but need help choosing the timing.');
   assert.equal(history[0].saved.messages.length, 2);
   assert.equal(history[0].currentSpec.title, 'Example');
+});
+
+test('memory import uses bounded user statements and brief details, not empty chats', () => {
+  const sessions = [
+    createBuilderHistorySession({
+      id: 'old-chat',
+      saved: {
+        brief: {
+          goal: 'Build a greenhouse controller.',
+          requirements: ['Run from a 12V battery.'],
+          assumptions: ['Use a simple relay output.'],
+          openQuestions: ['What sensor should be used?'],
+        },
+        messages: [
+          { role: 'assistant', content: 'Welcome to Circuit Studio.' },
+          { role: 'user', content: 'I prefer one focused question at a time.' },
+        ],
+      },
+      currentSpec: {
+        title: 'Greenhouse controller',
+        elements: [
+          { type: 'resistor', label: 'R1', value: '10k' },
+          { type: 'wire', id: 'W1' },
+        ],
+      },
+      mode: 'chat',
+      now: 100,
+    }),
+    createBuilderHistorySession({
+      id: 'empty-chat',
+      saved: { messages: [{ role: 'assistant', content: 'Welcome.' }] },
+      currentSpec: { title: 'Example', elements: [] },
+      mode: 'chat',
+      now: 200,
+    }),
+  ];
+
+  const excerpts = getBuilderHistoryMemoryExcerpts(sessions);
+
+  assert.equal(excerpts.length, 1);
+  assert.equal(excerpts[0].title, 'I prefer one focused question at a time.');
+  assert.match(excerpts[0].context, /Goal: Build a greenhouse controller/);
+  assert.match(excerpts[0].context, /12V battery/);
+  assert.match(excerpts[0].context, /Circuit: Greenhouse controller/);
+  assert.match(excerpts[0].context, /resistor R1 10k/);
+  assert.doesNotMatch(excerpts[0].context, /W1/);
+  assert.match(excerpts[0].context, /Recent user statements: I prefer one focused question/);
+  assert.ok(excerpts[0].context.length <= 3000);
+  assert.doesNotMatch(excerpts[0].context, /Welcome to Circuit Studio/);
 });

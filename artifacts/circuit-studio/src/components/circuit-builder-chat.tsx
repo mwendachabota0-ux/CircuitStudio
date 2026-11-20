@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   getChatWithCircuitBuilderMutationKey,
@@ -6,8 +6,10 @@ import {
   getListCircuitBuilderMemoriesQueryKey,
   useChatWithCircuitBuilder,
   useGetAiUsage,
+  useLearnFromCircuitBuilderHistory,
 } from '@workspace/api-client-react';
 import type {
+  CircuitBuilderHistoryExcerpt,
   CircuitBuilderSuggestedAction,
   CircuitBuildChatInput,
   CircuitBuildChatMessage,
@@ -68,13 +70,17 @@ import {
   getBuilderHistoryPreview,
   getBuilderHistoryTitle,
   upsertBuilderHistorySession,
+  getBuilderHistoryMemoryExcerpts,
   type BuilderHistorySession,
 } from '../lib/circuit-builder-history';
 import { ComponentLibraryDialog } from './component-library-dialog';
 import CircuitBuilderComposer, {
   type CircuitBuilderComposerHandle,
 } from './circuit-builder-composer';
-import { CircuitBuilderMemoryDialog } from './circuit-builder-memory-dialog';
+import {
+  CircuitBuilderMemoryDialog,
+  type CircuitBuilderMemoryImportStatus,
+} from './circuit-builder-memory-dialog';
 
 type ChatMode = 'chat' | 'build';
 type ThreadMessage = CircuitBuildChatMessage & {
@@ -404,6 +410,7 @@ export function CircuitBuilderChat({
   const chatMutation = useChatWithCircuitBuilder({
     mutation: { mutationKey: getChatWithCircuitBuilderMutationKey() },
   });
+  const historyImportMutation = useLearnFromCircuitBuilderHistory();
   const usageQuery = useGetAiUsage({
     query: { queryKey: getGetAiUsageQueryKey(), retry: 1 },
   });
@@ -415,6 +422,8 @@ export function CircuitBuilderChat({
   const [historyOpen, setHistoryOpen] = useState(false);
   const [memoryOpen, setMemoryOpen] = useState(false);
   const [historySaveError, setHistorySaveError] = useState('');
+  const [historyImportStatus, setHistoryImportStatus] =
+    useState<CircuitBuilderMemoryImportStatus>({ kind: 'idle' });
   const [clearChatOpen, setClearChatOpen] = useState(false);
   const [proposal, setProposal] = useState<{ summary: string; spec: CircuitBuildChatInput['currentSpec'] } | null>(null);
   const [proposalSvg, setProposalSvg] = useState('');
@@ -452,7 +461,90 @@ export function CircuitBuilderChat({
         }
       : null,
   );
+  const historyImportAttemptedForUser = useRef<string | null>(null);
   const activeSession = sessions.find((session) => session.id === activeSessionId) ?? historyBootstrap.active;
+  const historyForMemory = useMemo(() => {
+    const currentSession = createBuilderHistorySession({
+      id: activeSessionId,
+      saved,
+      currentSpec,
+      mode,
+      now: Date.now(),
+      createdAt: activeSession.createdAt,
+    });
+    return getBuilderHistoryMemoryExcerpts(
+      upsertBuilderHistorySession(sessions, currentSession),
+    );
+  }, [activeSession.createdAt, activeSessionId, currentSpec, mode, saved, sessions]);
+  const runHistoryImport = useCallback(async () => {
+    if (!historyForMemory.length) return;
+    setHistoryImportStatus({ kind: 'loading' });
+    try {
+      const result = await historyImportMutation.mutateAsync({
+        data: { conversations: historyForMemory },
+      });
+      const savedResult = {
+        learnedCount: result.learnedCount,
+        conversationCount: historyForMemory.length,
+      };
+      try {
+        window.localStorage.setItem(
+          `circuit-studio-history-memory-import-v1:${userId}`,
+          JSON.stringify(savedResult),
+        );
+      } catch {
+        // Assumptions are saved to the account; this marker only avoids re-importing in this browser.
+      }
+      setHistoryImportStatus({ kind: 'done', ...savedResult });
+      void queryClient.invalidateQueries({
+        queryKey: getListCircuitBuilderMemoriesQueryKey(),
+      });
+    } catch {
+      setHistoryImportStatus({ kind: 'error' });
+    }
+  }, [historyForMemory, historyImportMutation.mutateAsync, queryClient, userId]);
+
+  useEffect(() => {
+    if (
+      !historyForMemory.length ||
+      historyImportAttemptedForUser.current === userId
+    ) {
+      return;
+    }
+    historyImportAttemptedForUser.current = userId;
+
+    let previousResult: string | null = null;
+    try {
+      previousResult = window.localStorage.getItem(
+        `circuit-studio-history-memory-import-v1:${userId}`,
+      );
+    } catch {
+      // Continue with the one-time scan if browser storage is unavailable.
+    }
+
+    if (previousResult) {
+      try {
+        const parsed: unknown = JSON.parse(previousResult);
+        const record = parsed && typeof parsed === 'object'
+          ? parsed as Record<string, unknown>
+          : {};
+        setHistoryImportStatus({
+          kind: 'done',
+          ...(typeof record.learnedCount === 'number'
+            ? { learnedCount: record.learnedCount }
+            : {}),
+          ...(typeof record.conversationCount === 'number'
+            ? { conversationCount: record.conversationCount }
+            : {}),
+        });
+      } catch {
+        setHistoryImportStatus({ kind: 'done' });
+      }
+      return;
+    }
+
+    void runHistoryImport();
+  }, [historyForMemory.length, runHistoryImport, userId]);
 
   useEffect(() => {
     onProposalStateChange(!!proposal);
@@ -1094,7 +1186,12 @@ export function CircuitBuilderChat({
         </div>
       </header>
 
-      <CircuitBuilderMemoryDialog open={memoryOpen} onOpenChange={setMemoryOpen} />
+      <CircuitBuilderMemoryDialog
+        open={memoryOpen}
+        onOpenChange={setMemoryOpen}
+        historyImportStatus={historyImportStatus}
+        onRetryHistoryImport={() => void runHistoryImport()}
+      />
 
       {historyOpen && (
         <section

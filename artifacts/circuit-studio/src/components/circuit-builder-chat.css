@@ -1058,6 +1058,15 @@
 }
 
 .builder-memory-dialog__error { color: #9a493e; }
+.builder-memory-dialog__error button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #8f4338;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+}
 .builder-memory-dialog__footer { justify-content: flex-start; }
 
 .builder-memory-dialog__clear {

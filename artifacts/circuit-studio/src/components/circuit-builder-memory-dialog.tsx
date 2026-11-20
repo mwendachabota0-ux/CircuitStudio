@@ -23,14 +23,24 @@ const categoryLabels: Record<CircuitBuilderMemory['category'], string> = {
   'past-context': 'Project context',
 };
 
+export type CircuitBuilderMemoryImportStatus = {
+  kind: 'idle' | 'loading' | 'done' | 'error';
+  learnedCount?: number;
+  conversationCount?: number;
+};
+
 type CircuitBuilderMemoryDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  historyImportStatus: CircuitBuilderMemoryImportStatus;
+  onRetryHistoryImport: () => void;
 };
 
 export function CircuitBuilderMemoryDialog({
   open,
   onOpenChange,
+  historyImportStatus,
+  onRetryHistoryImport,
 }: CircuitBuilderMemoryDialogProps) {
   const queryClient = useQueryClient();
   const memoriesQuery = useListCircuitBuilderMemories({
@@ -107,11 +117,40 @@ export function CircuitBuilderMemoryDialog({
         <DialogHeader>
           <DialogTitle>What I remember</DialogTitle>
           <DialogDescription>
-            These are short assumptions, not saved chat transcripts. New chats
-            use only relevant items, and treat them as tentative. Correct them
-            in chat or edit them here.
+            These are account-level assumptions, not saved chat transcripts.
+            When saved history is first imported, short excerpts from up to 12
+            recent chat/build sessions in this browser are sent to Gemini to
+            find reusable details; only the assumptions are saved. This does not
+            train Gemini.
+            Later chats save useful details automatically. New topics stay fresh,
+            and only relevant assumptions are used as tentative suggestions.
+            Correct them in chat or edit them here.
           </DialogDescription>
         </DialogHeader>
+
+        {historyImportStatus.kind === 'loading' && (
+          <p className="builder-memory-dialog__empty" role="status">
+            Reviewing recent chats for useful assumptions…
+          </p>
+        )}
+        {historyImportStatus.kind === 'done' && (
+          <p className="builder-memory-dialog__empty" role="status">
+            {historyImportStatus.learnedCount === undefined
+              ? 'Recent chats were already reviewed.'
+              : `Reviewed ${historyImportStatus.conversationCount ?? 'recent'} recent chats and saved ${historyImportStatus.learnedCount} useful assumption${historyImportStatus.learnedCount === 1 ? '' : 's'}.`}
+          </p>
+        )}
+        {historyImportStatus.kind === 'error' && (
+          <p className="builder-memory-dialog__error" role="alert">
+            Recent chats could not be reviewed. Your saved assumptions are unchanged.{' '}
+            <button
+              type="button"
+              onClick={onRetryHistoryImport}
+            >
+              Try again
+            </button>
+          </p>
+        )}
 
         {actionError && <p className="builder-memory-dialog__error" role="alert">{actionError}</p>}
         {memoriesQuery.isLoading && (

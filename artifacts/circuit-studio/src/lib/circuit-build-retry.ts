@@ -112,7 +112,7 @@ export function getBuildRetryPolicy(error: unknown): BuildRetryPolicy {
 
   if (error && typeof error === 'object' && 'status' in error) {
     const status = Number((error as { status?: unknown }).status);
-    if (status === 429) return { retryable: delayMs !== undefined, delayMs };
+    if (status === 429) return { retryable: true, delayMs };
     if (status === 408 || status === 425 || (status >= 500 && status <= 599 && status !== 501 && status !== 505)) {
       return { retryable: true, delayMs };
     }
@@ -357,7 +357,7 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
       }
       throw new CircuitBuildAttemptError({
         retryCount: retries,
-        canRetryManually: policy.retryable,
+        canRetryManually: true,
         failureKind: 'generation',
         cause,
         rejectedProposal: lastInvalidProposal ?? undefined,
@@ -475,7 +475,7 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
       if (diagnostic) repairDiagnostics.push(diagnostic);
       throw new CircuitBuildAttemptError({
         retryCount: retries,
-        canRetryManually: false,
+        canRetryManually: true,
         failureKind: 'validation',
         validationFindings: ['The reconstructed CircuitSpec did not preserve its immutable baseline.'],
         rejectedProposal: proposal,
@@ -515,7 +515,7 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
       if (diagnostic) diagnostic.outcome = 'rejected';
       throw new CircuitBuildAttemptError({
         retryCount: retries,
-        canRetryManually: false,
+        canRetryManually: true,
         failureKind: 'validation',
         validationFindings: findings,
         validationWarnings: proposalInspection.validation.warnings,

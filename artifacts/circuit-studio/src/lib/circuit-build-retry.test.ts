@@ -423,7 +423,7 @@ test('stops after three repair retries and exposes a manual retry', async () => 
   assert.equal(repairRequests, MAX_AUTO_RETRIES);
 });
 
-test('does not automatically retry permanent request errors', async () => {
+test('does not automatically retry permanent request errors but allows manual retry', async () => {
   let sends = 0;
   await assert.rejects(
     runCircuitBuildAttempts({
@@ -440,17 +440,17 @@ test('does not automatically retry permanent request errors', async () => {
     (error: unknown) => {
       assert.ok(error instanceof CircuitBuildAttemptError);
       assert.equal(error.retryCount, 0);
-      assert.equal(error.canRetryManually, false);
+      assert.equal(error.canRetryManually, true);
       return true;
     },
   );
   assert.equal(sends, 1);
 });
 
-test('retries a rate limit only when Retry-After guidance is present', () => {
+test('retries rate limits with backoff even when Retry-After guidance is absent', () => {
   assert.deepEqual(
     getBuildRetryPolicy(Object.assign(new Error('rate limited'), { status: 429 })),
-    { retryable: false, delayMs: undefined },
+    { retryable: true, delayMs: undefined },
   );
   assert.deepEqual(
     getBuildRetryPolicy(Object.assign(new Error('rate limited'), {
@@ -459,6 +459,35 @@ test('retries a rate limit only when Retry-After guidance is present', () => {
     })),
     { retryable: true, delayMs: 2_000 },
   );
+});
+
+test('automatically retries a retryable 502 and exposes manual retry after exhaustion', async () => {
+  const gatewayFailure = Object.assign(new Error('provider rate limit'), {
+    status: 502,
+    headers: new Headers({ 'x-circuit-ai-retryable': 'true' }),
+  });
+  let sends = 0;
+  await assert.rejects(
+    runCircuitBuildAttempts({
+      initialRequest: baseRequest,
+      send: async () => {
+        sends += 1;
+        throw gatewayFailure;
+      },
+      getProposal: () => null,
+      inspectProposal: () => ({ validation: { errors: [], warnings: [] }, canRepair: true }),
+      makeRepairRequest: (request) => request,
+      wait: async () => {},
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof CircuitBuildAttemptError);
+      assert.equal(error.retryCount, MAX_AUTO_RETRIES);
+      assert.equal(error.canRetryManually, true);
+      assert.equal(error.failureKind, 'generation');
+      return true;
+    },
+  );
+  assert.equal(sends, MAX_AUTO_RETRIES + 1);
 });
 
 test('retries malformed model output when the API marks it retryable', () => {

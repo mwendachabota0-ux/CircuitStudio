@@ -628,7 +628,7 @@ export function CircuitBuilderChat({
         setRepairDiagnostics([]);
         setRetryFeedback({
           message: error instanceof Error ? error.message : 'The request did not go through. Your message is still here.',
-          canRetryManually: false,
+          canRetryManually: true,
         });
       }
     } finally {

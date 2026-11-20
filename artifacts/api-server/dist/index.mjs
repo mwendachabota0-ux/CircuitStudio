@@ -63007,7 +63007,7 @@ async function generateWithAccountUsage(userId, options, generate) {
         throw new CircuitAiError(
           "Gemini could not complete this request. Try again shortly or select another configured key.",
           502,
-          rateLimited ? providerRetryAfterMs(error) !== void 0 : isTransientProviderFailure(error),
+          rateLimited ? true : isTransientProviderFailure(error),
           providerRetryAfterMs(error),
           getProviderErrorDiagnostics(error, key.number)
         );

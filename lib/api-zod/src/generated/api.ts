@@ -359,6 +359,7 @@ export const chatWithCircuitBuilderResponseProposalSpecElementsItemLabelAtMax = 
 
 
 export const ChatWithCircuitBuilderResponse = zod.object({
+  "nextMode": zod.enum(['chat', 'build']).optional(),
   "answer": zod.string().min(1).max(chatWithCircuitBuilderResponseAnswerMax),
   "brief": zod.object({
   "goal": zod.string().max(chatWithCircuitBuilderResponseBriefGoalMax),

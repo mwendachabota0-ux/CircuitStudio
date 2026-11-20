@@ -1161,6 +1161,7 @@ export declare const chatWithCircuitBuilderResponseProposalSpecElementsItemLabel
 export declare const chatWithCircuitBuilderResponseProposalSpecElementsItemLabelAtMin = 2;
 export declare const chatWithCircuitBuilderResponseProposalSpecElementsItemLabelAtMax = 2;
 export declare const ChatWithCircuitBuilderResponse: zod.ZodObject<{
+    nextMode: zod.ZodOptional<zod.ZodEnum<["chat", "build"]>>;
     answer: zod.ZodString;
     brief: zod.ZodObject<{
         goal: zod.ZodString;
@@ -1424,6 +1425,7 @@ export declare const ChatWithCircuitBuilderResponse: zod.ZodObject<{
         assumptions: string[];
         openQuestions: string[];
     };
+    nextMode?: "chat" | "build" | undefined;
     proposal?: {
         summary: string;
         spec: {
@@ -1470,6 +1472,7 @@ export declare const ChatWithCircuitBuilderResponse: zod.ZodObject<{
         assumptions: string[];
         openQuestions: string[];
     };
+    nextMode?: "chat" | "build" | undefined;
     proposal?: {
         summary: string;
         spec: {

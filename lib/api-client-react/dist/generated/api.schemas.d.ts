@@ -151,7 +151,13 @@ export interface CircuitBuildProposal {
     summary: string;
     spec: CircuitSpec;
 }
+export type CircuitBuildChatResponseNextMode = typeof CircuitBuildChatResponseNextMode[keyof typeof CircuitBuildChatResponseNextMode];
+export declare const CircuitBuildChatResponseNextMode: {
+    readonly chat: "chat";
+    readonly build: "build";
+};
 export interface CircuitBuildChatResponse {
+    nextMode?: CircuitBuildChatResponseNextMode;
     /**
        * @minLength 1
        * @maxLength 3000

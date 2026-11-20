@@ -5,9 +5,11 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { CircuitBuildChatResponseNextMode } from './circuitBuildChatResponseNextMode';
 import type { CircuitBuildProposal } from './circuitBuildProposal';
 import type { CircuitDesignBrief } from './circuitDesignBrief';
 export interface CircuitBuildChatResponse {
+    nextMode?: CircuitBuildChatResponseNextMode;
     /**
        * @minLength 1
        * @maxLength 3000

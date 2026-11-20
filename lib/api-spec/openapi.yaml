@@ -410,6 +410,9 @@ components:
     CircuitBuildChatResponse:
       type: object
       properties:
+        nextMode:
+          type: string
+          enum: [chat, build]
         answer:
           type: string
           minLength: 1

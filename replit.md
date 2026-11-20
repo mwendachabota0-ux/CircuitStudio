@@ -47,7 +47,7 @@ Visitors can learn about Circuit Studio and create an account. Signed-in users c
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- In chat mode, natural build requests should switch to Build mode and prepare a proposal. Builder and working-note textareas must stay editable during every AI status, and responses must not overwrite text entered after a request starts.
 
 ## Gotchas
 

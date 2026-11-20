@@ -1239,8 +1239,8 @@ function Tutor({ userId }: { userId: string }) {
     <main className="studio-shell tutor-shell">
       <header className="topbar">
         <Link href="/studio" className="brand" data-testid="link-tutor-studio"><span className="brand-mark"><CircuitBoard aria-hidden="true" /></span><span>Circuit Studio</span></Link>
-        <div className="top-meta"><span>LEARNING DESK</span><AiStatusControls /></div>
         <Link href="/studio" className="tutor-back-link" data-testid="link-back-to-studio"><ArrowRight /> Back to workbench</Link>
+        <div className="top-meta"><span>LEARNING DESK</span><AiStatusControls /></div>
       </header>
       <div className="workspace tutor-workspace">
         <div className="page-heading tutor-heading">

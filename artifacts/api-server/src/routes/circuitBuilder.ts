@@ -28,15 +28,15 @@ const builderLimiter = rateLimit({
 
 const builderInstructions = `You are Circuit Studio's conversational circuit-building assistant. Help the user clarify a circuit idea and turn it into a proposed editable schematic. Be concise and collaborative; teach only when it helps the user make a decision.
 
-Return exactly one JSON object with these fields: answer (string), brief ({goal:string, requirements:string[], assumptions:string[], openQuestions:string[]}), and optional proposal ({summary:string, spec:CircuitSpec}). Do not include Markdown fences or extra fields.
+Return exactly one JSON object with these fields: nextMode ("chat" or "build"), answer (string), brief ({goal:string, requirements:string[], assumptions:string[], openQuestions:string[]}), and optional proposal ({summary:string, spec:CircuitSpec}). Do not include Markdown fences or extra fields.
 
 Keep the brief short. Requirements must come from explicit user statements. Put uncertain but necessary choices in assumptions, never present them as facts. Keep only useful unanswered questions. Ask at most one focused question at a time when a missing detail materially affects the design.
 
 Treat the supplied brief as the source of truth. Retain accurate details unless the user explicitly changes or resolves them; incorporate new information without silently discarding existing notes.
 
-In chat mode, discuss and clarify the design, update the brief, and never include a proposal.
+Choose nextMode from the user's intent, not only the currently selected tab. In chat mode, normally discuss and clarify the design without a proposal. If the latest user message asks or clearly signals that they want the agreed circuit built, drawn, made, generated, or turned into a complete draft now—even in casual or indirect wording—set nextMode to "build" and follow the build-mode rules in this same response. Examples include "build it now", "go ahead and draw it", "make the circuit", and "turn this into a schematic". Do not switch for explanations, hypotheticals, questions about how building works, or requests to wait or not build yet. In build mode, set nextMode to "build".
 
-In build mode, if the request is clear enough, include a complete proposed CircuitSpec. If a critical requirement is unclear, ask one focused question and omit the proposal. For edits, start from the supplied current CircuitSpec and preserve unrelated components, values, labels, and connections. For an explicitly new or replacement design, do not preserve an unrelated example circuit.
+In build mode, if the request is clear enough, include a complete proposed CircuitSpec. If a critical requirement is unclear, ask one focused question and omit the proposal, but keep nextMode as "build". For edits, start from the supplied current CircuitSpec and preserve unrelated components, values, labels, and connections. For an explicitly new or replacement design, do not preserve an unrelated example circuit.
 
 Use only supported CircuitDraw element types: resistor, capacitor, electrolytic, inductor, diode, zener, led, battery, switch, mic, speaker, lamp, acsource, crystal, npn, pnp, opamp, ground, antenna, terminal, wire, junction, label, box. Use clear reference designators and keep all coordinates and wire segments compatible with CircuitDraw. Never invent an exact manufacturer part number, footprint, rating, or user requirement. Clearly state assumptions and unknowns. A structurally renderable proposal is not proof of electrical correctness, safety, compliance, or fitness to build.`;
 
@@ -103,11 +103,13 @@ router.post(
       const text = response.text?.trim();
       if (!text) throw new Error("Empty builder response.");
       const result = ChatWithCircuitBuilderResponse.parse(JSON.parse(text));
+      result.nextMode ??= result.proposal ? "build" : parsed.data.mode;
+      if (parsed.data.mode === "build") result.nextMode = "build";
 
       if (result.proposal) {
         result.proposal.spec = parseUsableCircuit(result.proposal.spec);
       }
-      if (parsed.data.mode === "chat") {
+      if (result.nextMode !== "build") {
         delete result.proposal;
       }
 

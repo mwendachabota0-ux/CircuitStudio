@@ -161,6 +161,7 @@ export function CircuitBuilderChat({
   const [briefAssumptionsDraft, setBriefAssumptionsDraft] = useState('');
   const [briefOpenQuestionsDraft, setBriefOpenQuestionsDraft] = useState('');
   const [lastRequest, setLastRequest] = useState<CircuitBuildChatInput | null>(null);
+  const draftRevisionRef = useRef(0);
   const threadEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -178,7 +179,7 @@ export function CircuitBuilderChat({
 
   const visibleMessages = saved.messages;
   const aiUnavailable = usageQuery.data ? !usageQuery.data.canUseAi : false;
-  const canSend = draft.trim().length > 0 && !chatMutation.isPending && !aiUnavailable && !proposal && !briefEditing;
+  const canSend = draft.trim().length > 0 && !chatMutation.isPending && !proposal && !briefEditing;
 
   const localProposalState = useMemo(() => {
     if (!proposal) return null;
@@ -190,16 +191,25 @@ export function CircuitBuilderChat({
   };
 
   const runRequest = async (request: CircuitBuildChatInput) => {
+    const draftRevisionAtStart = draftRevisionRef.current;
     setLastRequest(request);
     try {
       const response = await chatMutation.mutateAsync({ data: request });
+      const nextMode = response.nextMode ?? request.mode;
+      setMode(nextMode);
       const nextBrief = response.brief ?? emptyBrief();
       setSaved((current) => ({
         brief: mergeBriefPreservingManualEdits(current.aiBrief, current.brief, nextBrief),
         aiBrief: nextBrief,
         messages: [...current.messages, newMessage('assistant', response.answer)].slice(-60),
       }));
-      if (request.mode === 'build' && response.proposal) {
+      setDraft((current) =>
+        draftRevisionRef.current === draftRevisionAtStart &&
+        current.trim() === request.message
+          ? ''
+          : current,
+      );
+      if (nextMode === 'build' && response.proposal) {
         setProposal(response.proposal);
         setProposalError('');
         if (!window.CircuitDraw) {
@@ -220,7 +230,7 @@ export function CircuitBuilderChat({
         }
       }
       await queryClient.invalidateQueries({ queryKey: getGetAiUsageQueryKey() });
-      onTaskComplete(request.mode);
+      onTaskComplete(nextMode);
     } catch {
       // The mutation's error state is rendered below; keep the user's message and retry context.
     }
@@ -229,28 +239,33 @@ export function CircuitBuilderChat({
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const content = draft.trim();
-    if (!content || chatMutation.isPending || aiUnavailable || briefEditing) return;
+    if (!content || chatMutation.isPending || briefEditing) return;
     const intent = localModeIntent(content);
-    if (proposal && !intent) return;
-    setDraft('');
-    addMessage(newMessage('user', content));
-    if (intent) {
-      setMode(intent);
+    if (proposal && intent !== 'chat') return;
+    if (intent === 'chat') {
+      const userMessage = newMessage('user', content);
+      const assistantMessage = newMessage('assistant', 'Chat mode is on. We can clarify the idea without changing the schematic.');
+      setDraft((current) => current.trim() === content ? '' : current);
+      setMode('chat');
       setSaved((current) => ({
         ...current,
-        messages: [...current.messages, newMessage('assistant', intent === 'build'
-          ? 'Build mode is on. I will prepare a draft for review; your working schematic stays unchanged until you apply it.'
-          : 'Chat mode is on. We can clarify the idea without changing the schematic.')].slice(-60),
+        messages: [...current.messages, userMessage, assistantMessage].slice(-60),
       }));
       return;
     }
 
+    const requestMode: ChatMode = intent === 'build' ? 'build' : mode;
+    const userMessage = newMessage('user', content);
+    setSaved((current) => ({
+      ...current,
+      messages: [...current.messages, userMessage].slice(-60),
+    }));
     const history = [...saved.messages, { role: 'user' as const, content }]
       .slice(-8)
       .map(({ role, content: messageContent }) => ({ role, content: messageContent }));
     await runRequest({
       message: content,
-      mode,
+      mode: requestMode,
       currentSpec,
       history,
       brief: saved.brief,
@@ -258,14 +273,14 @@ export function CircuitBuilderChat({
   };
 
   const handleComposerKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === 'Enter' && !event.shiftKey) {
+    if (event.key === 'Enter' && !event.shiftKey && canSend) {
       event.preventDefault();
       event.currentTarget.form?.requestSubmit();
     }
   };
 
   const retryRequest = async () => {
-    if (!lastRequest || chatMutation.isPending || aiUnavailable) return;
+    if (!lastRequest || chatMutation.isPending) return;
     await runRequest(lastRequest);
   };
 
@@ -356,12 +371,12 @@ export function CircuitBuilderChat({
           {chatMutation.isError && (
             <div className="builder-chat__error" role="alert" data-testid="status-builder-error">
               <span>{errorMessage}</span>
-              <button type="button" className="builder-chat__text-link" onClick={retryRequest} disabled={!lastRequest || aiUnavailable} data-testid="button-retry-builder-chat">Retry</button>
+              <button type="button" className="builder-chat__text-link" onClick={retryRequest} disabled={!lastRequest} data-testid="button-retry-builder-chat">Retry</button>
             </div>
           )}
           {aiUnavailable && (
             <div className="builder-chat__unavailable" role="status" data-testid="status-builder-ai-unavailable">
-              <span><strong>Gemini is not configured.</strong> You can keep your brief and conversation here, but AI requests are unavailable.</span>
+              <span><strong>Gemini is not configured.</strong> Your message and brief remain editable; AI requests may fail until a key is configured.</span>
             </div>
           )}
           {usageQuery.isError && (
@@ -412,7 +427,10 @@ export function CircuitBuilderChat({
               id="builder-chat-input"
               ref={textareaRef}
               value={draft}
-              onChange={(event) => setDraft(event.target.value.slice(0, 3000))}
+              onChange={(event) => {
+                draftRevisionRef.current += 1;
+                setDraft(event.target.value.slice(0, 3000));
+              }}
               onKeyDown={handleComposerKeyDown}
               placeholder={mode === 'chat' ? 'Describe what you are trying to make…' : 'What should we add or change?'}
               rows={2}

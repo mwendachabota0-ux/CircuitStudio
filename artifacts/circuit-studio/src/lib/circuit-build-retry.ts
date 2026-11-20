@@ -304,10 +304,9 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
     }
 
     const proposalInspection = options.inspectProposal(proposal);
-    const findings = [
-      ...proposalInspection.validation.errors,
-      ...proposalInspection.validation.warnings,
-    ];
+    // Warnings are advisory layout notes. Only blocking validation errors
+    // should consume automatic repair attempts or prevent a proposal staging.
+    const findings = proposalInspection.validation.errors;
     if (findings.length === 0) return { response, proposalInspection, request: workingRequest };
     lastInvalidProposal = proposal;
     if (protectedElementsSignature === undefined && options.getProtectedElementsSignature) {

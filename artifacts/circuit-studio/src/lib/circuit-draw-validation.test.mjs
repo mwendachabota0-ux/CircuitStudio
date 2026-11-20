@@ -56,13 +56,13 @@ test("canonical pin definitions are shared by generation, validation, and render
     ],
   );
   assert.match(CircuitGeometry.formatCircuitPinGuide(), /NPN: B=\(x−25, y\), C=\(x\+25, y−44\), E=\(x\+25, y\+44\)/);
-  assert.match(CircuitDraw.render(astableFlasher), /<svg/);
+  assert.match(CircuitDraw.render(CircuitDraw.autoFix(astableFlasher).spec), /<svg/);
 });
 
 test("the valid astable flasher passes after safe rail-tail cleanup", () => {
   const before = CircuitDraw.validate(astableFlasher);
-  assert.equal(before.errors.length, 0);
-  assert.equal(before.warnings.length, 2);
+  assert.equal(before.errors.length, 2);
+  assert.equal(before.warnings.length, 0);
 
   const repaired = CircuitDraw.autoFix(astableFlasher);
   assert.equal(repaired.changes.length, 2);
@@ -131,7 +131,7 @@ test("auto-fix snaps only a uniquely nearest pin within eight pixels", () => {
   assert.deepEqual(Array.from(unchanged.spec.elements[2].points[0]), [100, 105]);
 });
 
-test("disconnected wire warnings identify the nearest pin and distance", () => {
+test("disconnected wire errors identify the nearest pin and distance", () => {
   const report = CircuitDraw.validate({
     title: "Nearest pin details",
     elements: [
@@ -140,12 +140,35 @@ test("disconnected wire warnings identify the nearest pin and distance", () => {
     ],
   });
   assert.ok(
-    report.warnings.some((warning) =>
-      warning.includes('W1') &&
-      warning.includes('resistor "R1".1 at (100,100)') &&
-      warning.includes('4 px away'),
+    report.errors.some((error) =>
+      error.includes('W1') &&
+      error.includes('resistor "R1".1 at (100,100)') &&
+      error.includes('4 px away'),
     ),
   );
+});
+
+test("diagonal routing remains an advisory warning rather than a blocking error", () => {
+  const report = CircuitDraw.validate({
+    title: "Diagonal wire layout",
+    elements: [
+      { type: "resistor", id: "R1", from: [100, 100], to: [160, 100] },
+      { type: "wire", id: "W1", open: true, points: [[100, 100], [140, 140]] },
+    ],
+  });
+  assert.deepEqual(Array.from(report.errors), []);
+  assert.ok(report.warnings.some((warning) => warning.includes("is diagonal")));
+});
+
+test("wire crossing a component is a blocking short-circuit error", () => {
+  const report = CircuitDraw.validate({
+    title: "Wire across resistor",
+    elements: [
+      { type: "resistor", id: "R1", from: [100, 100], to: [200, 100] },
+      { type: "wire", id: "W1", points: [[120, 100], [180, 100]] },
+    ],
+  });
+  assert.ok(report.errors.some((error) => error.includes('would short it out')));
 });
 
 test("astable validation requires a resistor from each base to the positive supply", () => {
@@ -156,4 +179,30 @@ test("astable validation requires a resistor from each base to the positive supp
   const report = CircuitDraw.validate(CircuitDraw.autoFix(missingBaseFeeds).spec);
   assert.ok(report.errors.some((error) => error.includes("Q1.B needs its own resistor to the positive supply")));
   assert.ok(report.errors.some((error) => error.includes("Q2.B needs its own resistor to the positive supply")));
+});
+
+test("astable base feeds accept a +5V terminal without an ID", () => {
+  const noTerminalId = structuredClone(astableFlasher);
+  delete noTerminalId.elements.find((element) => element.id === "VCC1").id;
+  const report = CircuitDraw.validate(CircuitDraw.autoFix(noTerminalId).spec);
+  assert.equal(report.errors.some((error) => error.includes("needs its own resistor to the positive supply")), false);
+});
+
+test("astable transistor emitters must reach their return rail", () => {
+  const disconnectedEmitter = structuredClone(astableFlasher);
+  disconnectedEmitter.elements = disconnectedEmitter.elements.filter((element) => element.id !== "W_Q1_EMITTER");
+  const report = CircuitDraw.validate(CircuitDraw.autoFix(disconnectedEmitter).spec);
+  assert.ok(report.errors.some((error) => error.includes("Q1.E must connect to ground")));
+});
+
+test("astable emitter resistors are accepted as a path to ground", () => {
+  const emitterResistor = structuredClone(astableFlasher);
+  emitterResistor.elements = emitterResistor.elements.filter((element) => element.id !== "W_Q1_EMITTER");
+  emitterResistor.elements.push(
+    { type: "wire", id: "W_Q1_EMITTER_TOP", points: [[200, 294], [200, 350]] },
+    { type: "resistor", id: "R5", from: [200, 350], to: [200, 400], value: "220 ohm" },
+    { type: "wire", id: "W_Q1_EMITTER_BOTTOM", points: [[200, 400], [200, 440]] },
+  );
+  const report = CircuitDraw.validate(CircuitDraw.autoFix(emitterResistor).spec);
+  assert.equal(report.errors.some((error) => error.includes("Q1.E must connect to ground")), false);
 });

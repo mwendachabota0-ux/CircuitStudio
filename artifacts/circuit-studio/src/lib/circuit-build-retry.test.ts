@@ -117,13 +117,11 @@ test('exposes manual retry after exactly three transient failures', async () => 
   assert.equal(sends, MAX_AUTO_RETRIES + 1);
 });
 
-test('repairs disconnected-wire warnings and spacing errors using exact findings', async () => {
+test('repairs blocking wire faults without sending layout warnings as errors', async () => {
   const failingSpec = { title: 'Rejected AI proposal', elements: [] };
   const badProposal = { answer: 'Draft ready.', nextMode: 'build' as const, proposal: { spec: failingSpec } };
-  const findings = [
-    'R1: terminals are only 30 px apart; resistor needs at least 50 px.',
-    'Wire W1 at (120,80) is not connected to anything.',
-  ];
+  const blockingFinding = 'Wire W1 at (120,80) is not connected to anything.';
+  const advisoryWarning = 'W1 has a diagonal segment; use horizontal and vertical wires.';
   const requests: CircuitBuildChatInput[] = [];
   const progress: Array<[number, string]> = [];
 
@@ -136,7 +134,7 @@ test('repairs disconnected-wire warnings and spacing errors using exact findings
     getProposal: (response) => 'proposal' in response ? response.proposal.spec : null,
     inspectProposal: () => ({
       validation: requests.length === 1
-        ? { errors: [findings[0]], warnings: [findings[1]] }
+        ? { errors: [blockingFinding], warnings: [advisoryWarning] }
         : { errors: [], warnings: [] },
       canRepair: true,
     }),
@@ -152,8 +150,8 @@ test('repairs disconnected-wire warnings and spacing errors using exact findings
 
   assert.equal(requests.length, 2);
   assert.deepEqual(progress, [[1, 'repair']]);
-  assert.match(requests[1].message, /R1: terminals are only 30 px apart/);
   assert.match(requests[1].message, /Wire W1 .*not connected/);
+  assert.doesNotMatch(requests[1].message, /diagonal segment/);
   assert.deepEqual(requests[1].history, [
     ...baseRequest.history!,
     { role: 'user', content: baseRequest.message },
@@ -162,6 +160,27 @@ test('repairs disconnected-wire warnings and spacing errors using exact findings
   assert.notDeepEqual(requests[1].currentSpec, baseRequest.currentSpec);
   assert.equal(requests[1].history?.filter((item) => item.content === baseRequest.message).length, 1);
   assert.equal(result.response, noProposal);
+});
+
+test('accepts a valid proposal with advisory warnings without retrying', async () => {
+  const proposal = { title: 'Accepted layout', elements: [] };
+  let repairRequests = 0;
+  const result = await runCircuitBuildAttempts({
+    initialRequest: baseRequest,
+    send: async () => ({ answer: 'Ready.', nextMode: 'build' as const, proposal: { spec: proposal } }),
+    getProposal: (response) => response.proposal.spec,
+    inspectProposal: () => ({
+      validation: { errors: [], warnings: ['A wire segment is diagonal; this is a layout note.'] },
+      canRepair: true,
+    }),
+    makeRepairRequest: () => {
+      repairRequests += 1;
+      return baseRequest;
+    },
+  });
+  assert.equal(result.response.proposal.spec, proposal);
+  assert.deepEqual(result.proposalInspection?.validation.warnings, ['A wire segment is diagonal; this is a layout note.']);
+  assert.equal(repairRequests, 0);
 });
 
 test('each repair request uses the latest failing proposal, not the workbench draft', async () => {
@@ -182,7 +201,7 @@ test('each repair request uses the latest failing proposal, not the workbench dr
     },
     getProposal: (response) => 'proposal' in response ? response.proposal.spec : null,
     inspectProposal: () => ({
-      validation: { errors: [], warnings: ['Wire W1 is disconnected.'] },
+      validation: { errors: ['Wire W1 endpoint is disconnected.'], warnings: [] },
       canRepair: true,
     }),
     makeRepairRequest: (response, findings) => buildRepairRequest(
@@ -225,7 +244,7 @@ test('allows wire-only repairs while preserving every component position', async
     getProposal: (response) => response.proposal.spec,
     inspectProposal: () => ({
       validation: inspected++ === 0
-        ? { errors: [], warnings: ['Wire W1 is disconnected.'] }
+        ? { errors: ['Wire W1 endpoint is disconnected.'], warnings: [] }
         : { errors: [], warnings: [] },
       canRepair: true,
     }),
@@ -266,7 +285,7 @@ test('rejects a repair before applying it if a component moves', async () => {
       },
       getProposal: (response) => response.proposal.spec,
       inspectProposal: () => ({
-        validation: { errors: [], warnings: ['Wire W1 is disconnected.'] },
+        validation: { errors: ['Wire W1 endpoint is disconnected.'], warnings: [] },
         canRepair: true,
       }),
       makeRepairRequest: () => baseRequest,
@@ -362,7 +381,7 @@ test('stops after three repair retries and exposes a manual retry', async () => 
       },
       getProposal: (response) => response.proposal.spec,
       inspectProposal: () => ({
-        validation: { errors: [], warnings: findings },
+        validation: { errors: findings, warnings: [] },
         canRepair: true,
       }),
       makeRepairRequest: () => {

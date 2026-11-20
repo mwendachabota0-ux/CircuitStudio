@@ -263,7 +263,7 @@
         var t1 = ((sg[0][0] - a0[0]) * (b0[0] - a0[0]) + (sg[0][1] - a0[1]) * (b0[1] - a0[1])) / L2;
         var t2 = ((sg[1][0] - a0[0]) * (b0[0] - a0[0]) + (sg[1][1] - a0[1]) * (b0[1] - a0[1])) / L2;
         var lo = Math.max(0, Math.min(t1, t2)), hi = Math.min(1, Math.max(t1, t2));
-        if (hi - lo > 0.01) res.warnings.push('A wire runs over ' + nm + ' and would short it out. Wires must stop at its from/to points, not pass through.');
+        if (hi - lo > 0.01) res.errors.push('A wire runs over ' + nm + ' and would short it out. Wires must stop at its from/to points, not pass through.');
       });
     });
 
@@ -281,7 +281,7 @@
           ? ' Nearest pin is ' + nearest.owner + ' at (' + f(nearest.point[0]) + ',' + f(nearest.point[1]) + '), ' + f(nearest.distance) + ' px away.'
           : ' No component pin was found.';
         if (e.wireOwners.length) {
-          res.warnings.push(owner + ' endpoint at ' + location + ' is not connected.' + detail);
+          res.errors.push(owner + ' endpoint at ' + location + ' is not connected.' + detail);
           res.freeEnds.push({ point: point, kind: 'wire' });
         } else {
           res.warnings.push(owner + ' at ' + location + ' is not connected to a wire.' + detail);
@@ -296,7 +296,7 @@
 
   function validate(spec) {
     var a = analyse(spec);
-    if (!a.errors.length) a.errors = a.errors.concat(astableTopologyFindings(spec));
+    a.errors = a.errors.concat(astableTopologyFindings(spec));
     return { errors: a.errors, warnings: a.warnings };
   }
 
@@ -325,7 +325,7 @@
 
     var connectivity;
     try {
-      connectivity = netlist(spec);
+      connectivity = netlist(spec, true);
     } catch (error) {
       return findings;
     }
@@ -340,6 +340,7 @@
       var name = partName(transistor);
       return {
         name: String(name || transistor.type),
+        type: transistor.type,
         base: netFor(name, 'B'),
         collector: netFor(name, 'C'),
         emitter: netFor(name, 'E'),
@@ -358,15 +359,28 @@
     var positiveSupply = connectivity.nets.filter(function (net) {
       return /^(VCC|VDD|V\d+(?:p\d+)?)$/i.test(net.name);
     })[0] || null;
-    transistorNets.forEach(function (transistor) {
-      var hasBaseFeed = !!positiveSupply && spec.elements.some(function (element) {
+    var groundSupply = connectivity.nets.filter(function (net) {
+      return /^(GND|GROUND|VSS|0V|COM)$/i.test(net.name);
+    })[0] || null;
+    function hasResistorBetween(firstNet, secondNet) {
+      return !!firstNet && !!secondNet && spec.elements.some(function (element) {
         if (!element || element.type !== 'resistor') return false;
         var name = partName(element);
-        return (sameNet(netFor(name, '1'), transistor.base) && sameNet(netFor(name, '2'), positiveSupply)) ||
-          (sameNet(netFor(name, '2'), transistor.base) && sameNet(netFor(name, '1'), positiveSupply));
+        return (sameNet(netFor(name, '1'), firstNet) && sameNet(netFor(name, '2'), secondNet)) ||
+          (sameNet(netFor(name, '2'), firstNet) && sameNet(netFor(name, '1'), secondNet));
       });
+    }
+    transistorNets.forEach(function (transistor) {
+      var baseRail = transistor.type === 'pnp' ? groundSupply : positiveSupply;
+      var emitterRail = transistor.type === 'pnp' ? positiveSupply : groundSupply;
+      var baseFeedLabel = transistor.type === 'pnp' ? 'ground' : 'the positive supply';
+      var emitterRailLabel = transistor.type === 'pnp' ? 'the positive supply' : 'ground';
+      var hasBaseFeed = hasResistorBetween(transistor.base, baseRail);
       if (!hasBaseFeed) {
-        findings.push(transistor.name + '.B needs its own resistor to the positive supply.');
+        findings.push(transistor.name + '.B needs its own resistor to ' + baseFeedLabel + '.');
+      }
+      if (!sameNet(transistor.emitter, emitterRail) && !hasResistorBetween(transistor.emitter, emitterRail)) {
+        findings.push(transistor.name + '.E must connect to ' + emitterRailLabel + ' directly or through a resistor.');
       }
     });
 
@@ -718,9 +732,9 @@
     lamp: 'Lamp', acsource: 'AC source', crystal: 'Crystal', npn: 'NPN transistor', pnp: 'PNP transistor', opamp: 'Op-amp',
     antenna: 'Antenna (a plain wire)' };
 
-  function netlist(spec) {
+  function netlist(spec, allowStructuralErrors) {
     var rep = analyse(spec);
-    if (rep.errors.length) throw new Error('Invalid circuit spec:\n- ' + rep.errors.join('\n- '));
+    if (rep.errors.length && !allowStructuralErrors) throw new Error('Invalid circuit spec:\n- ' + rep.errors.join('\n- '));
     var parent = {};
     function find(k) { if (parent[k] === undefined) parent[k] = k; while (parent[k] !== k) { parent[k] = parent[parent[k]]; k = parent[k]; } return k; }
     function union(a, b) { a = find(a); b = find(b); if (a !== b) parent[a] = b; }

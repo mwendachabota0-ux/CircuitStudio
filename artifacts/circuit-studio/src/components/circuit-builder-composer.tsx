@@ -23,6 +23,7 @@ type CircuitBuilderComposerProps = {
   isWorking: boolean;
   briefEditing: boolean;
   hasProposal: boolean;
+  hasUnappliedJsonEdits: boolean;
   retryAttempt: number;
   retryKind: BuildRetryKind | null;
   onSubmitMessage: (content: string, draftRevisionAtStart: number) => void | Promise<void>;
@@ -36,13 +37,14 @@ const CircuitBuilderComposer = forwardRef<
   isWorking,
   briefEditing,
   hasProposal,
+  hasUnappliedJsonEdits,
   retryAttempt,
   retryKind,
   onSubmitMessage,
 }, ref) {
   const [draft, setDraft] = useState('');
   const draftRevisionRef = useRef(0);
-  const canSend = draft.trim().length > 0 && !isWorking && !hasProposal && !briefEditing;
+  const canSend = draft.trim().length > 0 && !isWorking && !hasProposal && !briefEditing && !hasUnappliedJsonEdits;
 
   useImperativeHandle(ref, () => ({
     getDraftRevision: () => draftRevisionRef.current,
@@ -86,6 +88,8 @@ const CircuitBuilderComposer = forwardRef<
       ? 'Save or cancel your notes before sending'
       : hasProposal
         ? 'Apply or discard the staged proposal before sending another request'
+        : hasUnappliedJsonEdits
+          ? 'Apply your JSON edit before sending it to Studio AI'
         : mode === 'chat'
           ? 'Enter to send · Shift + Enter for a new line'
           : 'A proposal is staged for your review, never applied automatically';

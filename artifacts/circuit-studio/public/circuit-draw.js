@@ -1122,7 +1122,9 @@
 
   function render(spec, opts) {
     var a = analyse(spec);
-    if (a.errors.length) throw new Error('Invalid circuit spec:\n- ' + a.errors.join('\n- '));
+    if (a.errors.length && !(opts && opts.allowStructuralErrors === true)) {
+      throw new Error('Invalid circuit spec:\n- ' + a.errors.join('\n- '));
+    }
 
     T = {};
     [DEFAULT_THEME, spec.theme || {}, opts || {}].forEach(function (src) { for (var k in src) T[k] = src[k]; });

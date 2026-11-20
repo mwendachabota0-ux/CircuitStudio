@@ -20,13 +20,14 @@ import {
   Bot, BookOpenCheck, CircleHelp, Eye, Lightbulb, ListChecks, MessageCircle, Send, X,
 } from 'lucide-react';
 import { ErrorBoundary } from '@/components/error-boundary';
-import CircuitBuilderChat from './components/circuit-builder-chat';
+import CircuitBuilderChat, { type JsonRepairRequest } from './components/circuit-builder-chat';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import exampleCircuit from './exampleCircuit.json';
+import { parseCircuitSpecJson } from './lib/circuit-spec-editor';
 import {
   buildBomCsv,
   buildBomRows,
@@ -39,7 +40,7 @@ import { Redirect, Route, Switch, useLocation, Link, Router as WouterRouter } fr
 type ValidationReport = { errors: string[]; warnings: string[] };
 type CircuitSpec = ApiCircuitSpec;
 type CircuitDrawApi = {
-  render: (spec: CircuitSpec) => string;
+  render: (spec: CircuitSpec, options?: { allowStructuralErrors?: boolean }) => string;
   validate: (spec: CircuitSpec) => ValidationReport;
   autoFix: (spec: CircuitSpec) => { spec: CircuitSpec; changes: string[] };
   buildSheet: (spec: CircuitSpec) => string;
@@ -134,6 +135,17 @@ function readDraft(userId: string): CircuitSpec {
       if (parsed && typeof parsed.title === 'string' && Array.isArray(parsed.elements)) return parsed;
     }
   } catch { /* A damaged local draft should never prevent opening the workbench. */ }
+  return initialSpec;
+}
+
+function getBuilderCompatibleSpec(candidate: CircuitSpec, fallback: CircuitSpec): CircuitSpec {
+  const isCompatible = (value: CircuitSpec) =>
+    value.elements.length > 0 &&
+    value.elements.length <= 300 &&
+    value.elements.every((element) => !CircuitGeometry.getCircuitElementSchemaError(element));
+
+  if (isCompatible(candidate)) return candidate;
+  if (isCompatible(fallback)) return fallback;
   return initialSpec;
 }
 
@@ -680,6 +692,10 @@ function Studio({ userId }: { userId: string }) {
   const [spec, setSpec] = useState<CircuitSpec>(() => readDraft(userId));
   const [jsonText, setJsonText] = useState(() => JSON.stringify(readDraft(userId), null, 2));
   const [jsonError, setJsonError] = useState('');
+  const [jsonEditorDirty, setJsonEditorDirty] = useState(false);
+  const [jsonRepairRequest, setJsonRepairRequest] = useState<JsonRepairRequest | null>(null);
+  const jsonRepairRequestIdRef = useRef(0);
+  const [hasStagedBuilderProposal, setHasStagedBuilderProposal] = useState(false);
   const [libraryReady, setLibraryReady] = useState(!!window.CircuitDraw);
   const [toast, setToast] = useState('');
   const [copied, setCopied] = useState(false);
@@ -751,7 +767,7 @@ function Studio({ userId }: { userId: string }) {
       setDraftReview({ signature: reviewSignature, text: '', state: 'idle' });
       return;
     }
-    if (!libraryReady || jsonError || report.errors.length) {
+    if (!libraryReady || jsonError || jsonEditorDirty || report.errors.length) {
       setDraftReview({ signature: reviewSignature, text: '', state: 'idle' });
       return;
     }
@@ -773,10 +789,14 @@ function Studio({ userId }: { userId: string }) {
       });
     }, 850);
     return () => window.clearTimeout(timer);
-  }, [spec, reviewSignature, jsonError, libraryReady, report.errors.length]);
+  }, [spec, reviewSignature, jsonError, jsonEditorDirty, libraryReady, report.errors.length]);
   const svg = useMemo(() => {
-    if (!window.CircuitDraw || report.errors.length) return '';
-    try { return window.CircuitDraw.render(spec); }
+    if (!window.CircuitDraw) return '';
+    try {
+      return window.CircuitDraw.render(spec, {
+        allowStructuralErrors: report.errors.length > 0,
+      });
+    }
     catch { return ''; }
   }, [spec, report, libraryReady]);
   const elementCount = spec.elements?.length ?? 0;
@@ -786,6 +806,7 @@ function Studio({ userId }: { userId: string }) {
     setSpec(next);
     setJsonText(JSON.stringify(next, null, 2));
     setJsonError('');
+    setJsonEditorDirty(false);
   };
 
   const updateBomMetadata = (row: (typeof bomRows)[number], field: BomMetadataField, value: string) => {
@@ -804,27 +825,50 @@ function Studio({ userId }: { userId: string }) {
 
   const onJsonChange = (value: string) => {
     setJsonText(value);
-    try {
-      const parsed = JSON.parse(value);
-      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) || typeof parsed.title !== 'string' || !Array.isArray(parsed.elements)) {
-        setJsonError('Expected a CircuitSpec with a string title and an elements array.');
-        return;
-      }
-      if ((parsed.width !== undefined && typeof parsed.width !== 'number') || (parsed.height !== undefined && typeof parsed.height !== 'number')) {
-        setJsonError('Optional width and height values must be numbers.');
-        return;
-      }
-      const invalidElementIndex = parsed.elements.findIndex((element: unknown) => !element || typeof element !== 'object' || Array.isArray(element) || typeof (element as { type?: unknown }).type !== 'string');
-      if (invalidElementIndex >= 0) {
-        setJsonError(`Element ${invalidElementIndex + 1} must be an object with a string type.`);
-        return;
-      }
-      hasEditedDraftRef.current = true;
-      setSpec(parsed as CircuitSpec);
-      setJsonError('');
-    } catch {
-      setJsonError('JSON is incomplete or malformed. Fix the syntax to update the drawing.');
+    setJsonEditorDirty(true);
+    const result = parseCircuitSpecJson(value);
+    setJsonError(result.ok ? '' : result.error);
+  };
+  const applyJsonEdit = () => {
+    const parsed = parseCircuitSpecJson(jsonText);
+    if (!parsed.ok) {
+      setJsonError(parsed.error);
+      setJsonEditorDirty(false);
+      setJsonRepairRequest({
+        id: ++jsonRepairRequestIdRef.current,
+        rawJson: jsonText,
+        parseError: parsed.error,
+        baseSpec: getBuilderCompatibleSpec(spec, initialSpec),
+      });
+      setToast('Studio AI is interpreting your JSON edit and will stage any repair for review.');
+      return;
     }
+
+    let validation: ValidationReport = { errors: [], warnings: [] };
+    try {
+      if (window.CircuitDraw) validation = window.CircuitDraw.validate(parsed.spec);
+    } catch (error) {
+      validation = {
+        errors: [error instanceof Error ? error.message : 'The drawing structure could not be checked.'],
+        warnings: [],
+      };
+    }
+
+    const repairBaseSpec = getBuilderCompatibleSpec(parsed.spec, spec);
+    acceptSpec(parsed.spec);
+    if (validation.errors.length) {
+      setJsonRepairRequest({
+        id: ++jsonRepairRequestIdRef.current,
+        rawJson: jsonText,
+        parseError: 'The JSON parsed, but the drawing has structural issues.',
+        validationFindings: validation.errors,
+        baseSpec: repairBaseSpec,
+      });
+      setToast('Draft applied. Studio AI is preparing a repair proposal for you to review.');
+      return;
+    }
+
+    setToast('CircuitSpec edit applied. The preview and Studio AI now use this draft.');
   };
 
   const download = (filename: string, content: BlobPart, type: string) => {
@@ -938,10 +982,17 @@ function Studio({ userId }: { userId: string }) {
           <CircuitBuilderChat
             userId={userId}
             currentSpec={spec}
-            validationFindings={jsonError ? [] : report.errors}
-            canRepairCurrentDraft={libraryReady && !jsonError && report.errors.length > 0}
+            validationFindings={jsonError || jsonEditorDirty ? [] : report.errors}
+            canRepairCurrentDraft={libraryReady && !jsonError && !jsonEditorDirty && report.errors.length > 0}
+            hasUnappliedJsonEdits={jsonEditorDirty}
+            jsonRepairRequest={jsonRepairRequest}
+            onProposalStateChange={setHasStagedBuilderProposal}
+            onJsonRepairRequestHandled={(id) => {
+              setJsonRepairRequest((current) => current?.id === id ? null : current);
+            }}
             onApplySpec={(nextSpec) => {
               acceptSpec(nextSpec as CircuitSpec);
+              setJsonRepairRequest(null);
               setToast('Proposal applied to the workbench.');
             }}
             onTaskComplete={(mode) => {
@@ -958,7 +1009,7 @@ function Studio({ userId }: { userId: string }) {
             <div className="canvas-toolbar">
               <div className="canvas-name"><span className="section-icon"><CircuitBoard /></span><strong>{spec.title || 'Untitled circuit'}</strong><span>{elementCount} elements</span></div>
               <div className="toolbar-actions">
-                <button className="toolbar-link-button" data-testid="button-load-example" onClick={loadExample} title="Load the FM transmitter example"><CircuitBoard /> Load example</button>
+                <button className="toolbar-link-button" data-testid="button-load-example" onClick={loadExample} title="Load the FM transmitter example" disabled={!!jsonRepairRequest}><CircuitBoard /> Load example</button>
                 <div className="download-menu">
                   <button className="toolbar-link-button toolbar-icon-button" type="button" aria-label="Open downloads" title="Downloads" aria-expanded={downloadMenuOpen} aria-haspopup="menu" data-testid="button-download-menu" onClick={() => setDownloadMenuOpen((open) => !open)} disabled={!svg && !bomRows.length}><Download aria-hidden="true" /></button>
                   {downloadMenuOpen && <div className="download-popover" role="menu">
@@ -973,11 +1024,14 @@ function Studio({ userId }: { userId: string }) {
             </div>
             <div className="schematic-stage">
               {!libraryReady ? <div className="schematic-paper canvas-empty"><div className="loading-skeleton" /><p>Loading the drawing engine…</p></div>
-                : report.errors.length ? <div className="schematic-paper canvas-empty"><h3>This schematic needs a repair</h3><p>Resolve the drawing errors in the JSON editor below to see the rendered circuit.</p></div>
-                  : svg ? <SchematicViewer svg={svg} onFullscreenError={() => setToast('Fullscreen mode is unavailable in this browser.')} />
+                : svg ? <>
+                    {report.errors.length > 0 && <span className="schematic-repair-badge" data-testid="status-schematic-repair">Needs repair</span>}
+                    <SchematicViewer svg={svg} onFullscreenError={() => setToast('Fullscreen mode is unavailable in this browser.')} />
+                  </>
+                  : report.errors.length ? <div className="schematic-paper canvas-empty"><h3>This schematic needs a repair</h3><p>The current draft has drawing errors and could not be rendered. Apply a JSON edit or ask Studio AI to repair it.</p></div>
                     : <div className="schematic-paper canvas-empty"><div className="empty-icon"><CircuitBoard /></div><h3>Ready to draw</h3><p>Your schematic will appear here once the drawing engine is available.</p></div>}
             </div>
-            <div className="canvas-foot"><span data-testid="status-canvas">{report.errors.length ? 'Drawing paused' : 'Vector schematic'}</span><span>Canvas {spec.width || 'auto'} × {spec.height || 'auto'}</span></div>
+            <div className="canvas-foot"><span data-testid="status-canvas">{report.errors.length ? svg ? 'Needs repair' : 'Drawing paused' : 'Vector schematic'}</span><span>Canvas {spec.width || 'auto'} × {spec.height || 'auto'}</span></div>
           </div>
         </section>
 
@@ -1055,7 +1109,7 @@ function Studio({ userId }: { userId: string }) {
         <section className="panel review-panel" aria-label="AI draft review">
           <div className="panel-heading"><h2 className="section-title"><span className="section-icon"><BookOpenCheck /></span>A second set of eyes</h2><span className="count-badge">Draft review</span></div>
           <div className="review-content">
-            {jsonError || report.errors.length ? <p className="review-prompt">Fix JSON and drawing-structure issues to request a review of this draft.</p>
+            {jsonError || jsonEditorDirty || report.errors.length ? <p className="review-prompt">Apply or repair your JSON edit before requesting a review of this draft.</p>
               : draftReview.signature !== reviewSignature ? <p className="review-prompt">Pause after a valid edit and an educational review will appear here.</p>
                 : draftReview.state === 'loading' ? <div className="review-loading" role="status"><span className="loading-skeleton" />Preparing an educational review…</div>
                   : draftReview.state === 'error' ? <div className="review-error" role="alert"><span>{review.error instanceof Error ? review.error.message : 'Review unavailable right now.'} Your draft is unchanged.</span><button type="button" onClick={() => {
@@ -1096,8 +1150,32 @@ function Studio({ userId }: { userId: string }) {
 
           <div className="panel details-panel">
             <div className="panel-heading"><h2 className="section-title"><span className="section-icon"><Code2 /></span>Editable CircuitSpec</h2><span className="count-badge">JSON</span></div>
-            <textarea className="json-editor" data-testid="input-circuit-json" aria-label="Editable CircuitSpec JSON" spellCheck={false} value={jsonText} onChange={(event) => onJsonChange(event.target.value)} />
-            <div className="editor-footer"><span className="editor-status" data-testid="status-json">{jsonError || `${elementCount} elements · draft saved to your account on this device`}</span><button className="quiet-button" data-testid="button-export-json" onClick={exportJson}><FileCode2 /> Export JSON</button></div>
+            <textarea className="json-editor" data-testid="input-circuit-json" aria-label="Editable CircuitSpec JSON" spellCheck={false} value={jsonText} disabled={!!jsonRepairRequest || hasStagedBuilderProposal} onChange={(event) => onJsonChange(event.target.value)} />
+            <div className="editor-footer">
+              <span className={`editor-status${jsonError || jsonEditorDirty ? ' is-pending' : ''}`} data-testid="status-json">
+                {hasStagedBuilderProposal
+                  ? 'Review or discard the staged proposal before applying JSON edits.'
+                  : jsonRepairRequest
+                  ? 'Studio AI is interpreting this edit…'
+                  : jsonError
+                    ? `${jsonError} Click Apply edit to ask Studio AI.`
+                    : jsonEditorDirty
+                      ? 'Unapplied edits · Studio AI still uses the workbench draft.'
+                      : `${elementCount} elements · draft saved to your account on this device`}
+              </span>
+              <div className="editor-actions">
+                <button
+                  className="editor-apply-button"
+                  type="button"
+                  data-testid="button-apply-json-edit"
+                  disabled={hasStagedBuilderProposal || !!jsonRepairRequest || (!jsonEditorDirty && !jsonError)}
+                  onClick={applyJsonEdit}
+                >
+                  <Check aria-hidden="true" /> Apply edit
+                </button>
+                <button className="quiet-button" type="button" data-testid="button-export-json" onClick={exportJson}><FileCode2 /> Export JSON</button>
+              </div>
+            </div>
           </div>
         </section>
 

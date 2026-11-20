@@ -340,6 +340,19 @@ test("diagonal routing remains an advisory warning rather than a blocking error"
   assert.ok(report.warnings.some((warning) => warning.includes("is diagonal")));
 });
 
+test("invalid but renderable schematics can be shown with explicit structural-error opt-in", () => {
+  const spec = {
+    title: "Needs repair",
+    elements: [
+      { type: "resistor", id: "R1", from: [100, 100], to: [200, 100] },
+    ],
+  };
+
+  assert.ok(CircuitDraw.validate(spec).errors.length > 0);
+  assert.throws(() => CircuitDraw.render(spec), /Invalid circuit spec/);
+  assert.match(CircuitDraw.render(spec, { allowStructuralErrors: true }), /^<svg/);
+});
+
 test("a wire-crossing bridge renders an overpass and keeps the two nets separate", () => {
   const spec = {
     title: "Non-connecting wire bridge",

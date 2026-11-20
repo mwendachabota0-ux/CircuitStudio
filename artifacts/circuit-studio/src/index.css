@@ -152,6 +152,7 @@ a { color: inherit; text-decoration: none; }
 .schematic-stage:fullscreen .schematic-paper { max-width:none; }
 .schematic-stage:fullscreen .schematic-controls { top:34px;right:34px; }
 .schematic-paper { position:absolute;inset:var(--canvas-inset);width:auto;height:auto;max-width:900px;min-height:0;margin:0 auto;background:#fffefa;border:1px solid #e6e3d9;border-radius:3px;box-shadow:0 8px 26px rgba(40,48,45,.07);overflow:hidden; }
+.schematic-repair-badge { position:absolute;z-index:3;top:calc(var(--canvas-inset) + 12px);left:calc(var(--canvas-inset) + 12px);padding:5px 8px;border:1px solid #ead8c6;border-radius:999px;background:#fff8ef;color:#8d5c3e;font:500 9px var(--app-font-mono);letter-spacing:.02em; }
 .schematic-viewport { touch-action:none;cursor:grab;outline:none; }
 .schematic-viewport:focus-visible { outline:2px solid #4b9278;outline-offset:3px; }
 .schematic-viewport.is-panning { cursor:grabbing; }
@@ -216,8 +217,14 @@ a { color: inherit; text-decoration: none; }
 .safety-note { margin:0 18px 15px;padding:11px 13px;border:1px solid #e3e9df;border-left:3px solid #a3b79f;border-radius:8px;background:#f2f5ef;color:#65746a;font-size:10px;line-height:1.65; }
 .safety-note strong { color:#496251; }
 .json-editor { display:block;width:100%;min-height:226px;resize:vertical;border:0;outline:0;padding:14px 16px;background:#f8f7f1;color:#40514c;font:11px/1.65 var(--app-font-mono);tab-size:2; }
-.editor-footer { display:flex;justify-content:space-between;align-items:center;padding:9px 13px;border-top:1px solid #e6e2d9;gap:10px; }
-.editor-status { color:#85908a;font:10px var(--app-font-mono); }
+.editor-footer { display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;padding:9px 13px;border-top:1px solid #e6e2d9;gap:10px; }
+.editor-status { flex:1;min-width:160px;color:#85908a;font:10px/1.5 var(--app-font-mono); }
+.editor-status.is-pending { color:#966a49; }
+.editor-actions { display:flex;align-items:center;justify-content:flex-end;gap:8px;flex:none; }
+.editor-apply-button { min-height:31px;padding:7px 10px;display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:7px;background:#176b55;color:#fffaf0;font-size:10px;font-weight:700;transition:background .18s,transform .18s; }
+.editor-apply-button:hover:not(:disabled) { background:#105643;transform:translateY(-1px); }
+.editor-apply-button:disabled { cursor:not-allowed;opacity:.5; }
+.editor-apply-button svg { width:13px;height:13px; }
 .export-bar { display:flex;justify-content:space-between;align-items:center;gap:16px;margin-top:18px;padding:13px 16px;background:#e9e8dc;border-radius:10px; }
 .export-copy strong { display:block;font:700 12px var(--app-font-display);color:#31443f;margin-bottom:3px; }
 .export-copy span { font-size:10px;color:#74807a; }

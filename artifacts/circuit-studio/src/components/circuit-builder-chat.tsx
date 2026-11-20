@@ -154,6 +154,17 @@ function inspectProposal(spec: CircuitBuildChatInput['currentSpec']): {
   }
 }
 
+function renderRejectedProposalPreview(
+  spec: CircuitBuildChatInput['currentSpec'] | null | undefined,
+): string {
+  if (!spec || !window.CircuitDraw) return '';
+  try {
+    return window.CircuitDraw.render(spec, { allowStructuralErrors: true });
+  } catch {
+    return '';
+  }
+}
+
 function formatValidationFailure(errors: string[], repairAttemptCount: number): string {
   return `The proposal still has ${errors.length} blocking validation error${errors.length === 1 ? '' : 's'} after ${repairAttemptCount} repair attempt${repairAttemptCount === 1 ? '' : 's'}. The full list and rejected draft are shown below.`;
 }
@@ -353,8 +364,20 @@ export type CircuitBuilderChatProps = {
   currentSpec: CircuitBuildChatInput['currentSpec'];
   validationFindings: string[];
   canRepairCurrentDraft: boolean;
+  hasUnappliedJsonEdits: boolean;
+  jsonRepairRequest: JsonRepairRequest | null;
+  onJsonRepairRequestHandled: (id: number) => void;
+  onProposalStateChange: (hasProposal: boolean) => void;
   onApplySpec: (spec: CircuitBuildChatInput['currentSpec']) => void;
   onTaskComplete: (mode: 'chat' | 'build') => void;
+};
+
+export type JsonRepairRequest = {
+  id: number;
+  rawJson: string;
+  parseError: string;
+  baseSpec: CircuitBuildChatInput['currentSpec'];
+  validationFindings?: string[];
 };
 
 export function CircuitBuilderChat({
@@ -362,6 +385,10 @@ export function CircuitBuilderChat({
   currentSpec,
   validationFindings,
   canRepairCurrentDraft,
+  hasUnappliedJsonEdits,
+  jsonRepairRequest,
+  onJsonRepairRequestHandled,
+  onProposalStateChange,
   onApplySpec,
   onTaskComplete,
 }: CircuitBuilderChatProps) {
@@ -388,6 +415,7 @@ export function CircuitBuilderChat({
   const [proposalValidation, setProposalValidation] = useState<ValidationReport | null>(null);
   const [proposalError, setProposalError] = useState('');
   const [rejectedProposalSpec, setRejectedProposalSpec] = useState<CircuitBuildChatInput['currentSpec'] | null>(null);
+  const [rejectedProposalSvg, setRejectedProposalSvg] = useState('');
   const [rejectedSpecCopyState, setRejectedSpecCopyState] = useState<RejectedSpecCopyState>('idle');
   const [componentLibraryOpen, setComponentLibraryOpen] = useState(false);
   const [briefEditing, setBriefEditing] = useState(false);
@@ -404,6 +432,7 @@ export function CircuitBuilderChat({
   const [retryFeedback, setRetryFeedback] = useState<RetryFeedback | null>(null);
   const [repairDiagnostics, setRepairDiagnostics] = useState<RepairAttemptDiagnostic[]>([]);
   const composerRef = useRef<CircuitBuilderComposerHandle>(null);
+  const handledJsonRepairRequestRef = useRef<number | null>(null);
   const pendingRestoreRef = useRef<{
     sessionId: string;
     specSignature: string;
@@ -418,6 +447,10 @@ export function CircuitBuilderChat({
       : null,
   );
   const activeSession = sessions.find((session) => session.id === activeSessionId) ?? historyBootstrap.active;
+
+  useEffect(() => {
+    onProposalStateChange(!!proposal);
+  }, [proposal, onProposalStateChange]);
 
   useEffect(() => {
     try {
@@ -502,6 +535,7 @@ export function CircuitBuilderChat({
     setRetryFeedback(null);
     setRepairDiagnostics([]);
     setRejectedProposalSpec(null);
+    setRejectedProposalSvg('');
     setRejectedSpecCopyState('idle');
     setRetryAttempt(0);
     setRetryKind(null);
@@ -581,6 +615,7 @@ export function CircuitBuilderChat({
           ].slice(-60),
         }));
         setRejectedProposalSpec(null);
+        setRejectedProposalSvg('');
         setRepairDiagnostics(completedRepairDiagnostics);
         if (nextMode === 'build' && response.proposal && proposalInspection) {
           setProposal(response.proposal);
@@ -593,7 +628,9 @@ export function CircuitBuilderChat({
     } catch (error) {
       setMode((currentMode) => getModeAfterFailedRequest(currentMode, request.mode));
       if (error instanceof CircuitBuildAttemptError) {
-        setRejectedProposalSpec(asCircuitSpec(error.rejectedProposal));
+        const rejectedSpec = asCircuitSpec(error.rejectedProposal);
+        setRejectedProposalSpec(rejectedSpec);
+        setRejectedProposalSvg(renderRejectedProposalPreview(rejectedSpec));
         setRepairDiagnostics(error.repairDiagnostics);
         const causeMessage = error.cause instanceof Error
           ? error.cause.message
@@ -627,6 +664,8 @@ export function CircuitBuilderChat({
         });
       } else {
         setRepairDiagnostics([]);
+        setRejectedProposalSpec(null);
+        setRejectedProposalSvg('');
         setRetryFeedback({
           message: error instanceof Error ? error.message : 'The request did not go through. Your message is still here.',
           canRetryManually: true,
@@ -642,7 +681,7 @@ export function CircuitBuilderChat({
 
   const handleSubmitMessage = async (content: string, draftRevisionAtStart: number) => {
     const normalizedContent = content.trim();
-    if (!normalizedContent || chatMutation.isPending || requestCycleActive || briefEditing) return;
+    if (!normalizedContent || chatMutation.isPending || requestCycleActive || briefEditing || hasUnappliedJsonEdits) return;
     const intent = getLocalBuilderModeIntent(normalizedContent);
     if (proposal && intent !== 'chat') return;
     if (intent === 'chat') {
@@ -700,6 +739,7 @@ export function CircuitBuilderChat({
       !canRepairCurrentDraft ||
       !validationFindings.length ||
       !currentSpec ||
+      hasUnappliedJsonEdits ||
       proposal ||
       chatMutation.isPending ||
       requestCycleActive ||
@@ -732,6 +772,67 @@ export function CircuitBuilderChat({
     }, composerRef.current?.getDraftRevision() ?? 0, currentSpec);
   };
 
+  useEffect(() => {
+    const request = jsonRepairRequest;
+    if (
+      !request ||
+      handledJsonRepairRequestRef.current === request.id ||
+      proposal ||
+      chatMutation.isPending ||
+      requestCycleActive
+    ) return;
+
+    handledJsonRepairRequestRef.current = request.id;
+    const validationContext = request.validationFindings?.length
+      ? `CircuitDraw found these structural issues:\n${request.validationFindings.map((finding) => `- ${finding}`).join('\n')}`
+      : `JSON parse or shape issue: ${request.parseError}`;
+    const messagePrefix = [
+      'The user edited the CircuitSpec JSON directly and clicked Apply edit for help.',
+      'Use the raw edit to understand the intended changes. Preserve clear intent, repair the CircuitSpec when possible, and do not discard the requested changes just because the JSON is malformed.',
+      'If the intended circuit behavior cannot be inferred without guessing, ask one focused clarification instead of inventing behavior.',
+      'Return a complete corrected CircuitSpec as a staged proposal. Do not claim that drawing validation proves electrical correctness or safety.',
+      '',
+      validationContext.slice(0, 1200),
+      '',
+      'User-edited CircuitSpec JSON:',
+      '```json',
+    ].join('\n');
+    const closingFence = '\n```';
+    const rawJsonBudget = Math.max(0, 5900 - messagePrefix.length - closingFence.length);
+    const rawJsonContext = request.rawJson.length <= rawJsonBudget
+      ? request.rawJson
+      : `${request.rawJson.slice(0, Math.max(0, rawJsonBudget - 54))}\n[Remaining JSON omitted to fit the builder request.]`;
+    const message = `${messagePrefix}\n${rawJsonContext}${closingFence}`;
+    const history = saved.messages
+      .slice(-8)
+      .map(({ role, content }) => ({ role, content }));
+    const userMessage = newMessage('user', message);
+    setMode('build');
+    setSaved((current) => ({
+      ...current,
+      messages: [...current.messages, userMessage].slice(-60),
+    }));
+
+    void runRequest({
+      message,
+      mode: 'build',
+      currentSpec: request.baseSpec,
+      history,
+      brief: saved.brief,
+    }, composerRef.current?.getDraftRevision() ?? 0).finally(() => {
+      onJsonRepairRequestHandled(request.id);
+    });
+  }, [
+    jsonRepairRequest,
+    proposal,
+    chatMutation.isPending,
+    requestCycleActive,
+    saved,
+    currentSpec,
+    runRequest,
+    onJsonRepairRequestHandled,
+  ]);
+
   const editBrief = () => {
     setBriefGoalDraft(saved.brief.goal);
     setBriefRequirementsDraft(saved.brief.requirements.join('\n'));
@@ -762,6 +863,7 @@ export function CircuitBuilderChat({
     setProposalValidation(null);
     setProposalError('');
     setRejectedProposalSpec(null);
+    setRejectedProposalSvg('');
     setRejectedSpecCopyState('idle');
     setRetryFeedback(null);
     setRepairDiagnostics([]);
@@ -1065,7 +1167,7 @@ export function CircuitBuilderChat({
               <div className="builder-chat__error" role="alert" data-testid="status-builder-error">
                 <span>{errorMessage}</span>
                 {retryFeedback.canRetryManually && (
-                  <button type="button" className="builder-chat__text-link" onClick={retryRequest} disabled={!lastRequest} data-testid="button-retry-builder-chat">Retry</button>
+                  <button type="button" className="builder-chat__text-link" onClick={retryRequest} disabled={!lastRequest || hasUnappliedJsonEdits} data-testid="button-retry-builder-chat">Retry</button>
                 )}
               </div>
               {!!retryFeedback.validationFindings?.length && (
@@ -1078,6 +1180,20 @@ export function CircuitBuilderChat({
                 <section className="builder-chat__validation-findings is-warning" aria-label="Advisory validation warnings" data-testid="list-builder-validation-warnings">
                   <strong>{retryFeedback.validationWarnings.length} advisory warning{retryFeedback.validationWarnings.length === 1 ? '' : 's'} (not blocking)</strong>
                   <ol>{retryFeedback.validationWarnings.map((warning, index) => <li key={`warning-${index}`}>{warning}</li>)}</ol>
+                </section>
+              )}
+              {rejectedProposalSpec && (
+                <section className="builder-chat__rejected-preview" aria-label="Schematic needing repair" data-testid="preview-rejected-proposal">
+                  <div className="builder-chat__rejected-preview-head">
+                    <span className="builder-chat__repair-badge">Needs repair</span>
+                    <span>{rejectedProposalSpec.title}</span>
+                  </div>
+                  {rejectedProposalSvg
+                    ? <div className="builder-chat__preview builder-chat__rejected-preview-canvas">
+                        <div className="builder-chat__svg" dangerouslySetInnerHTML={{ __html: rejectedProposalSvg }} />
+                      </div>
+                    : <p className="builder-chat__rejected-preview-empty">This schematic could not be rendered yet.</p>}
+                  <p className="builder-chat__rejected-preview-note">Preview only · not applied</p>
                 </section>
               )}
               {rejectedProposalSpec && (
@@ -1158,6 +1274,7 @@ export function CircuitBuilderChat({
             isWorking={chatMutation.isPending || requestCycleActive}
             briefEditing={briefEditing}
             hasProposal={!!proposal}
+            hasUnappliedJsonEdits={hasUnappliedJsonEdits}
             retryAttempt={retryAttempt}
             retryKind={retryKind}
             onSubmitMessage={handleSubmitMessage}

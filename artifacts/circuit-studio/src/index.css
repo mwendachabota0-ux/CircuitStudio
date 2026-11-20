@@ -163,7 +163,8 @@ a { color: inherit; text-decoration: none; }
 .schematic-controls .zoom-control-button:hover:not(:disabled) { background:#eeece4;color:#24433d; }
 .schematic-controls .zoom-value { min-width:40px;text-align:center;color:#53645f;font:10px var(--app-font-mono); }
 .schematic-controls .zoom-divider { width:1px;height:20px;margin:0 3px;background:#e2dfd5; }
-.schematic-controls .fit-control-button { min-height:29px;padding:0 8px;font-size:10px; }
+.schematic-controls .fit-control-button { width:auto;min-height:29px;padding:0 8px;font-size:10px; }
+.schematic-controls .fit-control-button:hover:not(:disabled) { background:#eeece4;color:#24433d; }
 .schematic-controls .fit-control-button svg { width:13px;height:13px; }
 .canvas-empty { position:absolute;inset:var(--canvas-inset);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#75827d;max-width:900px;margin:0 auto;padding:36px 15px; }
 .empty-icon { width:48px;height:48px;border-radius:14px;margin:0 auto 14px;background:#e9eee8;color:#39745d;display:grid;place-items:center; }
@@ -334,6 +335,7 @@ a { color: inherit; text-decoration: none; }
 .top-user .tutor-nav-link,.tutor-back-link { display:inline-flex;align-items:center;gap:6px;color:#176b55;font-size:11px;font-weight:700; }
 .top-user .tutor-nav-link svg,.tutor-back-link svg { width:14px;height:14px; }
 .tutor-nav-link:hover,.tutor-back-link:hover { color:#d47b50; }
+.tutor-header-actions { display:flex;align-items:center;gap:24px; }
 .download-menu { position:relative; }
 .download-popover { position:absolute;right:0;top:calc(100% + 7px);z-index:8;min-width:160px;padding:5px;background:#fffefa;border:1px solid #dedbd1;border-radius:8px;box-shadow:0 9px 24px rgba(40,48,45,.14); }
 .download-popover button { width:100%;display:flex;align-items:center;gap:9px;padding:9px 10px;border:0;border-radius:5px;background:transparent;color:#52635e;text-align:left;font-size:11px;font-weight:600; }
@@ -466,6 +468,7 @@ a { color: inherit; text-decoration: none; }
 @media (max-width:760px) {
   .topbar { height:58px;padding:0 16px; }
   .top-meta > span { display:none; }
+  .tutor-header-actions { gap:12px; }
   .workspace { padding:20px 14px 32px; }
   .page-heading { align-items:flex-start;flex-direction:column;gap:10px; }
   .workbench,.details-grid { grid-template-columns:1fr; }

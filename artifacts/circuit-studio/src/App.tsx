@@ -644,7 +644,7 @@ function SchematicViewer({ svg, onFullscreenError }: { svg: string; onFullscreen
         </button>
         <span className="zoom-divider" aria-hidden="true" />
         <button
-          className="quiet-button fit-control-button"
+          className="icon-button fit-control-button"
           type="button"
           aria-label="Reset zoom and fit schematic to view"
           title="Reset zoom and fit to view"
@@ -1239,8 +1239,10 @@ function Tutor({ userId }: { userId: string }) {
     <main className="studio-shell tutor-shell">
       <header className="topbar">
         <Link href="/studio" className="brand" data-testid="link-tutor-studio"><span className="brand-mark"><CircuitBoard aria-hidden="true" /></span><span>Circuit Studio</span></Link>
-        <Link href="/studio" className="tutor-back-link" data-testid="link-back-to-studio"><ArrowRight /> Back to workbench</Link>
-        <div className="top-meta"><span>LEARNING DESK</span><AiStatusControls /></div>
+        <div className="tutor-header-actions">
+          <Link href="/studio" className="tutor-back-link" data-testid="link-back-to-studio"><ArrowRight /> Back to workbench</Link>
+          <div className="top-meta"><span>LEARNING DESK</span><AiStatusControls /></div>
+        </div>
       </header>
       <div className="workspace tutor-workspace">
         <div className="page-heading tutor-heading">

@@ -475,14 +475,11 @@ export const ReviewCircuitResponse = zod.object({
 
 
 /**
- * @summary Read the signed-in account's AI allowance and selected key
+ * @summary Read the signed-in account's AI usage and selected key
  */
 export const getAiUsageResponseTokensUsedMin = 0;
 
 export const getAiUsageResponseTokensReservedMin = 0;
-
-
-export const getAiUsageResponseTokensRemainingMin = 0;
 
 
 
@@ -491,8 +488,6 @@ export const getAiUsageResponseTokensRemainingMin = 0;
 export const GetAiUsageResponse = zod.object({
   "tokensUsed": zod.number().int().min(getAiUsageResponseTokensUsedMin),
   "tokensReserved": zod.number().int().min(getAiUsageResponseTokensReservedMin),
-  "lifetimeLimit": zod.number().int().min(1),
-  "tokensRemaining": zod.number().int().min(getAiUsageResponseTokensRemainingMin),
   "activeKeyNumber": zod.number().int().min(1),
   "configuredKeyNumbers": zod.array(zod.number().int().min(1)),
   "canUseAi": zod.boolean()
@@ -529,17 +524,12 @@ export const setAiKeySelectionResponseTokensUsedMin = 0;
 export const setAiKeySelectionResponseTokensReservedMin = 0;
 
 
-export const setAiKeySelectionResponseTokensRemainingMin = 0;
-
-
 
 
 
 export const SetAiKeySelectionResponse = zod.object({
   "tokensUsed": zod.number().int().min(setAiKeySelectionResponseTokensUsedMin),
   "tokensReserved": zod.number().int().min(setAiKeySelectionResponseTokensReservedMin),
-  "lifetimeLimit": zod.number().int().min(1),
-  "tokensRemaining": zod.number().int().min(setAiKeySelectionResponseTokensRemainingMin),
   "activeKeyNumber": zod.number().int().min(1),
   "configuredKeyNumbers": zod.array(zod.number().int().min(1)),
   "canUseAi": zod.boolean()

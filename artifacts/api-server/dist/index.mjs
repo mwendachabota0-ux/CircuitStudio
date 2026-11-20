@@ -53927,12 +53927,9 @@ var ReviewCircuitResponse = objectType({
 });
 var getAiUsageResponseTokensUsedMin = 0;
 var getAiUsageResponseTokensReservedMin = 0;
-var getAiUsageResponseTokensRemainingMin = 0;
 var GetAiUsageResponse = objectType({
   "tokensUsed": numberType().int().min(getAiUsageResponseTokensUsedMin),
   "tokensReserved": numberType().int().min(getAiUsageResponseTokensReservedMin),
-  "lifetimeLimit": numberType().int().min(1),
-  "tokensRemaining": numberType().int().min(getAiUsageResponseTokensRemainingMin),
   "activeKeyNumber": numberType().int().min(1),
   "configuredKeyNumbers": arrayType(numberType().int().min(1)),
   "canUseAi": booleanType()
@@ -53949,12 +53946,9 @@ var SetAiKeySelectionBody = objectType({
 });
 var setAiKeySelectionResponseTokensUsedMin = 0;
 var setAiKeySelectionResponseTokensReservedMin = 0;
-var setAiKeySelectionResponseTokensRemainingMin = 0;
 var SetAiKeySelectionResponse = objectType({
   "tokensUsed": numberType().int().min(setAiKeySelectionResponseTokensUsedMin),
   "tokensReserved": numberType().int().min(setAiKeySelectionResponseTokensReservedMin),
-  "lifetimeLimit": numberType().int().min(1),
-  "tokensRemaining": numberType().int().min(setAiKeySelectionResponseTokensRemainingMin),
   "activeKeyNumber": numberType().int().min(1),
   "configuredKeyNumbers": arrayType(numberType().int().min(1)),
   "canUseAi": booleanType()
@@ -62118,7 +62112,6 @@ var db = drizzle(pool, { schema: schema_exports });
 
 // src/lib/circuitAi.ts
 import { GoogleGenAI } from "@google/genai";
-var DEFAULT_LIFETIME_TOKEN_ALLOWANCE = 25e3;
 var MAX_CONFIGURED_KEYS = 10;
 var STALE_RESERVATION_AGE_MS = 60 * 60 * 1e3;
 var GEMINI_API_VERSION = "v1beta";
@@ -62133,16 +62126,6 @@ var CircuitAiError = class extends Error {
 var AI_STATUS_MODEL = "gemini-2.5-flash";
 var AI_STATUS_CACHE_TTL_MS = 15e3;
 var aiStatusCache = /* @__PURE__ */ new Map();
-function getLifetimeTokenAllowance() {
-  const raw = process.env.CIRCUIT_STUDIO_LIFETIME_TOKEN_ALLOWANCE;
-  const value = raw === void 0 ? DEFAULT_LIFETIME_TOKEN_ALLOWANCE : Number(raw);
-  if (!Number.isSafeInteger(value) || value < 1) {
-    throw new Error(
-      "CIRCUIT_STUDIO_LIFETIME_TOKEN_ALLOWANCE must be a positive safe integer."
-    );
-  }
-  return value;
-}
 function getConfiguredKeys() {
   const keys = [];
   for (let number = 1; number <= MAX_CONFIGURED_KEYS; number += 1) {
@@ -62168,21 +62151,14 @@ async function getCircuitAiUsage(userId) {
     db.select().from(circuitAiUsage).where(eq(circuitAiUsage.userId, userId)).limit(1),
     readReservedTokens(userId)
   ]);
-  const lifetimeLimit = getLifetimeTokenAllowance();
   const tokensUsed = usageTotal(account?.tokensUsed);
-  const tokensRemaining = Math.max(
-    0,
-    lifetimeLimit - tokensUsed - tokensReserved
-  );
   const activeKeyNumber = keys.find((key) => key.number === account?.selectedKeyNumber)?.number ?? keys[0]?.number ?? 1;
   return {
     tokensUsed,
     tokensReserved,
-    lifetimeLimit,
-    tokensRemaining,
     activeKeyNumber,
     configuredKeyNumbers: keys.map((key) => key.number),
-    canUseAi: keys.length > 0 && tokensRemaining > 0
+    canUseAi: keys.length > 0
   };
 }
 async function probeConfiguredKey(key) {
@@ -62252,7 +62228,6 @@ async function selectCircuitAiKey(userId, keyNumber) {
   return getCircuitAiUsage(userId);
 }
 async function reserveTokens(userId, reserve, availableKeys) {
-  const lifetimeLimit = getLifetimeTokenAllowance();
   const requestId = randomUUID();
   const firstConfiguredKey = availableKeys[0]?.number ?? 1;
   const staleBefore = new Date(Date.now() - STALE_RESERVATION_AGE_MS);
@@ -62267,17 +62242,6 @@ async function reserveTokens(userId, reserve, availableKeys) {
     const [account] = await tx.select().from(circuitAiUsage).where(eq(circuitAiUsage.userId, userId)).for("update").limit(1);
     if (!account) {
       throw new CircuitAiError("Could not prepare your AI usage account.", 503);
-    }
-    const [reservedRow] = await tx.select({
-      total: sql`coalesce(sum(${circuitAiReservations.reservedTokens}), 0)`
-    }).from(circuitAiReservations).where(eq(circuitAiReservations.userId, userId));
-    const existingReserved = usageTotal(reservedRow?.total);
-    const used = usageTotal(account.tokensUsed);
-    if (used + existingReserved + reserve > lifetimeLimit) {
-      throw new CircuitAiError(
-        "This account has reached its lifetime AI token allowance. No tokens were reserved for this request.",
-        402
-      );
     }
     const keyNumber = availableKeys.find((key) => key.number === account.selectedKeyNumber)?.number ?? firstConfiguredKey;
     await tx.insert(circuitAiReservations).values({

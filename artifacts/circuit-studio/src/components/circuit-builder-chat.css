@@ -259,7 +259,7 @@
 @keyframes builder-chat-dot { 50% { opacity: .35; transform: translateY(-2px); } }
 
 .builder-chat__error,
-.builder-chat__allowance,
+.builder-chat__unavailable,
 .builder-chat__usage-error {
   display: flex;
   align-items: flex-start;

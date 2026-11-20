@@ -79,12 +79,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
-        "402":
-          description: Lifetime token allowance is exhausted
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
   /circuits/tutor:
     post:
       operationId: askCircuitTutor
@@ -112,12 +106,6 @@ paths:
                 $ref: "#/components/schemas/ApiError"
         "401":
           description: Authentication is required
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
-        "402":
-          description: Lifetime token allowance is exhausted
           content:
             application/json:
               schema:
@@ -159,12 +147,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
-        "402":
-          description: Lifetime token allowance is exhausted
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
         "503":
           description: Gemini is unavailable or usage could not be recorded
           content:
@@ -202,20 +184,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
-        "402":
-          description: Lifetime token allowance is exhausted
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
   /ai/usage:
     get:
       operationId: getAiUsage
       tags: [account]
-      summary: Read the signed-in account's AI allowance and selected key
+      summary: Read the signed-in account's AI usage and selected key
       responses:
         "200":
-          description: Lifetime usage and configured key numbers
+          description: Tracked usage and configured key numbers
           content:
             application/json:
               schema:
@@ -467,12 +443,6 @@ components:
         tokensReserved:
           type: integer
           minimum: 0
-        lifetimeLimit:
-          type: integer
-          minimum: 1
-        tokensRemaining:
-          type: integer
-          minimum: 0
         activeKeyNumber:
           type: integer
           minimum: 1
@@ -486,8 +456,6 @@ components:
       required:
         - tokensUsed
         - tokensReserved
-        - lifetimeLimit
-        - tokensRemaining
         - activeKeyNumber
         - configuredKeyNumbers
         - canUseAi

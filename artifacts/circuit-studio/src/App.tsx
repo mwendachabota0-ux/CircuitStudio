@@ -1148,7 +1148,6 @@ function Tutor({ userId }: { userId: string }) {
   const usageQuery = useGetAiUsage({ query: { queryKey: getGetAiUsageQueryKey() } });
   const usage = usageQuery.data as AiUsage | undefined;
   const currentSpec = useMemo(() => readDraft(userId), [userId]);
-  const remainingRatio = usage ? Math.max(0, Math.min(1, usage.tokensRemaining / usage.lifetimeLimit)) : 0;
   const requestError = askTutor.error instanceof Error
     ? askTutor.error.message
     : askTutor.error ? 'The tutor could not complete this request. Please try again.' : '';
@@ -1295,13 +1294,13 @@ function Tutor({ userId }: { userId: string }) {
               </form>
             </Form>
             {formError && <p className="prompt-error" role="alert">{formError}</p>}
-            {!usageQuery.isLoading && usage && !usage.canUseAi && <div className="quota-exhausted" role="status" data-testid="status-quota-exhausted"><span><strong>Lifetime allowance reached</strong><small>AI requests are unavailable for this account right now. Your draft remains available in the workbench.</small></span></div>}
-            {usageQuery.isError && <div className="usage-error" role="alert" data-testid="status-usage-error"><span>Account allowance could not be loaded. Retry to check AI availability.</span><button type="button" onClick={() => usageQuery.refetch()}>Retry</button></div>}
+            {!usageQuery.isLoading && usage && usage.configuredKeyNumbers.length === 0 && <div className="ai-unavailable" role="status" data-testid="status-ai-unavailable"><span><strong>Gemini is not configured</strong><small>AI requests are unavailable for this app. Your draft remains available in the workbench.</small></span></div>}
+            {usageQuery.isError && <div className="usage-error" role="alert" data-testid="status-usage-error"><span>AI availability could not be checked. Retry to check again.</span><button type="button" onClick={() => usageQuery.refetch()}>Retry</button></div>}
             {requestError && <div className="tutor-error" role="alert" data-testid="status-tutor-error"><span>{requestError}</span><button type="button" onClick={() => formRef.current?.requestSubmit()}>Retry</button></div>}
           </section>
 
           <aside className="panel usage-panel">
-            <div className="panel-heading"><h2 className="section-title"><span className="section-icon"><ListChecks /></span>Account allowance</h2></div>
+            <div className="panel-heading"><h2 className="section-title"><span className="section-icon"><ListChecks /></span>AI usage and keys</h2></div>
             {usageQuery.isLoading ? <div className="usage-skeleton" role="status"><span /><span /><span /></div>
               : usage ? <div className="usage-content" data-testid="status-ai-usage">
                 <div className="usage-key-row"><span>Active key</span><strong data-testid="text-active-key">#{usage.activeKeyNumber}</strong></div>
@@ -1311,11 +1310,11 @@ function Tutor({ userId }: { userId: string }) {
                 </select>
                 {selectKey.isPending && <p className="usage-feedback" role="status">Switching account key…</p>}
                 {selectKey.isError && <p className="prompt-error" role="alert">Key selection failed. Try again.</p>}
-                <div className="allowance-meter"><div className="allowance-label"><span>Lifetime allowance remaining</span><strong>{usage.tokensRemaining.toLocaleString()} / {usage.lifetimeLimit.toLocaleString()}</strong></div><div className="meter-track"><span style={{ transform: `scaleX(${remainingRatio})` }} /></div></div>
+                <p className="usage-policy" data-testid="text-ai-usage-policy">No app-side token cap</p>
                 <p className="usage-detail">{usage.tokensUsed.toLocaleString()} used · {usage.tokensReserved.toLocaleString()} reserved</p>
-                <p className="usage-footnote">Keys are selected by account configuration. Circuit Studio never asks for or stores API keys in your browser.</p>
+                <p className="usage-footnote">Gemini provider quotas and costs still apply. Keys stay on the server and are never sent to your browser.</p>
               </div>
-                : <div className="usage-fallback" role="status"><p>Allowance details are unavailable. You can still return to your saved workbench.</p><button type="button" className="quiet-button" onClick={() => usageQuery.refetch()}>Retry account check</button></div>}
+                : <div className="usage-fallback" role="status"><p>AI usage details are unavailable. You can still return to your saved workbench.</p><button type="button" className="quiet-button" onClick={() => usageQuery.refetch()}>Retry account check</button></div>}
           </aside>
         </div>
 

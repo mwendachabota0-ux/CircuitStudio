@@ -1,3 +1,4 @@
 - [Circuit Studio access](circuit-studio-access.md) — open sign-up, but require Clerk sign-in for the workbench and Gemini generation.
+- [Circuit Studio AI usage](circuit-studio-ai-usage.md) — track usage, but do not block requests with an app-side token cap.
 - [Schematic view controls](schematic-view-controls.md) — keep Fit-to-view and fullscreen as separate actions; don't turn Fit into a fullscreen toggle.
 - [Working-note ownership](circuit-studio-working-notes.md) — AI adds context, but saved user edits remain protected and editable.

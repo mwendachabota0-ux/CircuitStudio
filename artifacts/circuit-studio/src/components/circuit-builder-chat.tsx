@@ -177,9 +177,8 @@ export function CircuitBuilderChat({
   }, [saved.messages, chatMutation.isPending]);
 
   const visibleMessages = saved.messages;
-  const remaining = usageQuery.data?.tokensRemaining;
-  const allowanceBlocked = usageQuery.data ? !usageQuery.data.canUseAi || remaining === 0 : false;
-  const canSend = draft.trim().length > 0 && !chatMutation.isPending && !allowanceBlocked && !proposal && !briefEditing;
+  const aiUnavailable = usageQuery.data ? !usageQuery.data.canUseAi : false;
+  const canSend = draft.trim().length > 0 && !chatMutation.isPending && !aiUnavailable && !proposal && !briefEditing;
 
   const localProposalState = useMemo(() => {
     if (!proposal) return null;
@@ -230,7 +229,7 @@ export function CircuitBuilderChat({
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const content = draft.trim();
-    if (!content || chatMutation.isPending || allowanceBlocked || briefEditing) return;
+    if (!content || chatMutation.isPending || aiUnavailable || briefEditing) return;
     const intent = localModeIntent(content);
     if (proposal && !intent) return;
     setDraft('');
@@ -266,7 +265,7 @@ export function CircuitBuilderChat({
   };
 
   const retryRequest = async () => {
-    if (!lastRequest || chatMutation.isPending || allowanceBlocked) return;
+    if (!lastRequest || chatMutation.isPending || aiUnavailable) return;
     await runRequest(lastRequest);
   };
 
@@ -318,13 +317,6 @@ export function CircuitBuilderChat({
           </div>
         </div>
         <div className="builder-chat__header-tools">
-          <span className="builder-chat__usage" data-testid="status-builder-allowance">
-            {usageQuery.isPending
-              ? <><span className="builder-chat__skeleton" aria-hidden="true" /> Checking allowance</>
-              : usageQuery.isError
-                ? <button className="builder-chat__text-link" type="button" onClick={() => usageQuery.refetch()} data-testid="button-retry-usage">Usage unavailable · retry</button>
-                : <><span className={`builder-chat__availability${allowanceBlocked ? ' is-blocked' : ''}`} />{allowanceBlocked ? 'AI allowance unavailable' : `${remaining?.toLocaleString() ?? '—'} tokens available`}</>}
-          </span>
           <button className="builder-chat__icon-link" type="button" onClick={clearConversation} aria-label="Clear conversation and brief" title="Clear conversation" data-testid="button-clear-builder-chat">
             <Trash2 aria-hidden="true" />
           </button>
@@ -364,17 +356,17 @@ export function CircuitBuilderChat({
           {chatMutation.isError && (
             <div className="builder-chat__error" role="alert" data-testid="status-builder-error">
               <span>{errorMessage}</span>
-              <button type="button" className="builder-chat__text-link" onClick={retryRequest} disabled={!lastRequest || allowanceBlocked} data-testid="button-retry-builder-chat">Retry</button>
+              <button type="button" className="builder-chat__text-link" onClick={retryRequest} disabled={!lastRequest || aiUnavailable} data-testid="button-retry-builder-chat">Retry</button>
             </div>
           )}
-          {allowanceBlocked && (
-            <div className="builder-chat__allowance" role="status" data-testid="status-builder-quota">
-              <span><strong>AI allowance is unavailable.</strong> You can keep your brief and conversation here, but sending is paused.</span>
+          {aiUnavailable && (
+            <div className="builder-chat__unavailable" role="status" data-testid="status-builder-ai-unavailable">
+              <span><strong>Gemini is not configured.</strong> You can keep your brief and conversation here, but AI requests are unavailable.</span>
             </div>
           )}
           {usageQuery.isError && (
             <div className="builder-chat__usage-error" role="status" data-testid="status-builder-usage-error">
-              Allowance could not be checked. <button className="builder-chat__text-link" type="button" onClick={() => usageQuery.refetch()} data-testid="button-retry-usage-inline">Try again</button>
+              AI availability could not be checked. <button className="builder-chat__text-link" type="button" onClick={() => usageQuery.refetch()} data-testid="button-retry-usage-inline">Try again</button>
             </div>
           )}
 

@@ -505,7 +505,7 @@ export const getGetAiUsageUrl = () => {
 }
 
 /**
- * @summary Read the signed-in account's AI allowance and selected key
+ * @summary Read the signed-in account's AI usage and selected key
  */
 export const getAiUsage = async ( options?: Parameters<typeof customFetch>[1]): Promise<AiUsage> => {
 
@@ -552,7 +552,7 @@ export type GetAiUsageQueryError = ErrorType<ApiError>
 
 
 /**
- * @summary Read the signed-in account's AI allowance and selected key
+ * @summary Read the signed-in account's AI usage and selected key
  */
 
 export function useGetAiUsage<TData = Awaited<ReturnType<typeof getAiUsage>>, TError = ErrorType<ApiError>>(

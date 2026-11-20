@@ -1768,32 +1768,25 @@ export declare const ReviewCircuitResponse: zod.ZodObject<{
     review: string;
 }>;
 /**
- * @summary Read the signed-in account's AI allowance and selected key
+ * @summary Read the signed-in account's AI usage and selected key
  */
 export declare const getAiUsageResponseTokensUsedMin = 0;
 export declare const getAiUsageResponseTokensReservedMin = 0;
-export declare const getAiUsageResponseTokensRemainingMin = 0;
 export declare const GetAiUsageResponse: zod.ZodObject<{
     tokensUsed: zod.ZodNumber;
     tokensReserved: zod.ZodNumber;
-    lifetimeLimit: zod.ZodNumber;
-    tokensRemaining: zod.ZodNumber;
     activeKeyNumber: zod.ZodNumber;
     configuredKeyNumbers: zod.ZodArray<zod.ZodNumber, "many">;
     canUseAi: zod.ZodBoolean;
 }, "strip", zod.ZodTypeAny, {
     tokensUsed: number;
     tokensReserved: number;
-    lifetimeLimit: number;
-    tokensRemaining: number;
     activeKeyNumber: number;
     configuredKeyNumbers: number[];
     canUseAi: boolean;
 }, {
     tokensUsed: number;
     tokensReserved: number;
-    lifetimeLimit: number;
-    tokensRemaining: number;
     activeKeyNumber: number;
     configuredKeyNumbers: number[];
     canUseAi: boolean;
@@ -1830,28 +1823,21 @@ export declare const SetAiKeySelectionBody: zod.ZodObject<{
 }>;
 export declare const setAiKeySelectionResponseTokensUsedMin = 0;
 export declare const setAiKeySelectionResponseTokensReservedMin = 0;
-export declare const setAiKeySelectionResponseTokensRemainingMin = 0;
 export declare const SetAiKeySelectionResponse: zod.ZodObject<{
     tokensUsed: zod.ZodNumber;
     tokensReserved: zod.ZodNumber;
-    lifetimeLimit: zod.ZodNumber;
-    tokensRemaining: zod.ZodNumber;
     activeKeyNumber: zod.ZodNumber;
     configuredKeyNumbers: zod.ZodArray<zod.ZodNumber, "many">;
     canUseAi: zod.ZodBoolean;
 }, "strip", zod.ZodTypeAny, {
     tokensUsed: number;
     tokensReserved: number;
-    lifetimeLimit: number;
-    tokensRemaining: number;
     activeKeyNumber: number;
     configuredKeyNumbers: number[];
     canUseAi: boolean;
 }, {
     tokensUsed: number;
     tokensReserved: number;
-    lifetimeLimit: number;
-    tokensRemaining: number;
     activeKeyNumber: number;
     configuredKeyNumbers: number[];
     canUseAi: boolean;

@@ -127,7 +127,7 @@ export declare const useReviewCircuit: <TError = ErrorType<ApiError>, TContext =
 }) => UseMutationResult<Awaited<ReturnType<typeof reviewCircuit>>, TError, ReviewCircuitMutationVariables, TContext>;
 export declare const getGetAiUsageUrl: () => string;
 /**
- * @summary Read the signed-in account's AI allowance and selected key
+ * @summary Read the signed-in account's AI usage and selected key
  */
 export declare const getAiUsage: (options?: Parameters<typeof customFetch>[1]) => Promise<AiUsage>;
 export declare const getGetAiUsageQueryKey: () => readonly ["/api/ai/usage"];
@@ -140,7 +140,7 @@ export declare const getGetAiUsageQueryOptions: <TData = Awaited<ReturnType<type
 export type GetAiUsageQueryResult = NonNullable<Awaited<ReturnType<typeof getAiUsage>>>;
 export type GetAiUsageQueryError = ErrorType<ApiError>;
 /**
- * @summary Read the signed-in account's AI allowance and selected key
+ * @summary Read the signed-in account's AI usage and selected key
  */
 export declare function useGetAiUsage<TData = Awaited<ReturnType<typeof getAiUsage>>, TError = ErrorType<ApiError>>(options?: {
     query?: UseQueryOptions<Awaited<ReturnType<typeof getAiUsage>>, TError, TData>;

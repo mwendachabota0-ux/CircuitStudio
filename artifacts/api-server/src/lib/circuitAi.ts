@@ -7,7 +7,6 @@ import {
 import { and, eq, lt, sql } from "drizzle-orm";
 import { GoogleGenAI, type GenerateContentResponse } from "@google/genai";
 
-const DEFAULT_LIFETIME_TOKEN_ALLOWANCE = 25_000;
 const MAX_CONFIGURED_KEYS = 10;
 const STALE_RESERVATION_AGE_MS = 60 * 60 * 1000;
 const GEMINI_API_VERSION = "v1beta";
@@ -26,8 +25,6 @@ type ConfiguredKey = { number: number; apiKey: string };
 type AiUsageSummary = {
   tokensUsed: number;
   tokensReserved: number;
-  lifetimeLimit: number;
-  tokensRemaining: number;
   activeKeyNumber: number;
   configuredKeyNumbers: number[];
   canUseAi: boolean;
@@ -46,17 +43,6 @@ const aiStatusCache = new Map<
   number,
   { expiresAt: number; result: Promise<ModelProbe> }
 >();
-
-function getLifetimeTokenAllowance(): number {
-  const raw = process.env.CIRCUIT_STUDIO_LIFETIME_TOKEN_ALLOWANCE;
-  const value = raw === undefined ? DEFAULT_LIFETIME_TOKEN_ALLOWANCE : Number(raw);
-  if (!Number.isSafeInteger(value) || value < 1) {
-    throw new Error(
-      "CIRCUIT_STUDIO_LIFETIME_TOKEN_ALLOWANCE must be a positive safe integer.",
-    );
-  }
-  return value;
-}
 
 function getConfiguredKeys(): ConfiguredKey[] {
   const keys: ConfiguredKey[] = [];
@@ -96,12 +82,7 @@ export async function getCircuitAiUsage(
       .limit(1),
     readReservedTokens(userId),
   ]);
-  const lifetimeLimit = getLifetimeTokenAllowance();
   const tokensUsed = usageTotal(account?.tokensUsed);
-  const tokensRemaining = Math.max(
-    0,
-    lifetimeLimit - tokensUsed - tokensReserved,
-  );
   const activeKeyNumber =
     keys.find((key) => key.number === account?.selectedKeyNumber)?.number ??
     keys[0]?.number ??
@@ -110,11 +91,9 @@ export async function getCircuitAiUsage(
   return {
     tokensUsed,
     tokensReserved,
-    lifetimeLimit,
-    tokensRemaining,
     activeKeyNumber,
     configuredKeyNumbers: keys.map((key) => key.number),
-    canUseAi: keys.length > 0 && tokensRemaining > 0,
+    canUseAi: keys.length > 0,
   };
 }
 
@@ -210,7 +189,6 @@ async function reserveTokens(
   reserve: number,
   availableKeys: ConfiguredKey[],
 ): Promise<{ requestId: string; keyNumber: number }> {
-  const lifetimeLimit = getLifetimeTokenAllowance();
   const requestId = randomUUID();
   const firstConfiguredKey = availableKeys[0]?.number ?? 1;
   const staleBefore = new Date(Date.now() - STALE_RESERVATION_AGE_MS);
@@ -239,22 +217,6 @@ async function reserveTokens(
 
     if (!account) {
       throw new CircuitAiError("Could not prepare your AI usage account.", 503);
-    }
-
-    const [reservedRow] = await tx
-      .select({
-        total: sql<string>`coalesce(sum(${circuitAiReservations.reservedTokens}), 0)`,
-      })
-      .from(circuitAiReservations)
-      .where(eq(circuitAiReservations.userId, userId));
-    const existingReserved = usageTotal(reservedRow?.total);
-    const used = usageTotal(account.tokensUsed);
-
-    if (used + existingReserved + reserve > lifetimeLimit) {
-      throw new CircuitAiError(
-        "This account has reached its lifetime AI token allowance. No tokens were reserved for this request.",
-        402,
-      );
     }
 
     const keyNumber =
@@ -323,8 +285,7 @@ function tokenReservation(
   maxOutputTokens: number,
   imageTokenEstimate: number,
 ): number {
-  // Reserving one token per text character plus a generous image allowance
-  // keeps concurrent requests from spending the same remaining allowance.
+  // Keep a conservative usage estimate visible while the request is in flight.
   return inputText.length + imageTokenEstimate + maxOutputTokens + 512;
 }
 

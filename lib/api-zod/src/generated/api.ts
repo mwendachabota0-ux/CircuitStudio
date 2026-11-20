@@ -650,6 +650,8 @@ export const chatWithCircuitBuilderResponseSuggestedActionsItemLabelMax = 90;
 
 export const chatWithCircuitBuilderResponseSuggestedActionsItemPromptMax = 1000;
 
+export const chatWithCircuitBuilderResponseSuggestedActionsItemReplyToMax = 300;
+
 export const chatWithCircuitBuilderResponseSuggestedActionsMax = 2;
 
 
@@ -734,7 +736,8 @@ export const ChatWithCircuitBuilderResponse = zod.object({
 }).optional(),
   "suggestedActions": zod.array(zod.object({
   "label": zod.string().min(1).max(chatWithCircuitBuilderResponseSuggestedActionsItemLabelMax),
-  "prompt": zod.string().min(1).max(chatWithCircuitBuilderResponseSuggestedActionsItemPromptMax)
+  "prompt": zod.string().min(1).max(chatWithCircuitBuilderResponseSuggestedActionsItemPromptMax),
+  "replyTo": zod.string().min(1).max(chatWithCircuitBuilderResponseSuggestedActionsItemReplyToMax).optional().describe('Exact assistant question this suggested reply answers.')
 })).max(chatWithCircuitBuilderResponseSuggestedActionsMax).optional()
 })
 

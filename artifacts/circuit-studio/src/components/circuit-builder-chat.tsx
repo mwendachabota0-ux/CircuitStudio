@@ -29,6 +29,10 @@ import {
 } from '../lib/circuit-build-retry';
 import { getLocalBuilderModeIntent } from '../lib/circuit-build-intent';
 import {
+  getContextualSuggestedActions,
+  getFinalAssistantQuestion,
+} from '../lib/suggested-action-context';
+import {
   Check,
   CheckCircle2,
   Copy,
@@ -219,7 +223,9 @@ function newMessage(
 function isSuggestedAction(value: unknown): value is CircuitBuilderSuggestedAction {
   if (!value || typeof value !== 'object') return false;
   const action = value as Record<string, unknown>;
-  return typeof action.label === 'string' && typeof action.prompt === 'string';
+  return typeof action.label === 'string' &&
+    typeof action.prompt === 'string' &&
+    (action.replyTo === undefined || typeof action.replyTo === 'string');
 }
 
 export type CircuitBuilderChatProps = {
@@ -572,8 +578,11 @@ export function CircuitBuilderChat({
     );
   };
 
-  const prepareSuggestedAction = (action: CircuitBuilderSuggestedAction) => {
-    setMode('build');
+  const prepareSuggestedAction = (
+    action: CircuitBuilderSuggestedAction,
+    isReplyToQuestion: boolean,
+  ) => {
+    if (!isReplyToQuestion) setMode('build');
     composerRef.current?.setDraft(action.prompt);
   };
 
@@ -651,19 +660,31 @@ export function CircuitBuilderChat({
       <div className="builder-chat__body">
         <div className="builder-chat__conversation">
           <div className="builder-chat__thread" role="log" aria-live="polite" aria-label="Conversation" data-testid="list-builder-messages">
-            {visibleMessages.map((message, index) => (
+            {visibleMessages.map((message, index) => {
+              const assistantQuestion = message.role === 'assistant'
+                ? getFinalAssistantQuestion(message.content)
+                : null;
+              const suggestedActions = message.role === 'assistant'
+                ? getContextualSuggestedActions(
+                    message.content,
+                    Array.isArray(message.suggestedActions)
+                      ? message.suggestedActions.filter(isSuggestedAction)
+                      : [],
+                  ).slice(0, 2)
+                : [];
+              return (
               <article className={`builder-chat__message is-${message.role}`} key={message.id} data-testid={`message-builder-${message.role}-${index}`}>
                 <span className="builder-chat__message-label">{message.role === 'assistant' ? 'Studio' : 'You'}</span>
                 <p>{message.content}</p>
-                {message.role === 'assistant' && Array.isArray(message.suggestedActions) && message.suggestedActions.some(isSuggestedAction) && (
+                {suggestedActions.length > 0 && (
                   <div className="builder-chat__suggested-actions" data-testid={`list-builder-suggested-actions-${index}`}>
-                    <span>Suggested next steps · review before sending</span>
+                    <span>{assistantQuestion ? 'Possible replies' : 'Suggested next steps'} · review before sending</span>
                     <div>
-                      {message.suggestedActions.filter(isSuggestedAction).slice(0, 2).map((action, actionIndex) => (
+                      {suggestedActions.map((action, actionIndex) => (
                         <button
                           key={`${message.id}-action-${actionIndex}`}
                           type="button"
-                          onClick={() => prepareSuggestedAction(action)}
+                          onClick={() => prepareSuggestedAction(action, !!assistantQuestion)}
                           data-testid={`button-builder-suggested-action-${index}-${actionIndex}`}
                         >
                           {action.label}
@@ -673,7 +694,8 @@ export function CircuitBuilderChat({
                   </div>
                 )}
               </article>
-            ))}
+              );
+            })}
             {(chatMutation.isPending || requestCycleActive) && (
               <div className="builder-chat__thinking" role="status" data-testid="status-builder-loading">
                 <span className="builder-chat__thinking-mark"><Sparkles aria-hidden="true" /></span>

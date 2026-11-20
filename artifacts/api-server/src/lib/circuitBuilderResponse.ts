@@ -17,9 +17,30 @@ function normalizeBriefList(value: unknown, fallback: string[]): string[] {
     .map((item) => item.slice(0, 300));
 }
 
+function getFinalQuestion(answer: string): string | null {
+  const text = answer.trim().replace(/[”"')\]]+\s*$/, "").trim();
+  const questionEnd = text.lastIndexOf("?");
+  if (questionEnd < 0 || text.slice(questionEnd + 1).trim()) return null;
+
+  const beforeQuestion = text.slice(0, questionEnd);
+  const sentenceBoundary = Math.max(
+    beforeQuestion.lastIndexOf("."),
+    beforeQuestion.lastIndexOf("!"),
+    beforeQuestion.lastIndexOf("\n"),
+    beforeQuestion.lastIndexOf("?"),
+  );
+  const question = text.slice(sentenceBoundary + 1, questionEnd + 1).trim();
+  return question || null;
+}
+
+function normalizeQuestion(value: string): string {
+  return value.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
 function normalizeSuggestedActions(
   value: unknown,
-): Array<{ label: string; prompt: string }> {
+  finalQuestion: string | null,
+): Array<{ label: string; prompt: string; replyTo?: string }> {
   if (!Array.isArray(value)) return [];
   return value
     .filter((item): item is Record<string, unknown> => isRecord(item))
@@ -28,12 +49,16 @@ function normalizeSuggestedActions(
         typeof item.label === "string" &&
         item.label.trim().length > 0 &&
         typeof item.prompt === "string" &&
-        item.prompt.trim().length > 0,
+        item.prompt.trim().length > 0 &&
+        (!finalQuestion ||
+          (typeof item.replyTo === "string" &&
+            normalizeQuestion(item.replyTo) === normalizeQuestion(finalQuestion))),
     )
     .slice(0, 2)
     .map((item) => ({
       label: (item.label as string).trim().slice(0, 90),
       prompt: (item.prompt as string).trim().slice(0, 1000),
+      ...(finalQuestion ? { replyTo: finalQuestion } : {}),
     }));
 }
 
@@ -54,7 +79,13 @@ export function normalizeCircuitBuilderResponse(
     openQuestions: normalizeBriefList(modelBrief.openQuestions, fallbackBrief.openQuestions),
   };
 
-  const suggestedActions = normalizeSuggestedActions(response.suggestedActions);
+  const finalQuestion = typeof response.answer === "string"
+    ? getFinalQuestion(response.answer)
+    : null;
+  const suggestedActions = normalizeSuggestedActions(
+    response.suggestedActions,
+    finalQuestion,
+  );
   if (suggestedActions.length > 0) {
     response.suggestedActions = suggestedActions;
   } else {

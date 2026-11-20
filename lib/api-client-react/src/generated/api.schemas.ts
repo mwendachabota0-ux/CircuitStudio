@@ -271,6 +271,12 @@ export interface CircuitBuilderSuggestedAction {
      * @maxLength 1000
      */
   prompt: string;
+  /**
+     * Exact assistant question this suggested reply answers.
+     * @minLength 1
+     * @maxLength 300
+     */
+  replyTo?: string;
 }
 
 export type CircuitBuildChatResponseNextMode = typeof CircuitBuildChatResponseNextMode[keyof typeof CircuitBuildChatResponseNextMode];

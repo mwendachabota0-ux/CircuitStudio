@@ -54042,6 +54042,7 @@ var chatWithCircuitBuilderResponseProposalSpecElementsItemLabelAtMin = 2;
 var chatWithCircuitBuilderResponseProposalSpecElementsItemLabelAtMax = 2;
 var chatWithCircuitBuilderResponseSuggestedActionsItemLabelMax = 90;
 var chatWithCircuitBuilderResponseSuggestedActionsItemPromptMax = 1e3;
+var chatWithCircuitBuilderResponseSuggestedActionsItemReplyToMax = 300;
 var chatWithCircuitBuilderResponseSuggestedActionsMax = 2;
 var ChatWithCircuitBuilderResponse = objectType({
   "nextMode": enumType(["chat", "build"]).optional(),
@@ -54123,7 +54124,8 @@ var ChatWithCircuitBuilderResponse = objectType({
   }).optional(),
   "suggestedActions": arrayType(objectType({
     "label": stringType().min(1).max(chatWithCircuitBuilderResponseSuggestedActionsItemLabelMax),
-    "prompt": stringType().min(1).max(chatWithCircuitBuilderResponseSuggestedActionsItemPromptMax)
+    "prompt": stringType().min(1).max(chatWithCircuitBuilderResponseSuggestedActionsItemPromptMax),
+    "replyTo": stringType().min(1).max(chatWithCircuitBuilderResponseSuggestedActionsItemReplyToMax).optional().describe("Exact assistant question this suggested reply answers.")
   })).max(chatWithCircuitBuilderResponseSuggestedActionsMax).optional()
 });
 var reviewCircuitBodySpecElementsItemFromMin = 2;
@@ -64046,13 +64048,31 @@ function normalizeBriefList(value, fallback) {
   if (!Array.isArray(value)) return fallback;
   return value.filter((item) => typeof item === "string").slice(0, 12).map((item) => item.slice(0, 300));
 }
-function normalizeSuggestedActions(value) {
+function getFinalQuestion(answer) {
+  const text3 = answer.trim().replace(/[”"')\]]+\s*$/, "").trim();
+  const questionEnd = text3.lastIndexOf("?");
+  if (questionEnd < 0 || text3.slice(questionEnd + 1).trim()) return null;
+  const beforeQuestion = text3.slice(0, questionEnd);
+  const sentenceBoundary = Math.max(
+    beforeQuestion.lastIndexOf("."),
+    beforeQuestion.lastIndexOf("!"),
+    beforeQuestion.lastIndexOf("\n"),
+    beforeQuestion.lastIndexOf("?")
+  );
+  const question = text3.slice(sentenceBoundary + 1, questionEnd + 1).trim();
+  return question || null;
+}
+function normalizeQuestion(value) {
+  return value.trim().replace(/\s+/g, " ").toLowerCase();
+}
+function normalizeSuggestedActions(value, finalQuestion) {
   if (!Array.isArray(value)) return [];
   return value.filter((item) => isRecord2(item)).filter(
-    (item) => typeof item.label === "string" && item.label.trim().length > 0 && typeof item.prompt === "string" && item.prompt.trim().length > 0
+    (item) => typeof item.label === "string" && item.label.trim().length > 0 && typeof item.prompt === "string" && item.prompt.trim().length > 0 && (!finalQuestion || typeof item.replyTo === "string" && normalizeQuestion(item.replyTo) === normalizeQuestion(finalQuestion))
   ).slice(0, 2).map((item) => ({
     label: item.label.trim().slice(0, 90),
-    prompt: item.prompt.trim().slice(0, 1e3)
+    prompt: item.prompt.trim().slice(0, 1e3),
+    ...finalQuestion ? { replyTo: finalQuestion } : {}
   }));
 }
 function normalizeCircuitBuilderResponse(value, fallbackBrief) {
@@ -64065,7 +64085,11 @@ function normalizeCircuitBuilderResponse(value, fallbackBrief) {
     assumptions: normalizeBriefList(modelBrief.assumptions, fallbackBrief.assumptions),
     openQuestions: normalizeBriefList(modelBrief.openQuestions, fallbackBrief.openQuestions)
   };
-  const suggestedActions = normalizeSuggestedActions(response.suggestedActions);
+  const finalQuestion = typeof response.answer === "string" ? getFinalQuestion(response.answer) : null;
+  const suggestedActions = normalizeSuggestedActions(
+    response.suggestedActions,
+    finalQuestion
+  );
   if (suggestedActions.length > 0) {
     response.suggestedActions = suggestedActions;
   } else {
@@ -64093,9 +64117,13 @@ var builderLimiter = rate_limit_default({
 });
 var builderInstructions = `You are Circuit Studio's conversational circuit-building assistant. Help the user clarify a circuit idea and turn it into a proposed editable schematic. Be concise and collaborative; teach only when it helps the user make a decision.
 
-Return exactly one JSON object with these fields: nextMode ("chat" or "build"), answer (string), brief ({goal:string, requirements:string[], assumptions:string[], openQuestions:string[]}), and optional proposal ({summary:string, spec:CircuitSpec}) and suggestedActions (up to two {label:string, prompt:string} items). Do not include Markdown fences or extra fields.
+Return exactly one JSON object with these fields: nextMode ("chat" or "build"), answer (string), brief ({goal:string, requirements:string[], assumptions:string[], openQuestions:string[]}), and optional proposal ({summary:string, spec:CircuitSpec}) and suggestedActions (up to two {label:string, prompt:string, replyTo?:string} items). Do not include Markdown fences or extra fields.
 
 Keep the brief short. Requirements must come from explicit user statements. Put uncertain but necessary choices in assumptions, never present them as facts. Keep only useful unanswered questions. Ask at most one focused question at a time when a missing detail materially affects the design.
+
+Suggested actions must match the latest assistant answer. If answer ends with a question, offer only possible replies to that exact question, not unrelated design alternatives or generic next steps. For each such action, set replyTo to an exact copy of the question at the end of answer. Make the prompt a response the user could send, or a safe way to find the requested information. Never invent user-specific facts or numeric values; if the answer is unknown, offer to check a label or datasheet, say they do not know yet, or omit suggestions. End a question with the question mark so it is clear which question needs an answer. If answer does not ask a question, suggested actions may be relevant next steps and must not include replyTo.
+
+Example: if answer asks "What is the current draw of your 24V DC motor?" and no current value is known, suitable suggestions are "I'll check the motor label" / "I don't know the current yet". Do not suggest "Use a transistor instead" because that does not answer the current question.
 
 Treat the supplied brief as the source of truth. Retain accurate details unless the user explicitly changes or resolves them; incorporate new information without silently discarding existing notes.
 

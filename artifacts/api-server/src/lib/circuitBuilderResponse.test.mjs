@@ -72,6 +72,53 @@ test("valid suggested actions survive response normalization", () => {
   assert.deepEqual(result.suggestedActions, suggestedActions);
 });
 
+test("question suggestions must be linked to the exact question being asked", () => {
+  const answer = "What is the current draw of your 24V DC motor?";
+  const result = normalizeCircuitBuilderResponse({
+    nextMode: "chat",
+    answer,
+    brief,
+    suggestedActions: [
+      {
+        label: "Use a transistor instead",
+        prompt: "Use a transistor instead.",
+        replyTo: "Should this use a transistor?",
+      },
+      {
+        label: "I'll check the motor label",
+        prompt: "I don't know the current draw yet. I'll check the motor label or datasheet.",
+        replyTo: answer,
+      },
+      {
+        label: "Guess a current",
+        prompt: "Assume the motor draws 2A.",
+      },
+    ],
+  }, brief);
+
+  assert.deepEqual(result.suggestedActions, [{
+    label: "I'll check the motor label",
+    prompt: "I don't know the current draw yet. I'll check the motor label or datasheet.",
+    replyTo: answer,
+  }]);
+});
+
+test("question replies without an exact question link are removed", () => {
+  const result = normalizeCircuitBuilderResponse({
+    nextMode: "chat",
+    answer: "What is the current draw of your 24V DC motor?",
+    brief,
+    suggestedActions: [
+      {
+        label: "Use a transistor instead",
+        prompt: "Use a transistor instead.",
+      },
+    ],
+  }, brief);
+
+  assert.equal("suggestedActions" in result, false);
+});
+
 test("malformed and excess suggested actions are removed or capped", () => {
   const result = normalizeCircuitBuilderResponse({
     answer: "Choose a supported alternative.",

@@ -2713,6 +2713,7 @@ export declare const chatWithCircuitBuilderResponseProposalSpecElementsItemLabel
 export declare const chatWithCircuitBuilderResponseProposalSpecElementsItemLabelAtMax = 2;
 export declare const chatWithCircuitBuilderResponseSuggestedActionsItemLabelMax = 90;
 export declare const chatWithCircuitBuilderResponseSuggestedActionsItemPromptMax = 1000;
+export declare const chatWithCircuitBuilderResponseSuggestedActionsItemReplyToMax = 300;
 export declare const chatWithCircuitBuilderResponseSuggestedActionsMax = 2;
 export declare const ChatWithCircuitBuilderResponse: zod.ZodObject<{
     nextMode: zod.ZodOptional<zod.ZodEnum<["chat", "build"]>>;
@@ -3325,12 +3326,15 @@ export declare const ChatWithCircuitBuilderResponse: zod.ZodObject<{
     suggestedActions: zod.ZodOptional<zod.ZodArray<zod.ZodObject<{
         label: zod.ZodString;
         prompt: zod.ZodString;
+        replyTo: zod.ZodOptional<zod.ZodString>;
     }, "strip", zod.ZodTypeAny, {
         prompt: string;
         label: string;
+        replyTo?: string | undefined;
     }, {
         prompt: string;
         label: string;
+        replyTo?: string | undefined;
     }>, "many">>;
 }, "strip", zod.ZodTypeAny, {
     answer: string;
@@ -3413,6 +3417,7 @@ export declare const ChatWithCircuitBuilderResponse: zod.ZodObject<{
     suggestedActions?: {
         prompt: string;
         label: string;
+        replyTo?: string | undefined;
     }[] | undefined;
 }, {
     answer: string;
@@ -3495,6 +3500,7 @@ export declare const ChatWithCircuitBuilderResponse: zod.ZodObject<{
     suggestedActions?: {
         prompt: string;
         label: string;
+        replyTo?: string | undefined;
     }[] | undefined;
 }>;
 /**

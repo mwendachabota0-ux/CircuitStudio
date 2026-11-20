@@ -12,6 +12,7 @@ import {
   generateWithThinkingBudgetFallback,
   getBuilderThinkingBudgets,
 } from "../lib/circuitBuilderGeneration";
+import { normalizeCircuitBuilderResponse } from "../lib/circuitBuilderResponse";
 import {
   CircuitSpecCompatibilityError,
   parseUsableCircuit,
@@ -45,6 +46,8 @@ Keep the brief short. Requirements must come from explicit user statements. Put 
 Treat the supplied brief as the source of truth. Retain accurate details unless the user explicitly changes or resolves them; incorporate new information without silently discarding existing notes.
 
 Choose nextMode from the meaning of the user's request and conversation context, not from keywords or the currently selected tab. Do not require words such as "build", "draw", "create", or "generate". If the user describes a concrete circuit outcome they want, asks for a schematic or edit indirectly, or indicates that the agreed design should be made usable, set nextMode to "build" and follow the build-mode rules in this same response. This includes natural phrasing such as "I need a flasher that alternates these lights", "could we have it switch every second?", or "that sounds right for my project". If they are asking for an explanation, comparing possibilities, brainstorming, speaking hypothetically, or asking to wait, stay in "chat". If their goal or a critical design choice is genuinely unclear, ask one focused question in chat instead of guessing. The selected tab is only a default when intent is unclear; do not force build mode just because the user previously selected Build.
+
+A greeting or other social opener by itself is not a circuit request. Reply briefly in chat; do not treat an existing brief or current schematic as a new instruction to build.
 
 In build mode, if the request is clear enough, include a complete proposed CircuitSpec. If a critical requirement is unclear, ask one focused question and omit the proposal, but keep nextMode as "build". For edits, start from the supplied current CircuitSpec and preserve unrelated components, values, labels, and connections. For an explicitly new or replacement design, do not preserve an unrelated example circuit.
 
@@ -197,7 +200,9 @@ router.post(
       failureStage = "parse_json";
       const decoded = JSON.parse(text);
       failureStage = "validate_response_schema";
-      const result = ChatWithCircuitBuilderResponse.parse(decoded);
+      const result = ChatWithCircuitBuilderResponse.parse(
+        normalizeCircuitBuilderResponse(decoded, brief),
+      );
       result.nextMode ??= result.proposal ? "build" : parsed.data.mode;
 
       if (result.proposal) {
@@ -237,6 +242,18 @@ router.post(
           reason: "invalid_or_unusable_model_output",
           failureStage,
           errorType: getSafeErrorType(error),
+          validationIssuePaths: error && typeof error === "object" &&
+            Array.isArray((error as { issues?: unknown }).issues)
+            ? (error as { issues: Array<{ path?: unknown; code?: unknown }> }).issues
+              .slice(0, 8)
+              .map((issue) => ({
+                path: Array.isArray(issue.path)
+                  ? issue.path.filter((part): part is string | number =>
+                    typeof part === "string" || typeof part === "number")
+                  : [],
+                code: typeof issue.code === "string" ? issue.code : "unknown",
+              }))
+            : undefined,
           outputLength,
           finishReason,
           generationAttempts,

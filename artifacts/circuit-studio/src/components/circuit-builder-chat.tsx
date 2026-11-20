@@ -188,6 +188,8 @@ function newMessage(role: CircuitBuildChatMessage['role'], content: string): Thr
 export type CircuitBuilderChatProps = {
   userId: string;
   currentSpec: CircuitBuildChatInput['currentSpec'];
+  validationFindings: string[];
+  canRepairCurrentDraft: boolean;
   onApplySpec: (spec: CircuitBuildChatInput['currentSpec']) => void;
   onTaskComplete: (mode: 'chat' | 'build') => void;
 };
@@ -195,6 +197,8 @@ export type CircuitBuilderChatProps = {
 export function CircuitBuilderChat({
   userId,
   currentSpec,
+  validationFindings,
+  canRepairCurrentDraft,
   onApplySpec,
   onTaskComplete,
 }: CircuitBuilderChatProps) {
@@ -264,6 +268,7 @@ export function CircuitBuilderChat({
   const runRequest = async (
     request: CircuitBuildChatInput,
     draftRevisionAtStart: number,
+    initialProtectedElementsSignature?: string,
   ) => {
     setLastRequest(request);
     setRetryFeedback(null);
@@ -287,6 +292,7 @@ export function CircuitBuilderChat({
             ? { ...result, proposal: { ...result.proposal, spec: autoFixed.spec } }
             : result;
         },
+        initialProtectedElementsSignature,
         getProtectedElementsSignature: getNonWireElementSignature,
         makeRepairRequest: (result, findings) => buildRepairRequest(
           request,
@@ -405,6 +411,43 @@ export function CircuitBuilderChat({
     await runRequest(lastRequest, composerRef.current?.getDraftRevision() ?? 0);
   };
 
+  const repairCurrentDraft = () => {
+    if (
+      !canRepairCurrentDraft ||
+      !validationFindings.length ||
+      !currentSpec ||
+      proposal ||
+      chatMutation.isPending ||
+      requestCycleActive ||
+      briefEditing
+    ) return;
+
+    const message = [
+      'Repair the current workbench draft using the CircuitDraw validation findings below.',
+      'Preserve every existing component, value, label, orientation, and position exactly. Repair the wiring only, unless a finding explicitly requires otherwise.',
+      'Return a complete corrected proposal and do not claim that structural validation proves electrical correctness or safety.',
+      '',
+      'Validator findings:',
+      ...validationFindings.map((finding) => `- ${finding}`),
+    ].join('\n');
+    const history = saved.messages
+      .slice(-8)
+      .map(({ role, content }) => ({ role, content }));
+    const userMessage = newMessage('user', message);
+    setMode('build');
+    setSaved((current) => ({
+      ...current,
+      messages: [...current.messages, userMessage].slice(-60),
+    }));
+    void runRequest({
+      message,
+      mode: 'build',
+      currentSpec,
+      history,
+      brief: saved.brief,
+    }, composerRef.current?.getDraftRevision() ?? 0, getNonWireElementSignature(currentSpec));
+  };
+
   const editBrief = () => {
     setBriefGoalDraft(saved.brief.goal);
     setBriefRequirementsDraft(saved.brief.requirements.join('\n'));
@@ -472,6 +515,25 @@ export function CircuitBuilderChat({
         </div>
         <p className="builder-chat__sr-only" role="status" aria-live="polite" data-testid="status-builder-mode">{mode === 'chat' ? 'Clarify the idea, no edits proposed' : 'Shape an editable draft for review'}</p>
       </div>
+      {canRepairCurrentDraft && validationFindings.length > 0 && (
+        <div className="builder-chat__repair-notice" data-testid="panel-repair-current-draft">
+          <div>
+            <strong>{validationFindings.length} structural issue{validationFindings.length === 1 ? '' : 's'} found</strong>
+            <p>Ask Studio to repair the wiring. It will check the proposal; your drawing stays unchanged until you apply it.</p>
+          </div>
+          <button
+            type="button"
+            className="builder-chat__repair-action"
+            onClick={repairCurrentDraft}
+            disabled={aiUnavailable || chatMutation.isPending || requestCycleActive || briefEditing || !!proposal}
+            title={proposal ? 'Apply or discard the staged proposal first.' : undefined}
+            data-testid="button-repair-current-draft"
+          >
+            <Wrench aria-hidden="true" />
+            {requestCycleActive ? 'Repairing…' : 'Repair draft with AI'}
+          </button>
+        </div>
+      )}
 
       <div className="builder-chat__body">
         <div className="builder-chat__conversation">

@@ -208,6 +208,7 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
     getProposal: (response: TResponse) => TProposal | null | undefined;
     inspectProposal: (proposal: TProposal) => TInspection;
     prepareResponse?: (response: TResponse) => TResponse;
+    initialProtectedElementsSignature?: string;
     getProtectedElementsSignature?: (proposal: TProposal) => string;
     makeRepairRequest: (response: TResponse, findings: string[]) => TRequest;
     makeOutputRepairRequest?: (request: TRequest) => TRequest;
@@ -220,7 +221,7 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
   let workingRequest = options.initialRequest;
   let outputRepairAttempted = false;
   let lastInvalidProposal: TProposal | null = null;
-  let protectedElementsSignature: string | undefined;
+  let protectedElementsSignature = options.initialProtectedElementsSignature;
 
   while (true) {
     let response: TResponse;

@@ -277,6 +277,49 @@ test('rejects a repair before applying it if a component moves', async () => {
   assert.equal(sends, 2);
 });
 
+test('keeps existing workbench components fixed during a requested repair', async () => {
+  const currentSpec = {
+    title: 'User draft',
+    elements: [
+      { type: 'npn', id: 'Q1', at: [100, 100], value: '2N3904' },
+      { type: 'wire', id: 'W1', points: [[50, 50], [60, 50]] },
+    ],
+  };
+  const changedProposal = {
+    ...currentSpec,
+    elements: [
+      { type: 'npn', id: 'Q1', at: [120, 100], value: '2N3904' },
+      { type: 'wire', id: 'W1', points: [[50, 50], [75, 100]] },
+    ],
+  };
+
+  await assert.rejects(
+    runCircuitBuildAttempts({
+      initialRequest: baseRequest,
+      send: async () => ({
+        answer: 'Repair staged.',
+        nextMode: 'build' as const,
+        proposal: { spec: changedProposal },
+      }),
+      getProposal: (response) => response.proposal.spec,
+      inspectProposal: () => ({
+        validation: { errors: [], warnings: [] },
+        canRepair: true,
+      }),
+      initialProtectedElementsSignature: getNonWireElementSignature(currentSpec),
+      getProtectedElementsSignature: (spec) =>
+        getNonWireElementSignature(spec as NonNullable<CircuitBuildChatInput['currentSpec']>),
+      makeRepairRequest: () => baseRequest,
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof CircuitBuildAttemptError);
+      assert.equal(error.failureKind, 'validation');
+      assert.match(error.validationFindings[0], /changed a non-wire element/);
+      return true;
+    },
+  );
+});
+
 test('stops after two repair retries and exposes a manual retry', async () => {
   const invalidProposal = { answer: 'Draft ready.', nextMode: 'build' as const, proposal: { spec: { title: 'Draft', elements: [] } } };
   let sends = 0;

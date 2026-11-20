@@ -35,7 +35,7 @@ Two-terminal parts use "from":[x,y] and "to":[x,y]. Minimum terminal distances i
 
 Single-point parts ground, antenna, and terminal use "at":[x,y]. Wires use "points":[[x1,y1],[x2,y2],...] and only horizontal or vertical segments; include every corner. Connect wire endpoints exactly to component pins. A wire intentionally ending in open space must have "open":true. Crossings do not connect unless a junction is explicit. Use short, unique designators in "label" (R1, C1, Q1, D1, L1, MK1, SW1, B1, ANT1) and descriptive values in "value". Put supply at the top, ground at the bottom, and signal flow left to right where practical.
 
-Do not invent unsupported component types or draw SVG. Make a best effort to ensure every connection and value follows the request. The renderer's structural warnings are not an electrical rules check: do not claim the design is electrically verified.`;
+Do not invent unsupported component types or draw SVG. For a two-transistor astable multivibrator or alternating LED flasher, keep each transistor's base separate from its collector and emitter, give each base its own resistor to the positive supply, and cross-couple each collector to the opposite transistor's base through a timing capacitor. Never connect a transistor's base directly to its own collector or connect a timing capacitor to that same transistor's base. Make a best effort to ensure every connection and value follows the request. The renderer's structural warnings are not an electrical rules check: do not claim the design is electrically verified.`;
 
 router.post(
   "/circuits/generate",

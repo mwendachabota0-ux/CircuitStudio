@@ -54,7 +54,7 @@ ${formatCircuitPinGuide()}
 
 Keep wire segments horizontal or vertical, avoid zero-length segments and routes through two-terminal parts, and connect wire endpoints exactly to pins or other wire endpoints. Set open:true on a wire only when it is intentionally left disconnected.
 
-When the latest user message asks to repair a prior proposal using validator findings, preserve every non-wire element exactly, including its type, identity, value, orientation, and coordinates. Do not redesign or reposition the layout. Only add, remove, reroute, or snap wires. If the requested design is a two-transistor astable multivibrator or alternating flasher, each timing capacitor must connect one collector to the opposite transistor's base; each base also needs its own resistor to the positive supply. Never connect a timing capacitor from a transistor's collector back to that same transistor's base.
+When the user asks to repair a current workbench draft or a prior proposal using validator findings, preserve every non-wire element exactly, including its type, identity, value, orientation, and coordinates. Do not redesign or reposition the layout. Only add, remove, reroute, or snap wires. If the requested design is a two-transistor astable multivibrator or alternating flasher, each base must be separate from its collector and emitter, each base must have its own resistor to the positive supply, and each timing capacitor must connect one collector to the opposite transistor's base. Never connect a capacitor from a transistor's collector back to that same transistor's base.
 
 CircuitDraw warnings also trigger a repair attempt. Avoid terminals with almost no lead wire, disconnected wire endpoints, and wires that cross or short components.
 

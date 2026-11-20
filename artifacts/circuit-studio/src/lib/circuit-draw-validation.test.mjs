@@ -91,6 +91,23 @@ test("astable feedback capacitors connected to their own transistor are rejected
   assert.ok(report.errors.some((error) => error.includes('Capacitor "C2" connects Q2.C back to Q2.B')));
 });
 
+test("astable validation reports a base-to-collector short directly", () => {
+  const invalid = structuredClone(astableFlasher);
+  invalid.elements.push({
+    type: "wire",
+    id: "W_Q1_BASE_COLLECTOR_SHORT",
+    points: [[150, 250], [150, 206], [200, 206]],
+  });
+
+  const report = CircuitDraw.validate(invalid);
+  assert.ok(
+    report.errors.some((error) =>
+      error.includes("Q1.B and Q1.C share one net") &&
+      error.includes("prevents normal astable switching"),
+    ),
+  );
+});
+
 test("auto-fix snaps only a uniquely nearest pin within eight pixels", () => {
   const slightlyOff = structuredClone(astableFlasher);
   slightlyOff.elements.find((element) => element.id === "W_LED1_COLLECTOR").points[2] = [203, 206];

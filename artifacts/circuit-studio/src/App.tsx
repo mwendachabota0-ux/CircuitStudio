@@ -938,6 +938,8 @@ function Studio({ userId }: { userId: string }) {
           <CircuitBuilderChat
             userId={userId}
             currentSpec={spec}
+            validationFindings={jsonError ? [] : [...report.errors, ...report.warnings]}
+            canRepairCurrentDraft={libraryReady && !jsonError}
             onApplySpec={(nextSpec) => {
               acceptSpec(nextSpec as CircuitSpec);
               setToast('Proposal applied to the workbench.');

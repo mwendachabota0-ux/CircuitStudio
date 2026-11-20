@@ -347,6 +347,9 @@
     });
 
     transistorNets.forEach(function (transistor) {
+      if (sameNet(transistor.base, transistor.collector)) {
+        findings.push(transistor.name + '.B and ' + transistor.name + '.C share one net; this shorts the base to the collector and prevents normal astable switching.');
+      }
       if (sameNet(transistor.base, transistor.emitter)) {
         findings.push(transistor.name + '.B and ' + transistor.name + '.E share one net; an astable base must not be shorted to its emitter.');
       }

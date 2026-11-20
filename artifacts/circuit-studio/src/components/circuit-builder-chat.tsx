@@ -29,6 +29,9 @@ type ChatMode = 'chat' | 'build';
 type ThreadMessage = CircuitBuildChatMessage & { id: string; createdAt: number };
 type SavedState = { brief: CircuitDesignBrief; aiBrief: CircuitDesignBrief; messages: ThreadMessage[] };
 type ValidationReport = { errors: string[]; warnings: string[] };
+type RetryFeedback = { message: string; canRetryManually: boolean };
+
+const MAX_AUTO_RETRIES = 2;
 
 const emptyBrief = (): CircuitDesignBrief => ({
   goal: '',
@@ -57,6 +60,110 @@ function normalizeBrief(value: Partial<CircuitDesignBrief> | undefined): Circuit
     assumptions: isStringList(value?.assumptions) ? value.assumptions.slice(0, 12).map((item) => item.slice(0, 300)) : [],
     openQuestions: isStringList(value?.openQuestions) ? value.openQuestions.slice(0, 12).map((item) => item.slice(0, 300)) : [],
   };
+}
+
+function getErrorHeader(error: unknown, name: string): string | null {
+  if (!error || typeof error !== 'object' || !('headers' in error)) return null;
+  const headers = (error as { headers?: unknown }).headers;
+  if (!headers || typeof headers !== 'object') return null;
+  const get = (headers as { get?: unknown }).get;
+  return typeof get === 'function'
+    ? (get as (headerName: string) => string | null).call(headers, name)
+    : null;
+}
+
+function getRetryAfterMs(error: unknown): number | undefined {
+  const value = getErrorHeader(error, 'retry-after');
+  if (!value) return undefined;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000);
+  const retryAt = Date.parse(value);
+  return Number.isFinite(retryAt) ? Math.max(0, retryAt - Date.now()) : undefined;
+}
+
+function getBuildRetryPolicy(error: unknown): { retryable: boolean; delayMs?: number } {
+  const explicitRetryability = getErrorHeader(error, 'x-circuit-ai-retryable');
+  const delayMs = getRetryAfterMs(error);
+  if (explicitRetryability === 'false') return { retryable: false };
+  if (explicitRetryability === 'true') return { retryable: true, delayMs };
+
+  if (error && typeof error === 'object' && 'status' in error) {
+    const status = Number((error as { status?: unknown }).status);
+    if (status === 429) return { retryable: false };
+    if (status === 408 || status === 425 || (status >= 500 && status <= 599 && status !== 501 && status !== 505)) {
+      return { retryable: true, delayMs };
+    }
+  }
+
+  if (error instanceof TypeError) return { retryable: true };
+  if (error instanceof Error && /failed to fetch|network|connection reset|connection lost|socket hang up|timed? ?out|econnreset|etimedout/i.test(error.message)) {
+    return { retryable: true };
+  }
+  return { retryable: false };
+}
+
+function waitBeforeRetry(attempt: number, providerDelayMs?: number): Promise<void> {
+  const delayMs = providerDelayMs ?? Math.min(4_000, 600 * (2 ** (attempt - 1)));
+  return new Promise((resolve) => window.setTimeout(resolve, delayMs));
+}
+
+function inspectProposal(spec: CircuitBuildChatInput['currentSpec']): {
+  svg: string;
+  validation: ValidationReport;
+  canRepair: boolean;
+} {
+  if (!window.CircuitDraw) {
+    return {
+      svg: '',
+      validation: { errors: ['The schematic preview library is not ready.'], warnings: [] },
+      canRepair: false,
+    };
+  }
+  try {
+    const validation = window.CircuitDraw.validate(spec);
+    if (validation.errors.length) return { svg: '', validation, canRepair: true };
+    const svg = window.CircuitDraw.render(spec);
+    if (!svg) {
+      return {
+        svg: '',
+        validation: { errors: ['The schematic renderer did not produce a preview.'], warnings: validation.warnings },
+        canRepair: true,
+      };
+    }
+    return { svg, validation, canRepair: true };
+  } catch (error) {
+    return {
+      svg: '',
+      validation: {
+        errors: [error instanceof Error ? error.message : 'This proposal could not be rendered.'],
+        warnings: [],
+      },
+      canRepair: true,
+    };
+  }
+}
+
+function buildRepairMessage(errors: string[]): string {
+  const preamble = 'Repair the previous proposal for the original circuit request. Fix every structural validator finding and return a complete corrected CircuitSpec. Validator findings:';
+  const footer = 'Preserve the requested behavior and avoid unrelated changes.';
+  const findings: string[] = [];
+  let length = preamble.length + footer.length + 2;
+  for (const error of errors) {
+    const line = `- ${error.slice(0, 180)}`;
+    if (length + line.length + 1 > 2_850) {
+      findings.push(`- ${errors.length - findings.length} additional validation finding(s) were omitted; repair all remaining structural issues.`);
+      break;
+    }
+    findings.push(line);
+    length += line.length + 1;
+  }
+  return `${preamble}\n${findings.join('\n')}\n${footer}`.slice(0, 3_000);
+}
+
+function formatValidationFailure(errors: string[]): string {
+  const firstIssues = errors.slice(0, 3).join(' ');
+  const remainder = errors.length > 3 ? ` And ${errors.length - 3} more.` : '';
+  return `The proposal still has ${errors.length} structural issue${errors.length === 1 ? '' : 's'} after ${MAX_AUTO_RETRIES} automatic repair retries. ${firstIssues}${remainder}`;
 }
 
 function mergeBriefPreservingManualEdits(
@@ -161,6 +268,9 @@ export function CircuitBuilderChat({
   const [briefAssumptionsDraft, setBriefAssumptionsDraft] = useState('');
   const [briefOpenQuestionsDraft, setBriefOpenQuestionsDraft] = useState('');
   const [lastRequest, setLastRequest] = useState<CircuitBuildChatInput | null>(null);
+  const [requestCycleActive, setRequestCycleActive] = useState(false);
+  const [retryAttempt, setRetryAttempt] = useState(0);
+  const [retryFeedback, setRetryFeedback] = useState<RetryFeedback | null>(null);
   const draftRevisionRef = useRef(0);
   const threadEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -175,11 +285,11 @@ export function CircuitBuilderChat({
 
   useEffect(() => {
     threadEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [saved.messages, chatMutation.isPending]);
+  }, [saved.messages, chatMutation.isPending, requestCycleActive, retryAttempt]);
 
   const visibleMessages = saved.messages;
   const aiUnavailable = usageQuery.data ? !usageQuery.data.canUseAi : false;
-  const canSend = draft.trim().length > 0 && !chatMutation.isPending && !proposal && !briefEditing;
+  const canSend = draft.trim().length > 0 && !chatMutation.isPending && !requestCycleActive && !proposal && !briefEditing;
 
   const localProposalState = useMemo(() => {
     if (!proposal) return null;
@@ -193,53 +303,105 @@ export function CircuitBuilderChat({
   const runRequest = async (request: CircuitBuildChatInput) => {
     const draftRevisionAtStart = draftRevisionRef.current;
     setLastRequest(request);
+    setRetryFeedback(null);
+    setRetryAttempt(0);
+    setRequestCycleActive(true);
+    chatMutation.reset();
+    let retryCount = 0;
+    let workingRequest = request;
+    let latestBrief = request.brief ?? emptyBrief();
     try {
-      const response = await chatMutation.mutateAsync({ data: request });
-      const nextMode = response.nextMode ?? request.mode;
-      setMode(nextMode);
-      const nextBrief = response.brief ?? emptyBrief();
-      setSaved((current) => ({
-        brief: mergeBriefPreservingManualEdits(current.aiBrief, current.brief, nextBrief),
-        aiBrief: nextBrief,
-        messages: [...current.messages, newMessage('assistant', response.answer)].slice(-60),
-      }));
-      setDraft((current) =>
-        draftRevisionRef.current === draftRevisionAtStart &&
-        current.trim() === request.message
-          ? ''
-          : current,
-      );
-      if (nextMode === 'build' && response.proposal) {
-        setProposal(response.proposal);
-        setProposalError('');
-        if (!window.CircuitDraw) {
-          setProposalSvg('');
-          setProposalValidation({ errors: ['The schematic preview library is not ready.'], warnings: [] });
-        } else {
-          try {
-            const validation = window.CircuitDraw.validate(response.proposal.spec);
-            setProposalValidation(validation);
-            setProposalSvg(validation.errors.length ? '' : window.CircuitDraw.render(response.proposal.spec));
-          } catch (error) {
-            setProposalValidation({
-              errors: [error instanceof Error ? error.message : 'This proposal could not be rendered.'],
-              warnings: [],
-            });
-            setProposalSvg('');
+      while (true) {
+        let response: Awaited<ReturnType<typeof chatMutation.mutateAsync>>;
+        try {
+          response = await chatMutation.mutateAsync({ data: workingRequest });
+        } catch (error) {
+          const retryPolicy = getBuildRetryPolicy(error);
+          if (retryPolicy.retryable && retryCount < MAX_AUTO_RETRIES) {
+            retryCount += 1;
+            setRetryAttempt(retryCount);
+            await waitBeforeRetry(retryCount, retryPolicy.delayMs);
+            continue;
+          }
+          const failureMessage = error instanceof Error
+            ? error.message
+            : 'The request did not go through. Your message is still here.';
+          setRetryFeedback({
+            message: retryPolicy.retryable
+              ? `The request failed after ${MAX_AUTO_RETRIES} automatic retries. ${failureMessage}`
+              : failureMessage,
+            canRetryManually: retryPolicy.retryable,
+          });
+          return;
+        }
+
+        const nextMode = response.nextMode ?? workingRequest.mode;
+        const nextBrief = response.brief ?? latestBrief;
+        latestBrief = nextBrief;
+        let inspectedProposal: ReturnType<typeof inspectProposal> | null = null;
+
+        if (nextMode === 'build' && response.proposal) {
+          inspectedProposal = inspectProposal(response.proposal.spec);
+          if (inspectedProposal.validation.errors.length) {
+            if (!inspectedProposal.canRepair) {
+              setRetryFeedback({
+                message: inspectedProposal.validation.errors[0] ?? 'The proposal could not be checked.',
+                canRetryManually: false,
+              });
+              return;
+            }
+            if (retryCount >= MAX_AUTO_RETRIES) {
+              setRetryFeedback({
+                message: formatValidationFailure(inspectedProposal.validation.errors),
+                canRetryManually: true,
+              });
+              return;
+            }
+            retryCount += 1;
+            setRetryAttempt(retryCount);
+            await waitBeforeRetry(retryCount);
+            workingRequest = {
+              ...request,
+              mode: 'build',
+              brief: nextBrief,
+              message: buildRepairMessage(inspectedProposal.validation.errors),
+            };
+            continue;
           }
         }
+
+        setMode(nextMode);
+        setSaved((current) => ({
+          brief: mergeBriefPreservingManualEdits(current.aiBrief, current.brief, nextBrief),
+          aiBrief: nextBrief,
+          messages: [...current.messages, newMessage('assistant', response.answer)].slice(-60),
+        }));
+        setDraft((current) =>
+          draftRevisionRef.current === draftRevisionAtStart &&
+          current.trim() === request.message
+            ? ''
+            : current,
+        );
+        if (nextMode === 'build' && response.proposal && inspectedProposal) {
+          setProposal(response.proposal);
+          setProposalError('');
+          setProposalValidation(inspectedProposal.validation);
+          setProposalSvg(inspectedProposal.svg);
+        }
+        void queryClient.invalidateQueries({ queryKey: getGetAiUsageQueryKey() });
+        onTaskComplete(nextMode);
+        return;
       }
-      await queryClient.invalidateQueries({ queryKey: getGetAiUsageQueryKey() });
-      onTaskComplete(nextMode);
-    } catch {
-      // The mutation's error state is rendered below; keep the user's message and retry context.
+    } finally {
+      setRequestCycleActive(false);
+      setRetryAttempt(0);
     }
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const content = draft.trim();
-    if (!content || chatMutation.isPending || briefEditing) return;
+    if (!content || chatMutation.isPending || requestCycleActive || briefEditing) return;
     const intent = localModeIntent(content);
     if (proposal && intent !== 'chat') return;
     if (intent === 'chat') {
@@ -280,7 +442,7 @@ export function CircuitBuilderChat({
   };
 
   const retryRequest = async () => {
-    if (!lastRequest || chatMutation.isPending) return;
+    if (!lastRequest || chatMutation.isPending || requestCycleActive) return;
     await runRequest(lastRequest);
   };
 
@@ -318,9 +480,11 @@ export function CircuitBuilderChat({
     setProposalValidation(null);
   };
 
-  const errorMessage = chatMutation.error instanceof Error
-    ? chatMutation.error.message
-    : 'The request did not go through. Your message is still here.';
+  const errorMessage = retryFeedback?.message ?? (
+    chatMutation.error instanceof Error
+      ? chatMutation.error.message
+      : 'The request did not go through. Your message is still here.'
+  );
   const hasBrief = Boolean(saved.brief.goal || saved.brief.requirements.length || saved.brief.assumptions.length || saved.brief.openQuestions.length);
 
   return (
@@ -359,19 +523,23 @@ export function CircuitBuilderChat({
                 <p>{message.content}</p>
               </article>
             ))}
-            {chatMutation.isPending && (
+            {(chatMutation.isPending || requestCycleActive) && (
               <div className="builder-chat__thinking" role="status" data-testid="status-builder-loading">
                 <span className="builder-chat__thinking-mark"><Sparkles aria-hidden="true" /></span>
                 <span><i /><i /><i /></span>
-                <small>{mode === 'build' ? 'Working through a draft' : 'Thinking it through'}</small>
+                <small>{retryAttempt > 0
+                  ? `Automatic retry ${retryAttempt} of ${MAX_AUTO_RETRIES}`
+                  : mode === 'build' ? 'Working through a draft' : 'Thinking it through'}</small>
               </div>
             )}
             <div ref={threadEndRef} />
           </div>
-          {chatMutation.isError && (
+          {retryFeedback && !requestCycleActive && (
             <div className="builder-chat__error" role="alert" data-testid="status-builder-error">
               <span>{errorMessage}</span>
-              <button type="button" className="builder-chat__text-link" onClick={retryRequest} disabled={!lastRequest} data-testid="button-retry-builder-chat">Retry</button>
+              {retryFeedback.canRetryManually && (
+                <button type="button" className="builder-chat__text-link" onClick={retryRequest} disabled={!lastRequest} data-testid="button-retry-builder-chat">Retry</button>
+              )}
             </div>
           )}
           {aiUnavailable && (
@@ -438,10 +606,10 @@ export function CircuitBuilderChat({
               data-testid="input-builder-message"
             />
             <div className="builder-chat__composer-foot">
-              <span>{chatMutation.isPending ? 'You can draft a follow-up while the AI works' : briefEditing ? 'Save or cancel your notes before sending' : proposal ? 'Apply or discard the staged proposal before sending another request' : mode === 'chat' ? 'Enter to send · Shift + Enter for a new line' : 'A proposal is staged for your review, never applied automatically'}</span>
+              <span>{requestCycleActive ? 'You can draft a follow-up while the AI works' : briefEditing ? 'Save or cancel your notes before sending' : proposal ? 'Apply or discard the staged proposal before sending another request' : mode === 'chat' ? 'Enter to send · Shift + Enter for a new line' : 'A proposal is staged for your review, never applied automatically'}</span>
               <button type="submit" disabled={!canSend} aria-label="Send message" data-testid="button-send-builder-message">
-                {chatMutation.isPending ? <LoaderCircle className="is-spinning" aria-hidden="true" /> : <Send aria-hidden="true" />}
-                <span>{chatMutation.isPending ? 'Thinking' : 'Send'}</span>
+                {(chatMutation.isPending || requestCycleActive) ? <LoaderCircle className="is-spinning" aria-hidden="true" /> : <Send aria-hidden="true" />}
+                <span>{requestCycleActive ? (retryAttempt > 0 ? 'Retrying' : 'Thinking') : 'Send'}</span>
               </button>
             </div>
           </form>

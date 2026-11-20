@@ -122,6 +122,13 @@ router.post(
             "Circuit builder request failed",
           );
         }
+        res.setHeader("X-Circuit-AI-Retryable", String(error.retryable));
+        if (error.retryAfterMs !== undefined) {
+          res.setHeader(
+            "Retry-After",
+            String(Math.ceil(error.retryAfterMs / 1000)),
+          );
+        }
         res.status(error.statusCode).json({ error: error.message });
         return;
       }
@@ -129,6 +136,7 @@ router.post(
         { reason: "invalid_or_unusable_model_output" },
         "Circuit builder response could not be validated",
       );
+      res.setHeader("X-Circuit-AI-Retryable", "true");
       res.status(502).json({
         error: "The assistant returned a response that could not be safely used. Please try again.",
       });

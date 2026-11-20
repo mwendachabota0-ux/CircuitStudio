@@ -15,6 +15,8 @@ export class CircuitAiError extends Error {
   constructor(
     message: string,
     readonly statusCode: number,
+    readonly retryable = false,
+    readonly retryAfterMs?: number,
   ) {
     super(message);
     this.name = "CircuitAiError";
@@ -280,6 +282,60 @@ function canFallbackToAnotherKey(error: unknown): boolean {
   return /quota|rate.?limit|resource.?exhausted/.test(code);
 }
 
+function providerErrorText(error: unknown): string {
+  if (!error || typeof error !== "object") return "";
+  const record = error as { code?: unknown; message?: unknown; status?: unknown };
+  return `${record.code ?? ""} ${record.message ?? ""} ${record.status ?? ""}`.toLowerCase();
+}
+
+function providerRetryAfterMs(error: unknown): number | undefined {
+  if (!error || typeof error !== "object") return undefined;
+  const record = error as {
+    headers?: unknown;
+    response?: { headers?: unknown };
+  };
+  const headerSources = [record.headers, record.response?.headers];
+  let value: string | null = null;
+  for (const source of headerSources) {
+    if (!source || typeof source !== "object") continue;
+    const get = (source as { get?: unknown }).get;
+    if (typeof get === "function") {
+      value = (get as (name: string) => string | null).call(source, "retry-after");
+      if (value) break;
+    }
+    const entries = Object.entries(source as Record<string, unknown>);
+    const header = entries.find(([name]) => name.toLowerCase() === "retry-after");
+    if (typeof header?.[1] === "string" || typeof header?.[1] === "number") {
+      value = String(header[1]);
+      break;
+    }
+  }
+  if (!value) return undefined;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000);
+  const date = Date.parse(value);
+  return Number.isFinite(date) ? Math.max(0, date - Date.now()) : undefined;
+}
+
+function isProviderRateLimited(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const record = error as { status?: unknown };
+  return Number(record.status) === 429 ||
+    /quota|rate.?limit|resource.?exhausted/.test(providerErrorText(error));
+}
+
+function isTransientProviderFailure(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const record = error as { status?: unknown };
+  const status = Number(record.status);
+  if (status === 408 || status === 425 || (status >= 500 && status <= 599)) {
+    return true;
+  }
+  return /timeout|timed.?out|temporar|unavailable|network|connection reset|socket hang up|econnreset|etimedout|bad gateway/.test(
+    providerErrorText(error),
+  );
+}
+
 function tokenReservation(
   inputText: string,
   maxOutputTokens: number,
@@ -319,6 +375,7 @@ export async function generateWithAccountUsage(
     throw new CircuitAiError(
       "AI usage is temporarily unavailable. Please try again.",
       503,
+      true,
     );
   }
   const orderedKeys = [
@@ -341,9 +398,14 @@ export async function generateWithAccountUsage(
         if (index < orderedKeys.length - 1 && canFallbackToAnotherKey(error)) {
           continue;
         }
+        const rateLimited = isProviderRateLimited(error);
         throw new CircuitAiError(
           "Gemini could not complete this request. Try again shortly or select another configured key.",
           502,
+          rateLimited
+            ? providerRetryAfterMs(error) !== undefined
+            : isTransientProviderFailure(error),
+          providerRetryAfterMs(error),
         );
       }
 

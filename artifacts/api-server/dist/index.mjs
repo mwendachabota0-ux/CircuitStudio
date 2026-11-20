@@ -62103,12 +62103,13 @@ var circuitAiReservations = pgTable(
 
 // ../../lib/db/src/index.ts
 var { Pool: Pool3 } = esm_default;
-if (!process.env.DATABASE_URL) {
+var databaseUrl = process.env.NEON_DATABASE_URL || process.env.DATABASE_URL;
+if (!databaseUrl) {
   throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?"
+    "NEON_DATABASE_URL or DATABASE_URL must be set. Did you forget to provision a database?"
   );
 }
-var pool = new Pool3({ connectionString: process.env.DATABASE_URL });
+var pool = new Pool3({ connectionString: databaseUrl });
 var db = drizzle(pool, { schema: schema_exports });
 
 // src/lib/circuitAi.ts

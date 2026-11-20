@@ -512,6 +512,7 @@ export function CircuitBuilderChat({
           )}
 
           <CircuitBuilderComposer
+            key="circuit-builder-composer"
             ref={composerRef}
             mode={mode}
             isWorking={chatMutation.isPending || requestCycleActive}

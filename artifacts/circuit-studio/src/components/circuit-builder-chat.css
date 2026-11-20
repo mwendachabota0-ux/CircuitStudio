@@ -293,11 +293,14 @@
 .builder-chat__usage-error .builder-chat__text-link { margin-left: 4px; }
 
 .builder-chat__composer {
+  position: relative;
+  z-index: 1;
   flex: none;
   margin: 0;
   padding: 11px 12px 12px;
   border-top: 1px solid var(--chat-rule);
   background: #fffefa;
+  pointer-events: auto;
 }
 
 .builder-chat__sr-only {
@@ -325,9 +328,13 @@
 }
 
 .builder-chat__composer textarea {
+  position: relative;
+  z-index: 1;
   min-height: 63px;
   max-height: 150px;
   padding: 9px 10px;
+  pointer-events: auto;
+  user-select: text;
 }
 
 .builder-chat__composer textarea::placeholder,

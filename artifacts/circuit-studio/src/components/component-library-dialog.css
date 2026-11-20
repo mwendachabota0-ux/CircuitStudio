@@ -99,6 +99,47 @@
   color: var(--library-green);
 }
 
+.component-library-dialog__sources {
+  flex: none;
+  display: flex;
+  gap: 7px;
+  padding: 12px 22px 0;
+  background: #faf8f2;
+}
+
+.component-library-dialog__sources button {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: 6px 6px 0 0;
+  background: transparent;
+  color: #75847b;
+  font: 600 10px var(--app-font-sans);
+}
+
+.component-library-dialog__sources button span {
+  padding: 2px 5px;
+  border-radius: 10px;
+  background: #ecefe8;
+  color: #66796d;
+  font: 9px var(--app-font-mono);
+}
+
+.component-library-dialog__sources button.is-active {
+  border-color: #e4e0d5;
+  border-bottom-color: #fffefa;
+  background: #fffefa;
+  color: #2e6c54;
+}
+
+.component-library-dialog__sources button:focus-visible,
+.component-library-dialog__sources button:hover {
+  color: #145843;
+}
+
 .component-library-dialog__tools {
   flex: none;
   display: grid;
@@ -259,6 +300,14 @@
   background: #f7efe7;
   color: #a16b49;
   font-size: 16px;
+}
+
+.component-library-dialog__mark.is-kicad {
+  border-color: #e6e3d6;
+  background: #f3f1e9;
+  color: #6b7561;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .component-library-dialog__item-title {
@@ -444,6 +493,19 @@
     grid-template-columns: 1fr;
     gap: 9px;
     padding: 12px 15px 11px;
+  }
+
+  .component-library-dialog__sources {
+    gap: 4px;
+    padding: 10px 15px 0;
+  }
+
+  .component-library-dialog__sources button {
+    flex: 1;
+    justify-content: center;
+    gap: 5px;
+    padding: 6px 5px;
+    font-size: 9px;
   }
 
   .component-library-dialog__category {

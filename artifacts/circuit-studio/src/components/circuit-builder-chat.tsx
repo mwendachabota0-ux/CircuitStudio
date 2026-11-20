@@ -11,7 +11,9 @@ import type {
   CircuitBuildChatInput,
   CircuitBuildChatMessage,
   CircuitDesignBrief,
+  CircuitSymbolSearchItem,
 } from '@workspace/api-client-react';
+import type { CircuitComponentLibraryEntry } from '@workspace/circuit-geometry';
 import {
   buildOutputRepairRequest,
   buildRepairRequest,
@@ -552,8 +554,17 @@ export function CircuitBuilderChat({
     setLastRequest(null);
   };
 
-  const prepareComponentPrompt = (entry: { type: string; displayName: string; category: string }) => {
+  const prepareComponentPrompt = (
+    entry: CircuitComponentLibraryEntry | CircuitSymbolSearchItem,
+  ) => {
     setMode('build');
+    if ('id' in entry) {
+      const description = entry.description || entry.keywords;
+      composerRef.current?.setDraft(
+        `Use this exact KiCad symbol ID: ${entry.id}. Add ${entry.name} to my current schematic using its real library pin names and positions.${description ? ` Symbol details: ${description}.` : ''}`,
+      );
+      return;
+    }
     composerRef.current?.setDraft(
       entry.category === 'Drawing'
         ? `Add a ${entry.displayName} (${entry.type}) drawing annotation to my current schematic. Do not treat it as an electrical component.`

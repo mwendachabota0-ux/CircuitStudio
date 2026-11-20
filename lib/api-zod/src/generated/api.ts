@@ -88,6 +88,40 @@ export const GenerateCircuitResponse = zod.object({
 
 
 /**
+ * @summary Search the KiCad schematic symbol library
+ */
+export const searchCircuitSymbolsQueryQMax = 120;
+
+export const searchCircuitSymbolsQueryLibraryMax = 120;
+
+export const searchCircuitSymbolsQueryLimitDefault = 40;
+export const searchCircuitSymbolsQueryLimitMax = 100;
+
+
+
+export const SearchCircuitSymbolsQueryParams = zod.object({
+  "q": zod.coerce.string().max(searchCircuitSymbolsQueryQMax).optional(),
+  "library": zod.coerce.string().max(searchCircuitSymbolsQueryLibraryMax).optional(),
+  "limit": zod.coerce.number().int().min(1).max(searchCircuitSymbolsQueryLimitMax).default(searchCircuitSymbolsQueryLimitDefault)
+})
+
+export const SearchCircuitSymbolsResponse = zod.object({
+  "sourceVersion": zod.string(),
+  "total": zod.number().int(),
+  "hasMore": zod.boolean(),
+  "results": zod.array(zod.object({
+  "id": zod.string(),
+  "library": zod.string(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "keywords": zod.string(),
+  "pinCount": zod.number().int().nullable(),
+  "extends": zod.string().optional()
+}))
+})
+
+
+/**
  * Returns educational guidance that separates visible evidence from inference. Optional edit proposals are validated CircuitSpecs and never applied automatically.
  * @summary Ask for an explanation of a circuit or image
  */

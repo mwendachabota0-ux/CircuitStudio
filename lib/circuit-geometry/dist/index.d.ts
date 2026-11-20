@@ -10,6 +10,40 @@ export type CircuitElementGeometry = {
     at?: unknown;
     flip?: unknown;
     swap?: unknown;
+    symbolId?: unknown;
+    unit?: unknown;
+    bodyStyle?: unknown;
+    rotation?: unknown;
+    symbolData?: unknown;
+};
+export type KicadSymbolGraphic = {
+    type: 'polyline' | 'rectangle' | 'circle' | 'arc' | 'bezier' | 'text';
+    points?: CircuitPoint[];
+    radius?: number;
+    text?: string;
+    fontSize?: number;
+    strokeWidth?: number;
+    fillType?: 'none' | 'background' | 'outline';
+    closed?: boolean;
+};
+export type KicadSymbolPin = {
+    number: string;
+    name: string;
+    electricalType: string;
+    point: CircuitPoint;
+    bodyPoint: CircuitPoint;
+    showName: boolean;
+    showNumber: boolean;
+};
+export type KicadSymbolUnit = {
+    unit: number;
+    bodyStyle: number;
+    pins: KicadSymbolPin[];
+    graphics: KicadSymbolGraphic[];
+};
+export type KicadSymbolData = {
+    id: string;
+    units: KicadSymbolUnit[];
 };
 export type CircuitComponentReferenceEntry = {
     type: string;
@@ -501,6 +535,16 @@ export declare const CIRCUIT_COMPONENT_REFERENCE: readonly [{
     readonly pinPositions: "Each side is spaced vertically at 24 px around at; left pins are at x-64 and right pins at x+64.";
     readonly connectionRules: "Use a unique pin name for each connector contact.";
     readonly validation: "Rendered and structurally validated; connector mechanical details are not modeled.";
+    readonly autoFix: "May snap a unique wire endpoint within 8 px.";
+}, {
+    readonly type: "kicad";
+    readonly requiredProperties: readonly ["symbolId", "at"];
+    readonly optionalProperties: readonly ["id", "label", "value", "unit", "bodyStyle", "rotation", "flip", "symbolData", "labelPos", "labelNudge", "labelAt", "labelAnchor"];
+    readonly pinCount: null;
+    readonly pinNames: "Exact KiCad pin numbers and names from the imported source symbol.";
+    readonly pinPositions: "Pin endpoints are derived from the selected library symbol, unit, and rotation.";
+    readonly connectionRules: "Use the exact symbol ID and pin offsets supplied by the library. Do not invent a pinout.";
+    readonly validation: "The source symbol drawing and structural connections are checked; electrical behavior is not simulated.";
     readonly autoFix: "May snap a unique wire endpoint within 8 px.";
 }, {
     readonly type: "wire";

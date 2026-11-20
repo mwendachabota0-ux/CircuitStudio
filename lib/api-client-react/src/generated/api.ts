@@ -30,7 +30,9 @@ import type {
   CircuitReviewRequest,
   CircuitReviewResponse,
   CircuitSpec,
+  CircuitSymbolSearchResponse,
   HealthStatus,
+  SearchCircuitSymbolsParams,
   TutorRequest,
   TutorResponse
 } from './api.schemas';
@@ -228,6 +230,90 @@ export const useGenerateCircuit = <TError = ErrorType<ApiError>,
       > => {
       return useMutation(getGenerateCircuitMutationOptions(options));
     }
+
+export const getSearchCircuitSymbolsUrl = (params?: SearchCircuitSymbolsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/circuits/library/search?${stringifiedParams}` : `/api/circuits/library/search`
+}
+
+/**
+ * @summary Search the KiCad schematic symbol library
+ */
+export const searchCircuitSymbols = async (params?: SearchCircuitSymbolsParams, options?: Parameters<typeof customFetch>[1]): Promise<CircuitSymbolSearchResponse> => {
+
+  return customFetch<CircuitSymbolSearchResponse>(getSearchCircuitSymbolsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getSearchCircuitSymbolsQueryKey = (params?: SearchCircuitSymbolsParams,) => {
+    return [
+    `/api/circuits/library/search`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getSearchCircuitSymbolsQueryOptions = <TData = Awaited<ReturnType<typeof searchCircuitSymbols>>, TError = ErrorType<ApiError>>(params?: SearchCircuitSymbolsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchCircuitSymbols>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getSearchCircuitSymbolsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof searchCircuitSymbols>>> = ({ signal }) => searchCircuitSymbols(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof searchCircuitSymbols>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type SearchCircuitSymbolsQueryResult = NonNullable<Awaited<ReturnType<typeof searchCircuitSymbols>>>
+export type SearchCircuitSymbolsQueryError = ErrorType<ApiError>
+
+
+/**
+ * @summary Search the KiCad schematic symbol library
+ */
+
+export function useSearchCircuitSymbols<TData = Awaited<ReturnType<typeof searchCircuitSymbols>>, TError = ErrorType<ApiError>>(
+ params?: SearchCircuitSymbolsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchCircuitSymbols>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getSearchCircuitSymbolsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getAskCircuitTutorUrl = () => {
 

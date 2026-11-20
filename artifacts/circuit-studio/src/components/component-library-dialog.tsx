@@ -1,6 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ArrowUpRight, Search } from 'lucide-react';
 import { CIRCUIT_COMPONENT_LIBRARY } from '@workspace/circuit-geometry';
+import { useSearchCircuitSymbols } from '@workspace/api-client-react';
+import type { CircuitSymbolSearchItem } from '@workspace/api-client-react';
 import {
   Dialog,
   DialogClose,
@@ -16,7 +18,7 @@ type CircuitComponentLibraryEntry = (typeof CIRCUIT_COMPONENT_LIBRARY)[number];
 export type ComponentLibraryDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSelect: (entry: CircuitComponentLibraryEntry) => void;
+  onSelect: (entry: CircuitComponentLibraryEntry | CircuitSymbolSearchItem) => void;
 };
 
 const categories = Array.from(
@@ -28,8 +30,30 @@ export function ComponentLibraryDialog({
   onOpenChange,
   onSelect,
 }: ComponentLibraryDialogProps) {
+  const [source, setSource] = useState<'studio' | 'kicad'>('studio');
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('all');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), 250);
+    return () => window.clearTimeout(timer);
+  }, [query]);
+
+  const kicadSearch = useSearchCircuitSymbols(
+    {
+      ...(debouncedQuery ? { q: debouncedQuery } : {}),
+      ...(category !== 'all' ? { library: category } : {}),
+      limit: 40,
+    },
+    {
+      query: {
+        enabled: open && source === 'kicad',
+        staleTime: 5 * 60 * 1000,
+        retry: 1,
+      },
+    },
+  );
 
   const filteredEntries = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase();
@@ -49,10 +73,15 @@ export function ComponentLibraryDialog({
     });
   }, [category, query]);
 
-  const handleSelect = (entry: CircuitComponentLibraryEntry) => {
+  const handleSelect = (
+    entry: CircuitComponentLibraryEntry | CircuitSymbolSearchItem,
+  ) => {
     onSelect(entry);
     onOpenChange(false);
   };
+
+  const kicadEntries = kicadSearch.data?.results ?? [];
+  const kicadLibraries = kicadSearch.data?.libraries ?? [];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -69,7 +98,9 @@ export function ComponentLibraryDialog({
               Component library
             </DialogTitle>
             <DialogDescription className="component-library-dialog__description">
-              Choose a symbol to add to your builder request.
+              {source === 'kicad'
+                ? 'Search 22,911 official KiCad schematic symbols across 223 libraries.'
+                : 'Choose a symbol to add to your builder request.'}
             </DialogDescription>
           </div>
           <DialogClose
@@ -81,6 +112,42 @@ export function ComponentLibraryDialog({
           </DialogClose>
         </DialogHeader>
 
+        <div
+          className="component-library-dialog__sources"
+          role="tablist"
+          aria-label="Symbol catalog source"
+          data-testid="component-library-sources"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={source === 'studio'}
+            className={source === 'studio' ? 'is-active' : ''}
+            onClick={() => {
+              setSource('studio');
+              setCategory('all');
+            }}
+            data-testid="component-library-source-studio"
+          >
+            Studio symbols
+            <span>{CIRCUIT_COMPONENT_LIBRARY.length}</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={source === 'kicad'}
+            className={source === 'kicad' ? 'is-active' : ''}
+            onClick={() => {
+              setSource('kicad');
+              setCategory('all');
+            }}
+            data-testid="component-library-source-kicad"
+          >
+            Official KiCad library
+            <span>22,911</span>
+          </button>
+        </div>
+
         <div className="component-library-dialog__tools">
           <label className="component-library-dialog__search">
             <span className="component-library-dialog__sr-only">
@@ -91,21 +158,21 @@ export function ComponentLibraryDialog({
               type="search"
               value={query}
               onChange={(event) => setQuery(event.currentTarget.value)}
-              placeholder="Search name, type, or description"
+              placeholder={source === 'kicad' ? 'Search 22,911 library symbols' : 'Search name, type, or description'}
               autoComplete="off"
               data-testid="component-library-search"
             />
           </label>
 
           <label className="component-library-dialog__category">
-            <span>Category</span>
+            <span>{source === 'kicad' ? 'Library' : 'Category'}</span>
             <select
               value={category}
               onChange={(event) => setCategory(event.currentTarget.value)}
               data-testid="component-library-category-filter"
             >
-              <option value="all">All categories</option>
-              {categories.map((item) => (
+              <option value="all">{source === 'kicad' ? 'All libraries' : 'All categories'}</option>
+              {(source === 'kicad' ? kicadLibraries : categories).map((item) => (
                 <option key={item} value={item}>
                   {item}
                 </option>
@@ -121,10 +188,26 @@ export function ComponentLibraryDialog({
           data-testid="component-library-result-count"
         >
           <span>
-            <strong>{filteredEntries.length}</strong>{' '}
-            {filteredEntries.length === 1 ? 'symbol' : 'symbols'}
+            {source === 'kicad' ? (
+              <>
+                <strong>{kicadEntries.length}</strong>
+                {kicadSearch.data?.hasMore ? ` shown of ${kicadSearch.data.total}` : ' symbols'}
+              </>
+            ) : (
+              <>
+                <strong>{filteredEntries.length}</strong>{' '}
+                {filteredEntries.length === 1 ? 'symbol' : 'symbols'}
+              </>
+            )}
           </span>
-          {category !== 'all' && (
+          {source === 'kicad' && kicadSearch.data ? (
+            <span
+              className="component-library-dialog__active-filter"
+              data-testid="component-library-source-version"
+            >
+              KiCad {kicadSearch.data.sourceVersion}
+            </span>
+          ) : category !== 'all' && (
             <span
               className="component-library-dialog__active-filter"
               data-testid="component-library-active-filter"
@@ -135,10 +218,31 @@ export function ComponentLibraryDialog({
         </div>
 
         <div className="component-library-dialog__list">
-          {filteredEntries.length > 0 ? (
+          {source === 'kicad' && kicadSearch.isLoading ? (
+            <div className="component-library-dialog__empty" role="status" data-testid="component-library-loading">
+              <h3>Loading KiCad symbols</h3>
+              <p>Searching the indexed catalog of 22,911 schematic symbols.</p>
+            </div>
+          ) : source === 'kicad' && kicadSearch.isError ? (
+            <div className="component-library-dialog__empty" role="alert" data-testid="component-library-error">
+              <h3>Symbol search is unavailable</h3>
+              <p>{kicadSearch.error instanceof Error ? kicadSearch.error.message : 'Try again in a moment.'}</p>
+              <button type="button" onClick={() => void kicadSearch.refetch()}>
+                Try again
+              </button>
+            </div>
+          ) : (source === 'kicad' ? kicadEntries.length > 0 : filteredEntries.length > 0) ? (
             <ul className="component-library-dialog__grid">
-              {filteredEntries.map((entry) => {
-                const isAnnotation = entry.category === 'Drawing';
+              {(source === 'kicad' ? kicadEntries : filteredEntries).map((entry) => {
+                const isKicadEntry = 'id' in entry;
+                const isAnnotation = !isKicadEntry && entry.category === 'Drawing';
+                const entryId = isKicadEntry ? entry.id : entry.type;
+                const entryName = isKicadEntry ? entry.name : entry.displayName;
+                const entryType = isKicadEntry ? entry.id : entry.type;
+                const entryDescription = isKicadEntry
+                  ? entry.description || entry.keywords || 'KiCad schematic symbol'
+                  : entry.description;
+                const entryCategory = isKicadEntry ? entry.library : entry.category;
                 const pinSummary =
                   entry.pinCount === null
                     ? 'Variable pins'
@@ -147,19 +251,19 @@ export function ComponentLibraryDialog({
                 return (
                   <li
                     className="component-library-dialog__item"
-                    key={entry.type}
-                    data-testid={`component-library-entry-${entry.type}`}
+                    key={entryId}
+                    data-testid={`component-library-entry-${entryId}`}
                   >
                     <div className="component-library-dialog__item-top">
                       <span
-                        className={`component-library-dialog__mark${isAnnotation ? ' is-annotation' : ''}`}
+                        className={`component-library-dialog__mark${isAnnotation ? ' is-annotation' : ''}${isKicadEntry ? ' is-kicad' : ''}`}
                         aria-hidden="true"
                       >
-                        {isAnnotation ? '—' : '⌁'}
+                        {isAnnotation ? '—' : isKicadEntry ? 'K' : '⌁'}
                       </span>
                       <div className="component-library-dialog__item-title">
-                        <h3 data-testid={`component-library-name-${entry.type}`}>
-                          {entry.displayName}
+                        <h3 data-testid={`component-library-name-${entryId}`}>
+                          {entryName}
                         </h3>
                         {isAnnotation && (
                           <span
@@ -171,25 +275,25 @@ export function ComponentLibraryDialog({
                         )}
                       </div>
                       <span className="component-library-dialog__type">
-                        {entry.type}
+                        {entryType}
                       </span>
                     </div>
 
                     <p
                       className="component-library-dialog__item-description"
-                      data-testid={`component-library-description-${entry.type}`}
+                      data-testid={`component-library-description-${entryId}`}
                     >
-                      {entry.description}
+                      {entryDescription}
                     </p>
 
                     <div className="component-library-dialog__item-meta">
-                      <span data-testid={`component-library-entry-category-${entry.type}`}>
-                        {entry.category}
+                      <span data-testid={`component-library-entry-category-${entryId}`}>
+                        {entryCategory}
                       </span>
                       <span aria-hidden="true">/</span>
-                      <span data-testid={`component-library-pins-${entry.type}`}>
+                      <span data-testid={`component-library-pins-${entryId}`}>
                         {pinSummary}
-                        {entry.pinCount !== null && ` · ${entry.pinNames}`}
+                        {!isKicadEntry && entry.pinCount !== null && ` · ${entry.pinNames}`}
                       </span>
                     </div>
 
@@ -197,9 +301,9 @@ export function ComponentLibraryDialog({
                       className="component-library-dialog__select"
                       type="button"
                       onClick={() => handleSelect(entry)}
-                      data-testid={`component-library-select-${entry.type}`}
+                      data-testid={`component-library-select-${entryId}`}
                     >
-                      Use this symbol
+                      {isKicadEntry ? 'Use exact library symbol' : 'Use this symbol'}
                       <ArrowUpRight aria-hidden="true" />
                     </button>
                   </li>
@@ -214,8 +318,8 @@ export function ComponentLibraryDialog({
               <span className="component-library-dialog__empty-mark" aria-hidden="true">
                 / / /
               </span>
-              <h3>No matching symbols</h3>
-              <p>Try a different term or reset the category filter.</p>
+              <h3>{source === 'kicad' ? 'No matching KiCad symbols' : 'No matching symbols'}</h3>
+              <p>Try a different term or reset the {source === 'kicad' ? 'library' : 'category'} filter.</p>
               <button
                 type="button"
                 onClick={() => {
@@ -234,8 +338,9 @@ export function ComponentLibraryDialog({
           className="component-library-dialog__note"
           data-testid="component-library-scope-note"
         >
-          This catalog provides schematic symbols and structural pin checks,
-          not simulation, safety verification, or certification.
+          {source === 'kicad'
+            ? 'KiCad symbol data is loaded when you build a proposal. The draft is for schematic planning, not simulation, safety verification, or certification.'
+            : 'This catalog provides schematic symbols and structural pin checks, not simulation, safety verification, or certification.'}
         </p>
       </DialogContent>
     </Dialog>

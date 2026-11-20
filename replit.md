@@ -43,10 +43,12 @@ An account-gated circuit workspace for turning plain-language electronics ideas 
 - Tutor edits are validated and previewed before a user explicitly applies them to the local draft.
 - Tutor images are type- and size-checked, sent directly for analysis, and never saved as files or database content.
 - Structure validation and AI feedback are not electrical safety or correctness checks.
+- Use KiCad's official symbol library as the broad symbol source. Keep a compact searchable index in the app and load full symbol definitions only when needed, with attribution and license terms retained.
+- Preserve imported symbol pin positions and drawing geometry in each draft so a schematic stays inspectable without requiring CAD software or circuit simulation.
 
 ## Product
 
-Visitors can learn about Circuit Studio and create an account. Signed-in users can generate and refine CircuitSpec schematics, inspect immediate structural warnings, receive debounced educational reviews, ask a separate text/image tutor for explanations or proposed edits, and export SVG, PNG, JSON, or an EasyEDA build sheet.
+Circuit Studio helps makers and engineers draft a clear schematic before moving the design into full CAD tools such as EasyEDA or KiCad. It is for sketching and reviewing a draft, not for running or simulating circuits. Keep source symbol pin geometry visible and avoid implying that a structural drawing check proves electrical correctness or safety.
 
 ## User preferences
 

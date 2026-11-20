@@ -79,6 +79,45 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+  /circuits/library/search:
+    get:
+      operationId: searchCircuitSymbols
+      tags: [circuits]
+      summary: Search the KiCad schematic symbol library
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 120
+        - name: library
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 120
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 40
+      responses:
+        "200":
+          description: Matching symbols from the official KiCad library
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CircuitSymbolSearchResponse"
+        "401":
+          description: Authentication is required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
   /circuits/tutor:
     post:
       operationId: askCircuitTutor
@@ -460,6 +499,44 @@ components:
           items:
             $ref: "#/components/schemas/CircuitBuilderSuggestedAction"
       required: [answer, brief]
+      additionalProperties: false
+    CircuitSymbolSearchItem:
+      type: object
+      properties:
+        id:
+          type: string
+        library:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        keywords:
+          type: string
+        pinCount:
+          type: [integer, "null"]
+        extends:
+          type: string
+      required: [id, library, name, description, keywords, pinCount]
+      additionalProperties: false
+    CircuitSymbolSearchResponse:
+      type: object
+      properties:
+        sourceVersion:
+          type: string
+        total:
+          type: integer
+        hasMore:
+          type: boolean
+        libraries:
+          type: array
+          items:
+            type: string
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/CircuitSymbolSearchItem"
+      required: [sourceVersion, total, hasMore, libraries, results]
       additionalProperties: false
     CircuitReviewRequest:
       type: object

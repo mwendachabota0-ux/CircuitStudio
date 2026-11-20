@@ -204,6 +204,82 @@ export declare const GenerateCircuitResponse: zod.ZodObject<{
     height?: number | undefined;
 }>;
 /**
+ * @summary Search the KiCad schematic symbol library
+ */
+export declare const searchCircuitSymbolsQueryQMax = 120;
+export declare const searchCircuitSymbolsQueryLibraryMax = 120;
+export declare const searchCircuitSymbolsQueryLimitDefault = 40;
+export declare const searchCircuitSymbolsQueryLimitMax = 100;
+export declare const SearchCircuitSymbolsQueryParams: zod.ZodObject<{
+    q: zod.ZodOptional<zod.ZodString>;
+    library: zod.ZodOptional<zod.ZodString>;
+    limit: zod.ZodDefault<zod.ZodNumber>;
+}, "strip", zod.ZodTypeAny, {
+    limit: number;
+    q?: string | undefined;
+    library?: string | undefined;
+}, {
+    q?: string | undefined;
+    library?: string | undefined;
+    limit?: number | undefined;
+}>;
+export declare const SearchCircuitSymbolsResponse: zod.ZodObject<{
+    sourceVersion: zod.ZodString;
+    total: zod.ZodNumber;
+    hasMore: zod.ZodBoolean;
+    results: zod.ZodArray<zod.ZodObject<{
+        id: zod.ZodString;
+        library: zod.ZodString;
+        name: zod.ZodString;
+        description: zod.ZodString;
+        keywords: zod.ZodString;
+        pinCount: zod.ZodNullable<zod.ZodNumber>;
+        extends: zod.ZodOptional<zod.ZodString>;
+    }, "strip", zod.ZodTypeAny, {
+        id: string;
+        library: string;
+        name: string;
+        description: string;
+        keywords: string;
+        pinCount: number | null;
+        extends?: string | undefined;
+    }, {
+        id: string;
+        library: string;
+        name: string;
+        description: string;
+        keywords: string;
+        pinCount: number | null;
+        extends?: string | undefined;
+    }>, "many">;
+}, "strip", zod.ZodTypeAny, {
+    sourceVersion: string;
+    total: number;
+    hasMore: boolean;
+    results: {
+        id: string;
+        library: string;
+        name: string;
+        description: string;
+        keywords: string;
+        pinCount: number | null;
+        extends?: string | undefined;
+    }[];
+}, {
+    sourceVersion: string;
+    total: number;
+    hasMore: boolean;
+    results: {
+        id: string;
+        library: string;
+        name: string;
+        description: string;
+        keywords: string;
+        pinCount: number | null;
+        extends?: string | undefined;
+    }[];
+}>;
+/**
  * Returns educational guidance that separates visible evidence from inference. Optional edit proposals are validated CircuitSpecs and never applied automatically.
  * @summary Ask for an explanation of a circuit or image
  */

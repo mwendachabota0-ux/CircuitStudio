@@ -16,8 +16,14 @@ import { isMainsChargerBuildRequest } from "../lib/circuitBuilderSafety";
 import { normalizeCircuitBuilderResponse } from "../lib/circuitBuilderResponse";
 import {
   CircuitSpecCompatibilityError,
+  hydrateKicadSymbols,
   parseUsableCircuit,
 } from "../lib/circuitSpec";
+import {
+  formatKicadSymbolPinGuide,
+  getKicadSymbolData,
+  getKicadSymbolIndexEntry,
+} from "../lib/kicadSymbols";
 import { getSafeErrorType } from "../lib/providerErrorDiagnostics";
 
 const router: IRouter = Router();
@@ -59,6 +65,7 @@ Safety and component support:
 - Do not generate a schematic proposal for a phone/device charger or AC/DC supply wired directly to household mains, high-voltage AC, or a switch-mode mains primary. Explain that this is hazardous and safety-critical, and offer a low-voltage-only follow-up that uses a certified, isolated commercial adapter as an external source. Never claim a generated drawing is safe, certified, or ready to connect to mains.
 - For unsupported symbols or missing verified IC/connector pinouts, explain the exact limitation without inventing symbols, pins, ratings, or part numbers. Suggest up to two concrete next prompts when a safe alternative exists. Suggested actions must be short, specific, and compatible with the user's goal; never suggest a way to recreate a rejected hazardous design.
 - If the user requests an IC but has not supplied a verified pinout, ask for the exact part and pinout before proposing that block. Generic pin blocks are drawing aids, not validation of the IC's actual pin mapping.
+- When selected KiCad library definitions are supplied in the user context, use type "kicad" with the exact symbolId and a valid unit/bodyStyle from that definition. Use only its listed pin numbers, names, and offsets; never invent a pinout. The server attaches the exact source drawing and pin geometry after generation. Do not return symbolData yourself.
 
 Use clear reference designators and unique wire IDs (W1, W2, ...). Keep wire segments horizontal or vertical, avoid zero-length segments and routes through two-terminal parts, and connect wire endpoints exactly to pins or other wire endpoints. Set open:true on a wire only when it is intentionally left disconnected. If a requested component has no supported equivalent, state the limitation instead of inventing a type or pin model.
 
@@ -67,6 +74,27 @@ When the user asks to repair a current workbench draft or a prior proposal using
 Only blocking validation errors trigger automatic repair attempts. Warnings are advisory layout notes and should not be treated as proof of a wiring fault. Avoid disconnected wire endpoints and wires that pass through or short component symbols. CircuitDraw does not perform general electrical validation or simulation.
 
 Never invent an exact manufacturer part number, footprint, rating, or user requirement. Clearly state assumptions and unknowns. A structurally renderable proposal is not proof of electrical correctness, safety, compliance, or fitness to build.`;
+
+function selectedKicadSymbolIds(messages: string[]): string[] {
+  const ids = new Set<string>();
+  const pattern = /exact KiCad symbol ID:\s*([^\s,;]+)/gi;
+  for (const message of messages) {
+    for (const match of message.matchAll(pattern)) {
+      const id = match[1]?.replace(/[.!?]+$/, "");
+      if (id && /^[^:\s]+:[^:\s]+$/.test(id)) ids.add(id);
+    }
+  }
+  return [...ids].slice(-8);
+}
+
+function withoutKicadGeometry<T extends { elements: Array<Record<string, unknown>> }>(
+  spec: T,
+): T {
+  return {
+    ...spec,
+    elements: spec.elements.map(({ symbolData: _symbolData, ...element }) => element),
+  } as T;
+}
 
 function buildContinuationContents(
   originalContents: string,
@@ -142,6 +170,47 @@ router.post(
       });
       return;
     }
+    let kicadDefinitions = "";
+    try {
+      currentSpec = await hydrateKicadSymbols(currentSpec);
+      const ids = new Set([
+        ...selectedKicadSymbolIds([
+          ...history.map((message) => message.content),
+          parsed.data.message,
+        ]),
+        ...currentSpec.elements.flatMap((element) =>
+          element.type === "kicad" && typeof element.symbolId === "string"
+            ? [element.symbolId]
+            : []
+        ),
+      ]);
+      const definitions = await Promise.all([...ids].map(async (id) => {
+        const entry = await getKicadSymbolIndexEntry(id);
+        if (!entry) {
+          throw new CircuitSpecCompatibilityError(
+            `KiCad symbol ${id} is not in the installed symbol catalog.`,
+          );
+        }
+        const symbolData = await getKicadSymbolData(id);
+        return formatKicadSymbolPinGuide(entry, symbolData);
+      }));
+      if (definitions.length) {
+        kicadDefinitions = `Selected KiCad library symbols (pin offsets are relative to each symbol's at origin, in screen coordinates):\n${definitions.join("\n\n")}`;
+      }
+    } catch (error) {
+      if (error instanceof CircuitSpecCompatibilityError) {
+        res.status(400).json({ error: error.message });
+        return;
+      }
+      req.log.warn(
+        { reason: error instanceof Error ? error.name : "unknown" },
+        "KiCad symbol definitions could not be loaded",
+      );
+      res.status(503).json({
+        error: "The selected KiCad symbol definitions are temporarily unavailable. Try again when the symbol catalog is reachable.",
+      });
+      return;
+    }
     const conversation = history
       .map((message) => `${message.role === "assistant" ? "Assistant" : "User"}: ${message.content}`)
       .join("\n");
@@ -149,7 +218,8 @@ router.post(
       `Mode: ${parsed.data.mode}`,
       `Current design brief:\n${JSON.stringify(brief)}`,
       conversation ? `Recent conversation:\n${conversation}` : "",
-      `Current CircuitSpec:\n${JSON.stringify(currentSpec)}`,
+      kicadDefinitions,
+      `Current CircuitSpec:\n${JSON.stringify(withoutKicadGeometry(currentSpec))}`,
       `Latest user message:\n${parsed.data.message.trim()}`,
     ]
       .filter(Boolean)
@@ -231,7 +301,9 @@ router.post(
 
       if (result.proposal) {
         failureStage = "validate_circuit_spec";
-        result.proposal.spec = parseUsableCircuit(result.proposal.spec);
+        result.proposal.spec = await hydrateKicadSymbols(
+          parseUsableCircuit(result.proposal.spec),
+        );
       }
       if (result.nextMode !== "build") {
         delete result.proposal;

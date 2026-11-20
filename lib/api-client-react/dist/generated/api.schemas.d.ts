@@ -182,6 +182,22 @@ export interface CircuitBuildChatResponse {
     /** @maxItems 2 */
     suggestedActions?: CircuitBuilderSuggestedAction[];
 }
+export interface CircuitSymbolSearchItem {
+    id: string;
+    library: string;
+    name: string;
+    description: string;
+    keywords: string;
+    /** @nullable */
+    pinCount: number | null;
+    extends?: string;
+}
+export interface CircuitSymbolSearchResponse {
+    sourceVersion: string;
+    total: number;
+    hasMore: boolean;
+    results: CircuitSymbolSearchItem[];
+}
 export interface CircuitReviewRequest {
     spec: CircuitSpec;
 }
@@ -210,4 +226,19 @@ export interface AiKeySelectionRequest {
     /** @minimum 1 */
     keyNumber: number;
 }
+export type SearchCircuitSymbolsParams = {
+    /**
+     * @maxLength 120
+     */
+    q?: string;
+    /**
+     * @maxLength 120
+     */
+    library?: string;
+    /**
+     * @minimum 1
+     * @maximum 100
+     */
+    limit?: number;
+};
 //# sourceMappingURL=api.schemas.d.ts.map

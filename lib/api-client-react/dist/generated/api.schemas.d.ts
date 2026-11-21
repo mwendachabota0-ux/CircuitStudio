@@ -247,6 +247,7 @@ export declare const CircuitBuilderMemoryCategory: {
     readonly 'design-decision': "design-decision";
     readonly 'past-context': "past-context";
     readonly 'repair-lesson': "repair-lesson";
+    readonly 'design-feedback': "design-feedback";
 };
 export interface CircuitBuilderMemorySuggestion {
     /**
@@ -287,6 +288,36 @@ export interface CircuitBuildChatResponse {
     repairLesson?: string | null;
     /** Server-set marker that the assistant asked permission before creating a schematic. */
     buildApprovalRequested?: boolean;
+}
+export type CircuitBuilderFeedbackInputVote = typeof CircuitBuilderFeedbackInputVote[keyof typeof CircuitBuilderFeedbackInputVote];
+export declare const CircuitBuilderFeedbackInputVote: {
+    readonly up: "up";
+    readonly down: "down";
+};
+export type CircuitBuilderFeedbackInputReason = typeof CircuitBuilderFeedbackInputReason[keyof typeof CircuitBuilderFeedbackInputReason];
+export declare const CircuitBuilderFeedbackInputReason: {
+    readonly overall: "overall";
+    readonly 'incorrect-wiring': "incorrect-wiring";
+    readonly 'wrong-parts-or-values': "wrong-parts-or-values";
+    readonly 'poor-readability': "poor-readability";
+    readonly 'missed-request': "missed-request";
+    readonly other: "other";
+};
+export interface CircuitBuilderFeedbackInput {
+    vote: CircuitBuilderFeedbackInputVote;
+    reason: CircuitBuilderFeedbackInputReason;
+    /**
+       * @minLength 1
+       * @maxLength 120
+       */
+    circuitTitle: string;
+    /** @maxLength 600 */
+    requestSummary?: string;
+    /** @maxLength 500 */
+    details?: string;
+}
+export interface CircuitBuilderFeedbackResponse {
+    saved: boolean;
 }
 export interface CircuitBuilderMemory {
     /** @minimum 1 */
@@ -533,6 +564,35 @@ export interface ExternalCircuitFixReviewResponse {
 }
 export interface CircuitReviewResponse {
     review: string;
+}
+export interface CircuitProposalReviewInput {
+    spec: CircuitSpec;
+    /**
+       * @minLength 1
+       * @maxLength 6000
+       */
+    originalRequest: string;
+    brief: CircuitDesignBrief;
+}
+export interface CircuitProposalReview {
+    /**
+       * @maxItems 5
+       * @items.minLength 1
+       * @items.maxLength 500
+       */
+    intentConcerns: string[];
+    /**
+       * @maxItems 5
+       * @items.minLength 1
+       * @items.maxLength 500
+       */
+    readabilityWarnings: string[];
+    /**
+       * @maxItems 5
+       * @items.minLength 1
+       * @items.maxLength 500
+       */
+    unknowns: string[];
 }
 export interface AiUsage {
     /** @minimum 0 */

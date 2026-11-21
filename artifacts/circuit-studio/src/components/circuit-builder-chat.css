@@ -793,6 +793,118 @@
 .builder-chat__validation ul { width: 100%; margin: 1px 0 0; padding-left: 18px; }
 .builder-chat__validation li { margin: 3px 0; line-height: 1.45; }
 .builder-chat__validation p { width: 100%; margin: 0; }
+.builder-chat__validation-group {
+  width: 100%;
+  display: grid;
+  gap: 3px;
+}
+.builder-chat__validation-group > strong { color: #596b60; font-size: 9px; }
+.builder-chat__validation-group.is-topology > strong { color: #976440; }
+.builder-chat__validation-group.is-error > strong { color: #9d4b42; }
+.builder-chat__validation-disclaimer {
+  width: 100%;
+  margin: 0;
+  color: #777f76;
+  font-size: 8px;
+  line-height: 1.45;
+}
+.builder-chat__quality-review {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px solid #e4ddce;
+  border-radius: 6px;
+  background: #fffefa;
+  color: #596b60;
+  font-size: 9px;
+  line-height: 1.45;
+}
+.builder-chat__quality-review > strong { color: #41564a; font-size: 10px; }
+.builder-chat__quality-review > p { margin: 0; }
+.builder-chat__quality-review ul { width: 100%; margin: 2px 0 0; padding-left: 17px; }
+.builder-chat__quality-review li { margin: 2px 0; }
+.builder-chat__quality-review-group { display: grid; gap: 2px; }
+.builder-chat__quality-review-group > strong { color: #805b40; font-size: 9px; }
+.builder-chat__quality-review-group.is-layout > strong { color: #54705e; }
+.builder-chat__quality-review-note { color: #7d8178; font-size: 8px; }
+.builder-chat__rating {
+  display: grid;
+  gap: 7px;
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px solid #e4ddce;
+  border-radius: 6px;
+  background: #fffefa;
+}
+.builder-chat__rating-heading { display: grid; gap: 2px; }
+.builder-chat__rating-heading strong { color: #41564a; font-size: 9px; }
+.builder-chat__rating-heading span,
+.builder-chat__rating-saved { color: #777f76; font-size: 8px; line-height: 1.45; }
+.builder-chat__rating-votes { display: flex; gap: 6px; }
+.builder-chat__rating-votes button {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 9px;
+  border: 1px solid #dcd8cd;
+  border-radius: 5px;
+  background: #fffefa;
+  color: #53655a;
+  font-size: 9px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.builder-chat__rating-votes button:hover:not(:disabled),
+.builder-chat__rating-votes button.is-selected { border-color: #8bb39c; background: #f0f8f2; color: #276348; }
+.builder-chat__rating-votes button:disabled { cursor: default; opacity: .7; }
+.builder-chat__rating-votes svg,
+.builder-chat__rating-submit svg { width: 12px; height: 12px; }
+.builder-chat__rating-form { display: grid; gap: 7px; }
+.builder-chat__rating-form fieldset {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.builder-chat__rating-form legend { margin-bottom: 5px; color: #596b60; font-size: 8px; font-weight: 700; }
+.builder-chat__rating-form fieldset label { display: inline-flex; align-items: center; gap: 5px; color: #67746a; font-size: 8px; }
+.builder-chat__rating-form input[type="radio"] { width: 12px; height: 12px; margin: 0; accent-color: #327355; }
+.builder-chat__rating-note { display: grid; gap: 4px; color: #596b60; font-size: 8px; font-weight: 700; }
+.builder-chat__rating-note textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 44px;
+  padding: 6px 7px;
+  border: 1px solid #dedacf;
+  border-radius: 5px;
+  background: #fffefa;
+  color: #314740;
+  font: 9px/1.45 var(--app-font-mono);
+}
+.builder-chat__rating-note textarea:focus-visible { outline: 2px solid #2d8062; outline-offset: 1px; }
+.builder-chat__rating-submit {
+  justify-self: start;
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 9px;
+  border: 0;
+  border-radius: 5px;
+  background: #176b55;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.builder-chat__rating-submit:disabled { cursor: not-allowed; opacity: .55; }
+.builder-chat__rating-saved { display: grid; gap: 4px; }
+.builder-chat__rating-saved .builder-chat__text-link { justify-self: start; font-size: 9px; }
+.builder-chat__rating-error { margin: 0; color: #a34f42; font-size: 8px; line-height: 1.4; }
 .builder-chat__rejected-preview {
   margin: 0 12px 10px;
   padding: 8px;

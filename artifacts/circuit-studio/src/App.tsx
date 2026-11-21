@@ -37,7 +37,12 @@ import {
 } from './lib/bill-of-materials';
 import { Redirect, Route, Switch, useLocation, Link, Router as WouterRouter } from 'wouter';
 
-type ValidationReport = { errors: string[]; warnings: string[] };
+type ValidationReport = {
+  errors: string[];
+  warnings: string[];
+  topologyErrors?: string[];
+  topologyWarnings?: string[];
+};
 type CircuitSpec = ApiCircuitSpec;
 type CircuitDrawRenderOptions = {
   allowStructuralErrors?: boolean;

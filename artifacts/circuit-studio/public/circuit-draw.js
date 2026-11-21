@@ -513,8 +513,145 @@
 
   function validate(spec) {
     var a = analyse(spec);
-    a.errors = a.errors.concat(astableTopologyFindings(spec));
-    return { errors: a.errors, warnings: a.warnings };
+    var topology = circuitTopologyFindings(spec);
+    var topologyErrors = astableTopologyFindings(spec).concat(topology.errors);
+    return {
+      errors: a.errors.concat(topologyErrors),
+      warnings: a.warnings.concat(topology.warnings),
+      topologyErrors: topologyErrors,
+      topologyWarnings: topology.warnings
+    };
+  }
+
+  function circuitTopologyFindings(spec) {
+    var result = { errors: [], warnings: [] };
+    if (!spec || !Array.isArray(spec.elements)) return result;
+
+    var connectivity;
+    try {
+      connectivity = netlist(spec, true);
+    } catch (_) {
+      return result;
+    }
+
+    var designators = new Map();
+    var auto = 0;
+    spec.elements.forEach(function (el) {
+      if (!el || !NICE[el.type]) return;
+      var designator = el.label || el.id;
+      if (!designator) designator = el.type.toUpperCase().slice(0, 1) + '?' + (++auto);
+      designators.set(el, String(designator));
+    });
+
+    function netFor(element, pin) {
+      var designator = designators.get(element);
+      if (!designator || pin == null) return null;
+      var member = designator + '.' + String(pin);
+      return connectivity.nets.filter(function (net) { return net.pins.indexOf(member) >= 0; })[0] || null;
+    }
+    function polarity(name) {
+      var value = String(name || '').trim();
+      if (/^(?:\+|plus|positive|v\+)$/i.test(value)) return 'positive';
+      if (/^(?:-|−|minus|negative|v-)$/i.test(value)) return 'negative';
+      return null;
+    }
+    function terminalPins(element) {
+      if (element.type === 'kicad') {
+        var unit = kicadUnitOf(element);
+        return unit && Array.isArray(unit.pins) ? unit.pins : [];
+      }
+      return pinsOf(element).map(function (pin) {
+        return { number: pin.n, name: pin.n };
+      });
+    }
+
+    var sources = [];
+    spec.elements.forEach(function (element, index) {
+      if (!element) return;
+      var pins = terminalPins(element);
+      var sourceFamily = element.type === 'battery' || element.type === 'dcsource' ||
+        (element.type === 'kicad' &&
+          /^(?:Device:Battery(?:_Cell)?|Simulation_SPICE:V(?:DC|AC))$/i.test(
+            String(element.symbolId || ''),
+          ));
+      if (!sourceFamily) return;
+
+      var positivePin = null;
+      var negativePin = null;
+      pins.forEach(function (pin) {
+        var sign = polarity(pin.name);
+        if (sign === 'positive') positivePin = pin.number || pin.n;
+        if (sign === 'negative') negativePin = pin.number || pin.n;
+      });
+      if (positivePin == null && element.type !== 'kicad') positivePin = '+';
+      if (negativePin == null && element.type !== 'kicad') negativePin = '-';
+      if (positivePin == null || negativePin == null) return;
+
+      sources.push({
+        element: element,
+        name: elementName(element, index),
+        positiveNet: netFor(element, positivePin),
+        negativeNet: netFor(element, negativePin)
+      });
+    });
+
+    sources.forEach(function (source) {
+      if (source.positiveNet && source.positiveNet === source.negativeNet) {
+        result.errors.push(
+          source.name + ' has its positive and negative terminals on the same net; this directly shorts the source.',
+        );
+      }
+    });
+
+    var switches = spec.elements.filter(function (element) {
+      if (!element) return false;
+      if (element.type === 'switch') return true;
+      return element.type === 'kicad' &&
+        /^Switch:SW_(?:SPST|SPDT|DPST|DPDT|SP3T|DP3T)/i.test(String(element.symbolId || ''));
+    });
+    switches.forEach(function (switchElement, switchIndex) {
+      var pins = terminalPins(switchElement);
+      var switchPins = pins.map(function (pin) { return pin.number || pin.n; })
+        .filter(function (pin) { return pin != null; });
+      if (switchPins.length < 2) return;
+      var switchName = elementName(switchElement, spec.elements.indexOf(switchElement));
+      sources.forEach(function (source) {
+        if (!source.positiveNet || !source.negativeNet) return;
+        for (var left = 0; left < switchPins.length; left++) {
+          for (var right = left + 1; right < switchPins.length; right++) {
+            var leftNet = netFor(switchElement, switchPins[left]);
+            var rightNet = netFor(switchElement, switchPins[right]);
+            if (
+              (leftNet === source.positiveNet && rightNet === source.negativeNet) ||
+              (rightNet === source.positiveNet && leftNet === source.negativeNet)
+            ) {
+              result.errors.push(
+                switchName + ' bridges ' + source.name + ' positive and negative rails; closing the switch would directly short the source.',
+              );
+              return;
+            }
+          }
+        }
+      });
+    });
+
+    spec.elements.forEach(function (element, index) {
+      if (!element) return;
+      var isResistor = element.type === 'resistor' ||
+        (element.type === 'kicad' && /^Device:R(?:_|$)/i.test(String(element.symbolId || '')));
+      if (!isResistor) return;
+      var pins = terminalPins(element);
+      var first = pins[0] && (pins[0].number || pins[0].n);
+      var second = pins[1] && (pins[1].number || pins[1].n);
+      if (first == null || second == null) return;
+      if (netFor(element, first) !== netFor(element, second)) return;
+      if (/^0(?:\.0*)?(?:\s*(?:r|ohm|Ω))?$/i.test(String(element.value || '').trim())) return;
+      result.warnings.push(
+        elementName(element, index) + ' is bypassed: both resistor terminals are on the same net, so it cannot provide its stated resistance.',
+      );
+    });
+
+    return result;
   }
 
   function astableTopologyFindings(spec) {

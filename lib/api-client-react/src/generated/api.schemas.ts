@@ -286,6 +286,7 @@ export const CircuitBuilderMemoryCategory = {
   'design-decision': 'design-decision',
   'past-context': 'past-context',
   'repair-lesson': 'repair-lesson',
+  'design-feedback': 'design-feedback',
 } as const;
 
 export interface CircuitBuilderMemorySuggestion {
@@ -328,6 +329,44 @@ export interface CircuitBuildChatResponse {
   repairLesson?: string | null;
   /** Server-set marker that the assistant asked permission before creating a schematic. */
   buildApprovalRequested?: boolean;
+}
+
+export type CircuitBuilderFeedbackInputVote = typeof CircuitBuilderFeedbackInputVote[keyof typeof CircuitBuilderFeedbackInputVote];
+
+
+export const CircuitBuilderFeedbackInputVote = {
+  up: 'up',
+  down: 'down',
+} as const;
+
+export type CircuitBuilderFeedbackInputReason = typeof CircuitBuilderFeedbackInputReason[keyof typeof CircuitBuilderFeedbackInputReason];
+
+
+export const CircuitBuilderFeedbackInputReason = {
+  overall: 'overall',
+  'incorrect-wiring': 'incorrect-wiring',
+  'wrong-parts-or-values': 'wrong-parts-or-values',
+  'poor-readability': 'poor-readability',
+  'missed-request': 'missed-request',
+  other: 'other',
+} as const;
+
+export interface CircuitBuilderFeedbackInput {
+  vote: CircuitBuilderFeedbackInputVote;
+  reason: CircuitBuilderFeedbackInputReason;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  circuitTitle: string;
+  /** @maxLength 600 */
+  requestSummary?: string;
+  /** @maxLength 500 */
+  details?: string;
+}
+
+export interface CircuitBuilderFeedbackResponse {
+  saved: boolean;
 }
 
 export interface CircuitBuilderMemory {
@@ -610,6 +649,37 @@ export interface ExternalCircuitFixReviewResponse {
 
 export interface CircuitReviewResponse {
   review: string;
+}
+
+export interface CircuitProposalReviewInput {
+  spec: CircuitSpec;
+  /**
+     * @minLength 1
+     * @maxLength 6000
+     */
+  originalRequest: string;
+  brief: CircuitDesignBrief;
+}
+
+export interface CircuitProposalReview {
+  /**
+     * @maxItems 5
+     * @items.minLength 1
+     * @items.maxLength 500
+     */
+  intentConcerns: string[];
+  /**
+     * @maxItems 5
+     * @items.minLength 1
+     * @items.maxLength 500
+     */
+  readabilityWarnings: string[];
+  /**
+     * @maxItems 5
+     * @items.minLength 1
+     * @items.maxLength 500
+     */
+  unknowns: string[];
 }
 
 export interface AiUsage {

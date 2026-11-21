@@ -7,7 +7,12 @@ export const MAX_AUTO_RETRIES = 3;
 
 export type BuildRetryKind = 'generation' | 'repair' | 'format';
 export type BuildRetryPolicy = { retryable: boolean; delayMs?: number };
-export type BuildValidation = { errors: string[]; warnings: string[] };
+export type BuildValidation = {
+  errors: string[];
+  warnings: string[];
+  topologyErrors?: string[];
+  topologyWarnings?: string[];
+};
 export type BuildProposalInspection = {
   validation: BuildValidation;
   canRepair: boolean;
@@ -20,6 +25,12 @@ export function classifyProposalValidation(validation: BuildValidation): BuildVa
   return {
     errors: [...validation.errors, ...layoutFindings.map((finding) => `Drawing-quality issue: ${finding}`)],
     warnings: validation.warnings.filter((warning) => !requiresLayoutRepair(warning)),
+    ...(validation.topologyErrors
+      ? { topologyErrors: validation.topologyErrors }
+      : {}),
+    ...(validation.topologyWarnings
+      ? { topologyWarnings: validation.topologyWarnings }
+      : {}),
   };
 }
 

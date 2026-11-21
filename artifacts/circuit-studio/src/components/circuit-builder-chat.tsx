@@ -12,14 +12,18 @@ import {
   useListDeletedCircuitBuilderHistory,
   useLearnFromCircuitBuilderHistory,
   useDeleteCircuitBuilderHistory,
+  useReviewCircuitProposal,
   useReviewExternalCircuitFix,
+  useSaveCircuitBuilderFeedback,
   useSaveCircuitBuilderRepairLesson,
   useSyncCircuitBuilderHistory,
 } from '@workspace/api-client-react';
 import type {
   CircuitBuilderHistorySession as ApiBuilderHistoryEntry,
+  CircuitBuilderFeedbackInput,
   CircuitBuilderHistoryExcerpt,
   CircuitBuilderSuggestedAction,
+  CircuitProposalReview,
   CircuitBuildChatInput,
   CircuitBuildChatMessage,
   CircuitBuilderRepairLessonInput,
@@ -104,6 +108,7 @@ import { ComponentLibraryDialog } from './component-library-dialog';
 import CircuitBuilderComposer, {
   type CircuitBuilderComposerHandle,
 } from './circuit-builder-composer';
+import { CircuitBuilderFeedback } from './circuit-builder-feedback';
 import {
   CircuitBuilderMemoryDialog,
   type CircuitBuilderMemoryImportStatus,
@@ -118,7 +123,19 @@ type ThreadMessage = CircuitBuildChatMessage & {
 };
 type SavedState = { brief: CircuitDesignBrief; aiBrief: CircuitDesignBrief; messages: ThreadMessage[] };
 type BuilderHistoryEntry = BuilderHistorySession<SavedState, CircuitBuildChatInput['currentSpec']>;
-type ValidationReport = { errors: string[]; warnings: string[] };
+type ValidationReport = {
+  errors: string[];
+  warnings: string[];
+  topologyErrors?: string[];
+  topologyWarnings?: string[];
+};
+type ProposalQualityReviewState =
+  | { kind: 'idle' | 'loading' | 'unavailable' | 'skipped' }
+  | { kind: 'ready'; review: CircuitProposalReview };
+type ProposalFeedbackReason = Exclude<
+  CircuitBuilderFeedbackInput['reason'],
+  'overall'
+>;
 type RetryFeedback = {
   message: string;
   canRetryManually: boolean;
@@ -516,6 +533,8 @@ export function CircuitBuilderChat({
     mutation: { mutationKey: getChatWithCircuitBuilderMutationKey() },
   });
   const externalFixReviewMutation = useReviewExternalCircuitFix();
+  const proposalReviewMutation = useReviewCircuitProposal();
+  const feedbackMutation = useSaveCircuitBuilderFeedback();
   const repairLessonMutation = useSaveCircuitBuilderRepairLesson();
   const historyImportMutation = useLearnFromCircuitBuilderHistory();
   const usageQuery = useGetAiUsage({
@@ -538,6 +557,8 @@ export function CircuitBuilderChat({
   const [proposal, setProposal] = useState<{ summary: string; spec: CircuitBuildChatInput['currentSpec'] } | null>(null);
   const [proposalSvg, setProposalSvg] = useState('');
   const [proposalValidation, setProposalValidation] = useState<ValidationReport | null>(null);
+  const [proposalQualityReview, setProposalQualityReview] =
+    useState<ProposalQualityReviewState>({ kind: 'idle' });
   const [proposalError, setProposalError] = useState('');
   const [proposalRepairLesson, setProposalRepairLesson] =
     useState<ProposalRepairLesson | null>(null);
@@ -575,6 +596,7 @@ export function CircuitBuilderChat({
     findings: string[];
   } | null>(null);
   const applyingProposalSpecRef = useRef<string | null>(null);
+  const proposalReviewRunIdRef = useRef(0);
   const pendingRestoreRef = useRef<{
     sessionId: string;
     specSignature: string;
@@ -653,6 +675,45 @@ export function CircuitBuilderChat({
       });
     }
   }, [queryClient, repairLessonMutation.mutateAsync]);
+
+  const clearProposalQualityReview = () => {
+    proposalReviewRunIdRef.current += 1;
+    setProposalQualityReview({ kind: 'idle' });
+  };
+
+  const runProposalQualityReview = useCallback(async (
+    spec: CircuitSpec,
+    originalRequest: string,
+    brief: CircuitDesignBrief,
+  ) => {
+    const runId = ++proposalReviewRunIdRef.current;
+    setProposalQualityReview({ kind: 'loading' });
+    try {
+      const review = await proposalReviewMutation.mutateAsync({
+        data: {
+          spec,
+          originalRequest: originalRequest.slice(0, 6000) || 'Review this staged circuit proposal.',
+          brief,
+        },
+      });
+      if (proposalReviewRunIdRef.current !== runId) return;
+      setProposalQualityReview({ kind: 'ready', review });
+      void queryClient.invalidateQueries({ queryKey: getGetAiUsageQueryKey() });
+    } catch {
+      if (proposalReviewRunIdRef.current !== runId) return;
+      setProposalQualityReview({ kind: 'unavailable' });
+    }
+  }, [proposalReviewMutation.mutateAsync, queryClient]);
+
+  const saveProposalFeedback = async (input: CircuitBuilderFeedbackInput) => {
+    const result = await feedbackMutation.mutateAsync({ data: input });
+    if (!result.saved) {
+      throw new Error('Feedback could not be saved. Please try again.');
+    }
+    await queryClient.invalidateQueries({
+      queryKey: getListCircuitBuilderMemoriesQueryKey(),
+    });
+  };
 
   useEffect(() => {
     if (hasUnappliedJsonEdits) return;
@@ -1114,6 +1175,15 @@ export function CircuitBuilderChat({
       setProposalSvg(svg);
       setProposalValidation(validation);
       setProposalError('Studio AI review is not an electrical simulation or safety check.');
+      if (validation.errors.length) {
+        setProposalQualityReview({ kind: 'skipped' });
+      } else {
+        void runProposalQualityReview(
+          parsed.spec,
+          externalFixContext.originalRequest || externalFixContext.designBrief.goal,
+          externalFixContext.designBrief,
+        );
+      }
     } catch (error) {
       if (
         externalFixContextKeyRef.current !== submittedContextKey ||
@@ -1135,14 +1205,20 @@ export function CircuitBuilderChat({
     preserveRejectedProposal = false,
     rememberForRetry = true,
     repairLessonSeed?: RepairLessonEvidence,
+    preservedRejectedProposalOverride?: CircuitBuildChatInput['currentSpec'],
   ) => {
     const safeRequest = normalizeCircuitBuildRequest(request);
     if (rememberForRetry) setLastRequest(safeRequest);
+    if (preserveRejectedProposal && preservedRejectedProposalOverride) {
+      setRejectedProposalSpec(preservedRejectedProposalOverride);
+      setRejectedProposalSvg(renderRejectedProposalPreview(preservedRejectedProposalOverride));
+    }
     setLastProtectedElementsBaseSpec(protectedElementsBaseSpec ?? null);
     setRetryFeedback(null);
     setRepairDiagnostics([]);
     setProposalRepairLesson(null);
     setRepairLessonNotice(null);
+    clearProposalQualityReview();
     if (!preserveRejectedProposal) {
       setRejectedProposalSpec(null);
       setRejectedProposalSvg('');
@@ -1234,6 +1310,15 @@ export function CircuitBuilderChat({
           setProposalError('');
           setProposalValidation(proposalInspection.validation);
           setProposalSvg(proposalInspection.svg);
+          if (proposalInspection.validation.errors.length) {
+            setProposalQualityReview({ kind: 'skipped' });
+          } else {
+            void runProposalQualityReview(
+              response.proposal.spec,
+              safeRequest.message,
+              nextBrief,
+            );
+          }
           const automaticSeed = repairLessonContext
             ? {
                 beforeSpec: asCircuitSpec(repairLessonContext.rejectedProposal),
@@ -1275,7 +1360,9 @@ export function CircuitBuilderChat({
       setMode((currentMode) => getModeAfterFailedRequest(currentMode, safeRequest.mode));
       if (error instanceof CircuitBuildAttemptError) {
         const rejectedSpec = asCircuitSpec(error.rejectedProposal) ??
-          (preserveRejectedProposal ? rejectedProposalSpec : null);
+          (preserveRejectedProposal
+            ? asCircuitSpec(preservedRejectedProposalOverride) ?? rejectedProposalSpec
+            : null);
         setRejectedProposalSpec(rejectedSpec);
         setRejectedProposalSvg(renderRejectedProposalPreview(rejectedSpec));
         setRepairDiagnostics(error.repairDiagnostics);
@@ -1731,12 +1818,80 @@ export function CircuitBuilderChat({
     composerRef.current?.setDraft(action.prompt);
   };
 
+  const discardProposal = () => {
+    setProposal(null);
+    setProposalSvg('');
+    setProposalValidation(null);
+    clearProposalQualityReview();
+  };
+
+  const reviseProposalFromFeedback = async (
+    reason: ProposalFeedbackReason,
+    details: string,
+  ) => {
+    if (!proposal || chatMutation.isPending || requestCycleActive) return;
+    const currentProposal = proposal;
+    const reasonText: Record<ProposalFeedbackReason, string> = {
+      'incorrect-wiring': 'the wiring was incorrect',
+      'wrong-parts-or-values': 'the parts or values were wrong',
+      'poor-readability': 'the schematic was hard to read',
+      'missed-request': 'the proposal did not match the request',
+      other: 'another issue needed correction',
+    };
+    const goal = saved.brief.goal.trim() ||
+      lastRequest?.message.trim() ||
+      currentProposal.spec.title;
+    const userDetail = details.trim()
+      ? ` My detail: ${details.trim().slice(0, 500)}`
+      : '';
+    const revisionPrompt = [
+      `Please revise the staged "${currentProposal.spec.title}" circuit based on my feedback: ${reasonText[reason]}.${userDetail}`,
+      `Keep the original goal: "${goal.slice(0, 600)}".`,
+      'Address the specific issue, improve the schematic readability where needed, and do not invent missing ratings or values.',
+      'Return a new staged proposal for me to review; do not apply it to the workbench.',
+    ].join(' ').slice(0, 3000);
+    const history = saved.messages
+      .slice(-8)
+      .map(({ role, content }) => ({ role, content }));
+    const request: CircuitBuildChatInput = {
+      message: revisionPrompt,
+      mode: 'build',
+      currentSpec: currentProposal.spec,
+      history,
+      brief: saved.brief,
+    };
+    setRejectedProposalSpec(currentProposal.spec);
+    setRejectedProposalSvg(renderRejectedProposalPreview(currentProposal.spec));
+    setMode('build');
+    setSaved((current) => ({
+      ...current,
+      messages: [...current.messages, newMessage('user', revisionPrompt)].slice(-60),
+    }));
+    discardProposal();
+    await runRequest(
+      request,
+      composerRef.current?.getDraftRevision() ?? 0,
+      undefined,
+      true,
+      true,
+      undefined,
+      currentProposal.spec,
+    );
+  };
+
   const applyProposal = () => {
-    if (!proposal || !proposalSvg || !proposalValidation || proposalValidation.errors.length) return;
+    if (
+      !proposal ||
+      !proposalSvg ||
+      !proposalValidation ||
+      proposalValidation.errors.length ||
+      proposalQualityReview.kind === 'loading'
+    ) return;
     onApplySpec(proposal.spec);
     setProposal(null);
     setProposalSvg('');
     setProposalValidation(null);
+    clearProposalQualityReview();
     setRetryFeedback(null);
     setRejectedProposalSpec(null);
     setRejectedProposalSvg('');
@@ -1756,6 +1911,14 @@ export function CircuitBuilderChat({
     retryFeedback?.validationFindings ?? [],
     rejectedProposalSpec,
   );
+  const proposalTopologyErrors = proposalValidation?.topologyErrors ?? [];
+  const proposalTopologyWarnings = proposalValidation?.topologyWarnings ?? [];
+  const proposalStructuralErrors = proposalValidation?.errors.filter(
+    (finding) => !proposalTopologyErrors.includes(finding),
+  ) ?? [];
+  const proposalLayoutWarnings = proposalValidation?.warnings.filter(
+    (warning) => !proposalTopologyWarnings.includes(warning),
+  ) ?? [];
   const hasBrief = Boolean(saved.brief.goal || saved.brief.requirements.length || saved.brief.assumptions.length || saved.brief.openQuestions.length);
   const retryHistorySync = () => {
     if (!historyQuery.isSuccess || !historyDeletionsQuery.isSuccess) {
@@ -2186,7 +2349,7 @@ export function CircuitBuilderChat({
                   <p className="builder-chat__eyebrow">Staged proposal · review before applying</p>
                   <h3>{proposal.summary}</h3>
                 </div>
-                <button type="button" className="builder-chat__icon-link" aria-label="Discard proposal" onClick={() => { setProposal(null); setProposalSvg(''); setProposalValidation(null); }} data-testid="button-discard-proposal">
+                <button type="button" className="builder-chat__icon-link" aria-label="Discard proposal" onClick={discardProposal} data-testid="button-discard-proposal">
                   <X aria-hidden="true" />
                 </button>
               </div>
@@ -2196,22 +2359,103 @@ export function CircuitBuilderChat({
                   : <div className="builder-chat__preview-empty" data-testid="status-builder-preview-error">Preview unavailable until the proposal is valid.</div>}
               </div>
               <div className={`builder-chat__validation${proposalValidation?.errors.length ? ' has-errors' : proposalValidation?.warnings.length ? ' has-warnings' : ' is-valid'}`} data-testid="status-builder-validation">
-                {proposalValidation?.errors.length
-                  ? <strong>{proposalValidation.errors.length} issue{proposalValidation.errors.length === 1 ? '' : 's'} need attention</strong>
-                  : proposalValidation?.warnings.length
-                    ? <strong>Preview checked · {proposalValidation.warnings.length} warning{proposalValidation.warnings.length === 1 ? '' : 's'}</strong>
-                    : <><CheckCircle2 aria-hidden="true" /><strong>Preview checked · no structural issues</strong></>}
-                {!!proposalValidation?.errors.length && <ul>{proposalValidation.errors.map((item, index) => <li className="is-error" key={`e-${index}`}>{item}</li>)}</ul>}
-                {!!proposalValidation?.warnings.length && <ul>{proposalValidation.warnings.map((item, index) => <li key={`w-${index}`}>{item}</li>)}</ul>}
+                {proposalStructuralErrors.length > 0 && (
+                  <div className="builder-chat__validation-group is-error">
+                    <strong>Blocking pin or wire findings</strong>
+                    <ul>{proposalStructuralErrors.map((item, index) => <li className="is-error" key={`structural-${index}`}>{item}</li>)}</ul>
+                  </div>
+                )}
+                {proposalTopologyErrors.length > 0 && (
+                  <div className="builder-chat__validation-group is-error">
+                    <strong>Blocking circuit connection findings</strong>
+                    <ul>{proposalTopologyErrors.map((item, index) => <li className="is-error" key={`topology-error-${index}`}>{item}</li>)}</ul>
+                  </div>
+                )}
+                {!proposalStructuralErrors.length && !proposalTopologyErrors.length && (
+                  <div className="builder-chat__validation-group">
+                    <CheckCircle2 aria-hidden="true" />
+                    <strong>Pin and wire structure passed; no tested direct short was detected.</strong>
+                  </div>
+                )}
+                {proposalTopologyWarnings.length > 0 && (
+                  <div className="builder-chat__validation-group is-topology">
+                    <strong>Circuit connection warnings</strong>
+                    <ul>{proposalTopologyWarnings.map((item, index) => <li key={`topology-warning-${index}`}>{item}</li>)}</ul>
+                  </div>
+                )}
+                {proposalLayoutWarnings.length > 0 && (
+                  <div className="builder-chat__validation-group">
+                    <strong>Drawing and layout warnings</strong>
+                    <ul>{proposalLayoutWarnings.map((item, index) => <li key={`layout-warning-${index}`}>{item}</li>)}</ul>
+                  </div>
+                )}
                 {proposalError && <p>{proposalError}</p>}
+                <p className="builder-chat__validation-disclaimer">These checks cover pin and wire structure plus a few obvious faults. They do not simulate the circuit or prove electrical correctness or safety.</p>
               </div>
+              <div className="builder-chat__quality-review" data-testid="panel-proposal-quality-review">
+                <strong>Intent and readability review</strong>
+                {proposalQualityReview.kind === 'loading' && (
+                  <p role="status">Studio is checking how well the draft matches your request and whether it is readable…</p>
+                )}
+                {proposalQualityReview.kind === 'skipped' && (
+                  <p>AI review was skipped because blocking connection findings need attention first.</p>
+                )}
+                {proposalQualityReview.kind === 'unavailable' && (
+                  <p>AI review was unavailable. Check request fit and readability yourself; the separate pin and wire checks still apply.</p>
+                )}
+                {proposalQualityReview.kind === 'ready' && (
+                  <>
+                    {proposalQualityReview.review.intentConcerns.length > 0 && (
+                      <div className="builder-chat__quality-review-group">
+                        <strong>Possible request mismatches</strong>
+                        <ul>{proposalQualityReview.review.intentConcerns.map((item, index) => <li key={`intent-${index}`}>{item}</li>)}</ul>
+                      </div>
+                    )}
+                    {proposalQualityReview.review.readabilityWarnings.length > 0 && (
+                      <div className="builder-chat__quality-review-group is-layout">
+                        <strong>Readability warnings</strong>
+                        <ul>{proposalQualityReview.review.readabilityWarnings.map((item, index) => <li key={`readability-${index}`}>{item}</li>)}</ul>
+                      </div>
+                    )}
+                    {proposalQualityReview.review.unknowns.length > 0 && (
+                      <div className="builder-chat__quality-review-group">
+                        <strong>Unknowns to confirm</strong>
+                        <ul>{proposalQualityReview.review.unknowns.map((item, index) => <li key={`unknown-${index}`}>{item}</li>)}</ul>
+                      </div>
+                    )}
+                    {!proposalQualityReview.review.intentConcerns.length &&
+                      !proposalQualityReview.review.readabilityWarnings.length &&
+                      !proposalQualityReview.review.unknowns.length && (
+                        <p>No specific request-fit or readability concerns were flagged.</p>
+                      )}
+                    <p className="builder-chat__quality-review-note">AI notes are advisory, not an electrical rules check or safety review.</p>
+                  </>
+                )}
+                {proposalQualityReview.kind === 'idle' && (
+                  <p>Review not started.</p>
+                )}
+              </div>
+              <CircuitBuilderFeedback
+                circuitTitle={proposal.spec.title}
+                requestSummary={saved.brief.goal || lastRequest?.message || ''}
+                onSave={saveProposalFeedback}
+                onRevise={(reason, details) => {
+                  void reviseProposalFromFeedback(reason, details);
+                }}
+              />
               <div className="builder-chat__proposal-actions">
-                <button type="button" className="builder-chat__text-link is-muted" onClick={() => { setProposal(null); setProposalSvg(''); setProposalValidation(null); }} data-testid="button-discard-proposal-link">Discard</button>
-                <button type="button" className="builder-chat__apply" disabled={!proposalSvg || !!proposalValidation?.errors.length} onClick={applyProposal} data-testid="button-apply-proposal">
-                  <Check aria-hidden="true" /> Apply to workbench
+                <button type="button" className="builder-chat__text-link is-muted" onClick={discardProposal} data-testid="button-discard-proposal-link">Discard</button>
+                <button
+                  type="button"
+                  className="builder-chat__apply"
+                  disabled={!proposalSvg || !!proposalValidation?.errors.length || proposalQualityReview.kind === 'loading'}
+                  onClick={applyProposal}
+                  data-testid="button-apply-proposal"
+                >
+                  <Check aria-hidden="true" /> {proposalQualityReview.kind === 'loading' ? 'Reviewing…' : 'Apply to workbench'}
                 </button>
               </div>
-              <p className="builder-chat__proposal-note">Applying sends this spec to your workbench. Nothing changes before you choose.</p>
+              <p className="builder-chat__proposal-note">Applying sends this spec to your workbench; nothing changes before you choose. Structural and AI checks do not prove circuit behavior, component ratings, or safety.</p>
             </section>
           )}
 

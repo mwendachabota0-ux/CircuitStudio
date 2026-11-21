@@ -77205,7 +77205,7 @@ Coordinates are pixels from the top-left, with y increasing downward. Use a 10 p
 
 ${formatCircuitComponentGuide()}
 
-Use 80\u2013100 px for most two-terminal parts. Use short, unique designators in "label" (R1, C1, Q1, D1, L1, MK1, SW1, B1, ANT1) and descriptive values in "value". Give wires unique IDs (W1, W2, ...) so connection diagnostics can identify them. Put supply at the top, ground at the bottom, and signal flow left to right where practical.
+Use 80\u2013100 px for most two-terminal parts. Keep at least 20 px between distinct symbol bodies where possible, reserve clear space for labels and pin names, and avoid compressing a multi-branch circuit into one long row. Give connected parts visible lead wires; route around symbol bodies and text. Use short, unique designators in "label" (R1, C1, Q1, D1, L1, MK1, SW1, B1, ANT1) and descriptive values in "value". Give wires unique IDs (W1, W2, ...) so connection diagnostics can identify them. Put supply at the top, ground at the bottom, and signal flow left to right where practical. Increase width or height when needed to preserve margins.
 
 Do not invent unsupported component types or draw SVG. If a requested part has no supported equivalent, state the limitation instead of assigning it imaginary pins. For a two-transistor astable multivibrator or alternating LED flasher, keep each transistor's base separate from its collector and emitter, give each base its own resistor to the positive supply, and cross-couple each collector to the opposite transistor's base through a timing capacitor. Never connect a transistor's base directly to its own collector or connect a timing capacitor to that same transistor's base. Make a best effort to ensure every connection and value follows the request. Structural validation checks the drawing and selected topology rules only; it is not general electrical validation or simulation.`;
 router.post(
@@ -77835,32 +77835,7 @@ async function generateWithThinkingBudgetFallback(options) {
 }
 
 // src/lib/circuitBuilderKicadDefaults.ts
-var BASE_KICAD_SYMBOLS = [
-  "Device:R",
-  "Device:C",
-  "Device:LED",
-  "power:GND"
-];
 var CONTEXTUAL_KICAD_SYMBOLS = [
-  { pattern: /\b(?:diode|rectifier|schottky|zener)\b/i, ids: ["Device:D"] },
-  {
-    pattern: /\b(?:electrolytic|polarized|polarised)\b/i,
-    ids: ["Device:C_Polarized"]
-  },
-  {
-    pattern: /\b(?:transistor|npn|bjt|astable|multivibrator|flasher)\b/i,
-    ids: ["Transistor_BJT:Q_NPN_BCE"]
-  },
-  { pattern: /\bpnp\b/i, ids: ["Transistor_BJT:Q_PNP_BCE"] },
-  {
-    pattern: /\b(?:mosfet|nmos|n-channel)\b/i,
-    ids: ["Transistor_FET:Q_NMOS_GDS"]
-  },
-  {
-    pattern: /\b(?:pmos|p-channel)\b/i,
-    ids: ["Transistor_FET:Q_PMOS_GDS"]
-  },
-  { pattern: /\b(?:battery|cell)\b/i, ids: ["Device:Battery"] },
   { pattern: /\bNE555P?\b/i, ids: ["Timer:NE555P"] },
   { pattern: /\bLM555(?:xN)?\b/i, ids: ["Timer:LM555xN"] },
   { pattern: /\bTLC555(?:xP)?\b/i, ids: ["Timer:TLC555xP"] },
@@ -77869,15 +77844,6 @@ var CONTEXTUAL_KICAD_SYMBOLS = [
     pattern: /\b(?:LM7805|L7805|uA7805|7805)\b/i,
     ids: ["Regulator_Linear:LM7805_TO220"]
   },
-  { pattern: /\bfuse\b/i, ids: ["Device:Fuse"] },
-  { pattern: /\bpush.?button\b/i, ids: ["Switch:SW_Push"] },
-  { pattern: /\b(?:switch|spst)\b/i, ids: ["Switch:SW_SPST"] },
-  {
-    pattern: /\b(?:connector|plug|socket)\b/i,
-    ids: ["Connector_Generic:Conn_01x02"]
-  },
-  { pattern: /\bspeaker\b/i, ids: ["Device:Speaker"] },
-  { pattern: /\bbuzzer\b/i, ids: ["Device:Buzzer"] },
   {
     pattern: /\b(?:5\s?volts?|5\s?v)\b/i,
     ids: ["power:+5V"]
@@ -77888,12 +77854,20 @@ var CONTEXTUAL_KICAD_SYMBOLS = [
   }
 ];
 function getDefaultKicadSymbolIds(context) {
-  const ids = new Set(BASE_KICAD_SYMBOLS);
+  const ids = /* @__PURE__ */ new Set();
   for (const rule of CONTEXTUAL_KICAD_SYMBOLS) {
     if (!rule.pattern.test(context)) continue;
     for (const id of rule.ids) ids.add(id);
   }
   return [...ids].slice(0, 12);
+}
+var EXACT_PART_IDENTIFIER = /\b(?:[a-z]{2,8}[-/]?\d{2,6}[a-z0-9-]*|\d{2,3}[a-z]{2,4}\d{1,4}[a-z0-9-]*)\b/i;
+var GENERIC_555_REQUEST = /\b(?:ne\s?555|555\s+(?:timer|ic))\b/i;
+function shouldSearchKicadLibrary(input) {
+  if (!input.hasStudioMatch || input.hasExplicitKicadId || input.hasExistingKicadSymbol || getDefaultKicadSymbolIds(input.context).length > 0) {
+    return true;
+  }
+  return EXACT_PART_IDENTIFIER.test(input.context) || GENERIC_555_REQUEST.test(input.context);
 }
 
 // src/lib/circuitBuilderSafety.ts
@@ -78382,7 +78356,7 @@ A greeting or other social opener by itself is not a circuit request. Reply brie
 
 In Build mode, if the request is clear enough, include a complete proposed CircuitSpec. If a critical requirement is unclear, ask one focused question and omit the proposal. For edits, start from the supplied current CircuitSpec and preserve unrelated components, values, labels, and connections. For an explicitly new or replacement design, do not preserve an unrelated example circuit.
 
-For new schematic layouts, prioritize readability over density: leave clear space between symbols, give two-terminal parts visible lead wires with at least 10 px beyond the listed minimum terminal distance, keep labels away from symbols and wire crossings, align related power and return paths, and route every wire with horizontal and vertical segments, adding corner points wherever a route turns. Arrange parallel parts so their relationship is visible without overlapping their bodies, pins, labels, or wires. Keep a separate control path visually distinct from a load's power path. For motor-driver diagrams, show the fuse and motor in the power path, the flyback diode clearly across the motor, and the MOSFET return and gate-control wiring separately. These are drawing-layout instructions, not proof of electrical correctness. When asked only to repair wiring or respond to validator findings, follow the preservation rules below instead of changing component positions. Move a component only when the user explicitly asks for a layout change.
+For new schematic layouts, prioritize readability over density: leave at least 20 px of clear space between distinct symbol bodies where possible, give two-terminal parts visible lead wires with at least 10 px beyond the listed minimum terminal distance, reserve room for labels and pin names, and keep labels away from symbols and wire crossings. Arrange parts in deliberate rows or columns instead of compressing every component into one long line; align related power and return paths, and keep separate control paths visually distinct. Route every wire horizontally or vertically, adding corner points wherever a route turns. Increase the canvas dimensions when needed to keep the whole drawing inside a clear margin. Do not overlap symbol bodies, pins, labels, or wires. For motor-driver diagrams, show the fuse and motor in the power path, the flyback diode clearly across the motor, and the MOSFET return and gate-control wiring separately. These are drawing-layout instructions, not proof of electrical correctness. When asked only to repair wiring or respond to validator findings, follow the preservation rules below instead of changing component positions. Move a component only when the user explicitly asks for a layout change.
 
 Use only the component types, required properties, pin locations, and minimum lengths in this actual CircuitDraw reference:
 ${formatCircuitComponentGuide()}
@@ -78391,8 +78365,9 @@ Safety and component support:
 - Do not generate a schematic proposal for a phone/device charger or AC/DC supply wired directly to household mains, high-voltage AC, or a switch-mode mains primary. Explain that this is hazardous and safety-critical, and offer a low-voltage-only follow-up that uses a certified, isolated commercial adapter as an external source. Never claim a generated drawing is safe, certified, or ready to connect to mains.
 - For unsupported symbols or missing verified IC/connector pinouts, explain the exact limitation without inventing symbols, pins, ratings, or part numbers. Suggest up to two concrete next prompts when a safe alternative exists. Suggested actions must be short, specific, and compatible with the user's goal; never suggest a way to recreate a rejected hazardous design.
 - If the user requests an IC but has not supplied a verified pinout, ask for the exact part and pinout before proposing that block. Generic pin blocks are drawing aids, not validation of the IC's actual pin mapping.
-- In Build mode, use the official KiCad library as the default source for schematic symbols. Prefer a supplied KiCad candidate whenever it matches a requested part instead of substituting a built-in approximation. Use type "kicad" with the exact symbolId and a valid unit/bodyStyle from its supplied definition. Use only listed pin numbers, names, and offsets; never invent a KiCad ID or pinout. The server attaches exact source drawings and pin geometry after generation. Do not return symbolData yourself. A library symbol is not confirmation of a physical part choice, rating, electrical correctness, or safety.
-- Each request includes relevant results discovered by searching the complete KiCad catalog. In Chat, use their descriptions and keywords to explain available component options and inform circuit-planning advice; do not claim a suitable symbol is unavailable without checking these results. In Build, prefer relevant catalog matches with an exact loaded pin guide, and use only pin data in those guides. Descriptions and keywords identify symbol purpose, not electrical ratings or verified circuit suitability. If a symbol is marked needs_review, say its purpose is unverified and do not present it as a fact; prefer a catalog reference or ask for an authoritative part source.
+- The built-in Circuit Studio component library is the first-choice source for generic circuit elements. Match each requested function to that library before considering KiCad. Use a built-in symbol when it represents the requested function; do not replace it with KiCad merely because a catalog equivalent exists.
+- Consult the official KiCad library only when the requested function is missing from the Studio library, or when an exact named part needs a pinout or symbol that the generic Studio element does not provide. For a KiCad fallback, use type "kicad" with the exact symbolId and a valid unit/bodyStyle from its supplied definition. Use only listed pin numbers, names, and offsets; never invent a KiCad ID or pinout. The server attaches exact source drawings and pin geometry after generation. Do not return symbolData yourself. A library symbol is not confirmation of a physical part choice, rating, electrical correctness, or safety.
+- Requests may include relevant Studio-library matches first, followed by KiCad fallback results only when the request may need a symbol that Studio does not provide. In Chat, consult Studio matches before fallback results when explaining component options. In Build, use a KiCad candidate only when the Studio library lacks a suitable symbol or exact part; only place listed symbols that have an exact loaded pin guide, using only that guide's pin data. Descriptions and keywords identify symbol purpose, not electrical ratings or verified circuit suitability. If a KiCad symbol is marked needs_review, say its purpose is unverified and do not present it as a fact; prefer a catalog reference or ask for an authoritative part source.
 
 Use clear reference designators and unique wire IDs (W1, W2, ...). Connect every required pin exactly to a wire endpoint or another pin: all pins on supported discrete parts are required; a relay needs both coil pins, COM, and at least one of NC/NO, while the unused contact may remain open. Unused IC, connector, and KiCad symbol pins may remain unconnected. Keep wire segments horizontal or vertical, avoid zero-length segments and routes through two-terminal parts, and connect wire endpoints exactly to pins or other wire endpoints. Set open:true on a wire only when it is intentionally left disconnected. If a requested component has no supported equivalent, state the limitation instead of inventing a type or pin model.
 
@@ -78506,6 +78481,7 @@ router5.post(
       relevantMemories
     );
     let kicadDefinitions = "";
+    let studioComponentResearchContext = "";
     try {
       currentSpec = await hydrateKicadSymbols(currentSpec);
       const buildContext = [
@@ -78515,28 +78491,39 @@ router5.post(
         ...brief.assumptions,
         ...history.map((message) => message.content)
       ].join(" ");
-      const studioComponentResearchContext = formatRelevantCircuitComponentResearchContext([
+      studioComponentResearchContext = formatRelevantCircuitComponentResearchContext([
         buildContext,
         JSON.stringify(currentSpec.elements.map((element) => element.type))
       ]);
-      const relevantKicadSymbols = await findRelevantKicadSymbols([
+      const explicitIds = selectedKicadSymbolIds([
+        ...history.map((message) => message.content),
+        parsed.data.message
+      ]);
+      const defaultIds = parsed.data.mode === "build" ? getDefaultKicadSymbolIds(buildContext) : [];
+      const hasExistingKicadSymbol = currentSpec.elements.some(
+        (element) => element.type === "kicad"
+      );
+      const searchKicadFallback = shouldSearchKicadLibrary({
+        context: buildContext,
+        hasStudioMatch: Boolean(studioComponentResearchContext),
+        hasExplicitKicadId: explicitIds.length > 0,
+        hasExistingKicadSymbol
+      });
+      const relevantKicadSymbols = searchKicadFallback ? await findRelevantKicadSymbols([
         parsed.data.message,
         brief.goal,
         brief.requirements.join(" "),
         brief.assumptions.join(" "),
         ...history.filter((message) => message.role === "user").slice(-3).map((message) => message.content)
-      ]);
-      const mentionedIds = await findMentionedKicadSymbolIds(buildContext);
+      ]) : [];
+      const mentionedIds = searchKicadFallback ? await findMentionedKicadSymbolIds(buildContext) : [];
       const requiredIds = /* @__PURE__ */ new Set([
-        ...selectedKicadSymbolIds([
-          ...history.map((message) => message.content),
-          parsed.data.message
-        ]),
+        ...explicitIds,
         ...mentionedIds,
         ...currentSpec.elements.flatMap(
           (element) => element.type === "kicad" && typeof element.symbolId === "string" ? [element.symbolId] : []
         ),
-        ...parsed.data.mode === "build" ? getDefaultKicadSymbolIds(buildContext) : []
+        ...defaultIds
       ]);
       const optionalCandidateIds = parsed.data.mode === "build" ? relevantKicadSymbols.map((entry) => entry.id).filter((id) => !requiredIds.has(id)).slice(0, 10) : [];
       const optionalCandidateIdSet = new Set(optionalCandidateIds);
@@ -78584,15 +78571,9 @@ ${definitions.map(({ guide }) => guide).join("\n\n")}`;
           return `- ${entry.id} \u2014 ${details}`;
         });
         kicadDefinitions = [
-          `Relevant results searched across the complete official KiCad catalog. Use these descriptions and keywords when discussing component choices. In Build mode, only place listed symbols that also have a verified pin guide below:
+          `KiCad fallback results searched across the complete official catalog. Use them only when the Studio library lacks a suitable symbol or the user requests an exact part. In Build mode, only place listed symbols that also have a verified pin guide below:
 ${catalogMatches.join("\n")}`,
           kicadDefinitions
-        ].filter(Boolean).join("\n\n");
-      }
-      if (studioComponentResearchContext) {
-        kicadDefinitions = [
-          kicadDefinitions,
-          studioComponentResearchContext
         ].filter(Boolean).join("\n\n");
       }
     } catch (error40) {
@@ -78616,6 +78597,8 @@ ${catalogMatches.join("\n")}`,
 ${JSON.stringify(brief)}`,
       conversation ? `Recent conversation:
 ${conversation}` : "",
+      studioComponentResearchContext ? `First-choice built-in Studio library matches:
+${studioComponentResearchContext}` : "",
       kicadDefinitions,
       `Current CircuitSpec:
 ${JSON.stringify(withoutKicadGeometry(currentSpec))}`,

@@ -70,7 +70,7 @@ export function CircuitBuilderFeedback({
   return (
     <section className="builder-chat__rating" aria-label="Rate this circuit proposal">
       <div className="builder-chat__rating-heading">
-      <strong>Was this circuit useful?</strong>
+      <strong>Do you like this circuit?</strong>
         <span>Feedback can guide similar requests on your account.</span>
       </div>
       <div className="builder-chat__rating-votes">
@@ -104,7 +104,6 @@ export function CircuitBuilderFeedback({
           <span>Dislike</span>
         </button>
       </div>
-
       {downvoteOpen && savedVote === null && (
         <form className="builder-chat__rating-form" onSubmit={handleDownvoteSubmit}>
           <fieldset>
@@ -144,7 +143,6 @@ export function CircuitBuilderFeedback({
           </button>
         </form>
       )}
-
       {savedVote && (
         <div className="builder-chat__rating-saved" role="status">
           <span>Saved to your account. You can review or remove it in Saved memories.</span>

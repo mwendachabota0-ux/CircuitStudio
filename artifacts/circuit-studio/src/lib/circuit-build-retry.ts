@@ -405,10 +405,27 @@ const layoutOnlyProperties = new Set([
 export function getLayoutInvariantSignature(
   spec: NonNullable<CircuitBuildChatInput['currentSpec']>,
 ): string {
+  const metadataSignature = getLayoutInvariantMetadataSignature(spec);
+  const elementsSignature = getLayoutInvariantElementsSignature(spec);
+  return JSON.stringify({
+    metadata: metadataSignature,
+    elements: elementsSignature,
+  });
+}
+
+function getLayoutInvariantMetadataSignature(
+  spec: NonNullable<CircuitBuildChatInput['currentSpec']>,
+): string {
   const metadata = Object.fromEntries(
     Object.entries(spec as Record<string, unknown>)
       .filter(([key]) => key !== 'elements' && key !== 'width' && key !== 'height'),
   );
+  return JSON.stringify(canonicalizeElement(metadata));
+}
+
+function getLayoutInvariantElementsSignature(
+  spec: NonNullable<CircuitBuildChatInput['currentSpec']>,
+): string {
   const elements = spec.elements
     .filter((element) => !isWireRoutingElement(element))
     .map((element) =>
@@ -419,10 +436,21 @@ export function getLayoutInvariantSignature(
     )
     .map((element) => JSON.stringify(canonicalizeElement(element)))
     .sort();
-  return JSON.stringify({
-    metadata: canonicalizeElement(metadata),
-    elements,
-  });
+  return JSON.stringify(elements);
+}
+
+export function getLayoutInvariantChanges(
+  protectedSpec: NonNullable<CircuitBuildChatInput['currentSpec']>,
+  proposedSpec: NonNullable<CircuitBuildChatInput['currentSpec']>,
+): ProtectedCircuitChanges {
+  return {
+    metadataModified:
+      getLayoutInvariantMetadataSignature(protectedSpec) !==
+      getLayoutInvariantMetadataSignature(proposedSpec),
+    nonWireElementsModified:
+      getLayoutInvariantElementsSignature(protectedSpec) !==
+      getLayoutInvariantElementsSignature(proposedSpec),
+  };
 }
 
 export type CircuitNetlistSnapshot = {
@@ -520,7 +548,7 @@ export function buildLayoutRepairRequest(
 
 Keep the circuit's parts and electrical design unchanged. Preserve every component's type, ID, reference, value, symbolId, unit, bodyStyle, pin definitions, and all non-layout properties. Do not add or remove parts, change component values or switch state, or change which pins share a net. The final pin-to-pin netlist must remain exactly the same. You may reroute, split, or merge wires as needed to preserve those same connections.
 
-Improve visual hierarchy and whitespace; avoid a single long row when a balanced arrangement fits better. Keep related parts grouped, use clear orthogonal routes, and prevent labels, pins, symbols, and wires from overlapping. Return a complete CircuitSpec, not an SVG.
+Improve visual hierarchy and whitespace; leave at least 20 px between distinct symbol bodies where possible, and avoid a single long row when a balanced arrangement fits better. Keep related parts grouped, use clear orthogonal routes, reserve label and pin-name space, and prevent labels, pins, symbols, and wires from overlapping. Resize the canvas when needed to keep the full drawing in view. Return a complete CircuitSpec, not an SVG.
 
 Readability findings:
 ${findingText || '- Improve the overall arrangement and label clearance.'}

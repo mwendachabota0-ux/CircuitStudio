@@ -1370,6 +1370,178 @@
       '<g>' + parts.text + '</g></svg>';
   }
 
+  var TWO_BODY_BOUNDS = {
+    resistor: [-25, -10, 25, 10],
+    capacitor: [-6, -14, 6, 14],
+    electrolytic: [-16, -14, 9, 14],
+    inductor: [-32, -8, 32, 8],
+    diode: [-10, -10, 10, 10],
+    zener: [-10, -14, 14, 14],
+    led: [-10, -24, 15, 10],
+    battery: [-15, -14, 5, 14],
+    switch: [-18, -16, 18, 3],
+    mic: [-18, -18, 18, 18],
+    speaker: [-8, -18, 16, 18],
+    lamp: [-14, -14, 14, 14],
+    acsource: [-16, -16, 16, 16],
+    crystal: [-9, -13, 9, 13],
+    fuse: [-18, -9, 18, 9],
+    thermistor: [-25, -15, 25, 15],
+    photoresistor: [-31, -27, 25, 20],
+    varistor: [-25, -17, 25, 17],
+    photodiode: [-24, -29, 10, 10],
+    schottky: [-10, -10, 15, 10],
+    dcsource: [-21, -21, 21, 21],
+    currentsource: [-21, -21, 21, 21],
+    motor: [-22, -22, 22, 22],
+    buzzer: [-33, -22, 33, 22],
+    solarcell: [-24, -27, 22, 15]
+  };
+
+  var MULTI_BODY_BOUNDS = {
+    npn: [-44, -44, 44, 44],
+    pnp: [-44, -44, 44, 44],
+    opamp: [-40, -40, 40, 40],
+    comparator: [-40, -40, 40, 40],
+    potentiometer: [-20, -52, 20, 10],
+    nmos: [-20, -40, 20, 40],
+    pmos: [-20, -40, 20, 40],
+    mosfet: [-20, -40, 20, 40],
+    njfet: [-20, -40, 20, 40],
+    pjfet: [-20, -40, 20, 40],
+    regulator: [-28, -22, 28, 22],
+    transformer: [-31, -43, 31, 43],
+    relay: [-36, -30, 55, 30],
+    bridge: [-30, -30, 30, 30],
+    opto: [-34, -30, 34, 30]
+  };
+
+  function boundsFromPoints(points, padding) {
+    if (!points.length) return null;
+    var bounds = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+    points.forEach(function (point) {
+      if (!isPt(point)) return;
+      bounds.x0 = Math.min(bounds.x0, point[0]);
+      bounds.y0 = Math.min(bounds.y0, point[1]);
+      bounds.x1 = Math.max(bounds.x1, point[0]);
+      bounds.y1 = Math.max(bounds.y1, point[1]);
+    });
+    if (!isFinite(bounds.x0)) return null;
+    var pad = padding || 0;
+    return { x0: bounds.x0 - pad, y0: bounds.y0 - pad, x1: bounds.x1 + pad, y1: bounds.y1 + pad };
+  }
+
+  function localBoundsAt(element, localBounds) {
+    if (!isPt(element.at) || !localBounds) return null;
+    return {
+      x0: element.at[0] + localBounds[0],
+      y0: element.at[1] + localBounds[1],
+      x1: element.at[0] + localBounds[2],
+      y1: element.at[1] + localBounds[3]
+    };
+  }
+
+  function kicadBodyBounds(element) {
+    var unit = kicadUnitOf(element);
+    if (!unit) return null;
+    var points = [];
+    (unit.graphics || []).forEach(function (graphic) {
+      var graphicPoints = Array.isArray(graphic.points) ? graphic.points : [];
+      graphicPoints.forEach(function (point) {
+        if (isPt(point)) points.push(transformKicadPoint(point, element));
+      });
+      if (graphic.type === 'circle' && graphicPoints.length && isNum(graphic.radius)) {
+        var center = transformKicadPoint(graphicPoints[0], element);
+        points.push([center[0] - graphic.radius, center[1] - graphic.radius]);
+        points.push([center[0] + graphic.radius, center[1] + graphic.radius]);
+      } else if (graphic.type === 'text' && graphicPoints.length && typeof graphic.text === 'string') {
+        var size = isNum(graphic.fontSize) ? Math.max(1, graphic.fontSize) : 12;
+        var textPoint = transformKicadPoint(graphicPoints[0], element);
+        var width = graphic.text.length * size * 0.6;
+        points.push([textPoint[0] - width / 2, textPoint[1] - size / 2]);
+        points.push([textPoint[0] + width / 2, textPoint[1] + size / 2]);
+      }
+    });
+    if (!points.length) {
+      (unit.pins || []).forEach(function (pin) {
+        if (isPt(pin.bodyPoint)) points.push(transformKicadPoint(pin.bodyPoint, element));
+      });
+    }
+    return boundsFromPoints(points, 4);
+  }
+
+  function componentBodyBounds(element, index) {
+    if (!element || OTHER[element.type] || element.type === 'box') return null;
+    if (TWO[element.type]) {
+      var pins = pinsOf(element);
+      var localBounds = TWO_BODY_BOUNDS[element.type];
+      if (pins.length < 2 || !localBounds) return null;
+      var a = pins[0].p, b = pins[1].p;
+      var dx = b[0] - a[0], dy = b[1] - a[1];
+      var angle = Math.atan2(dy, dx), cos = Math.cos(angle), sin = Math.sin(angle);
+      var middle = Math.sqrt(dx * dx + dy * dy) / 2;
+      var localCorners = [
+        [localBounds[0], localBounds[1]],
+        [localBounds[0], localBounds[3]],
+        [localBounds[2], localBounds[1]],
+        [localBounds[2], localBounds[3]]
+      ];
+      return boundsFromPoints(localCorners.map(function (point) {
+        var localX = middle + point[0], localY = point[1];
+        return [
+          a[0] + localX * cos - localY * sin,
+          a[1] + localX * sin + localY * cos
+        ];
+      }), 0);
+    }
+    if (element.type === 'kicad') return kicadBodyBounds(element);
+    if (element.type === 'ground' && isPt(element.at)) {
+      return localBoundsAt(element, [-12, 0, 12, 20]);
+    }
+    if (element.type === 'antenna' && isPt(element.at)) {
+      var height = isNum(element.height) ? element.height : 55;
+      return localBoundsAt(element, [-12, -height, 12, 0]);
+    }
+    if (element.type === 'terminal' && isPt(element.at)) {
+      return localBoundsAt(element, [-4, -4, 4, 4]);
+    }
+    if ((element.type === 'npn' || element.type === 'pnp') && element.circle === false) {
+      return localBoundsAt(element, [-25, -30, 25, 30]);
+    }
+    if (MULTI_BODY_BOUNDS[element.type]) {
+      return localBoundsAt(element, MULTI_BODY_BOUNDS[element.type]);
+    }
+    if (element.type === 'ic' || element.type === 'connector') {
+      var leftCount = element.pins.filter(function (pin) { return pin.side === 'left'; }).length;
+      var rightCount = element.pins.filter(function (pin) { return pin.side === 'right'; }).length;
+      var height = Math.max(48, Math.max(leftCount, rightCount) * 24 + 16);
+      return localBoundsAt(element, [-44, -height / 2, 44, height / 2]);
+    }
+    return null;
+  }
+
+  function wireCrossesBody(segment, bounds) {
+    var a = segment[0], b = segment[1];
+    if (Math.abs(a[1] - b[1]) < 0.001) {
+      return a[1] > bounds.y0 + 2 && a[1] < bounds.y1 - 2 &&
+        Math.min(Math.max(a[0], b[0]), bounds.x1) -
+          Math.max(Math.min(a[0], b[0]), bounds.x0) > 4;
+    }
+    if (Math.abs(a[0] - b[0]) < 0.001) {
+      return a[0] > bounds.x0 + 2 && a[0] < bounds.x1 - 2 &&
+        Math.min(Math.max(a[1], b[1]), bounds.y1) -
+          Math.max(Math.min(a[1], b[1]), bounds.y0) > 4;
+    }
+    return false;
+  }
+
+  function segmentEndsAtPin(segment, pins) {
+    return pins.some(function (pin) {
+      return key(pin[0], pin[1]) === key(segment[0][0], segment[0][1]) ||
+        key(pin[0], pin[1]) === key(segment[1][0], segment[1][1]);
+    });
+  }
+
   function layoutWarnings(spec) {
     var boxes = [];
     try {
@@ -1391,6 +1563,42 @@
       return Math.min(a[2], b[2]) - Math.max(a[0], b[0]) > 2 &&
         Math.min(a[3], b[3]) - Math.max(a[1], b[1]) > 2;
     }
+    var componentBoxes = [];
+    spec.elements.forEach(function (element, index) {
+      var bounds = componentBodyBounds(element, index);
+      if (bounds) {
+        componentBoxes.push({
+          bounds: bounds,
+          owner: elementName(element, index),
+          pins: pinsOf(element).map(function (pin) { return pin.p; })
+        });
+      }
+    });
+    for (var bodyIndex = 0; bodyIndex < componentBoxes.length; bodyIndex++) {
+      for (var otherIndex = bodyIndex + 1; otherIndex < componentBoxes.length; otherIndex++) {
+        var firstBody = componentBoxes[bodyIndex], secondBody = componentBoxes[otherIndex];
+        var overlapX = Math.min(firstBody.bounds.x1, secondBody.bounds.x1) -
+          Math.max(firstBody.bounds.x0, secondBody.bounds.x0);
+        var overlapY = Math.min(firstBody.bounds.y1, secondBody.bounds.y1) -
+          Math.max(firstBody.bounds.y0, secondBody.bounds.y0);
+        if (overlapX > 2 && overlapY > 2) {
+          addWarning('Visual layout issue: symbol bodies for ' + firstBody.owner + ' and ' + secondBody.owner + ' overlap; reposition the symbols and reroute their wires.');
+          continue;
+        }
+        var gapX = Math.max(0, -overlapX), gapY = Math.max(0, -overlapY);
+        var clearance = Math.sqrt(gapX * gapX + gapY * gapY);
+        if (clearance < 12) {
+          addWarning('Visual layout issue: symbol bodies for ' + firstBody.owner + ' and ' + secondBody.owner + ' are too close; leave at least 12 px of clear space between them.');
+        }
+      }
+    }
+    WIRESEGS.forEach(function (segment) {
+      componentBoxes.forEach(function (component) {
+        if (!segmentEndsAtPin(segment, component.pins) && wireCrossesBody(segment, component.bounds)) {
+          addWarning('Visual layout issue: ' + (segment[2] || 'a wire') + ' crosses the symbol body for ' + component.owner + '; reroute the wire outside the symbol.');
+        }
+      });
+    });
     for (var i = 0; i < boxes.length; i++) {
       for (var j = i + 1; j < boxes.length; j++) {
         var first = boxes[i], second = boxes[j];

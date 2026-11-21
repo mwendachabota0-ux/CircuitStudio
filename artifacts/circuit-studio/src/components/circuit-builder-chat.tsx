@@ -44,6 +44,7 @@ import {
   classifyProposalValidation,
   getProtectedCircuitChanges,
   getProtectedCircuitSignature,
+  getLayoutInvariantChanges,
   getLayoutInvariantSignature,
   getCircuitNetlistSignature,
   getModeAfterFailedRequest,
@@ -247,6 +248,27 @@ function inspectProposal(spec: CircuitBuildChatInput['currentSpec']): {
       canRepair: true,
     };
   }
+}
+
+function inspectLayoutProposal(spec: CircuitSpec): {
+  svg: string;
+  validation: ValidationReport;
+  canRepair: boolean;
+} {
+  const inspection = inspectProposal(spec);
+  if (!inspection.svg || !window.CircuitDraw) return inspection;
+
+  const layoutFindings = window.CircuitDraw.layoutWarnings(spec)
+    .map((finding) => `Drawing-quality issue: ${finding}`);
+  return layoutFindings.length
+    ? {
+        ...inspection,
+        validation: {
+          ...inspection.validation,
+          errors: [...inspection.validation.errors, ...layoutFindings],
+        },
+      }
+    : inspection;
 }
 
 function withLayoutWarnings(
@@ -745,9 +767,10 @@ export function CircuitBuilderChat({
     try {
       const result = await runCircuitBuildAttempts({
         initialRequest: layoutRequest,
+        initialProtectedSpec: spec,
         send: (workingRequest) => chatMutation.mutateAsync({ data: workingRequest }),
         getProposal: (response) => response.proposal?.spec ?? null,
-        inspectProposal,
+        inspectProposal: inspectLayoutProposal,
         prepareResponse: (response) => {
           if (!response.proposal?.spec || !window.CircuitDraw) return response;
           const autoFixed = window.CircuitDraw.autoFix(response.proposal.spec);
@@ -756,30 +779,17 @@ export function CircuitBuilderChat({
             : response;
         },
         getProtectedCircuitSignature: (candidate) =>
-          getProtectedCircuitSignature(candidate as NonNullable<CircuitBuildChatInput['currentSpec']>),
+          getLayoutInvariantSignature(candidate as NonNullable<CircuitBuildChatInput['currentSpec']>),
         getProtectedCircuitChanges: (baseline, candidate) =>
-          getProtectedCircuitChanges(
+          getLayoutInvariantChanges(
             baseline as NonNullable<CircuitBuildChatInput['currentSpec']>,
             candidate as NonNullable<CircuitBuildChatInput['currentSpec']>,
           ),
-        restoreProtectedSpec: (response, baseline) => {
-          if (!response.proposal?.spec) return response;
-          return {
-            ...response,
-            proposal: {
-              ...response.proposal,
-              spec: restoreProtectedNonWireElements(
-                baseline as NonNullable<CircuitBuildChatInput['currentSpec']>,
-                response.proposal.spec,
-              ),
-            },
-          };
-        },
-        makeRepairRequest: (response, validationFindings) => buildRepairRequest(
-          layoutRequest,
+        makeRepairRequest: (response, validationFindings) => buildLayoutRepairRequest(
+          originalRequest,
           latestBrief,
-          validationFindings,
           response.proposal?.spec ?? spec,
+          validationFindings,
         ),
         makeOutputRepairRequest: buildOutputRepairRequest,
         onResponse: (response) => {
@@ -835,10 +845,15 @@ export function CircuitBuilderChat({
         },
         inspection,
       };
-    } catch {
+    } catch (error) {
+      const remainingLayoutFindings = error instanceof CircuitBuildAttemptError
+        ? error.validationFindings.filter((finding) => finding.includes('Visual layout issue')).length
+        : 0;
       return {
         kind: 'failure',
-        message: 'The layout attempt could not be completed; the original proposal was kept.',
+        message: remainingLayoutFindings
+          ? `Studio could not clear ${remainingLayoutFindings} visual layout issue${remainingLayoutFindings === 1 ? '' : 's'} without changing the circuit; the original proposal was kept.`
+          : 'The layout attempt could not be completed; the original proposal was kept.',
       };
     }
   }, [chatMutation.mutateAsync, queryClient]);

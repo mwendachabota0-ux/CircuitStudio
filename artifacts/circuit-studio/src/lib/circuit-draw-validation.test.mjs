@@ -106,6 +106,54 @@ test("layout analysis allows separated labels and clear wire routes", () => {
   assert.deepEqual(Array.from(warnings), []);
 });
 
+test("layout analysis detects overlapping component bodies", () => {
+  const warnings = CircuitDraw.layoutWarnings({
+    title: "Crowded components",
+    elements: [
+      { type: "resistor", id: "R1", from: [100, 100], to: [180, 100] },
+      { type: "led", id: "LED1", from: [140, 100], to: [200, 100] },
+    ],
+  });
+
+  assert.ok(warnings.some((warning) => warning.includes("symbol bodies") && warning.includes("overlap")));
+});
+
+test("layout analysis detects wires crossing a component body", () => {
+  const warnings = CircuitDraw.layoutWarnings({
+    title: "Wire through component",
+    elements: [
+      { type: "resistor", id: "R1", from: [100, 100], to: [180, 100] },
+      { type: "wire", id: "W1", open: true, points: [[120, 100], [160, 100]] },
+    ],
+  });
+
+  assert.ok(warnings.some((warning) => warning.includes("W1") && warning.includes("symbol body")));
+});
+
+test("layout analysis does not flag a lead wire ending before a component body", () => {
+  const warnings = CircuitDraw.layoutWarnings({
+    title: "Clear lead",
+    elements: [
+      { type: "resistor", id: "R1", from: [100, 100], to: [180, 100] },
+      { type: "wire", id: "W1", open: true, points: [[80, 100], [100, 100]] },
+    ],
+  });
+
+  assert.deepEqual(Array.from(warnings), []);
+});
+
+test("layout analysis treats a wire ending at a component pin as a connection", () => {
+  const warnings = CircuitDraw.layoutWarnings({
+    title: "Connected transistor pin",
+    elements: [
+      { type: "npn", id: "Q1", at: [100, 100] },
+      { type: "wire", id: "W1", open: true, points: [[125, 56], [125, 90]] },
+    ],
+  });
+
+  assert.ok(!warnings.some((warning) => warning.includes("W1") && warning.includes("symbol body")));
+});
+
 test("KiCad symbols render source geometry, exact pin labels, and world-space pins", () => {
   const symbolData = {
     id: "Timer:NE555",

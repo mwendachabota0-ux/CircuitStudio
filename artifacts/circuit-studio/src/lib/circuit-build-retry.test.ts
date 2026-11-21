@@ -16,6 +16,7 @@ import {
   CircuitBuildAttemptError,
   getRetryRecoveryKind,
   getNonWireElementSignature,
+  getLayoutInvariantChanges,
   getLayoutInvariantSignature,
   getCircuitNetlistSignature,
   getBuildRetryPolicy,
@@ -589,6 +590,60 @@ test('restores the original component before validating a repair that moves it',
   assert.deepEqual(result.response.proposal.spec.elements[0].at, [100, 100]);
   assert.deepEqual(result.response.proposal.spec.elements[1].points, [[50, 50], [60, 50]]);
   assert.equal(result.repairDiagnostics[1].nonWireElementsModified, true);
+});
+
+test('layout-only repair keeps authorized component movement across automatic retries', async () => {
+  const initialSpec = {
+    title: 'Draft',
+    width: 300,
+    height: 240,
+    elements: [
+      { type: 'resistor', id: 'R1', value: '1k', from: [100, 100], to: [180, 100] },
+    ],
+  };
+  const movedSpec = {
+    title: 'Draft',
+    width: 360,
+    height: 280,
+    elements: [
+      { type: 'resistor', id: 'R1', value: '1k', from: [140, 120], to: [220, 120] },
+      { type: 'wire', id: 'W1', points: [[100, 120], [140, 120]] },
+    ],
+  };
+  let sends = 0;
+
+  const result = await runCircuitBuildAttempts({
+    initialRequest: baseRequest,
+    initialProtectedSpec: initialSpec,
+    send: async () => ({
+      answer: 'Adjusted the layout.',
+      nextMode: 'build' as const,
+      proposal: { spec: sends++ === 0 ? initialSpec : movedSpec },
+    }),
+    getProposal: (response) => response.proposal.spec,
+    inspectProposal: () => ({
+      validation: {
+        errors: sends === 1 ? ['Drawing-quality issue: symbols are too close.'] : [],
+        warnings: [],
+      },
+      canRepair: true,
+    }),
+    getProtectedCircuitSignature: (spec) =>
+      getLayoutInvariantSignature(spec as NonNullable<CircuitBuildChatInput['currentSpec']>),
+    getProtectedCircuitChanges: (protectedSpec, proposal) =>
+      getLayoutInvariantChanges(
+        protectedSpec as NonNullable<CircuitBuildChatInput['currentSpec']>,
+        proposal as NonNullable<CircuitBuildChatInput['currentSpec']>,
+      ),
+    makeRepairRequest: () => baseRequest,
+    wait: async () => {},
+  });
+
+  assert.equal(sends, 2);
+  assert.deepEqual(result.response.proposal.spec.elements[0].from, [140, 120]);
+  assert.deepEqual(result.response.proposal.spec.elements[0].to, [220, 120]);
+  assert.equal(result.response.proposal.spec.width, 360);
+  assert.equal(result.repairDiagnostics[1].nonWireElementsModified, false);
 });
 
 test('protects components while accepting rebuilt wires and routing markers', () => {

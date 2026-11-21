@@ -1850,11 +1850,8 @@ export function CircuitBuilderChat({
         >
           <div className="builder-chat__history-heading">
             <div>
-              <strong>Recent conversations</strong>
-              <span>
-                Saved to your account, including chats in progress
-                {sessions.length > 4 ? ' · scroll for older' : ''}
-              </span>
+              <strong>Recent chats</strong>
+              <span>{sessions.length} saved</span>
             </div>
             <button type="button" className="builder-chat__text-link" onClick={() => setHistoryOpen(false)}>Close</button>
           </div>

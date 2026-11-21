@@ -146,7 +146,7 @@ export function CircuitBuilderMemoryDialog({
       <DialogContent className="builder-memory-dialog">
         <DialogHeader>
           <div className="builder-memory-dialog__title-row">
-            <DialogTitle>What I remember</DialogTitle>
+            <DialogTitle>Saved memories</DialogTitle>
             <button
               type="button"
               className="builder-memory-dialog__help-trigger"
@@ -169,14 +169,11 @@ export function CircuitBuilderMemoryDialog({
               aria-label="Saved memory details"
               data-testid="memory-help"
             >
-              <p>Memories are saved to your account, not as chat transcripts.</p>
-              <p>Applying a checked repair can save a lesson.</p>
+              <p>Memories save separately from chats. Checked repairs can save a lesson.</p>
               <p>
-                On first import, short excerpts from up to 12 recent sessions are
-                sent to Gemini to find reusable assumptions. Only assumptions are
-                saved, not chats; they do not train Gemini.
+                First import scans up to 12 recent sessions for reusable assumptions.
+                Chats are not saved or used to train Gemini.
               </p>
-              <p>Relevant memories can shape future chats. Edit or remove them here.</p>
             </div>
           )}
         </DialogHeader>
@@ -230,14 +227,10 @@ export function CircuitBuilderMemoryDialog({
               return (
                 <article className="builder-memory-dialog__item" key={memory.id}>
                   <div className="builder-memory-dialog__item-heading">
-                    <span>{memory.category === 'repair-lesson' ? 'Repair lesson' : 'Memory'}</span>
                     <span>{categoryLabels[memory.category]}</span>
                   </div>
-                  <label className="builder-memory-dialog__label" htmlFor={`builder-memory-${memory.id}`}>
-                    Edit memory
-                  </label>
                   <textarea
-                    id={`builder-memory-${memory.id}`}
+                    aria-label={`Edit ${categoryLabels[memory.category].toLowerCase()}`}
                     value={draft}
                     maxLength={300}
                     rows={3}

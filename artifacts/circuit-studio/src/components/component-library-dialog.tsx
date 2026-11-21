@@ -10,7 +10,6 @@ import {
   Dialog,
   DialogClose,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -97,17 +96,9 @@ export function ComponentLibraryDialog({
       >
         <DialogHeader className="component-library-dialog__header">
           <div className="component-library-dialog__heading">
-            <span className="component-library-dialog__eyebrow">
-              Circuit Studio / Reference
-            </span>
             <DialogTitle className="component-library-dialog__title">
               Component library
             </DialogTitle>
-            <DialogDescription className="component-library-dialog__description">
-              {source === 'kicad'
-                ? 'Search 22,911 official KiCad schematic symbols across 223 libraries.'
-                : 'Choose a symbol to add to your builder request.'}
-            </DialogDescription>
           </div>
           <DialogClose
             className="component-library-dialog__close"
@@ -135,7 +126,7 @@ export function ComponentLibraryDialog({
             }}
             data-testid="component-library-source-studio"
           >
-            Studio symbols
+            Studio
             <span>{CIRCUIT_COMPONENT_LIBRARY.length}</span>
           </button>
           <button
@@ -149,7 +140,7 @@ export function ComponentLibraryDialog({
             }}
             data-testid="component-library-source-kicad"
           >
-            Official KiCad library
+            KiCad
             <span>22,911</span>
           </button>
         </div>
@@ -164,7 +155,7 @@ export function ComponentLibraryDialog({
               type="search"
               value={query}
               onChange={(event) => setQuery(event.currentTarget.value)}
-              placeholder={source === 'kicad' ? 'Search 22,911 library symbols' : 'Search name, type, or description'}
+              placeholder="Search symbols"
               autoComplete="off"
               data-testid="component-library-search"
             />
@@ -231,10 +222,9 @@ export function ComponentLibraryDialog({
             </div>
           ) : source === 'kicad' && kicadSearch.isError ? (
             <div className="component-library-dialog__empty" role="alert" data-testid="component-library-error">
-              <h3>Symbol search is unavailable</h3>
-              <p>{kicadSearch.error instanceof Error ? kicadSearch.error.message : 'Try again in a moment.'}</p>
+              <h3>Could not load symbols</h3>
               <button type="button" onClick={() => void kicadSearch.refetch()}>
-                Try again
+                Retry
               </button>
             </div>
           ) : (source === 'kicad' ? kicadEntries.length > 0 : filteredEntries.length > 0) ? (
@@ -309,7 +299,7 @@ export function ComponentLibraryDialog({
                       onClick={() => handleSelect(entry)}
                       data-testid={`component-library-select-${entryId}`}
                     >
-                      {isKicadEntry ? 'Use exact library symbol' : 'Use this symbol'}
+                      Use symbol
                       <ArrowUpRight aria-hidden="true" />
                     </button>
                   </li>
@@ -321,11 +311,8 @@ export function ComponentLibraryDialog({
               className="component-library-dialog__empty"
               data-testid="component-library-empty-state"
             >
-              <span className="component-library-dialog__empty-mark" aria-hidden="true">
-                / / /
-              </span>
               <h3>{source === 'kicad' ? 'No matching KiCad symbols' : 'No matching symbols'}</h3>
-              <p>Try a different term or reset the {source === 'kicad' ? 'library' : 'category'} filter.</p>
+              <p>Try another search or reset filters.</p>
               <button
                 type="button"
                 onClick={() => {
@@ -344,9 +331,7 @@ export function ComponentLibraryDialog({
           className="component-library-dialog__note"
           data-testid="component-library-scope-note"
         >
-          {source === 'kicad'
-            ? 'KiCad symbol data is loaded when you build a proposal. The draft is for schematic planning, not simulation, safety verification, or certification.'
-            : 'This catalog provides schematic symbols and structural pin checks, not simulation, safety verification, or certification.'}
+          Schematic planning only—not simulation, safety verification, or certification.
         </p>
       </DialogContent>
     </Dialog>

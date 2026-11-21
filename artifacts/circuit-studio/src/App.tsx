@@ -96,7 +96,7 @@ const clerkAppearance = {
     colorInputForeground: '#263b40',
     colorNeutral: '#263b40',
     fontFamily: 'DM Sans',
-    borderRadius: '0.65rem',
+    borderRadius: '0.4875rem',
   },
   elements: {
     rootBox: 'w-full flex justify-center',

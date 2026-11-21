@@ -975,7 +975,7 @@
 .builder-chat__history {
   padding: 11px 13px 12px;
   border-bottom: 1px solid var(--chat-rule);
-  background: #f8f7f1;
+  background: transparent;
 }
 
 .builder-chat__history-heading {
@@ -994,12 +994,12 @@
 
 .builder-chat__history-heading strong {
   color: #344840;
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .builder-chat__history-heading span {
   color: #8a9189;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .builder-chat__history-list {
@@ -1032,13 +1032,13 @@
   background: #fffefa;
   color: #263b40;
   text-align: left;
-  transition: border-color .16s ease, background .16s ease;
+  transition: border-color .16s ease, color .16s ease;
 }
 
 .builder-chat__history-item:hover,
 .builder-chat__history-item.is-current {
-  border-color: #b9d0c0;
-  background: #f0f5ed;
+  border-color: #b9cbbb;
+  color: var(--chat-green);
 }
 
 .builder-chat__history-item:disabled { cursor: not-allowed; opacity: .6; }
@@ -1049,16 +1049,14 @@
   display: grid;
   place-items: center;
   padding: 0;
-  border: 1px solid #e7e4da;
-  border-radius: 6px;
-  background: #fffefa;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: #818b83;
 }
 
 .builder-chat__history-delete svg { width: 13px; height: 13px; }
 .builder-chat__history-delete:hover:not(:disabled) {
-  border-color: #d8aaa2;
-  background: #fff3f0;
   color: #a4453e;
 }
 .builder-chat__history-delete:disabled { cursor: not-allowed; opacity: .5; }
@@ -1104,7 +1102,7 @@
 
 .builder-chat__clear-dialog {
   max-width: 420px;
-  border-color: #dedbd1;
+  border: 0;
   border-radius: 12px;
   background: #fffefa;
   color: #263b40;
@@ -1133,13 +1131,13 @@
 }
 
 .builder-chat__clear-cancel {
-  border: 1px solid #dedbd1;
-  background: #fffefa;
+  border: 0;
+  background: transparent;
   color: #54645d;
 }
 
 .builder-chat__clear-confirm {
-  border: 1px solid #a4453e;
+  border: 0;
   background: #a4453e;
   color: #fffefa;
 }
@@ -1158,7 +1156,7 @@
   flex-direction: column;
   gap: 14px;
   overflow: hidden;
-  border-color: #dedbd1;
+  border: 0;
   border-radius: 12px;
   background: #fffefa;
   color: #263b40;
@@ -1204,12 +1202,12 @@
 .builder-memory-dialog__help-content {
   width: 100%;
   display: grid;
-  gap: 8px;
+  gap: 6px;
   margin-top: 4px;
-  padding: 10px 12px;
-  border: 1px solid #dedbd1;
-  border-radius: 8px;
-  background: #f5f4ed;
+  padding: 2px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: #52635e;
   font-size: 11px;
   line-height: 1.5;
@@ -1238,7 +1236,7 @@
   padding: 11px;
   border: 1px solid #e7e4da;
   border-radius: 8px;
-  background: #fbfaf5;
+  background: #fffefa;
 }
 
 .builder-memory-dialog__item-heading {
@@ -1247,29 +1245,18 @@
   justify-content: space-between;
   gap: 6px;
   color: #748078;
-  font-size: 9px;
-}
-
-.builder-memory-dialog__item-heading span:first-child {
-  color: #176b55;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.builder-memory-dialog__label {
-  color: #4c5d55;
   font-size: 10px;
-  font-weight: 600;
 }
 
 .builder-memory-dialog__item textarea {
   width: 100%;
   min-height: 62px;
   resize: vertical;
-  padding: 8px 9px;
-  border: 1px solid #dcd9cf;
-  border-radius: 6px;
-  background: #fffefa;
+  padding: 8px 0;
+  border: 0;
+  border-bottom: 1px solid #dcd9cf;
+  border-radius: 0;
+  background: transparent;
   color: #263b40;
   font-size: 11px;
   line-height: 1.5;
@@ -1292,10 +1279,10 @@
 .builder-memory-dialog__clear-confirm button,
 .builder-memory-dialog__clear {
   min-height: 30px;
-  padding: 6px 10px;
-  border: 1px solid #d5ded3;
-  border-radius: 6px;
-  background: #f0f5ed;
+  padding: 6px 4px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: #255744;
   font-size: 10px;
   font-weight: 700;
@@ -1303,8 +1290,6 @@
 
 .builder-memory-dialog__item-actions button.is-danger,
 .builder-memory-dialog__clear-confirm button.is-danger {
-  border-color: #e3c3bc;
-  background: #fff3f0;
   color: #9a493e;
 }
 
@@ -1334,8 +1319,6 @@
 .builder-memory-dialog__footer { justify-content: flex-start; }
 
 .builder-memory-dialog__clear {
-  border-color: #e3c3bc;
-  background: #fff3f0;
   color: #9a493e;
 }
 

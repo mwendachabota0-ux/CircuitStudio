@@ -28,6 +28,12 @@ export interface CircuitBuildChatResponse {
        * @items.minimum 1
        */
     memoryRemovals?: number[];
+    /**
+       * Optional reusable lesson from a repair; save only after the corrected proposal passes checks and the user applies it.
+       * @maxLength 300
+       * @nullable
+       */
+    repairLesson?: string | null;
     /** Server-set marker that the assistant asked permission before creating a schematic. */
     buildApprovalRequested?: boolean;
 }

@@ -344,6 +344,10 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
   request: TRequest;
   repairAttemptCount: number;
   repairDiagnostics: RepairAttemptDiagnostic[];
+  repairLessonContext: {
+    rejectedProposal: TProposal;
+    validationFindings: string[];
+  } | null;
 }> {
   let retries = 0;
   let workingRequest = options.initialRequest;
@@ -466,6 +470,7 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
         request: workingRequest,
         repairAttemptCount,
         repairDiagnostics,
+        repairLessonContext: null,
       };
     }
 
@@ -537,6 +542,12 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
         request: workingRequest,
         repairAttemptCount,
         repairDiagnostics,
+        repairLessonContext: lastInvalidProposal === null
+          ? null
+          : {
+              rejectedProposal: lastInvalidProposal,
+              validationFindings: [...lastInvalidFindings],
+            },
       };
     }
 
@@ -591,6 +602,12 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
         request: workingRequest,
         repairAttemptCount,
         repairDiagnostics,
+        repairLessonContext: lastInvalidProposal === null
+          ? null
+          : {
+              rejectedProposal: lastInvalidProposal,
+              validationFindings: [...lastInvalidFindings],
+            },
       };
     }
     lastInvalidProposal = proposal;

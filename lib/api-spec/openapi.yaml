@@ -334,6 +334,55 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+  /circuit-builder/memories/repair-lessons:
+    post:
+      operationId: saveCircuitBuilderRepairLesson
+      tags: [account]
+      summary: Save a lesson from a corrected circuit
+      description: Stores a repair lesson after a corrected proposal passes checks and the user applies it, or learns from a manual correction after it passes checks.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CircuitBuilderRepairLessonInput"
+      responses:
+        "200":
+          description: Repair lesson saved, already known, or not generalizable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CircuitBuilderRepairLessonResult"
+        "400":
+          description: Invalid repair lesson or circuit evidence
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Authentication is required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "429":
+          description: Repair lesson generation limit reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "502":
+          description: A reusable repair lesson could not be generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "503":
+          description: Repair lesson could not be saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
   /circuit-builder/history:
     get:
       operationId: listCircuitBuilderHistory
@@ -802,6 +851,10 @@ components:
           items:
             type: integer
             minimum: 1
+        repairLesson:
+          type: ["string", "null"]
+          maxLength: 300
+          description: Optional reusable lesson from a repair; save only after the corrected proposal passes checks and the user applies it.
         buildApprovalRequested:
           type: boolean
           description: Server-set marker that the assistant asked permission before creating a schematic.
@@ -809,7 +862,7 @@ components:
       additionalProperties: false
     CircuitBuilderMemoryCategory:
       type: string
-      enum: [work-style, design-decision, past-context]
+      enum: [work-style, design-decision, past-context, repair-lesson]
     CircuitBuilderMemory:
       type: object
       properties:
@@ -891,6 +944,55 @@ components:
           type: integer
           minimum: 0
       required: [learnedCount]
+      additionalProperties: false
+    CircuitBuilderRepairLessonDirectInput:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum: [save]
+        content:
+          type: string
+          minLength: 1
+          maxLength: 300
+      required: [kind, content]
+      additionalProperties: false
+    CircuitBuilderRepairLessonEvidenceInput:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum: [learn]
+        beforeSpec:
+          $ref: "#/components/schemas/CircuitSpec"
+        afterSpec:
+          $ref: "#/components/schemas/CircuitSpec"
+        findings:
+          type: array
+          minItems: 1
+          maxItems: 12
+          items:
+            type: string
+            minLength: 1
+            maxLength: 700
+        context:
+          type: string
+          maxLength: 1600
+      required: [kind, beforeSpec, afterSpec, findings]
+      additionalProperties: false
+    CircuitBuilderRepairLessonInput:
+      oneOf:
+        - $ref: "#/components/schemas/CircuitBuilderRepairLessonDirectInput"
+        - $ref: "#/components/schemas/CircuitBuilderRepairLessonEvidenceInput"
+    CircuitBuilderRepairLessonResult:
+      type: object
+      properties:
+        saved:
+          type: boolean
+        lesson:
+          type: ["string", "null"]
+          maxLength: 300
+      required: [saved, lesson]
       additionalProperties: false
     CircuitBuilderHistoryMessage:
       type: object
@@ -1088,6 +1190,10 @@ components:
             type: string
             minLength: 1
             maxLength: 500
+        repairLesson:
+          type: ["string", "null"]
+          maxLength: 300
+          description: Reusable lesson from the correction, if supported by the review evidence.
       required: [approved, summary, concerns]
       additionalProperties: false
     CircuitReviewResponse:

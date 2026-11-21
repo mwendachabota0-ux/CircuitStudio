@@ -13,6 +13,7 @@ import {
   useLearnFromCircuitBuilderHistory,
   useDeleteCircuitBuilderHistory,
   useReviewExternalCircuitFix,
+  useSaveCircuitBuilderRepairLesson,
   useSyncCircuitBuilderHistory,
 } from '@workspace/api-client-react';
 import type {
@@ -21,6 +22,7 @@ import type {
   CircuitBuilderSuggestedAction,
   CircuitBuildChatInput,
   CircuitBuildChatMessage,
+  CircuitBuilderRepairLessonInput,
   CircuitDesignBrief,
   CircuitSpec,
   CircuitSymbolSearchItem,
@@ -125,6 +127,19 @@ type ExternalCircuitFixFeedback =
   | { kind: 'local-rejected'; reasons: string[] }
   | { kind: 'review'; approved: boolean; summary: string; concerns: string[] }
   | { kind: 'error'; message: string };
+type RepairLessonEvidence = {
+  beforeSpec: CircuitSpec;
+  findings: string[];
+  context?: string;
+};
+type ProposalRepairLesson = RepairLessonEvidence & {
+  afterSpec: CircuitSpec;
+  content: string | null;
+};
+type RepairLessonNotice = {
+  kind: 'saving' | 'saved' | 'known' | 'none' | 'error';
+  message: string;
+};
 
 const emptyBrief = (): CircuitDesignBrief => ({
   goal: '',
@@ -145,6 +160,18 @@ const isStringList = (value: unknown): value is string[] =>
 
 const noteLines = (value: string): string[] =>
   value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).slice(0, 12).map((line) => line.slice(0, 300));
+
+function isSameRepairDraft(before: CircuitSpec, after: CircuitSpec): boolean {
+  if (before.title !== after.title) return false;
+  const afterParts = new Set(
+    after.elements
+      .filter((element) => element.type !== 'wire')
+      .map((element) => `${element.type}:${element.id}`),
+  );
+  return before.elements
+    .filter((element) => element.type !== 'wire')
+    .some((element) => afterParts.has(`${element.type}:${element.id}`));
+}
 
 function normalizeBrief(value: Partial<CircuitDesignBrief> | undefined): CircuitDesignBrief {
   return {
@@ -486,6 +513,7 @@ export function CircuitBuilderChat({
     mutation: { mutationKey: getChatWithCircuitBuilderMutationKey() },
   });
   const externalFixReviewMutation = useReviewExternalCircuitFix();
+  const repairLessonMutation = useSaveCircuitBuilderRepairLesson();
   const historyImportMutation = useLearnFromCircuitBuilderHistory();
   const usageQuery = useGetAiUsage({
     query: { queryKey: getGetAiUsageQueryKey(), retry: 1 },
@@ -508,6 +536,10 @@ export function CircuitBuilderChat({
   const [proposalSvg, setProposalSvg] = useState('');
   const [proposalValidation, setProposalValidation] = useState<ValidationReport | null>(null);
   const [proposalError, setProposalError] = useState('');
+  const [proposalRepairLesson, setProposalRepairLesson] =
+    useState<ProposalRepairLesson | null>(null);
+  const [repairLessonNotice, setRepairLessonNotice] =
+    useState<RepairLessonNotice | null>(null);
   const [rejectedProposalSpec, setRejectedProposalSpec] = useState<CircuitBuildChatInput['currentSpec'] | null>(null);
   const [rejectedProposalSvg, setRejectedProposalSvg] = useState('');
   const [rejectedPreviewOpen, setRejectedPreviewOpen] = useState(false);
@@ -534,6 +566,12 @@ export function CircuitBuilderChat({
   const externalFixContextKeyRef = useRef('');
   const externalFixCopiedContextKeyRef = useRef<string | null>(null);
   const handledJsonRepairRequestRef = useRef<number | null>(null);
+  const observedWorkbenchRepairRef = useRef<{
+    sessionId: string;
+    spec: CircuitSpec;
+    findings: string[];
+  } | null>(null);
+  const applyingProposalSpecRef = useRef<string | null>(null);
   const pendingRestoreRef = useRef<{
     sessionId: string;
     specSignature: string;
@@ -571,6 +609,91 @@ export function CircuitBuilderChat({
       });
     }
   }, [historySyncMutation.mutateAsync]);
+  const saveRepairLesson = useCallback(async (draft: ProposalRepairLesson) => {
+    setRepairLessonNotice({ kind: 'saving', message: 'Saving what went wrong, how it was fixed, and how to avoid it next time…' });
+    const useEvidence = !draft.content?.trim();
+    const data: CircuitBuilderRepairLessonInput = useEvidence
+      ? {
+          kind: 'learn',
+          beforeSpec: draft.beforeSpec,
+          afterSpec: draft.afterSpec,
+          findings: draft.findings.slice(0, 12).map((finding) => finding.slice(0, 700)),
+          ...(draft.context ? { context: draft.context.slice(0, 1600) } : {}),
+        }
+      : { kind: 'save', content: draft.content!.trim().slice(0, 300) };
+
+    try {
+      const result = await repairLessonMutation.mutateAsync({ data });
+      await queryClient.invalidateQueries({
+        queryKey: getListCircuitBuilderMemoriesQueryKey(),
+      });
+      if (useEvidence) {
+        void queryClient.invalidateQueries({ queryKey: getGetAiUsageQueryKey() });
+      }
+      setRepairLessonNotice(
+        result.lesson
+          ? {
+              kind: result.saved ? 'saved' : 'known',
+              message: result.saved
+                ? 'Saved a repair lesson. I’ll use it when a similar circuit issue comes up.'
+                : 'This repair lesson is already saved.',
+            }
+          : {
+              kind: 'none',
+              message: 'Circuit applied. This correction did not produce a reusable lesson.',
+            },
+      );
+    } catch (error) {
+      setRepairLessonNotice({
+        kind: 'error',
+        message: `Circuit applied, but its repair lesson could not be saved${error instanceof Error ? `: ${error.message}` : '.'}`,
+      });
+    }
+  }, [queryClient, repairLessonMutation.mutateAsync]);
+
+  useEffect(() => {
+    if (hasUnappliedJsonEdits) return;
+    const current = currentSpec as CircuitSpec | null;
+    if (!current) {
+      observedWorkbenchRepairRef.current = null;
+      return;
+    }
+
+    const findings = validationFindings
+      .slice(0, 12)
+      .map((finding) => finding.slice(0, 700));
+    const previous = observedWorkbenchRepairRef.current;
+    const currentSignature = JSON.stringify(current);
+    if (
+      previous?.sessionId === activeSessionId &&
+      previous.findings.length > 0 &&
+      findings.length === 0 &&
+      JSON.stringify(previous.spec) !== currentSignature
+    ) {
+      if (applyingProposalSpecRef.current === currentSignature) {
+        applyingProposalSpecRef.current = null;
+      } else if (isSameRepairDraft(previous.spec, current)) {
+        void saveRepairLesson({
+          content: null,
+          beforeSpec: previous.spec,
+          afterSpec: current,
+          findings: previous.findings,
+          context: 'The user manually corrected this workbench draft after CircuitDraw reported the listed issues.',
+        });
+      }
+    }
+
+    observedWorkbenchRepairRef.current = findings.length
+      ? { sessionId: activeSessionId, spec: current, findings }
+      : null;
+  }, [
+    activeSessionId,
+    currentSpec,
+    hasUnappliedJsonEdits,
+    saveRepairLesson,
+    validationFindings,
+  ]);
+
   const runHistoryImport = useCallback(async () => {
     if (!historyForMemory.length) return;
     setHistoryImportStatus({ kind: 'loading' });
@@ -1008,12 +1131,15 @@ export function CircuitBuilderChat({
     protectedElementsBaseSpec?: NonNullable<CircuitBuildChatInput['currentSpec']>,
     preserveRejectedProposal = false,
     rememberForRetry = true,
+    repairLessonSeed?: RepairLessonEvidence,
   ) => {
     const safeRequest = normalizeCircuitBuildRequest(request);
     if (rememberForRetry) setLastRequest(safeRequest);
     setLastProtectedElementsBaseSpec(protectedElementsBaseSpec ?? null);
     setRetryFeedback(null);
     setRepairDiagnostics([]);
+    setProposalRepairLesson(null);
+    setRepairLessonNotice(null);
     if (!preserveRejectedProposal) {
       setRejectedProposalSpec(null);
       setRejectedProposalSvg('');
@@ -1030,6 +1156,7 @@ export function CircuitBuilderChat({
         proposalInspection,
         request: completedRequest,
         repairDiagnostics: completedRepairDiagnostics,
+        repairLessonContext,
       } = await runCircuitBuildAttempts({
         initialRequest: safeRequest,
         send: (workingRequest) => chatMutation.mutateAsync({ data: workingRequest }),
@@ -1104,6 +1231,34 @@ export function CircuitBuilderChat({
           setProposalError('');
           setProposalValidation(proposalInspection.validation);
           setProposalSvg(proposalInspection.svg);
+          const automaticSeed = repairLessonContext
+            ? {
+                beforeSpec: asCircuitSpec(repairLessonContext.rejectedProposal),
+                findings: repairLessonContext.validationFindings,
+                context: safeRequest.message,
+              }
+            : null;
+          const lessonSeed = repairLessonSeed ?? (
+            automaticSeed?.beforeSpec
+              ? {
+                  beforeSpec: automaticSeed.beforeSpec,
+                  findings: automaticSeed.findings,
+                  context: automaticSeed.context,
+                }
+              : null
+          );
+          setProposalRepairLesson(
+            lessonSeed && lessonSeed.findings.length
+              ? {
+                  ...lessonSeed,
+                  afterSpec: response.proposal.spec,
+                  content: response.repairLesson?.trim() || null,
+                  context: (lessonSeed.context ?? safeRequest.message).slice(0, 1600),
+                }
+              : null,
+          );
+        } else {
+          setProposalRepairLesson(null);
         }
         void queryClient.invalidateQueries({ queryKey: getGetAiUsageQueryKey() });
         void queryClient.invalidateQueries({ queryKey: getListCircuitBuilderMemoriesQueryKey() });

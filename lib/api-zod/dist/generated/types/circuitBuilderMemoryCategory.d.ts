@@ -10,5 +10,6 @@ export declare const CircuitBuilderMemoryCategory: {
     readonly 'work-style': "work-style";
     readonly 'design-decision': "design-decision";
     readonly 'past-context': "past-context";
+    readonly 'repair-lesson': "repair-lesson";
 };
 //# sourceMappingURL=circuitBuilderMemoryCategory.d.ts.map

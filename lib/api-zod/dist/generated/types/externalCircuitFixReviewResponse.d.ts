@@ -19,5 +19,11 @@ export interface ExternalCircuitFixReviewResponse {
        * @items.maxLength 500
        */
     concerns: string[];
+    /**
+       * Reusable lesson from the correction, if supported by the review evidence.
+       * @maxLength 300
+       * @nullable
+       */
+    repairLesson?: string | null;
 }
 //# sourceMappingURL=externalCircuitFixReviewResponse.d.ts.map

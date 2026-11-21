@@ -21,6 +21,7 @@ const categoryLabels: Record<CircuitBuilderMemory['category'], string> = {
   'work-style': 'How you like to work',
   'design-decision': 'Circuit decision',
   'past-context': 'Project context',
+  'repair-lesson': 'Repair lesson',
 };
 
 export type CircuitBuilderMemoryImportStatus = {
@@ -75,7 +76,7 @@ export function CircuitBuilderMemoryDialog({
       });
       await refreshMemories();
     } catch {
-      setActionError('Could not save that assumption. Please try again.');
+      setActionError('Could not save that memory. Please try again.');
     }
   };
 
@@ -90,7 +91,7 @@ export function CircuitBuilderMemoryDialog({
       });
       await refreshMemories();
     } catch {
-      setActionError('Could not remove that assumption. Please try again.');
+      setActionError('Could not remove that memory. Please try again.');
     }
   };
 
@@ -102,7 +103,7 @@ export function CircuitBuilderMemoryDialog({
       setConfirmClear(false);
       await refreshMemories();
     } catch {
-      setActionError('Could not clear saved assumptions. Please try again.');
+      setActionError('Could not clear saved memories. Please try again.');
     }
   };
 
@@ -117,14 +118,16 @@ export function CircuitBuilderMemoryDialog({
         <DialogHeader>
           <DialogTitle>What I remember</DialogTitle>
           <DialogDescription>
-            These are account-level assumptions, not saved chat transcripts.
+            These are account-level memories, not saved chat transcripts.
+            After a corrected circuit passes checks and you apply it, Circuit Studio
+            saves a short lesson about the mistake, fix, and how to avoid it next time.
             When saved history is first imported, short excerpts from up to 12
             recent chat/build sessions in this browser are sent to Gemini to
             find reusable details; only the assumptions are saved. This does not
             train Gemini.
             Later chats save useful details automatically. New topics stay fresh,
-            and only relevant assumptions are used as tentative suggestions.
-            Correct them in chat or edit them here.
+            and only relevant memories are used. Correct them in chat or edit
+            them here.
           </DialogDescription>
         </DialogHeader>
 
@@ -154,17 +157,17 @@ export function CircuitBuilderMemoryDialog({
 
         {actionError && <p className="builder-memory-dialog__error" role="alert">{actionError}</p>}
         {memoriesQuery.isLoading && (
-          <p className="builder-memory-dialog__empty" role="status">Loading saved assumptions…</p>
+          <p className="builder-memory-dialog__empty" role="status">Loading saved memories…</p>
         )}
         {memoriesQuery.isError && (
           <p className="builder-memory-dialog__error" role="alert">
-            Saved assumptions could not be loaded. Please try closing and reopening this panel.
+            Saved memories could not be loaded. Please try closing and reopening this panel.
           </p>
         )}
         {memoriesQuery.data?.length === 0 && !memoriesQuery.isLoading && (
           <p className="builder-memory-dialog__empty">
-            No assumptions saved yet. As you chat, Circuit Studio will keep only
-            useful, reusable context—not every old conversation.
+            Nothing saved yet. Circuit Studio keeps only useful, reusable
+            context—not every old conversation.
           </p>
         )}
 
@@ -176,11 +179,11 @@ export function CircuitBuilderMemoryDialog({
               return (
                 <article className="builder-memory-dialog__item" key={memory.id}>
                   <div className="builder-memory-dialog__item-heading">
-                    <span>Assumption</span>
+                    <span>{memory.category === 'repair-lesson' ? 'Repair lesson' : 'Memory'}</span>
                     <span>{categoryLabels[memory.category]}</span>
                   </div>
                   <label className="builder-memory-dialog__label" htmlFor={`builder-memory-${memory.id}`}>
-                    Edit this assumption
+                    Edit this memory
                   </label>
                   <textarea
                     id={`builder-memory-${memory.id}`}
@@ -220,7 +223,7 @@ export function CircuitBuilderMemoryDialog({
           {memoriesQuery.data && memoriesQuery.data.length > 0 && (
             confirmClear ? (
               <div className="builder-memory-dialog__clear-confirm" role="alert">
-                <span>This removes every saved assumption.</span>
+                <span>This removes every saved memory.</span>
                 <button type="button" className="is-danger" onClick={() => void removeAllMemories()} disabled={busy}>
                   Delete all
                 </button>
@@ -235,7 +238,7 @@ export function CircuitBuilderMemoryDialog({
                 onClick={() => setConfirmClear(true)}
                 disabled={busy}
               >
-                Clear all assumptions
+                Clear all memories
               </button>
             )
           )}

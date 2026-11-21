@@ -1,5 +1,5 @@
 import type { QueryKey, UseMutationOptions, UseMutationResult, UseQueryOptions, UseQueryResult } from '@tanstack/react-query';
-import type { AiKeySelectionRequest, AiStatus, AiUsage, ApiError, CircuitBuildChatInput, CircuitBuildChatResponse, CircuitBuilderHistoryDeletion, CircuitBuilderHistoryImportInput, CircuitBuilderHistoryImportResponse, CircuitBuilderHistorySession, CircuitBuilderHistorySyncInput, CircuitBuilderHistorySyncResponse, CircuitBuilderMemory, CircuitBuilderMemoryInput, CircuitPrompt, CircuitReviewRequest, CircuitReviewResponse, CircuitSpec, CircuitSymbolSearchResponse, ExternalCircuitFixReviewInput, ExternalCircuitFixReviewResponse, HealthStatus, SearchCircuitSymbolsParams, TutorRequest, TutorResponse } from './api.schemas';
+import type { AiKeySelectionRequest, AiStatus, AiUsage, ApiError, CircuitBuildChatInput, CircuitBuildChatResponse, CircuitBuilderHistoryDeletion, CircuitBuilderHistoryImportInput, CircuitBuilderHistoryImportResponse, CircuitBuilderHistorySession, CircuitBuilderHistorySyncInput, CircuitBuilderHistorySyncResponse, CircuitBuilderMemory, CircuitBuilderMemoryInput, CircuitBuilderRepairLessonInput, CircuitBuilderRepairLessonResult, CircuitPrompt, CircuitReviewRequest, CircuitReviewResponse, CircuitSpec, CircuitSymbolSearchResponse, ExternalCircuitFixReviewInput, ExternalCircuitFixReviewResponse, HealthStatus, SearchCircuitSymbolsParams, TutorRequest, TutorResponse } from './api.schemas';
 import { customFetch } from '../custom-fetch';
 import type { ErrorType, BodyType } from '../custom-fetch';
 type AwaitedInput<T> = PromiseLike<T> | T;
@@ -214,6 +214,30 @@ export declare const useLearnFromCircuitBuilderHistory: <TError = ErrorType<ApiE
     mutation?: UseMutationOptions<Awaited<ReturnType<typeof learnFromCircuitBuilderHistory>>, TError, LearnFromCircuitBuilderHistoryMutationVariables, TContext>;
     request?: SecondParameter<typeof customFetch>;
 }) => UseMutationResult<Awaited<ReturnType<typeof learnFromCircuitBuilderHistory>>, TError, LearnFromCircuitBuilderHistoryMutationVariables, TContext>;
+export declare const getSaveCircuitBuilderRepairLessonUrl: () => string;
+/**
+ * Stores a repair lesson after a corrected proposal passes checks and the user applies it, or learns from a manual correction after it passes checks.
+ * @summary Save a lesson from a corrected circuit
+ */
+export declare const saveCircuitBuilderRepairLesson: (circuitBuilderRepairLessonInput: CircuitBuilderRepairLessonInput, options?: Parameters<typeof customFetch>[1]) => Promise<CircuitBuilderRepairLessonResult>;
+export declare const getSaveCircuitBuilderRepairLessonMutationKey: () => readonly ["saveCircuitBuilderRepairLesson"];
+export declare const getSaveCircuitBuilderRepairLessonMutationOptions: <TError = ErrorType<ApiError>, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<Awaited<ReturnType<typeof saveCircuitBuilderRepairLesson>>, TError, SaveCircuitBuilderRepairLessonMutationVariables, TContext>;
+    request?: SecondParameter<typeof customFetch>;
+}) => UseMutationOptions<Awaited<ReturnType<typeof saveCircuitBuilderRepairLesson>>, TError, SaveCircuitBuilderRepairLessonMutationVariables, TContext>;
+export type SaveCircuitBuilderRepairLessonMutationResult = NonNullable<Awaited<ReturnType<typeof saveCircuitBuilderRepairLesson>>>;
+export type SaveCircuitBuilderRepairLessonMutationBody = BodyType<CircuitBuilderRepairLessonInput>;
+export type SaveCircuitBuilderRepairLessonMutationError = ErrorType<ApiError>;
+export type SaveCircuitBuilderRepairLessonMutationVariables = {
+    data: BodyType<CircuitBuilderRepairLessonInput>;
+};
+/**
+* @summary Save a lesson from a corrected circuit
+*/
+export declare const useSaveCircuitBuilderRepairLesson: <TError = ErrorType<ApiError>, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<Awaited<ReturnType<typeof saveCircuitBuilderRepairLesson>>, TError, SaveCircuitBuilderRepairLessonMutationVariables, TContext>;
+    request?: SecondParameter<typeof customFetch>;
+}) => UseMutationResult<Awaited<ReturnType<typeof saveCircuitBuilderRepairLesson>>, TError, SaveCircuitBuilderRepairLessonMutationVariables, TContext>;
 export declare const getListCircuitBuilderHistoryUrl: () => string;
 /**
  * Returns the signed-in user's complete chat and build history.

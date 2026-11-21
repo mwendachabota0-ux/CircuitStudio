@@ -34,6 +34,8 @@ import type {
   CircuitBuilderHistorySyncResponse,
   CircuitBuilderMemory,
   CircuitBuilderMemoryInput,
+  CircuitBuilderRepairLessonInput,
+  CircuitBuilderRepairLessonResult,
   CircuitPrompt,
   CircuitReviewRequest,
   CircuitReviewResponse,
@@ -830,6 +832,95 @@ export const useLearnFromCircuitBuilderHistory = <TError = ErrorType<ApiError>,
         TContext
       > => {
       return useMutation(getLearnFromCircuitBuilderHistoryMutationOptions(options));
+    }
+
+export const getSaveCircuitBuilderRepairLessonUrl = () => {
+
+
+
+
+  return `/api/circuit-builder/memories/repair-lessons`
+}
+
+/**
+ * Stores a repair lesson after a corrected proposal passes checks and the user applies it, or learns from a manual correction after it passes checks.
+ * @summary Save a lesson from a corrected circuit
+ */
+export const saveCircuitBuilderRepairLesson = async (circuitBuilderRepairLessonInput: CircuitBuilderRepairLessonInput, options?: Parameters<typeof customFetch>[1]): Promise<CircuitBuilderRepairLessonResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CircuitBuilderRepairLessonResult>(getSaveCircuitBuilderRepairLessonUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(circuitBuilderRepairLessonInput)
+  }
+);}
+
+
+
+
+
+export const getSaveCircuitBuilderRepairLessonMutationKey = () => ['saveCircuitBuilderRepairLesson'] as const;
+
+export const getSaveCircuitBuilderRepairLessonMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveCircuitBuilderRepairLesson>>, TError,SaveCircuitBuilderRepairLessonMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveCircuitBuilderRepairLesson>>, TError,SaveCircuitBuilderRepairLessonMutationVariables, TContext> => {
+
+const mutationKey = getSaveCircuitBuilderRepairLessonMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveCircuitBuilderRepairLesson>>, SaveCircuitBuilderRepairLessonMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  saveCircuitBuilderRepairLesson(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveCircuitBuilderRepairLessonMutationResult = NonNullable<Awaited<ReturnType<typeof saveCircuitBuilderRepairLesson>>>
+    export type SaveCircuitBuilderRepairLessonMutationBody = BodyType<CircuitBuilderRepairLessonInput>
+    export type SaveCircuitBuilderRepairLessonMutationError = ErrorType<ApiError>
+    export type SaveCircuitBuilderRepairLessonMutationVariables = {data: BodyType<CircuitBuilderRepairLessonInput>}
+
+    /**
+ * @summary Save a lesson from a corrected circuit
+ */
+export const useSaveCircuitBuilderRepairLesson = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveCircuitBuilderRepairLesson>>, TError,SaveCircuitBuilderRepairLessonMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveCircuitBuilderRepairLesson>>,
+        TError,
+        SaveCircuitBuilderRepairLessonMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveCircuitBuilderRepairLessonMutationOptions(options));
     }
 
 export const getListCircuitBuilderHistoryUrl = () => {

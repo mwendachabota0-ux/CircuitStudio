@@ -119,6 +119,12 @@ export function normalizeCircuitBuilderResponse(
   if ("memoryRemovals" in response) {
     response.memoryRemovals = normalizeMemoryRemovals(response.memoryRemovals);
   }
+  if (typeof response.repairLesson === "string") {
+    response.repairLesson = response.repairLesson.trim().replace(/\s+/g, " ").slice(0, 300);
+    if (!response.repairLesson) response.repairLesson = null;
+  } else if (response.repairLesson !== null) {
+    delete response.repairLesson;
+  }
 
   const finalQuestion = typeof response.answer === "string"
     ? getFinalQuestion(response.answer)

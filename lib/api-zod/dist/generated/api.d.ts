@@ -2718,6 +2718,7 @@ export declare const chatWithCircuitBuilderResponseSuggestedActionsMax = 2;
 export declare const chatWithCircuitBuilderResponseMemoryUpdatesItemContentMax = 300;
 export declare const chatWithCircuitBuilderResponseMemoryUpdatesMax = 2;
 export declare const chatWithCircuitBuilderResponseMemoryRemovalsMax = 10;
+export declare const chatWithCircuitBuilderResponseRepairLessonMax = 300;
 export declare const ChatWithCircuitBuilderResponse: zod.ZodObject<{
     nextMode: zod.ZodOptional<zod.ZodEnum<["chat", "build"]>>;
     answer: zod.ZodString;
@@ -3341,18 +3342,19 @@ export declare const ChatWithCircuitBuilderResponse: zod.ZodObject<{
     }>, "many">>;
     memoryUpdates: zod.ZodOptional<zod.ZodArray<zod.ZodObject<{
         id: zod.ZodOptional<zod.ZodNumber>;
-        category: zod.ZodEnum<["work-style", "design-decision", "past-context"]>;
+        category: zod.ZodEnum<["work-style", "design-decision", "past-context", "repair-lesson"]>;
         content: zod.ZodString;
     }, "strip", zod.ZodTypeAny, {
         content: string;
-        category: "work-style" | "design-decision" | "past-context";
+        category: "work-style" | "design-decision" | "past-context" | "repair-lesson";
         id?: number | undefined;
     }, {
         content: string;
-        category: "work-style" | "design-decision" | "past-context";
+        category: "work-style" | "design-decision" | "past-context" | "repair-lesson";
         id?: number | undefined;
     }>, "many">>;
     memoryRemovals: zod.ZodOptional<zod.ZodArray<zod.ZodNumber, "many">>;
+    repairLesson: zod.ZodOptional<zod.ZodNullable<zod.ZodString>>;
     buildApprovalRequested: zod.ZodOptional<zod.ZodBoolean>;
 }, "strip", zod.ZodTypeAny, {
     answer: string;
@@ -3439,10 +3441,11 @@ export declare const ChatWithCircuitBuilderResponse: zod.ZodObject<{
     }[] | undefined;
     memoryUpdates?: {
         content: string;
-        category: "work-style" | "design-decision" | "past-context";
+        category: "work-style" | "design-decision" | "past-context" | "repair-lesson";
         id?: number | undefined;
     }[] | undefined;
     memoryRemovals?: number[] | undefined;
+    repairLesson?: string | null | undefined;
     buildApprovalRequested?: boolean | undefined;
 }, {
     answer: string;
@@ -3529,10 +3532,11 @@ export declare const ChatWithCircuitBuilderResponse: zod.ZodObject<{
     }[] | undefined;
     memoryUpdates?: {
         content: string;
-        category: "work-style" | "design-decision" | "past-context";
+        category: "work-style" | "design-decision" | "past-context" | "repair-lesson";
         id?: number | undefined;
     }[] | undefined;
     memoryRemovals?: number[] | undefined;
+    repairLesson?: string | null | undefined;
     buildApprovalRequested?: boolean | undefined;
 }>;
 /**
@@ -4225,18 +4229,22 @@ export declare const ReviewExternalCircuitFixBody: zod.ZodObject<{
 export declare const reviewExternalCircuitFixResponseSummaryMax = 800;
 export declare const reviewExternalCircuitFixResponseConcernsItemMax = 500;
 export declare const reviewExternalCircuitFixResponseConcernsMax = 8;
+export declare const reviewExternalCircuitFixResponseRepairLessonMax = 300;
 export declare const ReviewExternalCircuitFixResponse: zod.ZodObject<{
     approved: zod.ZodBoolean;
     summary: zod.ZodString;
     concerns: zod.ZodArray<zod.ZodString, "many">;
+    repairLesson: zod.ZodOptional<zod.ZodNullable<zod.ZodString>>;
 }, "strip", zod.ZodTypeAny, {
     summary: string;
     approved: boolean;
     concerns: string[];
+    repairLesson?: string | null | undefined;
 }, {
     summary: string;
     approved: boolean;
     concerns: string[];
+    repairLesson?: string | null | undefined;
 }>;
 /**
  * @summary List saved Circuit Studio assumptions
@@ -4244,34 +4252,34 @@ export declare const ReviewExternalCircuitFixResponse: zod.ZodObject<{
 export declare const listCircuitBuilderMemoriesResponseContentMax = 300;
 export declare const ListCircuitBuilderMemoriesResponseItem: zod.ZodObject<{
     id: zod.ZodNumber;
-    category: zod.ZodEnum<["work-style", "design-decision", "past-context"]>;
+    category: zod.ZodEnum<["work-style", "design-decision", "past-context", "repair-lesson"]>;
     content: zod.ZodString;
     updatedAt: zod.ZodDate;
 }, "strip", zod.ZodTypeAny, {
     id: number;
     content: string;
-    category: "work-style" | "design-decision" | "past-context";
+    category: "work-style" | "design-decision" | "past-context" | "repair-lesson";
     updatedAt: Date;
 }, {
     id: number;
     content: string;
-    category: "work-style" | "design-decision" | "past-context";
+    category: "work-style" | "design-decision" | "past-context" | "repair-lesson";
     updatedAt: Date;
 }>;
 export declare const ListCircuitBuilderMemoriesResponse: zod.ZodArray<zod.ZodObject<{
     id: zod.ZodNumber;
-    category: zod.ZodEnum<["work-style", "design-decision", "past-context"]>;
+    category: zod.ZodEnum<["work-style", "design-decision", "past-context", "repair-lesson"]>;
     content: zod.ZodString;
     updatedAt: zod.ZodDate;
 }, "strip", zod.ZodTypeAny, {
     id: number;
     content: string;
-    category: "work-style" | "design-decision" | "past-context";
+    category: "work-style" | "design-decision" | "past-context" | "repair-lesson";
     updatedAt: Date;
 }, {
     id: number;
     content: string;
-    category: "work-style" | "design-decision" | "past-context";
+    category: "work-style" | "design-decision" | "past-context" | "repair-lesson";
     updatedAt: Date;
 }>, "many">;
 /**
@@ -4314,6 +4322,1261 @@ export declare const LearnFromCircuitBuilderHistoryResponse: zod.ZodObject<{
     learnedCount: number;
 }, {
     learnedCount: number;
+}>;
+/**
+ * Stores a repair lesson after a corrected proposal passes checks and the user applies it, or learns from a manual correction after it passes checks.
+ * @summary Save a lesson from a corrected circuit
+ */
+export declare const saveCircuitBuilderRepairLessonBodyOneContentMax = 300;
+export declare const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemFromMin = 2;
+export declare const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemFromMax = 2;
+export declare const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemToMin = 2;
+export declare const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemToMax = 2;
+export declare const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemAtMin = 2;
+export declare const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemAtMax = 2;
+export declare const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolIdRegExp: RegExp;
+export declare const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolDataUnitsItemPinsItemPointMin = 2;
+export declare const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolDataUnitsItemPinsItemPointMax = 2;
+export declare const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin = 2;
+export declare const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax = 2;
+export declare const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolDataUnitsItemPinsMax = 512;
+export declare const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin = 2;
+export declare const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax = 2;
+export declare const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin = 0;
+export declare const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin = 0;
+export declare const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin = 0;
+export declare const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolDataUnitsItemGraphicsMax = 2048;
+export declare const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolDataUnitsMax = 256;
+export declare const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemPointsItemMin = 2;
+export declare const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemPointsItemMax = 2;
+export declare const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemLabelNudgeMin = 2;
+export declare const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemLabelNudgeMax = 2;
+export declare const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemLabelAtMin = 2;
+export declare const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemLabelAtMax = 2;
+export declare const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemFromMin = 2;
+export declare const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemFromMax = 2;
+export declare const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemToMin = 2;
+export declare const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemToMax = 2;
+export declare const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemAtMin = 2;
+export declare const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemAtMax = 2;
+export declare const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolIdRegExp: RegExp;
+export declare const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolDataUnitsItemPinsItemPointMin = 2;
+export declare const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolDataUnitsItemPinsItemPointMax = 2;
+export declare const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin = 2;
+export declare const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax = 2;
+export declare const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolDataUnitsItemPinsMax = 512;
+export declare const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin = 2;
+export declare const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax = 2;
+export declare const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin = 0;
+export declare const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin = 0;
+export declare const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin = 0;
+export declare const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolDataUnitsItemGraphicsMax = 2048;
+export declare const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolDataUnitsMax = 256;
+export declare const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemPointsItemMin = 2;
+export declare const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemPointsItemMax = 2;
+export declare const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemLabelNudgeMin = 2;
+export declare const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemLabelNudgeMax = 2;
+export declare const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemLabelAtMin = 2;
+export declare const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemLabelAtMax = 2;
+export declare const saveCircuitBuilderRepairLessonBodyTwoFindingsItemMax = 700;
+export declare const saveCircuitBuilderRepairLessonBodyTwoFindingsMax = 12;
+export declare const saveCircuitBuilderRepairLessonBodyTwoContextMax = 1600;
+export declare const SaveCircuitBuilderRepairLessonBody: zod.ZodUnion<[zod.ZodObject<{
+    kind: zod.ZodEnum<["save"]>;
+    content: zod.ZodString;
+}, "strip", zod.ZodTypeAny, {
+    content: string;
+    kind: "save";
+}, {
+    content: string;
+    kind: "save";
+}>, zod.ZodObject<{
+    kind: zod.ZodEnum<["learn"]>;
+    beforeSpec: zod.ZodObject<{
+        title: zod.ZodString;
+        width: zod.ZodOptional<zod.ZodNumber>;
+        height: zod.ZodOptional<zod.ZodNumber>;
+        elements: zod.ZodArray<zod.ZodObject<{
+            type: zod.ZodString;
+            id: zod.ZodOptional<zod.ZodString>;
+            label: zod.ZodOptional<zod.ZodString>;
+            value: zod.ZodOptional<zod.ZodString>;
+            from: zod.ZodOptional<zod.ZodArray<zod.ZodNumber, "many">>;
+            to: zod.ZodOptional<zod.ZodArray<zod.ZodNumber, "many">>;
+            at: zod.ZodOptional<zod.ZodArray<zod.ZodNumber, "many">>;
+            symbolId: zod.ZodOptional<zod.ZodString>;
+            unit: zod.ZodOptional<zod.ZodNumber>;
+            bodyStyle: zod.ZodOptional<zod.ZodNumber>;
+            rotation: zod.ZodOptional<zod.ZodUnion<[zod.ZodLiteral<0>, zod.ZodLiteral<90>, zod.ZodLiteral<180>, zod.ZodLiteral<270>]>>;
+            symbolData: zod.ZodOptional<zod.ZodObject<{
+                id: zod.ZodString;
+                units: zod.ZodArray<zod.ZodObject<{
+                    unit: zod.ZodNumber;
+                    bodyStyle: zod.ZodNumber;
+                    pins: zod.ZodArray<zod.ZodObject<{
+                        number: zod.ZodString;
+                        name: zod.ZodString;
+                        electricalType: zod.ZodString;
+                        shape: zod.ZodString;
+                        point: zod.ZodArray<zod.ZodNumber, "many">;
+                        bodyPoint: zod.ZodArray<zod.ZodNumber, "many">;
+                        showName: zod.ZodBoolean;
+                        showNumber: zod.ZodBoolean;
+                    }, "strip", zod.ZodTypeAny, {
+                        number: string;
+                        name: string;
+                        electricalType: string;
+                        shape: string;
+                        point: number[];
+                        bodyPoint: number[];
+                        showName: boolean;
+                        showNumber: boolean;
+                    }, {
+                        number: string;
+                        name: string;
+                        electricalType: string;
+                        shape: string;
+                        point: number[];
+                        bodyPoint: number[];
+                        showName: boolean;
+                        showNumber: boolean;
+                    }>, "many">;
+                    graphics: zod.ZodArray<zod.ZodObject<{
+                        type: zod.ZodEnum<["polyline", "rectangle", "circle", "arc", "bezier", "text"]>;
+                        points: zod.ZodOptional<zod.ZodArray<zod.ZodArray<zod.ZodNumber, "many">, "many">>;
+                        radius: zod.ZodOptional<zod.ZodNumber>;
+                        text: zod.ZodOptional<zod.ZodString>;
+                        fontSize: zod.ZodOptional<zod.ZodNumber>;
+                        strokeWidth: zod.ZodOptional<zod.ZodNumber>;
+                        fillType: zod.ZodOptional<zod.ZodEnum<["none", "background", "outline"]>>;
+                        closed: zod.ZodOptional<zod.ZodBoolean>;
+                    }, "strip", zod.ZodTypeAny, {
+                        type: "polyline" | "rectangle" | "circle" | "arc" | "bezier" | "text";
+                        text?: string | undefined;
+                        points?: number[][] | undefined;
+                        radius?: number | undefined;
+                        fontSize?: number | undefined;
+                        strokeWidth?: number | undefined;
+                        fillType?: "none" | "background" | "outline" | undefined;
+                        closed?: boolean | undefined;
+                    }, {
+                        type: "polyline" | "rectangle" | "circle" | "arc" | "bezier" | "text";
+                        text?: string | undefined;
+                        points?: number[][] | undefined;
+                        radius?: number | undefined;
+                        fontSize?: number | undefined;
+                        strokeWidth?: number | undefined;
+                        fillType?: "none" | "background" | "outline" | undefined;
+                        closed?: boolean | undefined;
+                    }>, "many">;
+                }, "strip", zod.ZodTypeAny, {
+                    unit: number;
+                    bodyStyle: number;
+                    pins: {
+                        number: string;
+                        name: string;
+                        electricalType: string;
+                        shape: string;
+                        point: number[];
+                        bodyPoint: number[];
+                        showName: boolean;
+                        showNumber: boolean;
+                    }[];
+                    graphics: {
+                        type: "polyline" | "rectangle" | "circle" | "arc" | "bezier" | "text";
+                        text?: string | undefined;
+                        points?: number[][] | undefined;
+                        radius?: number | undefined;
+                        fontSize?: number | undefined;
+                        strokeWidth?: number | undefined;
+                        fillType?: "none" | "background" | "outline" | undefined;
+                        closed?: boolean | undefined;
+                    }[];
+                }, {
+                    unit: number;
+                    bodyStyle: number;
+                    pins: {
+                        number: string;
+                        name: string;
+                        electricalType: string;
+                        shape: string;
+                        point: number[];
+                        bodyPoint: number[];
+                        showName: boolean;
+                        showNumber: boolean;
+                    }[];
+                    graphics: {
+                        type: "polyline" | "rectangle" | "circle" | "arc" | "bezier" | "text";
+                        text?: string | undefined;
+                        points?: number[][] | undefined;
+                        radius?: number | undefined;
+                        fontSize?: number | undefined;
+                        strokeWidth?: number | undefined;
+                        fillType?: "none" | "background" | "outline" | undefined;
+                        closed?: boolean | undefined;
+                    }[];
+                }>, "many">;
+            }, "strip", zod.ZodTypeAny, {
+                id: string;
+                units: {
+                    unit: number;
+                    bodyStyle: number;
+                    pins: {
+                        number: string;
+                        name: string;
+                        electricalType: string;
+                        shape: string;
+                        point: number[];
+                        bodyPoint: number[];
+                        showName: boolean;
+                        showNumber: boolean;
+                    }[];
+                    graphics: {
+                        type: "polyline" | "rectangle" | "circle" | "arc" | "bezier" | "text";
+                        text?: string | undefined;
+                        points?: number[][] | undefined;
+                        radius?: number | undefined;
+                        fontSize?: number | undefined;
+                        strokeWidth?: number | undefined;
+                        fillType?: "none" | "background" | "outline" | undefined;
+                        closed?: boolean | undefined;
+                    }[];
+                }[];
+            }, {
+                id: string;
+                units: {
+                    unit: number;
+                    bodyStyle: number;
+                    pins: {
+                        number: string;
+                        name: string;
+                        electricalType: string;
+                        shape: string;
+                        point: number[];
+                        bodyPoint: number[];
+                        showName: boolean;
+                        showNumber: boolean;
+                    }[];
+                    graphics: {
+                        type: "polyline" | "rectangle" | "circle" | "arc" | "bezier" | "text";
+                        text?: string | undefined;
+                        points?: number[][] | undefined;
+                        radius?: number | undefined;
+                        fontSize?: number | undefined;
+                        strokeWidth?: number | undefined;
+                        fillType?: "none" | "background" | "outline" | undefined;
+                        closed?: boolean | undefined;
+                    }[];
+                }[];
+            }>>;
+            points: zod.ZodOptional<zod.ZodArray<zod.ZodArray<zod.ZodNumber, "many">, "many">>;
+            x: zod.ZodOptional<zod.ZodNumber>;
+            y: zod.ZodOptional<zod.ZodNumber>;
+            w: zod.ZodOptional<zod.ZodNumber>;
+            h: zod.ZodOptional<zod.ZodNumber>;
+            height: zod.ZodOptional<zod.ZodNumber>;
+            open: zod.ZodOptional<zod.ZodBoolean>;
+            closed: zod.ZodOptional<zod.ZodBoolean>;
+            flip: zod.ZodOptional<zod.ZodBoolean>;
+            circle: zod.ZodOptional<zod.ZodBoolean>;
+            swap: zod.ZodOptional<zod.ZodBoolean>;
+            style: zod.ZodOptional<zod.ZodString>;
+            labelPos: zod.ZodOptional<zod.ZodString>;
+            labelNudge: zod.ZodOptional<zod.ZodArray<zod.ZodNumber, "many">>;
+            labelAt: zod.ZodOptional<zod.ZodArray<zod.ZodNumber, "many">>;
+            labelAnchor: zod.ZodOptional<zod.ZodString>;
+            text: zod.ZodOptional<zod.ZodString>;
+            anchor: zod.ZodOptional<zod.ZodString>;
+            size: zod.ZodOptional<zod.ZodNumber>;
+            bold: zod.ZodOptional<zod.ZodBoolean>;
+            muted: zod.ZodOptional<zod.ZodBoolean>;
+        }, "strip", zod.ZodTypeAny, {
+            type: string;
+            value?: string | undefined;
+            at?: number[] | undefined;
+            height?: number | undefined;
+            id?: string | undefined;
+            label?: string | undefined;
+            from?: number[] | undefined;
+            to?: number[] | undefined;
+            symbolId?: string | undefined;
+            unit?: number | undefined;
+            bodyStyle?: number | undefined;
+            rotation?: 0 | 90 | 180 | 270 | undefined;
+            circle?: boolean | undefined;
+            text?: string | undefined;
+            points?: number[][] | undefined;
+            closed?: boolean | undefined;
+            symbolData?: {
+                id: string;
+                units: {
+                    unit: number;
+                    bodyStyle: number;
+                    pins: {
+                        number: string;
+                        name: string;
+                        electricalType: string;
+                        shape: string;
+                        point: number[];
+                        bodyPoint: number[];
+                        showName: boolean;
+                        showNumber: boolean;
+                    }[];
+                    graphics: {
+                        type: "polyline" | "rectangle" | "circle" | "arc" | "bezier" | "text";
+                        text?: string | undefined;
+                        points?: number[][] | undefined;
+                        radius?: number | undefined;
+                        fontSize?: number | undefined;
+                        strokeWidth?: number | undefined;
+                        fillType?: "none" | "background" | "outline" | undefined;
+                        closed?: boolean | undefined;
+                    }[];
+                }[];
+            } | undefined;
+            x?: number | undefined;
+            y?: number | undefined;
+            w?: number | undefined;
+            h?: number | undefined;
+            open?: boolean | undefined;
+            flip?: boolean | undefined;
+            swap?: boolean | undefined;
+            style?: string | undefined;
+            labelPos?: string | undefined;
+            labelNudge?: number[] | undefined;
+            labelAt?: number[] | undefined;
+            labelAnchor?: string | undefined;
+            anchor?: string | undefined;
+            size?: number | undefined;
+            bold?: boolean | undefined;
+            muted?: boolean | undefined;
+        }, {
+            type: string;
+            value?: string | undefined;
+            at?: number[] | undefined;
+            height?: number | undefined;
+            id?: string | undefined;
+            label?: string | undefined;
+            from?: number[] | undefined;
+            to?: number[] | undefined;
+            symbolId?: string | undefined;
+            unit?: number | undefined;
+            bodyStyle?: number | undefined;
+            rotation?: 0 | 90 | 180 | 270 | undefined;
+            circle?: boolean | undefined;
+            text?: string | undefined;
+            points?: number[][] | undefined;
+            closed?: boolean | undefined;
+            symbolData?: {
+                id: string;
+                units: {
+                    unit: number;
+                    bodyStyle: number;
+                    pins: {
+                        number: string;
+                        name: string;
+                        electricalType: string;
+                        shape: string;
+                        point: number[];
+                        bodyPoint: number[];
+                        showName: boolean;
+                        showNumber: boolean;
+                    }[];
+                    graphics: {
+                        type: "polyline" | "rectangle" | "circle" | "arc" | "bezier" | "text";
+                        text?: string | undefined;
+                        points?: number[][] | undefined;
+                        radius?: number | undefined;
+                        fontSize?: number | undefined;
+                        strokeWidth?: number | undefined;
+                        fillType?: "none" | "background" | "outline" | undefined;
+                        closed?: boolean | undefined;
+                    }[];
+                }[];
+            } | undefined;
+            x?: number | undefined;
+            y?: number | undefined;
+            w?: number | undefined;
+            h?: number | undefined;
+            open?: boolean | undefined;
+            flip?: boolean | undefined;
+            swap?: boolean | undefined;
+            style?: string | undefined;
+            labelPos?: string | undefined;
+            labelNudge?: number[] | undefined;
+            labelAt?: number[] | undefined;
+            labelAnchor?: string | undefined;
+            anchor?: string | undefined;
+            size?: number | undefined;
+            bold?: boolean | undefined;
+            muted?: boolean | undefined;
+        }>, "many">;
+    }, "strip", zod.ZodTypeAny, {
+        title: string;
+        elements: {
+            type: string;
+            value?: string | undefined;
+            at?: number[] | undefined;
+            height?: number | undefined;
+            id?: string | undefined;
+            label?: string | undefined;
+            from?: number[] | undefined;
+            to?: number[] | undefined;
+            symbolId?: string | undefined;
+            unit?: number | undefined;
+            bodyStyle?: number | undefined;
+            rotation?: 0 | 90 | 180 | 270 | undefined;
+            circle?: boolean | undefined;
+            text?: string | undefined;
+            points?: number[][] | undefined;
+            closed?: boolean | undefined;
+            symbolData?: {
+                id: string;
+                units: {
+                    unit: number;
+                    bodyStyle: number;
+                    pins: {
+                        number: string;
+                        name: string;
+                        electricalType: string;
+                        shape: string;
+                        point: number[];
+                        bodyPoint: number[];
+                        showName: boolean;
+                        showNumber: boolean;
+                    }[];
+                    graphics: {
+                        type: "polyline" | "rectangle" | "circle" | "arc" | "bezier" | "text";
+                        text?: string | undefined;
+                        points?: number[][] | undefined;
+                        radius?: number | undefined;
+                        fontSize?: number | undefined;
+                        strokeWidth?: number | undefined;
+                        fillType?: "none" | "background" | "outline" | undefined;
+                        closed?: boolean | undefined;
+                    }[];
+                }[];
+            } | undefined;
+            x?: number | undefined;
+            y?: number | undefined;
+            w?: number | undefined;
+            h?: number | undefined;
+            open?: boolean | undefined;
+            flip?: boolean | undefined;
+            swap?: boolean | undefined;
+            style?: string | undefined;
+            labelPos?: string | undefined;
+            labelNudge?: number[] | undefined;
+            labelAt?: number[] | undefined;
+            labelAnchor?: string | undefined;
+            anchor?: string | undefined;
+            size?: number | undefined;
+            bold?: boolean | undefined;
+            muted?: boolean | undefined;
+        }[];
+        width?: number | undefined;
+        height?: number | undefined;
+    }, {
+        title: string;
+        elements: {
+            type: string;
+            value?: string | undefined;
+            at?: number[] | undefined;
+            height?: number | undefined;
+            id?: string | undefined;
+            label?: string | undefined;
+            from?: number[] | undefined;
+            to?: number[] | undefined;
+            symbolId?: string | undefined;
+            unit?: number | undefined;
+            bodyStyle?: number | undefined;
+            rotation?: 0 | 90 | 180 | 270 | undefined;
+            circle?: boolean | undefined;
+            text?: string | undefined;
+            points?: number[][] | undefined;
+            closed?: boolean | undefined;
+            symbolData?: {
+                id: string;
+                units: {
+                    unit: number;
+                    bodyStyle: number;
+                    pins: {
+                        number: string;
+                        name: string;
+                        electricalType: string;
+                        shape: string;
+                        point: number[];
+                        bodyPoint: number[];
+                        showName: boolean;
+                        showNumber: boolean;
+                    }[];
+                    graphics: {
+                        type: "polyline" | "rectangle" | "circle" | "arc" | "bezier" | "text";
+                        text?: string | undefined;
+                        points?: number[][] | undefined;
+                        radius?: number | undefined;
+                        fontSize?: number | undefined;
+                        strokeWidth?: number | undefined;
+                        fillType?: "none" | "background" | "outline" | undefined;
+                        closed?: boolean | undefined;
+                    }[];
+                }[];
+            } | undefined;
+            x?: number | undefined;
+            y?: number | undefined;
+            w?: number | undefined;
+            h?: number | undefined;
+            open?: boolean | undefined;
+            flip?: boolean | undefined;
+            swap?: boolean | undefined;
+            style?: string | undefined;
+            labelPos?: string | undefined;
+            labelNudge?: number[] | undefined;
+            labelAt?: number[] | undefined;
+            labelAnchor?: string | undefined;
+            anchor?: string | undefined;
+            size?: number | undefined;
+            bold?: boolean | undefined;
+            muted?: boolean | undefined;
+        }[];
+        width?: number | undefined;
+        height?: number | undefined;
+    }>;
+    afterSpec: zod.ZodObject<{
+        title: zod.ZodString;
+        width: zod.ZodOptional<zod.ZodNumber>;
+        height: zod.ZodOptional<zod.ZodNumber>;
+        elements: zod.ZodArray<zod.ZodObject<{
+            type: zod.ZodString;
+            id: zod.ZodOptional<zod.ZodString>;
+            label: zod.ZodOptional<zod.ZodString>;
+            value: zod.ZodOptional<zod.ZodString>;
+            from: zod.ZodOptional<zod.ZodArray<zod.ZodNumber, "many">>;
+            to: zod.ZodOptional<zod.ZodArray<zod.ZodNumber, "many">>;
+            at: zod.ZodOptional<zod.ZodArray<zod.ZodNumber, "many">>;
+            symbolId: zod.ZodOptional<zod.ZodString>;
+            unit: zod.ZodOptional<zod.ZodNumber>;
+            bodyStyle: zod.ZodOptional<zod.ZodNumber>;
+            rotation: zod.ZodOptional<zod.ZodUnion<[zod.ZodLiteral<0>, zod.ZodLiteral<90>, zod.ZodLiteral<180>, zod.ZodLiteral<270>]>>;
+            symbolData: zod.ZodOptional<zod.ZodObject<{
+                id: zod.ZodString;
+                units: zod.ZodArray<zod.ZodObject<{
+                    unit: zod.ZodNumber;
+                    bodyStyle: zod.ZodNumber;
+                    pins: zod.ZodArray<zod.ZodObject<{
+                        number: zod.ZodString;
+                        name: zod.ZodString;
+                        electricalType: zod.ZodString;
+                        shape: zod.ZodString;
+                        point: zod.ZodArray<zod.ZodNumber, "many">;
+                        bodyPoint: zod.ZodArray<zod.ZodNumber, "many">;
+                        showName: zod.ZodBoolean;
+                        showNumber: zod.ZodBoolean;
+                    }, "strip", zod.ZodTypeAny, {
+                        number: string;
+                        name: string;
+                        electricalType: string;
+                        shape: string;
+                        point: number[];
+                        bodyPoint: number[];
+                        showName: boolean;
+                        showNumber: boolean;
+                    }, {
+                        number: string;
+                        name: string;
+                        electricalType: string;
+                        shape: string;
+                        point: number[];
+                        bodyPoint: number[];
+                        showName: boolean;
+                        showNumber: boolean;
+                    }>, "many">;
+                    graphics: zod.ZodArray<zod.ZodObject<{
+                        type: zod.ZodEnum<["polyline", "rectangle", "circle", "arc", "bezier", "text"]>;
+                        points: zod.ZodOptional<zod.ZodArray<zod.ZodArray<zod.ZodNumber, "many">, "many">>;
+                        radius: zod.ZodOptional<zod.ZodNumber>;
+                        text: zod.ZodOptional<zod.ZodString>;
+                        fontSize: zod.ZodOptional<zod.ZodNumber>;
+                        strokeWidth: zod.ZodOptional<zod.ZodNumber>;
+                        fillType: zod.ZodOptional<zod.ZodEnum<["none", "background", "outline"]>>;
+                        closed: zod.ZodOptional<zod.ZodBoolean>;
+                    }, "strip", zod.ZodTypeAny, {
+                        type: "polyline" | "rectangle" | "circle" | "arc" | "bezier" | "text";
+                        text?: string | undefined;
+                        points?: number[][] | undefined;
+                        radius?: number | undefined;
+                        fontSize?: number | undefined;
+                        strokeWidth?: number | undefined;
+                        fillType?: "none" | "background" | "outline" | undefined;
+                        closed?: boolean | undefined;
+                    }, {
+                        type: "polyline" | "rectangle" | "circle" | "arc" | "bezier" | "text";
+                        text?: string | undefined;
+                        points?: number[][] | undefined;
+                        radius?: number | undefined;
+                        fontSize?: number | undefined;
+                        strokeWidth?: number | undefined;
+                        fillType?: "none" | "background" | "outline" | undefined;
+                        closed?: boolean | undefined;
+                    }>, "many">;
+                }, "strip", zod.ZodTypeAny, {
+                    unit: number;
+                    bodyStyle: number;
+                    pins: {
+                        number: string;
+                        name: string;
+                        electricalType: string;
+                        shape: string;
+                        point: number[];
+                        bodyPoint: number[];
+                        showName: boolean;
+                        showNumber: boolean;
+                    }[];
+                    graphics: {
+                        type: "polyline" | "rectangle" | "circle" | "arc" | "bezier" | "text";
+                        text?: string | undefined;
+                        points?: number[][] | undefined;
+                        radius?: number | undefined;
+                        fontSize?: number | undefined;
+                        strokeWidth?: number | undefined;
+                        fillType?: "none" | "background" | "outline" | undefined;
+                        closed?: boolean | undefined;
+                    }[];
+                }, {
+                    unit: number;
+                    bodyStyle: number;
+                    pins: {
+                        number: string;
+                        name: string;
+                        electricalType: string;
+                        shape: string;
+                        point: number[];
+                        bodyPoint: number[];
+                        showName: boolean;
+                        showNumber: boolean;
+                    }[];
+                    graphics: {
+                        type: "polyline" | "rectangle" | "circle" | "arc" | "bezier" | "text";
+                        text?: string | undefined;
+                        points?: number[][] | undefined;
+                        radius?: number | undefined;
+                        fontSize?: number | undefined;
+                        strokeWidth?: number | undefined;
+                        fillType?: "none" | "background" | "outline" | undefined;
+                        closed?: boolean | undefined;
+                    }[];
+                }>, "many">;
+            }, "strip", zod.ZodTypeAny, {
+                id: string;
+                units: {
+                    unit: number;
+                    bodyStyle: number;
+                    pins: {
+                        number: string;
+                        name: string;
+                        electricalType: string;
+                        shape: string;
+                        point: number[];
+                        bodyPoint: number[];
+                        showName: boolean;
+                        showNumber: boolean;
+                    }[];
+                    graphics: {
+                        type: "polyline" | "rectangle" | "circle" | "arc" | "bezier" | "text";
+                        text?: string | undefined;
+                        points?: number[][] | undefined;
+                        radius?: number | undefined;
+                        fontSize?: number | undefined;
+                        strokeWidth?: number | undefined;
+                        fillType?: "none" | "background" | "outline" | undefined;
+                        closed?: boolean | undefined;
+                    }[];
+                }[];
+            }, {
+                id: string;
+                units: {
+                    unit: number;
+                    bodyStyle: number;
+                    pins: {
+                        number: string;
+                        name: string;
+                        electricalType: string;
+                        shape: string;
+                        point: number[];
+                        bodyPoint: number[];
+                        showName: boolean;
+                        showNumber: boolean;
+                    }[];
+                    graphics: {
+                        type: "polyline" | "rectangle" | "circle" | "arc" | "bezier" | "text";
+                        text?: string | undefined;
+                        points?: number[][] | undefined;
+                        radius?: number | undefined;
+                        fontSize?: number | undefined;
+                        strokeWidth?: number | undefined;
+                        fillType?: "none" | "background" | "outline" | undefined;
+                        closed?: boolean | undefined;
+                    }[];
+                }[];
+            }>>;
+            points: zod.ZodOptional<zod.ZodArray<zod.ZodArray<zod.ZodNumber, "many">, "many">>;
+            x: zod.ZodOptional<zod.ZodNumber>;
+            y: zod.ZodOptional<zod.ZodNumber>;
+            w: zod.ZodOptional<zod.ZodNumber>;
+            h: zod.ZodOptional<zod.ZodNumber>;
+            height: zod.ZodOptional<zod.ZodNumber>;
+            open: zod.ZodOptional<zod.ZodBoolean>;
+            closed: zod.ZodOptional<zod.ZodBoolean>;
+            flip: zod.ZodOptional<zod.ZodBoolean>;
+            circle: zod.ZodOptional<zod.ZodBoolean>;
+            swap: zod.ZodOptional<zod.ZodBoolean>;
+            style: zod.ZodOptional<zod.ZodString>;
+            labelPos: zod.ZodOptional<zod.ZodString>;
+            labelNudge: zod.ZodOptional<zod.ZodArray<zod.ZodNumber, "many">>;
+            labelAt: zod.ZodOptional<zod.ZodArray<zod.ZodNumber, "many">>;
+            labelAnchor: zod.ZodOptional<zod.ZodString>;
+            text: zod.ZodOptional<zod.ZodString>;
+            anchor: zod.ZodOptional<zod.ZodString>;
+            size: zod.ZodOptional<zod.ZodNumber>;
+            bold: zod.ZodOptional<zod.ZodBoolean>;
+            muted: zod.ZodOptional<zod.ZodBoolean>;
+        }, "strip", zod.ZodTypeAny, {
+            type: string;
+            value?: string | undefined;
+            at?: number[] | undefined;
+            height?: number | undefined;
+            id?: string | undefined;
+            label?: string | undefined;
+            from?: number[] | undefined;
+            to?: number[] | undefined;
+            symbolId?: string | undefined;
+            unit?: number | undefined;
+            bodyStyle?: number | undefined;
+            rotation?: 0 | 90 | 180 | 270 | undefined;
+            circle?: boolean | undefined;
+            text?: string | undefined;
+            points?: number[][] | undefined;
+            closed?: boolean | undefined;
+            symbolData?: {
+                id: string;
+                units: {
+                    unit: number;
+                    bodyStyle: number;
+                    pins: {
+                        number: string;
+                        name: string;
+                        electricalType: string;
+                        shape: string;
+                        point: number[];
+                        bodyPoint: number[];
+                        showName: boolean;
+                        showNumber: boolean;
+                    }[];
+                    graphics: {
+                        type: "polyline" | "rectangle" | "circle" | "arc" | "bezier" | "text";
+                        text?: string | undefined;
+                        points?: number[][] | undefined;
+                        radius?: number | undefined;
+                        fontSize?: number | undefined;
+                        strokeWidth?: number | undefined;
+                        fillType?: "none" | "background" | "outline" | undefined;
+                        closed?: boolean | undefined;
+                    }[];
+                }[];
+            } | undefined;
+            x?: number | undefined;
+            y?: number | undefined;
+            w?: number | undefined;
+            h?: number | undefined;
+            open?: boolean | undefined;
+            flip?: boolean | undefined;
+            swap?: boolean | undefined;
+            style?: string | undefined;
+            labelPos?: string | undefined;
+            labelNudge?: number[] | undefined;
+            labelAt?: number[] | undefined;
+            labelAnchor?: string | undefined;
+            anchor?: string | undefined;
+            size?: number | undefined;
+            bold?: boolean | undefined;
+            muted?: boolean | undefined;
+        }, {
+            type: string;
+            value?: string | undefined;
+            at?: number[] | undefined;
+            height?: number | undefined;
+            id?: string | undefined;
+            label?: string | undefined;
+            from?: number[] | undefined;
+            to?: number[] | undefined;
+            symbolId?: string | undefined;
+            unit?: number | undefined;
+            bodyStyle?: number | undefined;
+            rotation?: 0 | 90 | 180 | 270 | undefined;
+            circle?: boolean | undefined;
+            text?: string | undefined;
+            points?: number[][] | undefined;
+            closed?: boolean | undefined;
+            symbolData?: {
+                id: string;
+                units: {
+                    unit: number;
+                    bodyStyle: number;
+                    pins: {
+                        number: string;
+                        name: string;
+                        electricalType: string;
+                        shape: string;
+                        point: number[];
+                        bodyPoint: number[];
+                        showName: boolean;
+                        showNumber: boolean;
+                    }[];
+                    graphics: {
+                        type: "polyline" | "rectangle" | "circle" | "arc" | "bezier" | "text";
+                        text?: string | undefined;
+                        points?: number[][] | undefined;
+                        radius?: number | undefined;
+                        fontSize?: number | undefined;
+                        strokeWidth?: number | undefined;
+                        fillType?: "none" | "background" | "outline" | undefined;
+                        closed?: boolean | undefined;
+                    }[];
+                }[];
+            } | undefined;
+            x?: number | undefined;
+            y?: number | undefined;
+            w?: number | undefined;
+            h?: number | undefined;
+            open?: boolean | undefined;
+            flip?: boolean | undefined;
+            swap?: boolean | undefined;
+            style?: string | undefined;
+            labelPos?: string | undefined;
+            labelNudge?: number[] | undefined;
+            labelAt?: number[] | undefined;
+            labelAnchor?: string | undefined;
+            anchor?: string | undefined;
+            size?: number | undefined;
+            bold?: boolean | undefined;
+            muted?: boolean | undefined;
+        }>, "many">;
+    }, "strip", zod.ZodTypeAny, {
+        title: string;
+        elements: {
+            type: string;
+            value?: string | undefined;
+            at?: number[] | undefined;
+            height?: number | undefined;
+            id?: string | undefined;
+            label?: string | undefined;
+            from?: number[] | undefined;
+            to?: number[] | undefined;
+            symbolId?: string | undefined;
+            unit?: number | undefined;
+            bodyStyle?: number | undefined;
+            rotation?: 0 | 90 | 180 | 270 | undefined;
+            circle?: boolean | undefined;
+            text?: string | undefined;
+            points?: number[][] | undefined;
+            closed?: boolean | undefined;
+            symbolData?: {
+                id: string;
+                units: {
+                    unit: number;
+                    bodyStyle: number;
+                    pins: {
+                        number: string;
+                        name: string;
+                        electricalType: string;
+                        shape: string;
+                        point: number[];
+                        bodyPoint: number[];
+                        showName: boolean;
+                        showNumber: boolean;
+                    }[];
+                    graphics: {
+                        type: "polyline" | "rectangle" | "circle" | "arc" | "bezier" | "text";
+                        text?: string | undefined;
+                        points?: number[][] | undefined;
+                        radius?: number | undefined;
+                        fontSize?: number | undefined;
+                        strokeWidth?: number | undefined;
+                        fillType?: "none" | "background" | "outline" | undefined;
+                        closed?: boolean | undefined;
+                    }[];
+                }[];
+            } | undefined;
+            x?: number | undefined;
+            y?: number | undefined;
+            w?: number | undefined;
+            h?: number | undefined;
+            open?: boolean | undefined;
+            flip?: boolean | undefined;
+            swap?: boolean | undefined;
+            style?: string | undefined;
+            labelPos?: string | undefined;
+            labelNudge?: number[] | undefined;
+            labelAt?: number[] | undefined;
+            labelAnchor?: string | undefined;
+            anchor?: string | undefined;
+            size?: number | undefined;
+            bold?: boolean | undefined;
+            muted?: boolean | undefined;
+        }[];
+        width?: number | undefined;
+        height?: number | undefined;
+    }, {
+        title: string;
+        elements: {
+            type: string;
+            value?: string | undefined;
+            at?: number[] | undefined;
+            height?: number | undefined;
+            id?: string | undefined;
+            label?: string | undefined;
+            from?: number[] | undefined;
+            to?: number[] | undefined;
+            symbolId?: string | undefined;
+            unit?: number | undefined;
+            bodyStyle?: number | undefined;
+            rotation?: 0 | 90 | 180 | 270 | undefined;
+            circle?: boolean | undefined;
+            text?: string | undefined;
+            points?: number[][] | undefined;
+            closed?: boolean | undefined;
+            symbolData?: {
+                id: string;
+                units: {
+                    unit: number;
+                    bodyStyle: number;
+                    pins: {
+                        number: string;
+                        name: string;
+                        electricalType: string;
+                        shape: string;
+                        point: number[];
+                        bodyPoint: number[];
+                        showName: boolean;
+                        showNumber: boolean;
+                    }[];
+                    graphics: {
+                        type: "polyline" | "rectangle" | "circle" | "arc" | "bezier" | "text";
+                        text?: string | undefined;
+                        points?: number[][] | undefined;
+                        radius?: number | undefined;
+                        fontSize?: number | undefined;
+                        strokeWidth?: number | undefined;
+                        fillType?: "none" | "background" | "outline" | undefined;
+                        closed?: boolean | undefined;
+                    }[];
+                }[];
+            } | undefined;
+            x?: number | undefined;
+            y?: number | undefined;
+            w?: number | undefined;
+            h?: number | undefined;
+            open?: boolean | undefined;
+            flip?: boolean | undefined;
+            swap?: boolean | undefined;
+            style?: string | undefined;
+            labelPos?: string | undefined;
+            labelNudge?: number[] | undefined;
+            labelAt?: number[] | undefined;
+            labelAnchor?: string | undefined;
+            anchor?: string | undefined;
+            size?: number | undefined;
+            bold?: boolean | undefined;
+            muted?: boolean | undefined;
+        }[];
+        width?: number | undefined;
+        height?: number | undefined;
+    }>;
+    findings: zod.ZodArray<zod.ZodString, "many">;
+    context: zod.ZodOptional<zod.ZodString>;
+}, "strip", zod.ZodTypeAny, {
+    kind: "learn";
+    beforeSpec: {
+        title: string;
+        elements: {
+            type: string;
+            value?: string | undefined;
+            at?: number[] | undefined;
+            height?: number | undefined;
+            id?: string | undefined;
+            label?: string | undefined;
+            from?: number[] | undefined;
+            to?: number[] | undefined;
+            symbolId?: string | undefined;
+            unit?: number | undefined;
+            bodyStyle?: number | undefined;
+            rotation?: 0 | 90 | 180 | 270 | undefined;
+            circle?: boolean | undefined;
+            text?: string | undefined;
+            points?: number[][] | undefined;
+            closed?: boolean | undefined;
+            symbolData?: {
+                id: string;
+                units: {
+                    unit: number;
+                    bodyStyle: number;
+                    pins: {
+                        number: string;
+                        name: string;
+                        electricalType: string;
+                        shape: string;
+                        point: number[];
+                        bodyPoint: number[];
+                        showName: boolean;
+                        showNumber: boolean;
+                    }[];
+                    graphics: {
+                        type: "polyline" | "rectangle" | "circle" | "arc" | "bezier" | "text";
+                        text?: string | undefined;
+                        points?: number[][] | undefined;
+                        radius?: number | undefined;
+                        fontSize?: number | undefined;
+                        strokeWidth?: number | undefined;
+                        fillType?: "none" | "background" | "outline" | undefined;
+                        closed?: boolean | undefined;
+                    }[];
+                }[];
+            } | undefined;
+            x?: number | undefined;
+            y?: number | undefined;
+            w?: number | undefined;
+            h?: number | undefined;
+            open?: boolean | undefined;
+            flip?: boolean | undefined;
+            swap?: boolean | undefined;
+            style?: string | undefined;
+            labelPos?: string | undefined;
+            labelNudge?: number[] | undefined;
+            labelAt?: number[] | undefined;
+            labelAnchor?: string | undefined;
+            anchor?: string | undefined;
+            size?: number | undefined;
+            bold?: boolean | undefined;
+            muted?: boolean | undefined;
+        }[];
+        width?: number | undefined;
+        height?: number | undefined;
+    };
+    afterSpec: {
+        title: string;
+        elements: {
+            type: string;
+            value?: string | undefined;
+            at?: number[] | undefined;
+            height?: number | undefined;
+            id?: string | undefined;
+            label?: string | undefined;
+            from?: number[] | undefined;
+            to?: number[] | undefined;
+            symbolId?: string | undefined;
+            unit?: number | undefined;
+            bodyStyle?: number | undefined;
+            rotation?: 0 | 90 | 180 | 270 | undefined;
+            circle?: boolean | undefined;
+            text?: string | undefined;
+            points?: number[][] | undefined;
+            closed?: boolean | undefined;
+            symbolData?: {
+                id: string;
+                units: {
+                    unit: number;
+                    bodyStyle: number;
+                    pins: {
+                        number: string;
+                        name: string;
+                        electricalType: string;
+                        shape: string;
+                        point: number[];
+                        bodyPoint: number[];
+                        showName: boolean;
+                        showNumber: boolean;
+                    }[];
+                    graphics: {
+                        type: "polyline" | "rectangle" | "circle" | "arc" | "bezier" | "text";
+                        text?: string | undefined;
+                        points?: number[][] | undefined;
+                        radius?: number | undefined;
+                        fontSize?: number | undefined;
+                        strokeWidth?: number | undefined;
+                        fillType?: "none" | "background" | "outline" | undefined;
+                        closed?: boolean | undefined;
+                    }[];
+                }[];
+            } | undefined;
+            x?: number | undefined;
+            y?: number | undefined;
+            w?: number | undefined;
+            h?: number | undefined;
+            open?: boolean | undefined;
+            flip?: boolean | undefined;
+            swap?: boolean | undefined;
+            style?: string | undefined;
+            labelPos?: string | undefined;
+            labelNudge?: number[] | undefined;
+            labelAt?: number[] | undefined;
+            labelAnchor?: string | undefined;
+            anchor?: string | undefined;
+            size?: number | undefined;
+            bold?: boolean | undefined;
+            muted?: boolean | undefined;
+        }[];
+        width?: number | undefined;
+        height?: number | undefined;
+    };
+    findings: string[];
+    context?: string | undefined;
+}, {
+    kind: "learn";
+    beforeSpec: {
+        title: string;
+        elements: {
+            type: string;
+            value?: string | undefined;
+            at?: number[] | undefined;
+            height?: number | undefined;
+            id?: string | undefined;
+            label?: string | undefined;
+            from?: number[] | undefined;
+            to?: number[] | undefined;
+            symbolId?: string | undefined;
+            unit?: number | undefined;
+            bodyStyle?: number | undefined;
+            rotation?: 0 | 90 | 180 | 270 | undefined;
+            circle?: boolean | undefined;
+            text?: string | undefined;
+            points?: number[][] | undefined;
+            closed?: boolean | undefined;
+            symbolData?: {
+                id: string;
+                units: {
+                    unit: number;
+                    bodyStyle: number;
+                    pins: {
+                        number: string;
+                        name: string;
+                        electricalType: string;
+                        shape: string;
+                        point: number[];
+                        bodyPoint: number[];
+                        showName: boolean;
+                        showNumber: boolean;
+                    }[];
+                    graphics: {
+                        type: "polyline" | "rectangle" | "circle" | "arc" | "bezier" | "text";
+                        text?: string | undefined;
+                        points?: number[][] | undefined;
+                        radius?: number | undefined;
+                        fontSize?: number | undefined;
+                        strokeWidth?: number | undefined;
+                        fillType?: "none" | "background" | "outline" | undefined;
+                        closed?: boolean | undefined;
+                    }[];
+                }[];
+            } | undefined;
+            x?: number | undefined;
+            y?: number | undefined;
+            w?: number | undefined;
+            h?: number | undefined;
+            open?: boolean | undefined;
+            flip?: boolean | undefined;
+            swap?: boolean | undefined;
+            style?: string | undefined;
+            labelPos?: string | undefined;
+            labelNudge?: number[] | undefined;
+            labelAt?: number[] | undefined;
+            labelAnchor?: string | undefined;
+            anchor?: string | undefined;
+            size?: number | undefined;
+            bold?: boolean | undefined;
+            muted?: boolean | undefined;
+        }[];
+        width?: number | undefined;
+        height?: number | undefined;
+    };
+    afterSpec: {
+        title: string;
+        elements: {
+            type: string;
+            value?: string | undefined;
+            at?: number[] | undefined;
+            height?: number | undefined;
+            id?: string | undefined;
+            label?: string | undefined;
+            from?: number[] | undefined;
+            to?: number[] | undefined;
+            symbolId?: string | undefined;
+            unit?: number | undefined;
+            bodyStyle?: number | undefined;
+            rotation?: 0 | 90 | 180 | 270 | undefined;
+            circle?: boolean | undefined;
+            text?: string | undefined;
+            points?: number[][] | undefined;
+            closed?: boolean | undefined;
+            symbolData?: {
+                id: string;
+                units: {
+                    unit: number;
+                    bodyStyle: number;
+                    pins: {
+                        number: string;
+                        name: string;
+                        electricalType: string;
+                        shape: string;
+                        point: number[];
+                        bodyPoint: number[];
+                        showName: boolean;
+                        showNumber: boolean;
+                    }[];
+                    graphics: {
+                        type: "polyline" | "rectangle" | "circle" | "arc" | "bezier" | "text";
+                        text?: string | undefined;
+                        points?: number[][] | undefined;
+                        radius?: number | undefined;
+                        fontSize?: number | undefined;
+                        strokeWidth?: number | undefined;
+                        fillType?: "none" | "background" | "outline" | undefined;
+                        closed?: boolean | undefined;
+                    }[];
+                }[];
+            } | undefined;
+            x?: number | undefined;
+            y?: number | undefined;
+            w?: number | undefined;
+            h?: number | undefined;
+            open?: boolean | undefined;
+            flip?: boolean | undefined;
+            swap?: boolean | undefined;
+            style?: string | undefined;
+            labelPos?: string | undefined;
+            labelNudge?: number[] | undefined;
+            labelAt?: number[] | undefined;
+            labelAnchor?: string | undefined;
+            anchor?: string | undefined;
+            size?: number | undefined;
+            bold?: boolean | undefined;
+            muted?: boolean | undefined;
+        }[];
+        width?: number | undefined;
+        height?: number | undefined;
+    };
+    findings: string[];
+    context?: string | undefined;
+}>]>;
+export declare const saveCircuitBuilderRepairLessonResponseLessonMax = 300;
+export declare const SaveCircuitBuilderRepairLessonResponse: zod.ZodObject<{
+    saved: zod.ZodBoolean;
+    lesson: zod.ZodNullable<zod.ZodString>;
+}, "strip", zod.ZodTypeAny, {
+    saved: boolean;
+    lesson: string | null;
+}, {
+    saved: boolean;
+    lesson: string | null;
 }>;
 /**
  * Returns the signed-in user's complete chat and build history.
@@ -5026,7 +6289,6 @@ export declare const ListCircuitBuilderHistoryResponseItem: zod.ZodObject<{
     };
     mode: "chat" | "build";
     updatedAt: number;
-    createdAt: number;
     saved: {
         brief: {
             goal: string;
@@ -5053,6 +6315,7 @@ export declare const ListCircuitBuilderHistoryResponseItem: zod.ZodObject<{
             buildApprovalRequest?: boolean | undefined;
         }[];
     };
+    createdAt: number;
 }, {
     title: string;
     id: string;
@@ -5124,7 +6387,6 @@ export declare const ListCircuitBuilderHistoryResponseItem: zod.ZodObject<{
     };
     mode: "chat" | "build";
     updatedAt: number;
-    createdAt: number;
     saved: {
         brief: {
             goal: string;
@@ -5151,6 +6413,7 @@ export declare const ListCircuitBuilderHistoryResponseItem: zod.ZodObject<{
             buildApprovalRequest?: boolean | undefined;
         }[];
     };
+    createdAt: number;
 }>;
 export declare const ListCircuitBuilderHistoryResponse: zod.ZodArray<zod.ZodObject<{
     id: zod.ZodString;
@@ -5805,7 +7068,6 @@ export declare const ListCircuitBuilderHistoryResponse: zod.ZodArray<zod.ZodObje
     };
     mode: "chat" | "build";
     updatedAt: number;
-    createdAt: number;
     saved: {
         brief: {
             goal: string;
@@ -5832,6 +7094,7 @@ export declare const ListCircuitBuilderHistoryResponse: zod.ZodArray<zod.ZodObje
             buildApprovalRequest?: boolean | undefined;
         }[];
     };
+    createdAt: number;
 }, {
     title: string;
     id: string;
@@ -5903,7 +7166,6 @@ export declare const ListCircuitBuilderHistoryResponse: zod.ZodArray<zod.ZodObje
     };
     mode: "chat" | "build";
     updatedAt: number;
-    createdAt: number;
     saved: {
         brief: {
             goal: string;
@@ -5930,6 +7192,7 @@ export declare const ListCircuitBuilderHistoryResponse: zod.ZodArray<zod.ZodObje
             buildApprovalRequest?: boolean | undefined;
         }[];
     };
+    createdAt: number;
 }>, "many">;
 /**
  * Saves or updates account-owned sessions, including unfinished chats and circuit snapshots.
@@ -6644,7 +7907,6 @@ export declare const SyncCircuitBuilderHistoryBody: zod.ZodObject<{
         };
         mode: "chat" | "build";
         updatedAt: number;
-        createdAt: number;
         saved: {
             brief: {
                 goal: string;
@@ -6671,6 +7933,7 @@ export declare const SyncCircuitBuilderHistoryBody: zod.ZodObject<{
                 buildApprovalRequest?: boolean | undefined;
             }[];
         };
+        createdAt: number;
     }, {
         title: string;
         id: string;
@@ -6742,7 +8005,6 @@ export declare const SyncCircuitBuilderHistoryBody: zod.ZodObject<{
         };
         mode: "chat" | "build";
         updatedAt: number;
-        createdAt: number;
         saved: {
             brief: {
                 goal: string;
@@ -6769,6 +8031,7 @@ export declare const SyncCircuitBuilderHistoryBody: zod.ZodObject<{
                 buildApprovalRequest?: boolean | undefined;
             }[];
         };
+        createdAt: number;
     }>, "many">;
 }, "strip", zod.ZodTypeAny, {
     sessions: {
@@ -6842,7 +8105,6 @@ export declare const SyncCircuitBuilderHistoryBody: zod.ZodObject<{
         };
         mode: "chat" | "build";
         updatedAt: number;
-        createdAt: number;
         saved: {
             brief: {
                 goal: string;
@@ -6869,6 +8131,7 @@ export declare const SyncCircuitBuilderHistoryBody: zod.ZodObject<{
                 buildApprovalRequest?: boolean | undefined;
             }[];
         };
+        createdAt: number;
     }[];
 }, {
     sessions: {
@@ -6942,7 +8205,6 @@ export declare const SyncCircuitBuilderHistoryBody: zod.ZodObject<{
         };
         mode: "chat" | "build";
         updatedAt: number;
-        createdAt: number;
         saved: {
             brief: {
                 goal: string;
@@ -6969,6 +8231,7 @@ export declare const SyncCircuitBuilderHistoryBody: zod.ZodObject<{
                 buildApprovalRequest?: boolean | undefined;
             }[];
         };
+        createdAt: number;
     }[];
 }>;
 export declare const syncCircuitBuilderHistoryResponseSavedCountMin = 0;
@@ -7040,18 +8303,18 @@ export declare const UpdateCircuitBuilderMemoryBody: zod.ZodObject<{
 export declare const updateCircuitBuilderMemoryResponseContentMax = 300;
 export declare const UpdateCircuitBuilderMemoryResponse: zod.ZodObject<{
     id: zod.ZodNumber;
-    category: zod.ZodEnum<["work-style", "design-decision", "past-context"]>;
+    category: zod.ZodEnum<["work-style", "design-decision", "past-context", "repair-lesson"]>;
     content: zod.ZodString;
     updatedAt: zod.ZodDate;
 }, "strip", zod.ZodTypeAny, {
     id: number;
     content: string;
-    category: "work-style" | "design-decision" | "past-context";
+    category: "work-style" | "design-decision" | "past-context" | "repair-lesson";
     updatedAt: Date;
 }, {
     id: number;
     content: string;
-    category: "work-style" | "design-decision" | "past-context";
+    category: "work-style" | "design-decision" | "past-context" | "repair-lesson";
     updatedAt: Date;
 }>;
 /**

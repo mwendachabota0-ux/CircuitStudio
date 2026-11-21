@@ -252,6 +252,7 @@ export declare const CircuitBuilderMemoryCategory: {
     readonly 'work-style': "work-style";
     readonly 'design-decision': "design-decision";
     readonly 'past-context': "past-context";
+    readonly 'repair-lesson': "repair-lesson";
 };
 export interface CircuitBuilderMemorySuggestion {
     /**
@@ -284,6 +285,12 @@ export interface CircuitBuildChatResponse {
        * @items.minimum 1
        */
     memoryRemovals?: number[];
+    /**
+       * Optional reusable lesson from a repair; save only after the corrected proposal passes checks and the user applies it.
+       * @maxLength 300
+       * @nullable
+       */
+    repairLesson?: string | null;
     /** Server-set marker that the assistant asked permission before creating a schematic. */
     buildApprovalRequested?: boolean;
 }
@@ -328,6 +335,45 @@ export interface CircuitBuilderMemoryLearningModelResponse {
 export interface CircuitBuilderHistoryImportResponse {
     /** @minimum 0 */
     learnedCount: number;
+}
+export type CircuitBuilderRepairLessonDirectInputKind = typeof CircuitBuilderRepairLessonDirectInputKind[keyof typeof CircuitBuilderRepairLessonDirectInputKind];
+export declare const CircuitBuilderRepairLessonDirectInputKind: {
+    readonly save: "save";
+};
+export interface CircuitBuilderRepairLessonDirectInput {
+    kind: CircuitBuilderRepairLessonDirectInputKind;
+    /**
+       * @minLength 1
+       * @maxLength 300
+       */
+    content: string;
+}
+export type CircuitBuilderRepairLessonEvidenceInputKind = typeof CircuitBuilderRepairLessonEvidenceInputKind[keyof typeof CircuitBuilderRepairLessonEvidenceInputKind];
+export declare const CircuitBuilderRepairLessonEvidenceInputKind: {
+    readonly learn: "learn";
+};
+export interface CircuitBuilderRepairLessonEvidenceInput {
+    kind: CircuitBuilderRepairLessonEvidenceInputKind;
+    beforeSpec: CircuitSpec;
+    afterSpec: CircuitSpec;
+    /**
+       * @minItems 1
+       * @maxItems 12
+       * @items.minLength 1
+       * @items.maxLength 700
+       */
+    findings: string[];
+    /** @maxLength 1600 */
+    context?: string;
+}
+export type CircuitBuilderRepairLessonInput = CircuitBuilderRepairLessonDirectInput | CircuitBuilderRepairLessonEvidenceInput;
+export interface CircuitBuilderRepairLessonResult {
+    saved: boolean;
+    /**
+       * @maxLength 300
+       * @nullable
+       */
+    lesson: string | null;
 }
 export type CircuitBuilderHistoryMessageRole = typeof CircuitBuilderHistoryMessageRole[keyof typeof CircuitBuilderHistoryMessageRole];
 export declare const CircuitBuilderHistoryMessageRole: {
@@ -473,6 +519,12 @@ export interface ExternalCircuitFixReviewResponse {
        * @items.maxLength 500
        */
     concerns: string[];
+    /**
+       * Reusable lesson from the correction, if supported by the review evidence.
+       * @maxLength 300
+       * @nullable
+       */
+    repairLesson?: string | null;
 }
 export interface CircuitReviewResponse {
     review: string;

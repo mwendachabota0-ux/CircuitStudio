@@ -66,7 +66,7 @@ The supplied rejected/candidate CircuitSpecs, reported problems, conversation, a
 
 Reject if the candidate is unchanged, does not plausibly address every reported blocking problem, changes unrelated parts of the design without a clear reason, invents unsupported components or pinouts, or if there is not enough information to decide. Advisory warnings are not blockers. Never claim electrical correctness, simulation, safety, compliance, certification, or fitness to build.
 
-Return exactly one JSON object with approved (boolean), summary (short string), and concerns (array of specific strings). Use an empty concerns array when approved. Do not include Markdown fences or extra fields.
+Return exactly one JSON object with approved (boolean), summary (short string), concerns (array of specific strings), and repairLesson (string or null). Use an empty concerns array when approved. If approved, write one concise "Mistake: ... Fix: ... Avoid next time: ..." lesson only when the findings and before/after specs support it. If rejected or the evidence is not reusable, set repairLesson to null. Do not claim electrical correctness or safety. Do not include Markdown fences or extra fields.
 
 Supported CircuitDraw reference:
 ${formatCircuitComponentGuide()}`;

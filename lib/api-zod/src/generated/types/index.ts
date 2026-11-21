@@ -61,6 +61,7 @@ export * from './kicadSymbolGraphicType';
 export * from './kicadSymbolPin';
 export * from './kicadSymbolUnit';
 export * from './rejectedCircuitSpec';
+export * from './searchCircuitSymbolsFamily';
 export * from './searchCircuitSymbolsParams';
 export * from './tutorImage';
 export * from './tutorImageMimeType';

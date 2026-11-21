@@ -151,7 +151,8 @@ export const searchCircuitSymbolsQueryQMax = 120;
 
 export const searchCircuitSymbolsQueryLibraryMax = 120;
 
-export const searchCircuitSymbolsQueryLimitDefault = 40;
+export const searchCircuitSymbolsQueryFeaturedDefault = false;
+export const searchCircuitSymbolsQueryLimitDefault = 100;
 export const searchCircuitSymbolsQueryLimitMax = 100;
 
 export const searchCircuitSymbolsQueryOffsetDefault = 0;
@@ -163,15 +164,19 @@ export const searchCircuitSymbolsQueryOffsetMax = 1000000;
 export const SearchCircuitSymbolsQueryParams = zod.object({
   "q": zod.coerce.string().max(searchCircuitSymbolsQueryQMax).optional(),
   "library": zod.coerce.string().max(searchCircuitSymbolsQueryLibraryMax).optional(),
+  "family": zod.enum(['Passives', 'Semiconductors', 'Power & protection', 'Connectors', 'Analog & signal', 'Digital & processors', 'Sensors', 'Control & timing', 'Audio & display', 'Communications & RF', 'Other']).optional(),
+  "featured": zod.coerce.boolean().default(searchCircuitSymbolsQueryFeaturedDefault),
   "limit": zod.coerce.number().int().min(1).max(searchCircuitSymbolsQueryLimitMax).default(searchCircuitSymbolsQueryLimitDefault),
   "offset": zod.coerce.number().int().min(searchCircuitSymbolsQueryOffsetMin).max(searchCircuitSymbolsQueryOffsetMax).default(searchCircuitSymbolsQueryOffsetDefault)
 })
 
 export const SearchCircuitSymbolsResponse = zod.object({
   "sourceVersion": zod.string(),
+  "catalogTotal": zod.number().int(),
   "total": zod.number().int(),
   "hasMore": zod.boolean(),
   "libraries": zod.array(zod.string()),
+  "families": zod.array(zod.string()),
   "results": zod.array(zod.object({
   "id": zod.string(),
   "library": zod.string(),

@@ -510,7 +510,8 @@ export declare const GenerateCircuitResponse: zod.ZodObject<{
  */
 export declare const searchCircuitSymbolsQueryQMax = 120;
 export declare const searchCircuitSymbolsQueryLibraryMax = 120;
-export declare const searchCircuitSymbolsQueryLimitDefault = 40;
+export declare const searchCircuitSymbolsQueryFeaturedDefault = false;
+export declare const searchCircuitSymbolsQueryLimitDefault = 100;
 export declare const searchCircuitSymbolsQueryLimitMax = 100;
 export declare const searchCircuitSymbolsQueryOffsetDefault = 0;
 export declare const searchCircuitSymbolsQueryOffsetMin = 0;
@@ -518,24 +519,32 @@ export declare const searchCircuitSymbolsQueryOffsetMax = 1000000;
 export declare const SearchCircuitSymbolsQueryParams: zod.ZodObject<{
     q: zod.ZodOptional<zod.ZodString>;
     library: zod.ZodOptional<zod.ZodString>;
+    family: zod.ZodOptional<zod.ZodEnum<["Passives", "Semiconductors", "Power & protection", "Connectors", "Analog & signal", "Digital & processors", "Sensors", "Control & timing", "Audio & display", "Communications & RF", "Other"]>>;
+    featured: zod.ZodDefault<zod.ZodBoolean>;
     limit: zod.ZodDefault<zod.ZodNumber>;
     offset: zod.ZodDefault<zod.ZodNumber>;
 }, "strip", zod.ZodTypeAny, {
+    featured: boolean;
     limit: number;
     offset: number;
     q?: string | undefined;
     library?: string | undefined;
+    family?: "Passives" | "Semiconductors" | "Power & protection" | "Connectors" | "Analog & signal" | "Digital & processors" | "Sensors" | "Control & timing" | "Audio & display" | "Communications & RF" | "Other" | undefined;
 }, {
     q?: string | undefined;
     library?: string | undefined;
+    family?: "Passives" | "Semiconductors" | "Power & protection" | "Connectors" | "Analog & signal" | "Digital & processors" | "Sensors" | "Control & timing" | "Audio & display" | "Communications & RF" | "Other" | undefined;
+    featured?: boolean | undefined;
     limit?: number | undefined;
     offset?: number | undefined;
 }>;
 export declare const SearchCircuitSymbolsResponse: zod.ZodObject<{
     sourceVersion: zod.ZodString;
+    catalogTotal: zod.ZodNumber;
     total: zod.ZodNumber;
     hasMore: zod.ZodBoolean;
     libraries: zod.ZodArray<zod.ZodString, "many">;
+    families: zod.ZodArray<zod.ZodString, "many">;
     results: zod.ZodArray<zod.ZodObject<{
         id: zod.ZodString;
         library: zod.ZodString;
@@ -563,9 +572,11 @@ export declare const SearchCircuitSymbolsResponse: zod.ZodObject<{
     }>, "many">;
 }, "strip", zod.ZodTypeAny, {
     sourceVersion: string;
+    catalogTotal: number;
     total: number;
     hasMore: boolean;
     libraries: string[];
+    families: string[];
     results: {
         id: string;
         name: string;
@@ -577,9 +588,11 @@ export declare const SearchCircuitSymbolsResponse: zod.ZodObject<{
     }[];
 }, {
     sourceVersion: string;
+    catalogTotal: number;
     total: number;
     hasMore: boolean;
     libraries: string[];
+    families: string[];
     results: {
         id: string;
         name: string;

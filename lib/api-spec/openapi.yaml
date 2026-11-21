@@ -97,6 +97,29 @@ paths:
           schema:
             type: string
             maxLength: 120
+        - name: family
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - Passives
+              - Semiconductors
+              - Power & protection
+              - Connectors
+              - Analog & signal
+              - Digital & processors
+              - Sensors
+              - Control & timing
+              - Audio & display
+              - Communications & RF
+              - Other
+        - name: featured
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
         - name: limit
           in: query
           required: false
@@ -104,7 +127,7 @@ paths:
             type: integer
             minimum: 1
             maximum: 100
-            default: 40
+            default: 100
         - name: offset
           in: query
           required: false
@@ -1165,6 +1188,8 @@ components:
       properties:
         sourceVersion:
           type: string
+        catalogTotal:
+          type: integer
         total:
           type: integer
         hasMore:
@@ -1173,11 +1198,15 @@ components:
           type: array
           items:
             type: string
+        families:
+          type: array
+          items:
+            type: string
         results:
           type: array
           items:
             $ref: "#/components/schemas/CircuitSymbolSearchItem"
-      required: [sourceVersion, total, hasMore, libraries, results]
+      required: [sourceVersion, catalogTotal, total, hasMore, libraries, families, results]
       additionalProperties: false
     CircuitReviewRequest:
       type: object

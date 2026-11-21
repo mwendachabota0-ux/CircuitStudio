@@ -9,7 +9,7 @@ import type {
 import {
   mergeInheritedKicadUnits,
   parseKicadSymbolSource,
-} from "./kicadSymbolParser";
+} from "./kicadSymbolParser.ts";
 
 export type KicadSymbolIndexEntry = {
   id: string;
@@ -23,11 +23,27 @@ export type KicadSymbolIndexEntry = {
 
 export type KicadSymbolSearchResult = {
   sourceVersion: string;
+  catalogTotal: number;
   total: number;
   hasMore: boolean;
   libraries: string[];
+  families: string[];
   results: KicadSymbolIndexEntry[];
 };
+
+export const KICAD_SYMBOL_FAMILIES = [
+  "Passives",
+  "Semiconductors",
+  "Power & protection",
+  "Connectors",
+  "Analog & signal",
+  "Digital & processors",
+  "Sensors",
+  "Control & timing",
+  "Audio & display",
+  "Communications & RF",
+  "Other",
+] as const;
 
 const SOURCE_VERSION = "10.0.8";
 const RAW_LIBRARY_BASE =
@@ -35,6 +51,10 @@ const RAW_LIBRARY_BASE =
 const INDEX_PATH = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "data/kicad-symbol-index.json.gz",
+);
+const SOURCE_INDEX_PATH = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../../data/kicad-symbol-index.json.gz",
 );
 const MAX_SOURCE_BYTES = 1_500_000;
 const MAX_CACHED_SYMBOLS = 500;
@@ -44,6 +64,348 @@ const symbolCache = new Map<string, KicadSymbolData>();
 
 function normalized(value: string): string {
   return value.toLocaleLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function normalizedSearchText(value: string): string {
+  return value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+function compactSearchText(value: string): string {
+  return normalizedSearchText(value).replace(/\s/g, "");
+}
+
+function getKicadSymbolFamily(entry: KicadSymbolIndexEntry): string {
+  const library = entry.library.toLocaleLowerCase();
+  const identity = normalizedSearchText(
+    `${entry.name} ${entry.description} ${entry.keywords}`,
+  );
+
+  if (
+    /^(?:battery|power|regulator|converter|transformer)/.test(library) ||
+    library === "power"
+  ) {
+    return "Power & protection";
+  }
+  if (/^potentiometer_digital/.test(library)) return "Digital & processors";
+  if (/^(?:connector|jumper|mechanical)/.test(library)) return "Connectors";
+  if (/^(?:transistor|diode|led|triac|isolator|valve)/.test(library)) {
+    return "Semiconductors";
+  }
+  if (/^sensor/.test(library) || /\bsensor\b/.test(identity)) return "Sensors";
+  if (/^(?:amplifier|analog|comparator|filter|reference_current|reference_voltage)/.test(library)) {
+    return "Analog & signal";
+  }
+  if (/^(?:mcu|cpu|dsp|cpld|fpga|logic|memory|gpu|buffer)/.test(library)) {
+    return "Digital & processors";
+  }
+  if (/^(?:switch|relay|motor|timer|oscillator)/.test(library)) {
+    return "Control & timing";
+  }
+  if (/^(?:audio|video|display)/.test(library)) return "Audio & display";
+  if (/^(?:rf|interface|fiber)/.test(library)) return "Communications & RF";
+
+  if (
+    /\b(?:resistor|capacitor|inductor|fuse|potentiometer|thermistor|varistor)\b/.test(identity)
+  ) {
+    return "Passives";
+  }
+  if (/\b(?:diode|transistor|mosfet|led)\b/.test(identity)) return "Semiconductors";
+  if (/\b(?:connector|plug|socket)\b/.test(identity)) return "Connectors";
+  if (/\b(?:battery|regulator|power supply|power symbol)\b/.test(identity)) {
+    return "Power & protection";
+  }
+  return "Other";
+}
+
+const SEARCH_SYNONYMS: Record<string, string[]> = {
+  resistor: ["res", "resistance"],
+  resistors: ["resistor", "res", "resistance"],
+  res: ["resistor", "resistance"],
+  capacitor: ["cap", "capacitance", "condenser"],
+  capacitors: ["capacitor", "cap", "capacitance"],
+  cap: ["capacitor", "capacitance"],
+  inductor: ["coil", "choke"],
+  diode: ["rectifier"],
+  led: ["light emitting diode"],
+  "light emitting diode": ["led"],
+  transistor: ["bjt", "fet"],
+  mosfet: ["fet", "field effect transistor"],
+  "op amp": ["opamp", "operational amplifier"],
+  opamp: ["op amp", "operational amplifier"],
+  "operational amplifier": ["opamp", "op amp"],
+  connector: ["plug", "socket"],
+  microcontroller: ["mcu"],
+  mcu: ["microcontroller"],
+  ground: ["gnd"],
+  gnd: ["ground"],
+  battery: ["cell"],
+  cell: ["battery"],
+  "negative voltage": ["-10v", "power symbol"],
+  "power symbol": ["power", "vcc", "vdd"],
+};
+const SEARCH_CORRECTION_WORDS = [
+  "resistor",
+  "capacitor",
+  "inductor",
+  "diode",
+  "transistor",
+  "mosfet",
+  "connector",
+  "microcontroller",
+  "operational",
+  "amplifier",
+  "battery",
+  "ground",
+  "switch",
+  "regulator",
+  "oscillator",
+];
+
+const FEATURED_SYMBOL_IDS = [
+  "Device:R",
+  "Device:R_Small",
+  "Device:C",
+  "Device:C_Small",
+  "Device:C_Polarized",
+  "Device:L",
+  "Device:L_Small",
+  "Device:D",
+  "Device:D_Small",
+  "Device:D_Zener",
+  "Device:D_Schottky",
+  "Device:LED",
+  "Device:LED_Small",
+  "Device:Fuse",
+  "Device:Battery",
+  "Device:Speaker",
+  "Device:Buzzer",
+  "Transistor_BJT:Q_NPN_BCE",
+  "Transistor_BJT:Q_PNP_BCE",
+  "Transistor_BJT:2N3904",
+  "Transistor_BJT:BC547",
+  "Transistor_FET:Q_NMOS_GDS",
+  "Transistor_FET:Q_PMOS_GDS",
+  "power:GND",
+  "power:+5V",
+  "power:+3V3",
+  "power:+12V",
+  "power:VCC",
+  "Switch:SW_SPST",
+  "Switch:SW_Push",
+  "Switch:SW_SPDT",
+  "Timer:NE555P",
+  "Amplifier_Operational:LM358",
+  "Amplifier_Operational:LM741",
+  "Regulator_Linear:LM7805_TO220",
+  "Regulator_Linear:AMS1117-3.3",
+  "Connector_Generic:Conn_01x01",
+  "Connector_Generic:Conn_01x02",
+  "Connector_Generic:Conn_01x03",
+  "Connector_Generic:Conn_01x04",
+  "Connector_Generic:Conn_01x05",
+  "Connector_Generic:Conn_01x06",
+  "Connector_Generic:Conn_01x08",
+  "Connector_Generic:Conn_01x10",
+];
+
+function editDistanceWithin(left: string, right: string, maximum: number): boolean {
+  if (Math.abs(left.length - right.length) > maximum) return false;
+  let previous = Array.from({ length: right.length + 1 }, (_, index) => index);
+
+  for (let leftIndex = 1; leftIndex <= left.length; leftIndex += 1) {
+    const current = [leftIndex];
+    let rowMinimum = leftIndex;
+    for (let rightIndex = 1; rightIndex <= right.length; rightIndex += 1) {
+      const cost = left[leftIndex - 1] === right[rightIndex - 1] ? 0 : 1;
+      const value = Math.min(
+        current[rightIndex - 1] + 1,
+        previous[rightIndex] + 1,
+        previous[rightIndex - 1] + cost,
+      );
+      current.push(value);
+      rowMinimum = Math.min(rowMinimum, value);
+    }
+    if (rowMinimum > maximum) return false;
+    previous = current;
+  }
+  return previous[right.length] <= maximum;
+}
+
+function getSearchScore(
+  entry: KicadSymbolIndexEntry,
+  query: string,
+  allowFuzzy = false,
+): number {
+  const searchQuery = normalizedSearchText(query);
+  const compactQuery = compactSearchText(query);
+  if (!searchQuery) return 0;
+
+  const fields = [
+    entry.id,
+    entry.name,
+    entry.library,
+    entry.description,
+    entry.keywords,
+  ].map(normalizedSearchText);
+  const searchableText = fields.join(" ");
+  const queryTokens = searchQuery
+    .split(" ")
+    .filter((token) => token && !["a", "an", "and", "for", "in", "of", "the", "to", "with"].includes(token))
+    .map((token) => {
+      if (token.length < 4) return token;
+      return SEARCH_CORRECTION_WORDS.find((candidate) =>
+        editDistanceWithin(token, candidate, token.length >= 8 ? 2 : 1)
+      ) ?? token;
+    });
+  const correctedQuery = queryTokens.join(" ");
+  const compactId = compactSearchText(entry.id);
+  const compactName = compactSearchText(entry.name);
+  const compactCorrectedQuery = compactSearchText(correctedQuery);
+  let score = 0;
+
+  if (compactQuery && compactName === compactQuery) score += 10_000;
+  if (compactQuery && compactId === compactQuery) score += 11_000;
+  if (compactCorrectedQuery && compactName === compactCorrectedQuery) score += 8_000;
+  if (compactCorrectedQuery && compactId === compactCorrectedQuery) score += 9_000;
+  if (searchableText.includes(searchQuery) || searchableText.includes(correctedQuery)) {
+    score += 2_000;
+  }
+  if (fields[1].startsWith(correctedQuery)) score += 1_500;
+  if (fields[0].startsWith(correctedQuery)) score += 1_250;
+  if (correctedQuery && fields[4].includes(correctedQuery)) score += 1_000;
+
+  const phraseAlternatives = SEARCH_SYNONYMS[searchQuery] ?? [];
+  if (phraseAlternatives.some((alias) => searchableText.includes(normalizedSearchText(alias)))) {
+    score += 1_000;
+  }
+  const featuredPriority = FEATURED_SYMBOL_IDS.indexOf(entry.id);
+  if (featuredPriority >= 0) score += 500 - featuredPriority;
+
+  const searchableWords = searchableText.split(" ").filter(Boolean);
+  const nameWords = fields.slice(0, 2).join(" ").split(" ").filter(Boolean);
+  const keywordWords = fields[4].split(" ").filter(Boolean);
+  const descriptionWords = fields[3].split(" ").filter(Boolean);
+  let matchedTokens = 0;
+  for (const token of queryTokens) {
+    const alternatives = [token, ...(SEARCH_SYNONYMS[token] ?? [])]
+      .map(normalizedSearchText)
+      .filter(Boolean);
+    const matchesWord = (word: string, alternative: string) =>
+      alternative.length <= 2
+        ? word === alternative
+        : word.includes(alternative) || alternative.includes(word);
+    const nameMatch = nameWords.some((word) =>
+      alternatives.some((alternative) => matchesWord(word, alternative))
+    );
+    const keywordMatch = keywordWords.some((word) =>
+      alternatives.some((alternative) => matchesWord(word, alternative))
+    );
+    const descriptionMatch = descriptionWords.some((word) =>
+      alternatives.some((alternative) => matchesWord(word, alternative))
+    );
+    if (nameMatch || keywordMatch || descriptionMatch) {
+      matchedTokens += 1;
+      score += nameMatch ? 400 : keywordMatch ? 250 : 100;
+      continue;
+    }
+
+    if (allowFuzzy && token.length >= 4) {
+      const maximumDistance = token.length >= 8 ? 2 : 1;
+      if (nameWords.some((word) => editDistanceWithin(token, word, maximumDistance))) {
+        matchedTokens += 1;
+        score += 180;
+        continue;
+      }
+      if (keywordWords.some((word) => editDistanceWithin(token, word, maximumDistance))) {
+        matchedTokens += 1;
+        score += 140;
+        continue;
+      }
+      if (descriptionWords.some((word) => editDistanceWithin(token, word, maximumDistance))) {
+        matchedTokens += 1;
+        score += 80;
+        continue;
+      }
+      if (searchableWords.some((word) => editDistanceWithin(token, word, maximumDistance))) {
+        matchedTokens += 1;
+        score += 35;
+      }
+    }
+  }
+
+  if (queryTokens.length > 0 && matchedTokens === queryTokens.length) {
+    score += 500 + matchedTokens * 120;
+  } else {
+    score += matchedTokens * 25;
+  }
+  return score;
+}
+
+function getFeaturedSymbols(
+  index: KicadSymbolIndexEntry[],
+  limit: number,
+): KicadSymbolIndexEntry[] {
+  const byId = new Map(index.map((entry) => [entry.id, entry]));
+  const results: KicadSymbolIndexEntry[] = [];
+  const included = new Set<string>();
+  const add = (entry: KicadSymbolIndexEntry) => {
+    if (included.has(entry.id) || results.length >= limit) return;
+    included.add(entry.id);
+    results.push(entry);
+  };
+
+  for (const id of FEATURED_SYMBOL_IDS) {
+    const entry = byId.get(id);
+    if (entry) add(entry);
+  }
+
+  const familyTargets = [
+    ["Passives", 18],
+    ["Semiconductors", 18],
+    ["Power & protection", 12],
+    ["Connectors", 16],
+    ["Control & timing", 10],
+    ["Analog & signal", 10],
+    ["Digital & processors", 8],
+    ["Sensors", 4],
+    ["Audio & display", 2],
+    ["Communications & RF", 2],
+  ] as const;
+  for (const [family, target] of familyTargets) {
+    const currentCount = results.filter(
+      (entry) => getKicadSymbolFamily(entry) === family,
+    ).length;
+    const remaining = index
+      .filter(
+        (entry) =>
+          !included.has(entry.id) && getKicadSymbolFamily(entry) === family,
+      )
+      .sort((left, right) =>
+        left.name.localeCompare(right.name) || left.id.localeCompare(right.id)
+      );
+    for (const entry of remaining.slice(0, Math.max(0, target - currentCount))) {
+      add(entry);
+      if (results.length >= limit) break;
+    }
+    if (results.length >= limit) break;
+  }
+
+  if (results.length < limit) {
+    const remaining = index
+      .filter((entry) => !included.has(entry.id))
+      .sort((left, right) => left.name.localeCompare(right.name) || left.id.localeCompare(right.id));
+    for (const entry of remaining) {
+      add(entry);
+      if (results.length >= limit) break;
+    }
+  }
+  return results;
 }
 
 function get74SeriesSuffix(name: string): string | undefined {
@@ -72,7 +434,10 @@ function fallbackLibraryDescription(library: string): string {
 }
 
 async function getIndex(): Promise<KicadSymbolIndexEntry[]> {
-  indexPromise ??= readFile(INDEX_PATH).then((buffer) => {
+  indexPromise ??= readFile(INDEX_PATH).catch((error: NodeJS.ErrnoException) => {
+    if (error.code !== "ENOENT") throw error;
+    return readFile(SOURCE_INDEX_PATH);
+  }).then((buffer) => {
     const parsed = JSON.parse(gunzipSync(buffer).toString("utf8")) as unknown;
     if (!Array.isArray(parsed)) throw new Error("The KiCad symbol index is invalid.");
     const entries = parsed.filter((entry): entry is KicadSymbolIndexEntry =>
@@ -134,56 +499,90 @@ export async function getKicadSymbolIndexEntry(
   return (await getIndex()).find((entry) => entry.id === id);
 }
 
+export async function findMentionedKicadSymbolIds(
+  text: string,
+  maxResults = 6,
+): Promise<string[]> {
+  const tokens = [...new Set(
+    text.match(/\b(?=[a-z0-9._/-]*[a-z])(?=[a-z0-9._/-]*\d)[a-z0-9]+(?:[._/-][a-z0-9]+)*\b/gi) ?? [],
+  )].filter((token) => token.length >= 3);
+  if (!tokens.length) return [];
+
+  const index = await getIndex();
+  const ids = new Set<string>();
+  for (const token of tokens) {
+    const searchToken = normalized(token);
+    const match = index.find((entry) =>
+      normalized(entry.name) === searchToken ||
+      normalized(entry.id.slice(entry.id.indexOf(":") + 1)) === searchToken
+    );
+    if (match) ids.add(match.id);
+    if (ids.size >= Math.max(1, maxResults)) break;
+  }
+  return [...ids];
+}
+
 export async function searchKicadSymbols(
   query: string,
   library: string,
   requestedLimit: number,
   requestedOffset = 0,
+  family = "",
+  featured = false,
 ): Promise<KicadSymbolSearchResult> {
   const index = await getIndex();
   const libraries = [...new Set(index.map((entry) => entry.library))]
     .sort((left, right) => left.localeCompare(right));
-  const limit = Math.max(1, Math.min(100, Math.floor(requestedLimit) || 40));
+  const limit = Math.max(1, Math.min(100, Math.floor(requestedLimit) || 100));
   const offset = Math.max(0, Math.floor(requestedOffset) || 0);
-  const normalizedQuery = normalized(query);
+  const normalizedQuery = normalizedSearchText(query);
   const normalizedLibrary = normalized(library);
+  const availableFamilies = [...KICAD_SYMBOL_FAMILIES];
 
   const libraryMatches = (entry: KicadSymbolIndexEntry) =>
     !normalizedLibrary ||
     normalized(entry.library).includes(normalizedLibrary);
-  const queryTokens = normalizedQuery.split(" ").filter(Boolean);
-  const matches = index.filter((entry) => {
-    if (!libraryMatches(entry)) return false;
-    if (!queryTokens.length) return true;
-    const searchable = normalized(
-      `${entry.id} ${entry.name} ${entry.description} ${entry.keywords}`,
-    );
-    return queryTokens.every((token) => searchable.includes(token));
-  });
+  const familyMatches = (entry: KicadSymbolIndexEntry) =>
+    !family || getKicadSymbolFamily(entry) === family;
+  const candidates = (featured ? getFeaturedSymbols(index, 100) : index).filter(
+    (entry) => libraryMatches(entry) && familyMatches(entry),
+  );
+  let matches = candidates
+    .map((entry) => ({ entry, score: getSearchScore(entry, query) }))
+    .filter(({ score }) => !normalizedQuery || score > 0);
+  if (normalizedQuery && matches.length === 0) {
+    matches = candidates
+      .map((entry) => ({ entry, score: getSearchScore(entry, query, true) }))
+      .filter(({ score }) => score > 0);
+  }
 
   if (normalizedQuery) {
+    matches.sort((left, right) =>
+      right.score - left.score || left.entry.id.localeCompare(right.entry.id)
+    );
+  } else if (!featured) {
     matches.sort((left, right) => {
-      const score = (entry: KicadSymbolIndexEntry) => {
-        const id = normalized(entry.id);
-        const name = normalized(entry.name);
-        if (id === normalizedQuery || name === normalizedQuery) return 0;
-        if (name.startsWith(normalizedQuery)) return 1;
-        if (id.startsWith(normalizedQuery)) return 2;
-        if (name.includes(normalizedQuery)) return 3;
-        return 4;
-      };
-      return score(left) - score(right) || left.id.localeCompare(right.id);
+      if (family) {
+        const leftIndex = FEATURED_SYMBOL_IDS.indexOf(left.entry.id);
+        const rightIndex = FEATURED_SYMBOL_IDS.indexOf(right.entry.id);
+        const leftRank = leftIndex < 0 ? Number.MAX_SAFE_INTEGER : leftIndex;
+        const rightRank = rightIndex < 0 ? Number.MAX_SAFE_INTEGER : rightIndex;
+        if (leftRank !== rightRank) return leftRank - rightRank;
+      }
+      return left.entry.name.localeCompare(right.entry.name) ||
+        left.entry.id.localeCompare(right.entry.id);
     });
-  } else {
-    matches.sort((left, right) => left.name.localeCompare(right.name));
   }
+  const matchedEntries = matches.map(({ entry }) => entry);
 
   return {
     sourceVersion: SOURCE_VERSION,
-    total: matches.length,
-    hasMore: offset + limit < matches.length,
+    catalogTotal: index.length,
+    total: matchedEntries.length,
+    hasMore: offset + limit < matchedEntries.length,
     libraries,
-    results: matches.slice(offset, offset + limit),
+    families: availableFamilies,
+    results: matchedEntries.slice(offset, offset + limit),
   };
 }
 

@@ -469,9 +469,11 @@ export interface CircuitSymbolSearchItem {
 }
 export interface CircuitSymbolSearchResponse {
     sourceVersion: string;
+    catalogTotal: number;
     total: number;
     hasMore: boolean;
     libraries: string[];
+    families: string[];
     results: CircuitSymbolSearchItem[];
 }
 export interface CircuitReviewRequest {
@@ -560,6 +562,8 @@ export type SearchCircuitSymbolsParams = {
      * @maxLength 120
      */
     library?: string;
+    family?: SearchCircuitSymbolsFamily;
+    featured?: boolean;
     /**
      * @minimum 1
      * @maximum 100
@@ -570,6 +574,20 @@ export type SearchCircuitSymbolsParams = {
      * @maximum 1000000
      */
     offset?: number;
+};
+export type SearchCircuitSymbolsFamily = typeof SearchCircuitSymbolsFamily[keyof typeof SearchCircuitSymbolsFamily];
+export declare const SearchCircuitSymbolsFamily: {
+    readonly Passives: "Passives";
+    readonly Semiconductors: "Semiconductors";
+    readonly 'Power_&_protection': "Power & protection";
+    readonly Connectors: "Connectors";
+    readonly 'Analog_&_signal': "Analog & signal";
+    readonly 'Digital_&_processors': "Digital & processors";
+    readonly Sensors: "Sensors";
+    readonly 'Control_&_timing': "Control & timing";
+    readonly 'Audio_&_display': "Audio & display";
+    readonly 'Communications_&_RF': "Communications & RF";
+    readonly Other: "Other";
 };
 export type GetCircuitSymbolDataParams = {
     /**

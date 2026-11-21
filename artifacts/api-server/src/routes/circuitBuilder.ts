@@ -12,6 +12,7 @@ import {
   generateWithThinkingBudgetFallback,
   getBuilderThinkingBudgets,
 } from "../lib/circuitBuilderGeneration";
+import { getDefaultKicadSymbolIds } from "../lib/circuitBuilderKicadDefaults";
 import { isMainsChargerBuildRequest } from "../lib/circuitBuilderSafety";
 import { normalizeCircuitBuilderResponse } from "../lib/circuitBuilderResponse";
 import {
@@ -22,6 +23,7 @@ import {
 import { enforceBuildPermission } from "../lib/circuitBuilderPermission";
 import {
   formatKicadSymbolPinGuide,
+  findMentionedKicadSymbolIds,
   getKicadSymbolData,
   getKicadSymbolIndexEntry,
 } from "../lib/kicadSymbols";
@@ -90,7 +92,7 @@ Safety and component support:
 - Do not generate a schematic proposal for a phone/device charger or AC/DC supply wired directly to household mains, high-voltage AC, or a switch-mode mains primary. Explain that this is hazardous and safety-critical, and offer a low-voltage-only follow-up that uses a certified, isolated commercial adapter as an external source. Never claim a generated drawing is safe, certified, or ready to connect to mains.
 - For unsupported symbols or missing verified IC/connector pinouts, explain the exact limitation without inventing symbols, pins, ratings, or part numbers. Suggest up to two concrete next prompts when a safe alternative exists. Suggested actions must be short, specific, and compatible with the user's goal; never suggest a way to recreate a rejected hazardous design.
 - If the user requests an IC but has not supplied a verified pinout, ask for the exact part and pinout before proposing that block. Generic pin blocks are drawing aids, not validation of the IC's actual pin mapping.
-- When selected KiCad library definitions are supplied in the user context, use type "kicad" with the exact symbolId and a valid unit/bodyStyle from that definition. Use only its listed pin numbers, names, and offsets; never invent a pinout. The server attaches the exact source drawing and pin geometry after generation. Do not return symbolData yourself.
+- In Build mode, use the official KiCad library as the default source for schematic symbols. Prefer a supplied KiCad candidate whenever it matches a requested part instead of substituting a built-in approximation. Use type "kicad" with the exact symbolId and a valid unit/bodyStyle from its supplied definition. Use only listed pin numbers, names, and offsets; never invent a KiCad ID or pinout. The server attaches exact source drawings and pin geometry after generation. Do not return symbolData yourself. A library symbol is not confirmation of a physical part choice, rating, electrical correctness, or safety.
 
 Use clear reference designators and unique wire IDs (W1, W2, ...). Connect every required pin exactly to a wire endpoint or another pin: all pins on supported discrete parts are required; a relay needs both coil pins, COM, and at least one of NC/NO, while the unused contact may remain open. Unused IC, connector, and KiCad symbol pins may remain unconnected. Keep wire segments horizontal or vertical, avoid zero-length segments and routes through two-terminal parts, and connect wire endpoints exactly to pins or other wire endpoints. Set open:true on a wire only when it is intentionally left disconnected. If a requested component has no supported equivalent, state the limitation instead of inventing a type or pin model.
 
@@ -221,11 +223,24 @@ router.post(
     let kicadDefinitions = "";
     try {
       currentSpec = await hydrateKicadSymbols(currentSpec);
+      const buildContext = [
+        parsed.data.message,
+        brief.goal,
+        ...brief.requirements,
+        ...brief.assumptions,
+        ...history.map((message) => message.content),
+      ].join(" ");
       const ids = new Set([
         ...selectedKicadSymbolIds([
           ...history.map((message) => message.content),
           parsed.data.message,
         ]),
+        ...(parsed.data.mode === "build"
+          ? [
+            ...getDefaultKicadSymbolIds(buildContext),
+            ...await findMentionedKicadSymbolIds(buildContext),
+          ]
+          : []),
         ...currentSpec.elements.flatMap((element) =>
           element.type === "kicad" && typeof element.symbolId === "string"
             ? [element.symbolId]

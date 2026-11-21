@@ -1,7 +1,11 @@
 import { getAuth } from "@clerk/express";
 import rateLimit from "express-rate-limit";
 import { Router, type IRouter, type RequestHandler } from "express";
-import { getKicadSymbolData, searchKicadSymbols } from "../lib/kicadSymbols";
+import {
+  getKicadSymbolData,
+  KICAD_SYMBOL_FAMILIES,
+  searchKicadSymbols,
+} from "../lib/kicadSymbols";
 
 const router: IRouter = Router();
 
@@ -23,7 +27,7 @@ const searchLimiter = rateLimit({
 
 const symbolDataLimiter = rateLimit({
   windowMs: 60_000,
-  limit: 90,
+  limit: 150,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: { error: "Please wait before loading more symbol previews." },
@@ -38,9 +42,13 @@ router.get(
     const library = typeof req.query.library === "string"
       ? req.query.library.slice(0, 120)
       : "";
+    const family = typeof req.query.family === "string"
+      ? req.query.family.slice(0, 80)
+      : "";
+    const featured = req.query.featured === "true";
     const requestedLimit = typeof req.query.limit === "string"
       ? Number(req.query.limit)
-      : 40;
+      : 100;
     const requestedOffset = typeof req.query.offset === "string"
       ? Number(req.query.offset)
       : 0;
@@ -57,9 +65,25 @@ router.get(
       res.status(400).json({ error: "offset must be an integer from 0 to 1000000." });
       return;
     }
+    if (
+      family &&
+      !(KICAD_SYMBOL_FAMILIES as readonly string[]).includes(family)
+    ) {
+      res.status(400).json({ error: "Choose a valid symbol family." });
+      return;
+    }
 
     try {
-      res.json(await searchKicadSymbols(query, library, requestedLimit, requestedOffset));
+      res.json(
+        await searchKicadSymbols(
+          query,
+          library,
+          requestedLimit,
+          requestedOffset,
+          family,
+          featured,
+        ),
+      );
     } catch (error) {
       req.log.error(
         { reason: error instanceof Error ? error.name : "unknown" },

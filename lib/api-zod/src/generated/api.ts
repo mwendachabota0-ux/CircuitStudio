@@ -517,7 +517,6 @@ export const AskCircuitTutorResponse = zod.object({
  * Maintains a concise design brief and, in Build mode, may return a validated CircuitSpec proposal that the user must review and apply.
  * @summary Clarify circuit requirements or propose a circuit edit
  */
-export const chatWithCircuitBuilderBodyMessageMax = 6000;
 
 export const chatWithCircuitBuilderBodyCurrentSpecElementsItemFromMin = 2;
 export const chatWithCircuitBuilderBodyCurrentSpecElementsItemFromMax = 2;
@@ -584,7 +583,7 @@ export const chatWithCircuitBuilderBodyBriefOpenQuestionsMax = 12;
 
 
 export const ChatWithCircuitBuilderBody = zod.object({
-  "message": zod.string().min(1).max(chatWithCircuitBuilderBodyMessageMax),
+  "message": zod.string().min(1),
   "mode": zod.enum(['chat', 'build']),
   "responseFormatRetry": zod.boolean().optional().describe('Indicates a retry for correcting a previously truncated or malformed model response.'),
   "currentSpec": zod.object({
@@ -1393,8 +1392,6 @@ export const listCircuitBuilderHistoryResponseSavedAiBriefOpenQuestionsMax = 12;
 
 export const listCircuitBuilderHistoryResponseSavedMessagesItemIdMax = 128;
 
-export const listCircuitBuilderHistoryResponseSavedMessagesItemContentMax = 6000;
-
 export const listCircuitBuilderHistoryResponseSavedMessagesItemCreatedAtMin = 0;
 export const listCircuitBuilderHistoryResponseSavedMessagesItemCreatedAtMax = 8640000000000000;
 
@@ -1476,7 +1473,7 @@ export const ListCircuitBuilderHistoryResponseItem = zod.object({
   "messages": zod.array(zod.object({
   "id": zod.string().min(1).max(listCircuitBuilderHistoryResponseSavedMessagesItemIdMax),
   "role": zod.enum(['user', 'assistant']),
-  "content": zod.string().max(listCircuitBuilderHistoryResponseSavedMessagesItemContentMax),
+  "content": zod.string(),
   "createdAt": zod.number().int().min(listCircuitBuilderHistoryResponseSavedMessagesItemCreatedAtMin).max(listCircuitBuilderHistoryResponseSavedMessagesItemCreatedAtMax),
   "suggestedActions": zod.array(zod.object({
   "label": zod.string().min(1).max(listCircuitBuilderHistoryResponseSavedMessagesItemSuggestedActionsItemLabelMax),
@@ -1600,8 +1597,6 @@ export const syncCircuitBuilderHistoryBodySessionsItemSavedAiBriefOpenQuestionsM
 
 export const syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemIdMax = 128;
 
-export const syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemContentMax = 6000;
-
 export const syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemCreatedAtMin = 0;
 export const syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemCreatedAtMax = 8640000000000000;
 
@@ -1686,7 +1681,7 @@ export const SyncCircuitBuilderHistoryBody = zod.object({
   "messages": zod.array(zod.object({
   "id": zod.string().min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemIdMax),
   "role": zod.enum(['user', 'assistant']),
-  "content": zod.string().max(syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemContentMax),
+  "content": zod.string(),
   "createdAt": zod.number().int().min(syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemCreatedAtMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemCreatedAtMax),
   "suggestedActions": zod.array(zod.object({
   "label": zod.string().min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemSuggestedActionsItemLabelMax),

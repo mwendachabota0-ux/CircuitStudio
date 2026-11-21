@@ -936,7 +936,6 @@ components:
         message:
           type: string
           minLength: 1
-          maxLength: 6000
         mode:
           type: string
           enum: [chat, build]
@@ -1196,7 +1195,6 @@ components:
           enum: [user, assistant]
         content:
           type: string
-          maxLength: 6000
         createdAt:
           type: integer
           minimum: 0

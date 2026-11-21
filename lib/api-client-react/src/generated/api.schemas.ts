@@ -228,10 +228,7 @@ export const CircuitBuildChatInputMode = {
 } as const;
 
 export interface CircuitBuildChatInput {
-  /**
-     * @minLength 1
-     * @maxLength 6000
-     */
+  /** @minLength 1 */
   message: string;
   mode: CircuitBuildChatInputMode;
   /** Indicates a retry for correcting a previously truncated or malformed model response. */
@@ -481,7 +478,6 @@ export interface CircuitBuilderHistoryMessage {
      */
   id: string;
   role: CircuitBuilderHistoryMessageRole;
-  /** @maxLength 6000 */
   content: string;
   /**
      * @minimum 0

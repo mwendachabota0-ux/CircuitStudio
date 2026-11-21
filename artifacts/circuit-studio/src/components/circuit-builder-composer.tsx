@@ -54,7 +54,7 @@ const CircuitBuilderComposer = forwardRef<
     getDraftRevision: () => draftRevisionRef.current,
     setDraft: (value) => {
       draftRevisionRef.current += 1;
-      setDraft(value.slice(0, 3000));
+      setDraft(value);
     },
     clearDraftIfUnchanged: (revisionAtStart, submittedText) => {
       setDraft((current) =>
@@ -116,12 +116,11 @@ const CircuitBuilderComposer = forwardRef<
         value={draft}
         onChange={(event) => {
           draftRevisionRef.current += 1;
-          setDraft(event.target.value.slice(0, 3000));
+          setDraft(event.target.value);
         }}
         onKeyDown={handleKeyDown}
         placeholder={mode === 'chat' ? 'Describe what you are trying to make…' : 'What should we add or change?'}
         rows={2}
-        maxLength={3000}
         autoComplete="off"
         data-testid="input-builder-message"
       />

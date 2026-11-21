@@ -2221,7 +2221,6 @@ export declare const AskCircuitTutorResponse: zod.ZodObject<{
  * Maintains a concise design brief and, in Build mode, may return a validated CircuitSpec proposal that the user must review and apply.
  * @summary Clarify circuit requirements or propose a circuit edit
  */
-export declare const chatWithCircuitBuilderBodyMessageMax = 6000;
 export declare const chatWithCircuitBuilderBodyCurrentSpecElementsItemFromMin = 2;
 export declare const chatWithCircuitBuilderBodyCurrentSpecElementsItemFromMax = 2;
 export declare const chatWithCircuitBuilderBodyCurrentSpecElementsItemToMin = 2;
@@ -5856,7 +5855,6 @@ export declare const listCircuitBuilderHistoryResponseSavedAiBriefAssumptionsMax
 export declare const listCircuitBuilderHistoryResponseSavedAiBriefOpenQuestionsItemMax = 300;
 export declare const listCircuitBuilderHistoryResponseSavedAiBriefOpenQuestionsMax = 12;
 export declare const listCircuitBuilderHistoryResponseSavedMessagesItemIdMax = 128;
-export declare const listCircuitBuilderHistoryResponseSavedMessagesItemContentMax = 6000;
 export declare const listCircuitBuilderHistoryResponseSavedMessagesItemCreatedAtMin = 0;
 export declare const listCircuitBuilderHistoryResponseSavedMessagesItemCreatedAtMax = 8640000000000000;
 export declare const listCircuitBuilderHistoryResponseSavedMessagesItemSuggestedActionsItemLabelMax = 90;
@@ -7472,7 +7470,6 @@ export declare const syncCircuitBuilderHistoryBodySessionsItemSavedAiBriefAssump
 export declare const syncCircuitBuilderHistoryBodySessionsItemSavedAiBriefOpenQuestionsItemMax = 300;
 export declare const syncCircuitBuilderHistoryBodySessionsItemSavedAiBriefOpenQuestionsMax = 12;
 export declare const syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemIdMax = 128;
-export declare const syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemContentMax = 6000;
 export declare const syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemCreatedAtMin = 0;
 export declare const syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemCreatedAtMax = 8640000000000000;
 export declare const syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemSuggestedActionsItemLabelMax = 90;

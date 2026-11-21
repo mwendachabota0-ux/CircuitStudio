@@ -227,29 +227,29 @@ function ComponentLibraryCard({
       className="component-library-dialog__item"
       data-testid={`component-library-entry-${entryId}`}
     >
-      <div className="component-library-dialog__item-content">
-        <div className="component-library-dialog__item-top">
-          <div className="component-library-dialog__item-title">
-            <h3 data-testid={`component-library-name-${entryId}`}>
-              {entryName}
-            </h3>
-            {isAnnotation && (
-              <span
-                className="component-library-dialog__annotation-tag"
-                data-testid={`component-library-annotation-${entry.type}`}
-              >
-                Drawing annotation
-              </span>
-            )}
-          </div>
-          <span
-            className={`component-library-dialog__type${isKicadEntry ? ' is-kicad' : ''}`}
-            title={entryType}
-          >
-            {isKicadEntry ? 'KiCad' : entryType}
-          </span>
+      <div className="component-library-dialog__item-top">
+        <div className="component-library-dialog__item-title">
+          <h3 data-testid={`component-library-name-${entryId}`}>
+            {entryName}
+          </h3>
+          {isAnnotation && (
+            <span
+              className="component-library-dialog__annotation-tag"
+              data-testid={`component-library-annotation-${entry.type}`}
+            >
+              Drawing annotation
+            </span>
+          )}
         </div>
+        <span
+          className={`component-library-dialog__type${isKicadEntry ? ' is-kicad' : ''}`}
+          title={entryType}
+        >
+          {isKicadEntry ? 'KiCad' : entryType}
+        </span>
+      </div>
 
+      <div className="component-library-dialog__item-content">
         <p
           className="component-library-dialog__item-description"
           data-testid={`component-library-description-${entryId}`}
@@ -369,10 +369,6 @@ export function ComponentLibraryDialog({
       >
         <DialogHeader className="component-library-dialog__header">
           <div className="component-library-dialog__heading">
-            <span className="component-library-dialog__eyebrow">
-              <CircuitBoard aria-hidden="true" />
-              Symbol catalog
-            </span>
             <DialogTitle className="component-library-dialog__title">
               Component library
             </DialogTitle>

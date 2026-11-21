@@ -1060,17 +1060,32 @@
 }
 
 .component-library-dialog__grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .component-library-dialog__item {
   min-height: 154px;
   grid-template-columns: minmax(0, 1fr) minmax(82px, 40%);
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 10px;
   padding: 10px;
 }
 
+.component-library-dialog__item-top {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  align-items: center;
+}
+
+.component-library-dialog__item-content {
+  grid-column: 1;
+  grid-row: 2;
+  height: 100%;
+}
+
 .component-library-dialog__symbol {
+  grid-column: 2;
+  grid-row: 2;
   min-height: 0;
   height: 100%;
   align-self: stretch;
@@ -1091,6 +1106,12 @@
   max-height: 100%;
 }
 
+@media (max-width: 1100px) {
+  .component-library-dialog__grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 900px) {
   .component-library-dialog__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1098,6 +1119,7 @@
 
   .component-library-dialog__item {
     grid-template-columns: minmax(0, 1fr) minmax(112px, 36%);
+    grid-template-rows: auto minmax(0, 1fr);
   }
 }
 
@@ -1108,5 +1130,6 @@
 
   .component-library-dialog__item {
     grid-template-columns: minmax(0, 1fr) minmax(92px, 30%);
+    grid-template-rows: auto minmax(0, 1fr);
   }
 }

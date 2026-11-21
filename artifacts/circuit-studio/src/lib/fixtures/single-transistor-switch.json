@@ -1,0 +1,24 @@
+{
+  "title": "Single-transistor switch with base pull-down",
+  "width": 560,
+  "height": 500,
+  "elements": [
+    { "type": "dcsource", "id": "V1", "value": "9V", "from": [100, 50], "to": [100, 110] },
+    { "type": "ground", "id": "GND1", "at": [400, 420] },
+    { "type": "terminal", "id": "IN1", "label": "Control input", "at": [50, 250] },
+    { "type": "resistor", "id": "R_LOAD", "value": "1 kohm", "from": [325, 110], "to": [325, 170] },
+    { "type": "npn", "id": "Q1", "value": "2N3904", "at": [300, 250] },
+    { "type": "resistor", "id": "R_INPUT", "value": "10 kohm", "from": [125, 250], "to": [225, 250] },
+    { "type": "resistor", "id": "R_PULLDOWN", "value": "100 kohm", "from": [225, 300], "to": [225, 400] },
+    { "type": "wire", "id": "W_VCC_LOAD", "points": [[100, 50], [325, 50], [325, 110]] },
+    { "type": "wire", "id": "W_LOAD_COLLECTOR", "points": [[325, 170], [325, 206]] },
+    { "type": "wire", "id": "W_EMITTER_RETURN", "points": [[325, 294], [325, 450], [400, 450], [400, 420]] },
+    { "type": "wire", "id": "W_INPUT_RESISTOR", "points": [[50, 250], [125, 250]] },
+    { "type": "wire", "id": "W_RESISTOR_BASE", "points": [[225, 250], [275, 250]] },
+    { "type": "wire", "id": "W_BASE_PULLDOWN", "points": [[225, 250], [225, 300]] },
+    { "type": "wire", "id": "W_PULLDOWN_RETURN", "points": [[225, 400], [225, 450]] },
+    { "type": "wire", "id": "W_SOURCE_RETURN", "points": [[100, 110], [30, 110], [30, 450], [225, 450]] },
+    { "type": "junction", "id": "J_BASE", "x": 225, "y": 250 },
+    { "type": "junction", "id": "J_RETURN", "x": 225, "y": 450 }
+  ]
+}

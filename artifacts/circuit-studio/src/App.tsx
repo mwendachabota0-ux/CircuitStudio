@@ -60,7 +60,7 @@ type CircuitDrawApi = {
   validate: (spec: CircuitSpec) => ValidationReport;
   layoutWarnings: (spec: CircuitSpec) => string[];
   autoFix: (spec: CircuitSpec) => { spec: CircuitSpec; changes: string[] };
-  netlist: (spec: CircuitSpec) => {
+  netlist: (spec: CircuitSpec, allowStructuralErrors?: boolean) => {
     parts: Array<{ designator: string; type: string; value: string }>;
     nets: Array<{ name: string; pins: string[] }>;
   };

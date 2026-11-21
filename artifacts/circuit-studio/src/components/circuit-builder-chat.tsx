@@ -47,6 +47,9 @@ import {
   getLayoutInvariantChanges,
   getLayoutInvariantSignature,
   getCircuitNetlistSignature,
+  getPinToNetSignature,
+  hasStablePinConnectivitySignature,
+  formatRepairAttemptSummary,
   getModeAfterFailedRequest,
   getRetryRecoveryKind,
   MAX_AUTO_RETRIES,
@@ -250,6 +253,18 @@ function inspectProposal(spec: CircuitBuildChatInput['currentSpec']): {
   }
 }
 
+function getConnectivitySignature(spec: CircuitSpec, allowStructuralErrors = false): string | null {
+  if (!window.CircuitDraw) return null;
+  try {
+    const netlist = window.CircuitDraw.netlist(spec, allowStructuralErrors);
+    return netlist.parts.length
+      ? getPinToNetSignature(netlist)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 function inspectLayoutProposal(spec: CircuitSpec): {
   svg: string;
   validation: ValidationReport;
@@ -297,7 +312,7 @@ function renderRejectedProposalPreview(
 }
 
 function formatValidationFailure(repairAttemptCount: number): string {
-  return `Repair stopped after ${repairAttemptCount} attempt${repairAttemptCount === 1 ? '' : 's'}.`;
+  return formatRepairAttemptSummary(repairAttemptCount);
 }
 
 function asCircuitSpec(value: unknown): CircuitBuildChatInput['currentSpec'] | null {
@@ -768,12 +783,20 @@ export function CircuitBuilderChat({
       const result = await runCircuitBuildAttempts({
         initialRequest: layoutRequest,
         initialProtectedSpec: spec,
+        getConnectivitySignature: (candidate) =>
+          getConnectivitySignature(candidate as CircuitSpec),
         send: (workingRequest) => chatMutation.mutateAsync({ data: workingRequest }),
         getProposal: (response) => response.proposal?.spec ?? null,
         inspectProposal: inspectLayoutProposal,
         prepareResponse: (response) => {
           if (!response.proposal?.spec || !window.CircuitDraw) return response;
+          const beforeConnectivity = getConnectivitySignature(response.proposal.spec, true);
           const autoFixed = window.CircuitDraw.autoFix(response.proposal.spec);
+          const afterConnectivity = getConnectivitySignature(autoFixed.spec, true);
+          if (
+            autoFixed.changes.length &&
+            !hasStablePinConnectivitySignature(beforeConnectivity, afterConnectivity)
+          ) return response;
           return autoFixed.changes.length
             ? { ...response, proposal: { ...response.proposal, spec: autoFixed.spec } }
             : response;
@@ -1501,6 +1524,7 @@ export function CircuitBuilderChat({
     rememberForRetry = true,
     repairLessonSeed?: RepairLessonEvidence,
     preservedRejectedProposalOverride?: CircuitBuildChatInput['currentSpec'],
+    allowConnectivityChange = false,
   ) => {
     const safeRequest = normalizeCircuitBuildRequest(request);
     if (rememberForRetry) setLastRequest(safeRequest);
@@ -1533,16 +1557,25 @@ export function CircuitBuilderChat({
         repairLessonContext,
       } = await runCircuitBuildAttempts({
         initialRequest: safeRequest,
+        allowConnectivityChange,
         send: (workingRequest) => chatMutation.mutateAsync({ data: workingRequest }),
         getProposal: (result) => result.proposal?.spec ?? null,
         inspectProposal,
         prepareResponse: (result) => {
           if (!result.proposal?.spec || !window.CircuitDraw) return result;
+          const beforeConnectivity = getConnectivitySignature(result.proposal.spec, true);
           const autoFixed = window.CircuitDraw.autoFix(result.proposal.spec);
+          const afterConnectivity = getConnectivitySignature(autoFixed.spec, true);
+          if (
+            autoFixed.changes.length &&
+            !hasStablePinConnectivitySignature(beforeConnectivity, afterConnectivity)
+          ) return result;
           return autoFixed.changes.length
             ? { ...result, proposal: { ...result.proposal, spec: autoFixed.spec } }
             : result;
         },
+        getConnectivitySignature: (candidate) =>
+          getConnectivitySignature(candidate as CircuitSpec),
         initialProtectedSpec: protectedElementsBaseSpec ?? undefined,
         getProtectedCircuitSignature: (spec) =>
           getProtectedCircuitSignature(spec as NonNullable<CircuitBuildChatInput['currentSpec']>),
@@ -1672,7 +1705,9 @@ export function CircuitBuilderChat({
           ? error.cause.message
           : 'The request did not go through. Your message is still here.';
         let message: string;
-        if (error.failureKind === 'validation') {
+        if (error.failureKind === 'repair-blocked') {
+          message = `${formatRepairAttemptSummary(error.repairAttemptCount)} ${causeMessage}`;
+        } else if (error.failureKind === 'validation') {
           message = error.validationFindings.length
             ? formatValidationFailure(error.repairAttemptCount)
             : 'The proposal could not be checked. Your message is still here.';
@@ -1802,9 +1837,15 @@ export function CircuitBuilderChat({
       ? {
           beforeSpec: rejectedSpec,
           findings,
-          context: recoveryKind === 'rewire'
-            ? `All ${MAX_AUTO_RETRIES} automatic repairs failed, so the circuit wiring was rebuilt while preserving its components.`
-            : `A new circuit proposal was created after ${MAX_AUTO_RETRIES} automatic repairs could not resolve component or specification errors.`,
+          context: (() => {
+            const attemptedRepairs = repairDiagnostics.reduce(
+              (maximum, diagnostic) => Math.max(maximum, diagnostic.attempt),
+              0,
+            );
+            return recoveryKind === 'rewire'
+              ? `After ${attemptedRepairs} automatic repair attempts, the circuit wiring was rebuilt while preserving its components.`
+              : `A new circuit proposal was created after ${attemptedRepairs} automatic repair attempts could not resolve component or specification errors.`;
+          })(),
         }
       : undefined;
     const request = recoveryKind === 'rewire'
@@ -1821,6 +1862,8 @@ export function CircuitBuilderChat({
       recoveryKind === 'rewire',
       true,
       repairLessonSeed,
+      undefined,
+      recoveryKind === 'rewire',
     );
   };
 

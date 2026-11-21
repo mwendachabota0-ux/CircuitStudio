@@ -53947,7 +53947,6 @@ var AskCircuitTutorResponse = objectType({
     })
   }).optional()
 });
-var chatWithCircuitBuilderBodyMessageMax = 6e3;
 var chatWithCircuitBuilderBodyCurrentSpecElementsItemFromMin = 2;
 var chatWithCircuitBuilderBodyCurrentSpecElementsItemFromMax = 2;
 var chatWithCircuitBuilderBodyCurrentSpecElementsItemToMin = 2;
@@ -53983,7 +53982,7 @@ var chatWithCircuitBuilderBodyBriefAssumptionsMax = 12;
 var chatWithCircuitBuilderBodyBriefOpenQuestionsItemMax = 300;
 var chatWithCircuitBuilderBodyBriefOpenQuestionsMax = 12;
 var ChatWithCircuitBuilderBody = objectType({
-  "message": stringType().min(1).max(chatWithCircuitBuilderBodyMessageMax),
+  "message": stringType().min(1),
   "mode": enumType(["chat", "build"]),
   "responseFormatRetry": booleanType().optional().describe("Indicates a retry for correcting a previously truncated or malformed model response."),
   "currentSpec": objectType({
@@ -54583,7 +54582,6 @@ var listCircuitBuilderHistoryResponseSavedAiBriefAssumptionsMax = 12;
 var listCircuitBuilderHistoryResponseSavedAiBriefOpenQuestionsItemMax = 300;
 var listCircuitBuilderHistoryResponseSavedAiBriefOpenQuestionsMax = 12;
 var listCircuitBuilderHistoryResponseSavedMessagesItemIdMax = 128;
-var listCircuitBuilderHistoryResponseSavedMessagesItemContentMax = 6e3;
 var listCircuitBuilderHistoryResponseSavedMessagesItemCreatedAtMin = 0;
 var listCircuitBuilderHistoryResponseSavedMessagesItemCreatedAtMax = 864e13;
 var listCircuitBuilderHistoryResponseSavedMessagesItemSuggestedActionsItemLabelMax = 90;
@@ -54638,7 +54636,7 @@ var ListCircuitBuilderHistoryResponseItem = objectType({
     "messages": arrayType(objectType({
       "id": stringType().min(1).max(listCircuitBuilderHistoryResponseSavedMessagesItemIdMax),
       "role": enumType(["user", "assistant"]),
-      "content": stringType().max(listCircuitBuilderHistoryResponseSavedMessagesItemContentMax),
+      "content": stringType(),
       "createdAt": numberType().int().min(listCircuitBuilderHistoryResponseSavedMessagesItemCreatedAtMin).max(listCircuitBuilderHistoryResponseSavedMessagesItemCreatedAtMax),
       "suggestedActions": arrayType(objectType({
         "label": stringType().min(1).max(listCircuitBuilderHistoryResponseSavedMessagesItemSuggestedActionsItemLabelMax),
@@ -54737,7 +54735,6 @@ var syncCircuitBuilderHistoryBodySessionsItemSavedAiBriefAssumptionsMax = 12;
 var syncCircuitBuilderHistoryBodySessionsItemSavedAiBriefOpenQuestionsItemMax = 300;
 var syncCircuitBuilderHistoryBodySessionsItemSavedAiBriefOpenQuestionsMax = 12;
 var syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemIdMax = 128;
-var syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemContentMax = 6e3;
 var syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemCreatedAtMin = 0;
 var syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemCreatedAtMax = 864e13;
 var syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemSuggestedActionsItemLabelMax = 90;
@@ -54794,7 +54791,7 @@ var SyncCircuitBuilderHistoryBody = objectType({
       "messages": arrayType(objectType({
         "id": stringType().min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemIdMax),
         "role": enumType(["user", "assistant"]),
-        "content": stringType().max(syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemContentMax),
+        "content": stringType(),
         "createdAt": numberType().int().min(syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemCreatedAtMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemCreatedAtMax),
         "suggestedActions": arrayType(objectType({
           "label": stringType().min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemSuggestedActionsItemLabelMax),

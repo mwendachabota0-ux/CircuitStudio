@@ -668,18 +668,11 @@
 
   function astableTopologyFindings(spec) {
     if (!spec || !Array.isArray(spec.elements)) return [];
-    var title = String(spec.title || '').toLowerCase();
-    if (!/(astable|multivibrator|alternating\s+flasher|flasher)/.test(title)) return [];
 
     var transistors = spec.elements.filter(function (el) { return el && (el.type === 'npn' || el.type === 'pnp'); });
-    if (transistors.length !== 2) {
-      return ['An astable multivibrator needs exactly two transistors; found ' + transistors.length + '.'];
-    }
+    if (transistors.length !== 2 || transistors[0].type !== transistors[1].type) return [];
     var capacitors = spec.elements.filter(function (el) { return el && (el.type === 'capacitor' || el.type === 'electrolytic'); });
-    var findings = [];
-    if (capacitors.length < 2) {
-      findings.push('A two-transistor astable needs two timing capacitors for collector-to-opposite-base feedback.');
-    }
+    if (capacitors.length < 2) return [];
 
     var partNames = [], auto = 0;
     spec.elements.forEach(function (el) {
@@ -693,7 +686,7 @@
     try {
       connectivity = netlist(spec, true);
     } catch (error) {
-      return findings;
+      return [];
     }
     function netFor(designator, pin) {
       if (!designator) return null;
@@ -713,6 +706,63 @@
       };
     });
 
+    var positiveSupply = connectivity.nets.filter(function (net) {
+      return /^(VCC|VDD|V\d+(?:p\d+)?)$/i.test(net.name);
+    })[0] || null;
+    var groundSupply = connectivity.nets.filter(function (net) {
+      return /^(GND|GROUND|VSS|0V|COM)$/i.test(net.name);
+    })[0] || null;
+
+    function resistorElementsBetween(firstNet, secondNet) {
+      return spec.elements.filter(function (element) {
+        if (!element || element.type !== 'resistor') return false;
+        var name = partName(element);
+        return (sameNet(netFor(name, '1'), firstNet) && sameNet(netFor(name, '2'), secondNet)) ||
+          (sameNet(netFor(name, '2'), firstNet) && sameNet(netFor(name, '1'), secondNet));
+      });
+    }
+    function hasResistorBetween(firstNet, secondNet) {
+      return resistorElementsBetween(firstNet, secondNet).length > 0;
+    }
+
+    // Titles and descriptions are presentation text. Classify only a clearly
+    // wired two-transistor feedback oscillator, using the paired collector-to-
+    // base timing capacitors as the defining structure. Keep the feed and
+    // emitter checks below active when those connections are the fault.
+    if (
+      !positiveSupply ||
+      !groundSupply ||
+      sameNet(positiveSupply, groundSupply) ||
+      transistorNets.some(function (transistor) {
+        return !transistor.base || !transistor.collector || !transistor.emitter;
+      }) ||
+      sameNet(transistorNets[0].collector, transistorNets[1].collector)
+    ) return [];
+
+    var feedbackCollectors = new Set();
+    capacitors.forEach(function (capacitor) {
+      var name = partName(capacitor);
+      var pinNames = capacitor.type === 'electrolytic' ? ['+', '-'] : ['1', '2'];
+      var firstNet = netFor(name, pinNames[0]);
+      var secondNet = netFor(name, pinNames[1]);
+      transistorNets.forEach(function (transistor, index) {
+        var feedbackToBase = transistorNets.some(function (baseOwner) {
+          return sameNet(firstNet, transistor.collector) && sameNet(secondNet, baseOwner.base) ||
+            sameNet(secondNet, transistor.collector) && sameNet(firstNet, baseOwner.base);
+        });
+        if (feedbackToBase) feedbackCollectors.add(index);
+      });
+    });
+    if (feedbackCollectors.size !== transistorNets.length) return [];
+
+    var findings = [];
+    if (sameNet(transistorNets[0].base, transistorNets[1].base)) {
+      findings.push(
+        transistorNets[0].name + '.B and ' + transistorNets[1].name +
+          '.B share one net; a two-transistor astable needs separate base nets.',
+      );
+    }
+
     transistorNets.forEach(function (transistor) {
       if (sameNet(transistor.base, transistor.collector)) {
         findings.push(transistor.name + '.B and ' + transistor.name + '.C share one net; this shorts the base to the collector and prevents normal astable switching.');
@@ -722,20 +772,6 @@
       }
     });
 
-    var positiveSupply = connectivity.nets.filter(function (net) {
-      return /^(VCC|VDD|V\d+(?:p\d+)?)$/i.test(net.name);
-    })[0] || null;
-    var groundSupply = connectivity.nets.filter(function (net) {
-      return /^(GND|GROUND|VSS|0V|COM)$/i.test(net.name);
-    })[0] || null;
-    function hasResistorBetween(firstNet, secondNet) {
-      return !!firstNet && !!secondNet && spec.elements.some(function (element) {
-        if (!element || element.type !== 'resistor') return false;
-        var name = partName(element);
-        return (sameNet(netFor(name, '1'), firstNet) && sameNet(netFor(name, '2'), secondNet)) ||
-          (sameNet(netFor(name, '2'), firstNet) && sameNet(netFor(name, '1'), secondNet));
-      });
-    }
     transistorNets.forEach(function (transistor) {
       var baseRail = transistor.type === 'pnp' ? groundSupply : positiveSupply;
       var emitterRail = transistor.type === 'pnp' ? positiveSupply : groundSupply;

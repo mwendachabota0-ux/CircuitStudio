@@ -29,20 +29,21 @@ import type {
 } from '@workspace/api-client-react';
 import type { CircuitComponentLibraryEntry } from '@workspace/circuit-geometry';
 import {
-  buildFreshRetryRequest,
   buildManualRetryRequest,
   buildOutputRepairRequest,
   buildRepairRequest,
+  buildWireRebuildRequest,
+  buildWholeCircuitRetryRequest,
   CircuitBuildAttemptError,
   classifyProposalValidation,
   getProtectedCircuitChanges,
   getProtectedCircuitSignature,
   getModeAfterFailedRequest,
+  getRetryRecoveryKind,
   MAX_AUTO_RETRIES,
   normalizeCircuitBuildRequest,
   restoreProtectedNonWireElements,
   runCircuitBuildAttempts,
-  shouldOfferFreshRetry,
   type BuildRetryKind,
   type RepairAttemptDiagnostic,
 } from '../lib/circuit-build-retry';
@@ -1403,23 +1404,38 @@ export function CircuitBuilderChat({
     );
   };
 
-  const startFreshRetry = async () => {
+  const runRecoveryRetry = async () => {
     if (!lastRequest || chatMutation.isPending || requestCycleActive) return;
     const findings = retryFeedback?.validationFindings ?? [];
     const rejectedSpec = asCircuitSpec(rejectedProposalSpec);
+    const recoveryKind = getRetryRecoveryKind(
+      repairDiagnostics,
+      findings,
+      rejectedProposalSpec,
+    );
+    if (!rejectedSpec || !recoveryKind) return;
+
     const repairLessonSeed = rejectedSpec && findings.length
       ? {
           beforeSpec: rejectedSpec,
           findings,
-          context: `A fresh retry was started after ${MAX_AUTO_RETRIES} automatic repairs did not clear the blocking errors.`,
+          context: recoveryKind === 'rewire'
+            ? `All ${MAX_AUTO_RETRIES} automatic repairs failed, so the circuit wiring was rebuilt while preserving its components.`
+            : `A new circuit proposal was created after ${MAX_AUTO_RETRIES} automatic repairs could not resolve component or specification errors.`,
         }
       : undefined;
+    const request = recoveryKind === 'rewire'
+      ? buildWireRebuildRequest(lastRequest, saved.brief, rejectedSpec, findings)
+      : buildWholeCircuitRetryRequest(lastRequest, saved.brief);
+    const protectedBaseline = recoveryKind === 'rewire'
+      ? asCircuitSpec(request.currentSpec)
+      : null;
 
     await runRequest(
-      buildFreshRetryRequest(lastRequest, saved.brief),
+      request,
       composerRef.current?.getDraftRevision() ?? 0,
-      undefined,
-      false,
+      protectedBaseline ?? undefined,
+      recoveryKind === 'rewire',
       true,
       repairLessonSeed,
     );
@@ -1728,9 +1744,10 @@ export function CircuitBuilderChat({
       ? chatMutation.error.message
       : 'The request did not go through. Your message is still here.'
   );
-  const canStartFreshRetry = shouldOfferFreshRetry(
+  const retryRecoveryKind = getRetryRecoveryKind(
     repairDiagnostics,
     retryFeedback?.validationFindings ?? [],
+    rejectedProposalSpec,
   );
   const hasBrief = Boolean(saved.brief.goal || saved.brief.requirements.length || saved.brief.assumptions.length || saved.brief.openQuestions.length);
   const retryHistorySync = () => {
@@ -1988,22 +2005,24 @@ export function CircuitBuilderChat({
                       {rejectedProposalSpec && retryFeedback.validationFindings?.length ? 'Continue repair' : 'Retry'}
                     </button>
                   )}
-                  {canStartFreshRetry && (
+                  {retryRecoveryKind && (
                     <button
                       type="button"
                       className="builder-chat__fresh-retry"
-                      onClick={() => void startFreshRetry()}
+                      onClick={() => void runRecoveryRetry()}
                       disabled={!lastRequest || hasUnappliedJsonEdits}
-                      data-testid="button-start-fresh-retry"
+                      data-testid={`button-${retryRecoveryKind}-circuit`}
                     >
-                      Start fresh
+                      {retryRecoveryKind === 'rewire' ? 'Rewire circuit' : 'Rebuild circuit'}
                     </button>
                   )}
                 </div>
               </div>
-              {canStartFreshRetry && (
+              {retryRecoveryKind && (
                 <p className="builder-chat__fresh-retry-note" role="note">
-                  Three automatic repairs still left blocking errors. Start again from your original request, or continue repairing this proposal. Your workbench drawing stays unchanged.
+                  {retryRecoveryKind === 'rewire'
+                    ? `Three automatic repairs still left wiring errors. This replaces the failed wires and routing markers while keeping the same parts and layout. Your workbench stays unchanged until you apply the proposal.`
+                    : `Three automatic repairs still left component or specification errors. This creates a new proposal from your original request. Your workbench stays unchanged until you apply the proposal.`}
                 </p>
               )}
               {!!retryFeedback.validationFindings?.length && (

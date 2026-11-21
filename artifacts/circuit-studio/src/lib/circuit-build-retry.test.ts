@@ -5,12 +5,15 @@ import type {
   CircuitDesignBrief,
 } from '@workspace/api-client-react';
 import {
-  buildFreshRetryRequest,
   buildManualRetryRequest,
   buildOutputRepairRequest,
   buildRepairRequest,
+  buildWireRebuildRequest,
+  buildWireRebuildMessage,
+  buildWholeCircuitRetryRequest,
   classifyProposalValidation,
   CircuitBuildAttemptError,
+  getRetryRecoveryKind,
   getNonWireElementSignature,
   getBuildRetryPolicy,
   getModeAfterFailedRequest,
@@ -22,7 +25,6 @@ import {
   restoreProtectedNonWireElements,
   runCircuitBuildAttempts,
   shouldClearSubmittedDraft,
-  shouldOfferFreshRetry,
 } from './circuit-build-retry.ts';
 import { getLocalBuilderModeIntent } from './circuit-build-intent.ts';
 
@@ -94,7 +96,7 @@ test('compacts oversized history before retrying and repairs the rejected propos
   assert.ok(retry.history?.every((item) => item.content.length <= 3_000));
 });
 
-test('fresh retry uses the original request instead of the rejected proposal', () => {
+test('whole-circuit rebuild uses the original request and updated brief', () => {
   const originalSpec = {
     title: 'Workbench draft',
     elements: [{ type: 'resistor', id: 'R1', value: '1k' }],
@@ -109,7 +111,7 @@ test('fresh retry uses the original request instead of the rejected proposal', (
     history: [{ role: 'user' as const, content: 'Keep the existing resistor.' }],
   };
   const updatedBrief = { ...brief, goal: 'Build an LED indicator with the existing resistor.' };
-  const fresh = buildFreshRetryRequest(request, updatedBrief);
+  const fresh = buildWholeCircuitRetryRequest(request, updatedBrief);
 
   assert.equal(fresh.mode, 'build');
   assert.deepEqual(fresh.currentSpec, originalSpec);
@@ -120,7 +122,45 @@ test('fresh retry uses the original request instead of the rejected proposal', (
   assert.equal(fresh.responseFormatRetry, false);
 });
 
-test('offers fresh retry only after automatic repairs are exhausted with blocking errors', () => {
+test('rewiring starts without old routing elements and preserves the component set', () => {
+  const rejectedProposal = {
+    title: 'LED indicator',
+    width: 900,
+    height: 600,
+    elements: [
+      { type: 'resistor', id: 'R1', label: 'R1', value: '1k', x: 100, y: 100 },
+      { type: 'led', id: 'D1', label: 'D1', value: 'red', x: 220, y: 100 },
+      { type: 'wire', id: 'W1', points: [[100, 100], [220, 100]] },
+      { type: 'junction', id: 'J1', at: [160, 100] },
+      { type: 'crossing', id: 'X1', at: [180, 120] },
+      { type: 'label', id: 'N1', text: 'VCC', at: [100, 40] },
+    ],
+  };
+  const findings = ['Wire W1 endpoint at (220,100) is not connected.'];
+  const updatedBrief = { ...brief, goal: 'Build a red LED indicator.' };
+  const request = buildWireRebuildRequest(baseRequest, updatedBrief, rejectedProposal, findings);
+
+  assert.deepEqual(request.currentSpec?.elements.map((element) => element.type), [
+    'resistor',
+    'led',
+    'label',
+  ]);
+  assert.equal(request.currentSpec?.width, 900);
+  assert.equal(request.currentSpec?.height, 600);
+  assert.match(request.message, /Start its wiring over/);
+  assert.match(request.message, /Preserve every component, value, label, ID, orientation, position/);
+  assert.match(request.message, /Wire W1 endpoint at \(220,100\) is not connected/);
+  assert.equal(request.history?.at(-1)?.content, baseRequest.message);
+  assert.deepEqual(request.brief, updatedBrief);
+});
+
+test('wire-rebuild prompt is explicit about rebuilding connections only', () => {
+  const message = buildWireRebuildMessage(['A required pin is not connected.']);
+  assert.match(message, /all previous wires and wire-routing markers as discarded/);
+  assert.match(message, /Do not add, remove, or redesign circuit parts/);
+});
+
+test('chooses recovery only for exhausted repairs and matching blocker types', () => {
   const exhausted = [{
     attempt: 3,
     outcome: 'exhausted' as const,
@@ -129,12 +169,30 @@ test('offers fresh retry only after automatic repairs are exhausted with blockin
     validationErrors: ['A required pin is not connected.'],
     validationWarnings: [],
   }];
-  const outstandingFindings = ['A required pin is not connected.'];
+  const rejectedProposal = {
+    title: 'LED indicator',
+    elements: [{ type: 'resistor', id: 'R1' }, { type: 'wire', id: 'W1' }],
+  };
+  const wireFindings = ['A required pin is not connected.'];
 
-  assert.equal(shouldOfferFreshRetry([], outstandingFindings), false);
-  assert.equal(shouldOfferFreshRetry(exhausted, []), false);
-  assert.equal(shouldOfferFreshRetry([{ ...exhausted[0], outcome: 'rejected' }], outstandingFindings), false);
-  assert.equal(shouldOfferFreshRetry(exhausted, outstandingFindings), true);
+  assert.equal(getRetryRecoveryKind([], wireFindings, rejectedProposal), null);
+  assert.equal(getRetryRecoveryKind(exhausted, [], rejectedProposal), null);
+  assert.equal(getRetryRecoveryKind(
+    [{ ...exhausted[0], outcome: 'rejected' }],
+    wireFindings,
+    rejectedProposal,
+  ), null);
+  assert.equal(getRetryRecoveryKind(exhausted, wireFindings, rejectedProposal), 'rewire');
+  assert.equal(getRetryRecoveryKind(
+    exhausted,
+    [...wireFindings, 'Element U1: unsupported CircuitDraw type "chip".'],
+    rejectedProposal,
+  ), 'rebuild');
+  assert.equal(getRetryRecoveryKind(
+    exhausted,
+    ['A new warning without a known repair path.'],
+    rejectedProposal,
+  ), null);
 });
 
 test('uses local mode shortcuts only for explicit mode changes', () => {
@@ -434,6 +492,44 @@ test('restores the original component before validating a repair that moves it',
   assert.deepEqual(result.response.proposal.spec.elements[0].at, [100, 100]);
   assert.deepEqual(result.response.proposal.spec.elements[1].points, [[50, 50], [60, 50]]);
   assert.equal(result.repairDiagnostics[1].nonWireElementsModified, true);
+});
+
+test('protects components while accepting rebuilt wires and routing markers', () => {
+  const baseline = {
+    title: 'LED indicator',
+    elements: [
+      { type: 'resistor', id: 'R1', value: '1k', x: 100, y: 100 },
+      { type: 'wire', id: 'OLD_WIRE', points: [[100, 100], [200, 100]] },
+      { type: 'junction', id: 'OLD_JUNCTION', at: [150, 100] },
+    ],
+  };
+  const routedProposal = {
+    title: 'LED indicator',
+    elements: [
+      { type: 'resistor', id: 'R1', value: '1k', x: 100, y: 100 },
+      { type: 'wire', id: 'NEW_WIRE', points: [[100, 100], [100, 200]] },
+      { type: 'junction', id: 'NEW_JUNCTION', at: [100, 150] },
+      { type: 'crossing', id: 'NEW_CROSSING', at: [120, 150] },
+    ],
+  };
+  const alteredProposal = {
+    ...routedProposal,
+    title: 'Changed by AI',
+    elements: [
+      { type: 'resistor', id: 'R1', value: '10k', x: 250, y: 100 },
+      ...routedProposal.elements.slice(1),
+    ],
+  };
+  const restored = restoreProtectedNonWireElements(baseline, alteredProposal);
+
+  assert.equal(getProtectedCircuitSignature(baseline), getProtectedCircuitSignature(routedProposal));
+  assert.deepEqual(restored.elements, [
+    baseline.elements[0],
+    alteredProposal.elements[1],
+    alteredProposal.elements[2],
+    alteredProposal.elements[3],
+  ]);
+  assert.equal(restored.title, baseline.title);
 });
 
 test('restores original components when a repair response redesigns the circuit', async () => {

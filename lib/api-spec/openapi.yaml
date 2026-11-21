@@ -118,6 +118,45 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+  /circuits/library/symbol-data:
+    get:
+      operationId: getCircuitSymbolData
+      tags: [circuits]
+      summary: Get source geometry for a KiCad symbol preview
+      parameters:
+        - name: symbolId
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 3
+            maxLength: 160
+            pattern: "^[^:\\s]+:[^:\\s]+$"
+      responses:
+        "200":
+          description: Exact symbol units, pins, and drawing primitives
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KicadSymbolData"
+        "400":
+          description: Invalid symbol ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Authentication is required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "503":
+          description: KiCad source geometry is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
   /circuits/tutor:
     post:
       operationId: askCircuitTutor

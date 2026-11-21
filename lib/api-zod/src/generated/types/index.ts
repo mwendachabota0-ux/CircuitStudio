@@ -52,6 +52,7 @@ export * from './circuitSymbolSearchItem';
 export * from './circuitSymbolSearchResponse';
 export * from './externalCircuitFixReviewInput';
 export * from './externalCircuitFixReviewResponse';
+export * from './getCircuitSymbolDataParams';
 export * from './healthStatus';
 export * from './kicadSymbolData';
 export * from './kicadSymbolGraphic';

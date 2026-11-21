@@ -585,6 +585,192 @@ export declare const SearchCircuitSymbolsResponse: zod.ZodObject<{
     }[];
 }>;
 /**
+ * @summary Get source geometry for a KiCad symbol preview
+ */
+export declare const getCircuitSymbolDataQuerySymbolIdMin = 3;
+export declare const getCircuitSymbolDataQuerySymbolIdMax = 160;
+export declare const getCircuitSymbolDataQuerySymbolIdRegExp: RegExp;
+export declare const GetCircuitSymbolDataQueryParams: zod.ZodObject<{
+    symbolId: zod.ZodString;
+}, "strip", zod.ZodTypeAny, {
+    symbolId: string;
+}, {
+    symbolId: string;
+}>;
+export declare const getCircuitSymbolDataResponseUnitsItemPinsItemPointMin = 2;
+export declare const getCircuitSymbolDataResponseUnitsItemPinsItemPointMax = 2;
+export declare const getCircuitSymbolDataResponseUnitsItemPinsItemBodyPointMin = 2;
+export declare const getCircuitSymbolDataResponseUnitsItemPinsItemBodyPointMax = 2;
+export declare const getCircuitSymbolDataResponseUnitsItemPinsMax = 512;
+export declare const getCircuitSymbolDataResponseUnitsItemGraphicsItemPointsItemMin = 2;
+export declare const getCircuitSymbolDataResponseUnitsItemGraphicsItemPointsItemMax = 2;
+export declare const getCircuitSymbolDataResponseUnitsItemGraphicsItemRadiusMin = 0;
+export declare const getCircuitSymbolDataResponseUnitsItemGraphicsItemFontSizeMin = 0;
+export declare const getCircuitSymbolDataResponseUnitsItemGraphicsItemStrokeWidthMin = 0;
+export declare const getCircuitSymbolDataResponseUnitsItemGraphicsMax = 2048;
+export declare const getCircuitSymbolDataResponseUnitsMax = 256;
+export declare const GetCircuitSymbolDataResponse: zod.ZodObject<{
+    id: zod.ZodString;
+    units: zod.ZodArray<zod.ZodObject<{
+        unit: zod.ZodNumber;
+        bodyStyle: zod.ZodNumber;
+        pins: zod.ZodArray<zod.ZodObject<{
+            number: zod.ZodString;
+            name: zod.ZodString;
+            electricalType: zod.ZodString;
+            shape: zod.ZodString;
+            point: zod.ZodArray<zod.ZodNumber, "many">;
+            bodyPoint: zod.ZodArray<zod.ZodNumber, "many">;
+            showName: zod.ZodBoolean;
+            showNumber: zod.ZodBoolean;
+        }, "strip", zod.ZodTypeAny, {
+            number: string;
+            name: string;
+            electricalType: string;
+            shape: string;
+            point: number[];
+            bodyPoint: number[];
+            showName: boolean;
+            showNumber: boolean;
+        }, {
+            number: string;
+            name: string;
+            electricalType: string;
+            shape: string;
+            point: number[];
+            bodyPoint: number[];
+            showName: boolean;
+            showNumber: boolean;
+        }>, "many">;
+        graphics: zod.ZodArray<zod.ZodObject<{
+            type: zod.ZodEnum<["polyline", "rectangle", "circle", "arc", "bezier", "text"]>;
+            points: zod.ZodOptional<zod.ZodArray<zod.ZodArray<zod.ZodNumber, "many">, "many">>;
+            radius: zod.ZodOptional<zod.ZodNumber>;
+            text: zod.ZodOptional<zod.ZodString>;
+            fontSize: zod.ZodOptional<zod.ZodNumber>;
+            strokeWidth: zod.ZodOptional<zod.ZodNumber>;
+            fillType: zod.ZodOptional<zod.ZodEnum<["none", "background", "outline"]>>;
+            closed: zod.ZodOptional<zod.ZodBoolean>;
+        }, "strip", zod.ZodTypeAny, {
+            type: "polyline" | "rectangle" | "circle" | "arc" | "bezier" | "text";
+            text?: string | undefined;
+            points?: number[][] | undefined;
+            radius?: number | undefined;
+            fontSize?: number | undefined;
+            strokeWidth?: number | undefined;
+            fillType?: "none" | "background" | "outline" | undefined;
+            closed?: boolean | undefined;
+        }, {
+            type: "polyline" | "rectangle" | "circle" | "arc" | "bezier" | "text";
+            text?: string | undefined;
+            points?: number[][] | undefined;
+            radius?: number | undefined;
+            fontSize?: number | undefined;
+            strokeWidth?: number | undefined;
+            fillType?: "none" | "background" | "outline" | undefined;
+            closed?: boolean | undefined;
+        }>, "many">;
+    }, "strip", zod.ZodTypeAny, {
+        unit: number;
+        bodyStyle: number;
+        pins: {
+            number: string;
+            name: string;
+            electricalType: string;
+            shape: string;
+            point: number[];
+            bodyPoint: number[];
+            showName: boolean;
+            showNumber: boolean;
+        }[];
+        graphics: {
+            type: "polyline" | "rectangle" | "circle" | "arc" | "bezier" | "text";
+            text?: string | undefined;
+            points?: number[][] | undefined;
+            radius?: number | undefined;
+            fontSize?: number | undefined;
+            strokeWidth?: number | undefined;
+            fillType?: "none" | "background" | "outline" | undefined;
+            closed?: boolean | undefined;
+        }[];
+    }, {
+        unit: number;
+        bodyStyle: number;
+        pins: {
+            number: string;
+            name: string;
+            electricalType: string;
+            shape: string;
+            point: number[];
+            bodyPoint: number[];
+            showName: boolean;
+            showNumber: boolean;
+        }[];
+        graphics: {
+            type: "polyline" | "rectangle" | "circle" | "arc" | "bezier" | "text";
+            text?: string | undefined;
+            points?: number[][] | undefined;
+            radius?: number | undefined;
+            fontSize?: number | undefined;
+            strokeWidth?: number | undefined;
+            fillType?: "none" | "background" | "outline" | undefined;
+            closed?: boolean | undefined;
+        }[];
+    }>, "many">;
+}, "strip", zod.ZodTypeAny, {
+    id: string;
+    units: {
+        unit: number;
+        bodyStyle: number;
+        pins: {
+            number: string;
+            name: string;
+            electricalType: string;
+            shape: string;
+            point: number[];
+            bodyPoint: number[];
+            showName: boolean;
+            showNumber: boolean;
+        }[];
+        graphics: {
+            type: "polyline" | "rectangle" | "circle" | "arc" | "bezier" | "text";
+            text?: string | undefined;
+            points?: number[][] | undefined;
+            radius?: number | undefined;
+            fontSize?: number | undefined;
+            strokeWidth?: number | undefined;
+            fillType?: "none" | "background" | "outline" | undefined;
+            closed?: boolean | undefined;
+        }[];
+    }[];
+}, {
+    id: string;
+    units: {
+        unit: number;
+        bodyStyle: number;
+        pins: {
+            number: string;
+            name: string;
+            electricalType: string;
+            shape: string;
+            point: number[];
+            bodyPoint: number[];
+            showName: boolean;
+            showNumber: boolean;
+        }[];
+        graphics: {
+            type: "polyline" | "rectangle" | "circle" | "arc" | "bezier" | "text";
+            text?: string | undefined;
+            points?: number[][] | undefined;
+            radius?: number | undefined;
+            fontSize?: number | undefined;
+            strokeWidth?: number | undefined;
+            fillType?: "none" | "background" | "outline" | undefined;
+            closed?: boolean | undefined;
+        }[];
+    }[];
+}>;
+/**
  * Returns educational guidance that separates visible evidence from inference. Optional edit proposals are validated CircuitSpecs and never applied automatically.
  * @summary Ask for an explanation of a circuit or image
  */

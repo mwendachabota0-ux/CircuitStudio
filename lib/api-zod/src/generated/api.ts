@@ -180,6 +180,74 @@ export const SearchCircuitSymbolsResponse = zod.object({
 
 
 /**
+ * @summary Get source geometry for a KiCad symbol preview
+ */
+export const getCircuitSymbolDataQuerySymbolIdMin = 3;
+export const getCircuitSymbolDataQuerySymbolIdMax = 160;
+
+
+export const getCircuitSymbolDataQuerySymbolIdRegExp = new RegExp('^[^:\\s]+:[^:\\s]+$');
+
+
+export const GetCircuitSymbolDataQueryParams = zod.object({
+  "symbolId": zod.coerce.string().min(getCircuitSymbolDataQuerySymbolIdMin).max(getCircuitSymbolDataQuerySymbolIdMax).regex(getCircuitSymbolDataQuerySymbolIdRegExp)
+})
+
+
+
+export const getCircuitSymbolDataResponseUnitsItemPinsItemPointMin = 2;
+export const getCircuitSymbolDataResponseUnitsItemPinsItemPointMax = 2;
+
+export const getCircuitSymbolDataResponseUnitsItemPinsItemBodyPointMin = 2;
+export const getCircuitSymbolDataResponseUnitsItemPinsItemBodyPointMax = 2;
+
+export const getCircuitSymbolDataResponseUnitsItemPinsMax = 512;
+
+export const getCircuitSymbolDataResponseUnitsItemGraphicsItemPointsItemMin = 2;
+export const getCircuitSymbolDataResponseUnitsItemGraphicsItemPointsItemMax = 2;
+
+export const getCircuitSymbolDataResponseUnitsItemGraphicsItemRadiusMin = 0;
+
+export const getCircuitSymbolDataResponseUnitsItemGraphicsItemFontSizeMin = 0;
+
+export const getCircuitSymbolDataResponseUnitsItemGraphicsItemStrokeWidthMin = 0;
+
+export const getCircuitSymbolDataResponseUnitsItemGraphicsMax = 2048;
+
+export const getCircuitSymbolDataResponseUnitsMax = 256;
+
+
+
+export const GetCircuitSymbolDataResponse = zod.object({
+  "id": zod.string(),
+  "units": zod.array(zod.object({
+  "unit": zod.number().int().min(1),
+  "bodyStyle": zod.number().int().min(1),
+  "pins": zod.array(zod.object({
+  "number": zod.string(),
+  "name": zod.string(),
+  "electricalType": zod.string(),
+  "shape": zod.string(),
+  "point": zod.array(zod.number()).min(getCircuitSymbolDataResponseUnitsItemPinsItemPointMin).max(getCircuitSymbolDataResponseUnitsItemPinsItemPointMax),
+  "bodyPoint": zod.array(zod.number()).min(getCircuitSymbolDataResponseUnitsItemPinsItemBodyPointMin).max(getCircuitSymbolDataResponseUnitsItemPinsItemBodyPointMax),
+  "showName": zod.boolean(),
+  "showNumber": zod.boolean()
+})).max(getCircuitSymbolDataResponseUnitsItemPinsMax),
+  "graphics": zod.array(zod.object({
+  "type": zod.enum(['polyline', 'rectangle', 'circle', 'arc', 'bezier', 'text']),
+  "points": zod.array(zod.array(zod.number()).min(getCircuitSymbolDataResponseUnitsItemGraphicsItemPointsItemMin).max(getCircuitSymbolDataResponseUnitsItemGraphicsItemPointsItemMax)).optional(),
+  "radius": zod.number().min(getCircuitSymbolDataResponseUnitsItemGraphicsItemRadiusMin).optional(),
+  "text": zod.string().optional(),
+  "fontSize": zod.number().min(getCircuitSymbolDataResponseUnitsItemGraphicsItemFontSizeMin).optional(),
+  "strokeWidth": zod.number().min(getCircuitSymbolDataResponseUnitsItemGraphicsItemStrokeWidthMin).optional(),
+  "fillType": zod.enum(['none', 'background', 'outline']).optional(),
+  "closed": zod.boolean().optional()
+})).max(getCircuitSymbolDataResponseUnitsItemGraphicsMax)
+})).min(1).max(getCircuitSymbolDataResponseUnitsMax)
+})
+
+
+/**
  * Returns educational guidance that separates visible evidence from inference. Optional edit proposals are validated CircuitSpecs and never applied automatically.
  * @summary Ask for an explanation of a circuit or image
  */

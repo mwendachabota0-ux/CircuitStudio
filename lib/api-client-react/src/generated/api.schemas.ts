@@ -648,3 +648,12 @@ library?: string;
 limit?: number;
 };
 
+export type GetCircuitSymbolDataParams = {
+/**
+ * @minLength 3
+ * @maxLength 160
+ * @pattern ^[^:\s]+:[^:\s]+$
+ */
+symbolId: string;
+};
+

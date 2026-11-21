@@ -53687,6 +53687,51 @@ var SearchCircuitSymbolsResponse = objectType({
     "extends": stringType().optional()
   }))
 });
+var getCircuitSymbolDataQuerySymbolIdMin = 3;
+var getCircuitSymbolDataQuerySymbolIdMax = 160;
+var getCircuitSymbolDataQuerySymbolIdRegExp = new RegExp("^[^:\\s]+:[^:\\s]+$");
+var GetCircuitSymbolDataQueryParams = objectType({
+  "symbolId": coerce.string().min(getCircuitSymbolDataQuerySymbolIdMin).max(getCircuitSymbolDataQuerySymbolIdMax).regex(getCircuitSymbolDataQuerySymbolIdRegExp)
+});
+var getCircuitSymbolDataResponseUnitsItemPinsItemPointMin = 2;
+var getCircuitSymbolDataResponseUnitsItemPinsItemPointMax = 2;
+var getCircuitSymbolDataResponseUnitsItemPinsItemBodyPointMin = 2;
+var getCircuitSymbolDataResponseUnitsItemPinsItemBodyPointMax = 2;
+var getCircuitSymbolDataResponseUnitsItemPinsMax = 512;
+var getCircuitSymbolDataResponseUnitsItemGraphicsItemPointsItemMin = 2;
+var getCircuitSymbolDataResponseUnitsItemGraphicsItemPointsItemMax = 2;
+var getCircuitSymbolDataResponseUnitsItemGraphicsItemRadiusMin = 0;
+var getCircuitSymbolDataResponseUnitsItemGraphicsItemFontSizeMin = 0;
+var getCircuitSymbolDataResponseUnitsItemGraphicsItemStrokeWidthMin = 0;
+var getCircuitSymbolDataResponseUnitsItemGraphicsMax = 2048;
+var getCircuitSymbolDataResponseUnitsMax = 256;
+var GetCircuitSymbolDataResponse = objectType({
+  "id": stringType(),
+  "units": arrayType(objectType({
+    "unit": numberType().int().min(1),
+    "bodyStyle": numberType().int().min(1),
+    "pins": arrayType(objectType({
+      "number": stringType(),
+      "name": stringType(),
+      "electricalType": stringType(),
+      "shape": stringType(),
+      "point": arrayType(numberType()).min(getCircuitSymbolDataResponseUnitsItemPinsItemPointMin).max(getCircuitSymbolDataResponseUnitsItemPinsItemPointMax),
+      "bodyPoint": arrayType(numberType()).min(getCircuitSymbolDataResponseUnitsItemPinsItemBodyPointMin).max(getCircuitSymbolDataResponseUnitsItemPinsItemBodyPointMax),
+      "showName": booleanType(),
+      "showNumber": booleanType()
+    })).max(getCircuitSymbolDataResponseUnitsItemPinsMax),
+    "graphics": arrayType(objectType({
+      "type": enumType(["polyline", "rectangle", "circle", "arc", "bezier", "text"]),
+      "points": arrayType(arrayType(numberType()).min(getCircuitSymbolDataResponseUnitsItemGraphicsItemPointsItemMin).max(getCircuitSymbolDataResponseUnitsItemGraphicsItemPointsItemMax)).optional(),
+      "radius": numberType().min(getCircuitSymbolDataResponseUnitsItemGraphicsItemRadiusMin).optional(),
+      "text": stringType().optional(),
+      "fontSize": numberType().min(getCircuitSymbolDataResponseUnitsItemGraphicsItemFontSizeMin).optional(),
+      "strokeWidth": numberType().min(getCircuitSymbolDataResponseUnitsItemGraphicsItemStrokeWidthMin).optional(),
+      "fillType": enumType(["none", "background", "outline"]).optional(),
+      "closed": booleanType().optional()
+    })).max(getCircuitSymbolDataResponseUnitsItemGraphicsMax)
+  })).min(1).max(getCircuitSymbolDataResponseUnitsMax)
+});
 var askCircuitTutorBodyQuestionMax = 3e3;
 var askCircuitTutorBodyImageDataBase64Max = 5592408;
 var askCircuitTutorBodyCurrentSpecElementsItemFromMin = 2;
@@ -77581,6 +77626,13 @@ var searchLimiter = rate_limit_default({
   legacyHeaders: false,
   message: { error: "Please wait before searching the symbol library again." }
 });
+var symbolDataLimiter = rate_limit_default({
+  windowMs: 6e4,
+  limit: 90,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { error: "Please wait before loading more symbol previews." }
+});
 router8.get(
   "/circuits/library/search",
   requireAuth7,
@@ -77602,6 +77654,29 @@ router8.get(
       );
       res.status(503).json({
         error: "The schematic symbol catalog is temporarily unavailable."
+      });
+    }
+  }
+);
+router8.get(
+  "/circuits/library/symbol-data",
+  requireAuth7,
+  symbolDataLimiter,
+  async (req, res) => {
+    const symbolId = typeof req.query.symbolId === "string" ? req.query.symbolId : "";
+    if (symbolId.length > 160 || !/^[^:\s]+:[^:\s]+$/.test(symbolId)) {
+      res.status(400).json({ error: "A valid KiCad symbol ID is required." });
+      return;
+    }
+    try {
+      res.json(await getKicadSymbolData(symbolId));
+    } catch (error40) {
+      req.log.warn(
+        { reason: error40 instanceof Error ? error40.name : "unknown" },
+        "KiCad symbol preview could not be loaded"
+      );
+      res.status(503).json({
+        error: "The KiCad symbol preview is temporarily unavailable."
       });
     }
   }

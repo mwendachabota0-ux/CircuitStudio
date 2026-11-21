@@ -566,4 +566,12 @@ export type SearchCircuitSymbolsParams = {
      */
     limit?: number;
 };
+export type GetCircuitSymbolDataParams = {
+    /**
+     * @minLength 3
+     * @maxLength 160
+     * @pattern ^[^:\s]+:[^:\s]+$
+     */
+    symbolId: string;
+};
 //# sourceMappingURL=api.schemas.d.ts.map

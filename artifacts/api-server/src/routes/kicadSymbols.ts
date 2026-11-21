@@ -1,7 +1,7 @@
 import { getAuth } from "@clerk/express";
 import rateLimit from "express-rate-limit";
 import { Router, type IRouter, type RequestHandler } from "express";
-import { searchKicadSymbols } from "../lib/kicadSymbols";
+import { getKicadSymbolData, searchKicadSymbols } from "../lib/kicadSymbols";
 
 const router: IRouter = Router();
 
@@ -19,6 +19,14 @@ const searchLimiter = rateLimit({
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: { error: "Please wait before searching the symbol library again." },
+});
+
+const symbolDataLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 90,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { error: "Please wait before loading more symbol previews." },
 });
 
 router.get(
@@ -48,6 +56,35 @@ router.get(
       );
       res.status(503).json({
         error: "The schematic symbol catalog is temporarily unavailable.",
+      });
+    }
+  },
+);
+
+router.get(
+  "/circuits/library/symbol-data",
+  requireAuth,
+  symbolDataLimiter,
+  async (req, res): Promise<void> => {
+    const symbolId =
+      typeof req.query.symbolId === "string" ? req.query.symbolId : "";
+    if (
+      symbolId.length > 160 ||
+      !/^[^:\s]+:[^:\s]+$/.test(symbolId)
+    ) {
+      res.status(400).json({ error: "A valid KiCad symbol ID is required." });
+      return;
+    }
+
+    try {
+      res.json(await getKicadSymbolData(symbolId));
+    } catch (error) {
+      req.log.warn(
+        { reason: error instanceof Error ? error.name : "unknown" },
+        "KiCad symbol preview could not be loaded",
+      );
+      res.status(503).json({
+        error: "The KiCad symbol preview is temporarily unavailable.",
       });
     }
   },

@@ -39,8 +39,19 @@ import { Redirect, Route, Switch, useLocation, Link, Router as WouterRouter } fr
 
 type ValidationReport = { errors: string[]; warnings: string[] };
 type CircuitSpec = ApiCircuitSpec;
+type CircuitDrawRenderOptions = {
+  allowStructuralErrors?: boolean;
+  padding?: number;
+  stroke?: string;
+  text?: string;
+  muted?: string;
+  background?: string | null;
+  font?: string;
+  lineWidth?: number;
+  dotRadius?: number;
+};
 type CircuitDrawApi = {
-  render: (spec: CircuitSpec, options?: { allowStructuralErrors?: boolean }) => string;
+  render: (spec: CircuitSpec, options?: CircuitDrawRenderOptions) => string;
   validate: (spec: CircuitSpec) => ValidationReport;
   autoFix: (spec: CircuitSpec) => { spec: CircuitSpec; changes: string[] };
   buildSheet: (spec: CircuitSpec) => string;

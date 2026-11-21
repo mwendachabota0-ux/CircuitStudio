@@ -43,7 +43,9 @@ import type {
   CircuitSymbolSearchResponse,
   ExternalCircuitFixReviewInput,
   ExternalCircuitFixReviewResponse,
+  GetCircuitSymbolDataParams,
   HealthStatus,
+  KicadSymbolData,
   SearchCircuitSymbolsParams,
   TutorRequest,
   TutorResponse
@@ -315,6 +317,90 @@ export function useSearchCircuitSymbols<TData = Awaited<ReturnType<typeof search
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getSearchCircuitSymbolsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetCircuitSymbolDataUrl = (params: GetCircuitSymbolDataParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/circuits/library/symbol-data?${stringifiedParams}` : `/api/circuits/library/symbol-data`
+}
+
+/**
+ * @summary Get source geometry for a KiCad symbol preview
+ */
+export const getCircuitSymbolData = async (params: GetCircuitSymbolDataParams, options?: Parameters<typeof customFetch>[1]): Promise<KicadSymbolData> => {
+
+  return customFetch<KicadSymbolData>(getGetCircuitSymbolDataUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCircuitSymbolDataQueryKey = (params?: GetCircuitSymbolDataParams,) => {
+    return [
+    `/api/circuits/library/symbol-data`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetCircuitSymbolDataQueryOptions = <TData = Awaited<ReturnType<typeof getCircuitSymbolData>>, TError = ErrorType<ApiError>>(params: GetCircuitSymbolDataParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCircuitSymbolData>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCircuitSymbolDataQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCircuitSymbolData>>> = ({ signal }) => getCircuitSymbolData(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCircuitSymbolData>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCircuitSymbolDataQueryResult = NonNullable<Awaited<ReturnType<typeof getCircuitSymbolData>>>
+export type GetCircuitSymbolDataQueryError = ErrorType<ApiError>
+
+
+/**
+ * @summary Get source geometry for a KiCad symbol preview
+ */
+
+export function useGetCircuitSymbolData<TData = Awaited<ReturnType<typeof getCircuitSymbolData>>, TError = ErrorType<ApiError>>(
+ params: GetCircuitSymbolDataParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCircuitSymbolData>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCircuitSymbolDataQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

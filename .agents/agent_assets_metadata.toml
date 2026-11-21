@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "dzWHCXAmZSVaivjpuTIP_"
+uri = "file://generated-artifacts/circuit-studio-symbol-catalog-for-research.txt"
+type = "text"
+title = "Circuit Studio Symbol Catalog & Research Prompt"
+description = "A complete tab-separated inventory of 50 Studio entries and 22,911 KiCad symbols, with current descriptions, AI context, and a research prompt specifying the exact follow-up files to produce."
+logical_id = "35701450-71c8-40f2-bffb-73a6de39b3f3"
+content_hash = "sha256:fe2d89900068822313d86e3f04496d5886f1961a1f2091b44a3f274723194735"
+size = 7207829
+mtime_ms = 1795268487172
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:ba529efc-9dbc-4004-b536-a3b5505a4c9c/35701450-71c8-40f2-bffb-73a6de39b3f3/08ce49bc-0542-4937-ab75-78579c5b8ff4"
+storage_version_token = "1795268519741614"
+content_type = "text/plain"

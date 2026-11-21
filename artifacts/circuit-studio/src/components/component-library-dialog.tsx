@@ -311,6 +311,7 @@ function ComponentLibraryCard({
         <button
           className="component-library-dialog__usage-toggle"
           type="button"
+          data-component-library-usage-trigger
           aria-label={`Read the function and use of ${entryName}`}
           aria-expanded={usageOpen}
           aria-controls={usagePanelId}
@@ -332,6 +333,7 @@ function ComponentLibraryCard({
         <button
           className="component-library-dialog__item-description"
           type="button"
+          data-component-library-usage-trigger
           title={entryUsage}
           aria-label={`Read the function and use of ${entryName}`}
           aria-expanded={usageOpen}
@@ -416,6 +418,27 @@ export function ComponentLibraryDialog({
   const [kicadPageIndex, setKicadPageIndex] = useState(-1);
   const [openUsageId, setOpenUsageId] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!openUsageId) return;
+
+    const dismissOnOutsidePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+
+      const panel = document.getElementById(getUsagePanelId(openUsageId));
+      const clickedTrigger =
+        target instanceof Element &&
+        target.closest('[data-component-library-usage-trigger]');
+
+      if (panel?.contains(target) || clickedTrigger) return;
+      setOpenUsageId(null);
+    };
+
+    document.addEventListener('pointerdown', dismissOnOutsidePointerDown);
+    return () =>
+      document.removeEventListener('pointerdown', dismissOnOutsidePointerDown);
+  }, [openUsageId]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), 250);

@@ -616,6 +616,7 @@
 
 .builder-chat__brief-heading {
   display: flex;
+  flex: none;
   align-items: flex-start;
   justify-content: space-between;
   gap: 7px;

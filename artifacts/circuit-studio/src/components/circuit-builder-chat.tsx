@@ -1910,13 +1910,13 @@ export function CircuitBuilderChat({
         </div>
 
         <aside className="builder-chat__brief" aria-label="Design brief" data-testid="panel-builder-brief">
+          <div className="builder-chat__brief-heading">
+            <div><p className="builder-chat__eyebrow">Working notes</p><h3>Design brief</h3></div>
+            {briefEditing
+              ? <button className="builder-chat__text-link" type="button" onClick={() => setBriefEditing(false)} data-testid="button-cancel-edit-brief">Cancel</button>
+              : <button className="builder-chat__text-link" type="button" onClick={editBrief} data-testid="button-edit-brief">{hasBrief ? 'Edit' : 'Add notes'}</button>}
+          </div>
           <div className="builder-chat__brief-scroll" data-testid="scroll-builder-brief">
-            <div className="builder-chat__brief-heading">
-              <div><p className="builder-chat__eyebrow">Working notes</p><h3>Design brief</h3></div>
-              {briefEditing
-                ? <button className="builder-chat__text-link" type="button" onClick={() => setBriefEditing(false)} data-testid="button-cancel-edit-brief">Cancel</button>
-                : <button className="builder-chat__text-link" type="button" onClick={editBrief} data-testid="button-edit-brief">{hasBrief ? 'Edit' : 'Add notes'}</button>}
-            </div>
             <p className="builder-chat__brief-help">This is the circuit’s running brief: its goal, requirements, assumptions, and unanswered questions. The AI uses it to stay on track; saved edits are preserved while it adds new details.</p>
             {briefEditing ? (
               <div className="builder-chat__brief-editor">

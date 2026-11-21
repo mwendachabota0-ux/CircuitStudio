@@ -2185,13 +2185,6 @@ export function CircuitBuilderChat({
                   )}
                 </div>
               </div>
-              {retryRecoveryKind && (
-                <p className="builder-chat__fresh-retry-note" role="note">
-                  {retryRecoveryKind === 'rewire'
-                    ? `Three automatic repairs still left wiring errors. This replaces the failed wires and routing markers while keeping the same parts and layout. Your workbench stays unchanged until you apply the proposal.`
-                    : `Three automatic repairs still left component or specification errors. This creates a new proposal from your original request. Your workbench stays unchanged until you apply the proposal.`}
-                </p>
-              )}
               {!!retryFeedback.validationFindings?.length && (
                 <section className="builder-chat__validation-findings" aria-label="Blocking validation errors" data-testid="list-builder-validation-findings">
                   <strong>{retryFeedback.validationFindings.length} blocking validation error{retryFeedback.validationFindings.length === 1 ? '' : 's'}</strong>

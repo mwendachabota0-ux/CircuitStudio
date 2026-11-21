@@ -376,12 +376,6 @@
 }
 .builder-chat__fresh-retry:hover:not(:disabled) { color: #523520; }
 .builder-chat__fresh-retry:disabled { cursor: not-allowed; opacity: .55; }
-.builder-chat__fresh-retry-note {
-  margin: -3px 12px 9px;
-  color: #766351;
-  font-size: 9px;
-  line-height: 1.45;
-}
 .builder-chat__validation-findings,
 .builder-chat__rejected {
   margin: 0 12px 9px;

@@ -1,0 +1,33 @@
+{
+  "title": "FM Transmitter with Microphone — compatible schematic",
+  "width": 680,
+  "height": 490,
+  "elements": [
+    { "type": "terminal", "id": "V1", "label": "+9V", "at": [80, 50], "labelPos": "above" },
+    { "type": "ground", "id": "GND1", "at": [350, 440] },
+    { "type": "terminal", "id": "IN1", "label": "Audio input", "at": [60, 280], "labelPos": "left" },
+    { "type": "antenna", "id": "ANT1", "label": "ANT1", "value": "Antenna", "at": [550, 150] },
+    { "type": "wire", "id": "W_TOP", "points": [[80, 50], [450, 50], [450, 70]] },
+    { "type": "wire", "id": "W_GND", "points": [[100, 440], [350, 440], [600, 440]] },
+    { "type": "resistor", "id": "R1", "value": "10kΩ", "from": [180, 50], "to": [180, 140] },
+    { "type": "wire", "id": "W_BASE_BIAS", "points": [[180, 140], [180, 200], [250, 200], [250, 250], [325, 250]] },
+    { "type": "mic", "id": "MK1", "value": "Electret microphone", "from": [100, 280], "to": [100, 360] },
+    { "type": "wire", "id": "W_AUDIO_IN", "points": [[60, 280], [100, 280]] },
+    { "type": "wire", "id": "W_MIC_RETURN", "points": [[100, 360], [100, 440]] },
+    { "type": "capacitor", "id": "C1", "value": "1µF", "from": [140, 280], "to": [240, 280] },
+    { "type": "wire", "id": "W_MIC_CAP", "points": [[100, 280], [140, 280]] },
+    { "type": "wire", "id": "W_CAP_BASE", "points": [[240, 280], [300, 280], [300, 250], [325, 250]] },
+    { "type": "npn", "id": "Q1", "value": "2N2222", "at": [350, 250] },
+    { "type": "resistor", "id": "R2", "value": "330Ω", "from": [375, 330], "to": [375, 400] },
+    { "type": "wire", "id": "W_EMITTER", "points": [[375, 294], [375, 330]] },
+    { "type": "wire", "id": "W_EMITTER_GND", "points": [[375, 400], [375, 440], [350, 440]] },
+    { "type": "inductor", "id": "L1", "value": "4 turns", "from": [450, 70], "to": [450, 150] },
+    { "type": "wire", "id": "W_COLLECTOR", "points": [[375, 206], [450, 206], [450, 150]] },
+    { "type": "wire", "id": "W_ANT", "points": [[450, 150], [550, 150]] },
+    { "type": "electrolytic", "id": "C2", "value": "10µF", "from": [450, 206], "to": [450, 276] },
+    { "type": "wire", "id": "W_FEEDBACK", "points": [[450, 276], [400, 276], [400, 250], [325, 250]] },
+    { "type": "capacitor", "id": "C3", "value": "10nF", "from": [600, 100], "to": [600, 400] },
+    { "type": "wire", "id": "W_BYPASS_TOP", "points": [[450, 50], [600, 50], [600, 100]] },
+    { "type": "wire", "id": "W_BYPASS_GND", "points": [[600, 400], [600, 440]] }
+  ]
+}

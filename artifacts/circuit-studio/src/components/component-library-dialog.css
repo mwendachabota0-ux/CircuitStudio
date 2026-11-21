@@ -1058,3 +1058,55 @@
     transition: none;
   }
 }
+
+.component-library-dialog__grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.component-library-dialog__item {
+  min-height: 154px;
+  grid-template-columns: minmax(0, 1fr) minmax(82px, 40%);
+  gap: 10px;
+  padding: 10px;
+}
+
+.component-library-dialog__symbol {
+  min-height: 0;
+  height: 100%;
+  align-self: stretch;
+  padding: 6px;
+}
+
+.component-library-dialog__symbol-content {
+  min-height: 0;
+  height: 100%;
+}
+
+.component-library-dialog__symbol-svg {
+  min-height: 0;
+  height: 100%;
+}
+
+.component-library-dialog__symbol-svg svg {
+  max-height: 100%;
+}
+
+@media (max-width: 900px) {
+  .component-library-dialog__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .component-library-dialog__item {
+    grid-template-columns: minmax(0, 1fr) minmax(112px, 36%);
+  }
+}
+
+@media (max-width: 620px) {
+  .component-library-dialog__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .component-library-dialog__item {
+    grid-template-columns: minmax(0, 1fr) minmax(92px, 30%);
+  }
+}

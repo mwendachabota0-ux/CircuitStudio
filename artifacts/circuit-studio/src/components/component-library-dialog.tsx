@@ -227,23 +227,6 @@ function ComponentLibraryCard({
       className="component-library-dialog__item"
       data-testid={`component-library-entry-${entryId}`}
     >
-      <div
-        className={`component-library-dialog__symbol${isAnnotation ? ' is-annotation' : ''}`}
-        role="img"
-        aria-label={`${entryName} schematic symbol`}
-        data-testid={`component-library-symbol-${entryId}`}
-      >
-        {isKicadEntry ? (
-          <KicadSymbolPreview
-            symbolId={entry.id}
-            name={entryName}
-            listRef={listRef}
-          />
-        ) : (
-          <CircuitSymbolPreview entry={entry} />
-        )}
-      </div>
-
       <div className="component-library-dialog__item-content">
         <div className="component-library-dialog__item-top">
           <div className="component-library-dialog__item-title">
@@ -294,6 +277,23 @@ function ComponentLibraryCard({
           Use symbol
           <ArrowUpRight aria-hidden="true" />
         </button>
+      </div>
+
+      <div
+        className={`component-library-dialog__symbol${isAnnotation ? ' is-annotation' : ''}`}
+        role="img"
+        aria-label={`${entryName} schematic symbol`}
+        data-testid={`component-library-symbol-${entryId}`}
+      >
+        {isKicadEntry ? (
+          <KicadSymbolPreview
+            symbolId={entry.id}
+            name={entryName}
+            listRef={listRef}
+          />
+        ) : (
+          <CircuitSymbolPreview entry={entry} />
+        )}
       </div>
     </li>
   );

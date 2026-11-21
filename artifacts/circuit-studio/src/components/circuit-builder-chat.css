@@ -451,7 +451,7 @@
 .builder-chat__external-fix-feedback li { margin: 2px 0; overflow-wrap: anywhere; }
 .builder-chat__external-fix-note { font-size: 9px; }
 .builder-chat__rejected pre {
-  max-height: 260px;
+  max-height: 220px;
   overflow: auto;
   margin: 8px 0 0;
   padding: 9px;

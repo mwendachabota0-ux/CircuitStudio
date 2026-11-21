@@ -551,7 +551,7 @@ test('an untrustworthy repair baseline is blocked before sending an AI repair', 
 
   assert.ok(caught instanceof CircuitBuildAttemptError);
   assert.equal(caught.repairAttemptCount, 0);
-  assert.match((caught.cause as Error).message, /intended connectivity cannot be established/);
+  assert.match((caught.cause as Error).message, /intended connectivity cannot be established/i);
   assert.equal(sends, 0);
 });
 

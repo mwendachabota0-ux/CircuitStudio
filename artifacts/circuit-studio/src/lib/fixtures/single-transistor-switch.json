@@ -17,7 +17,7 @@
     { "type": "wire", "id": "W_RESISTOR_BASE", "points": [[225, 250], [275, 250]] },
     { "type": "wire", "id": "W_BASE_PULLDOWN", "points": [[225, 250], [225, 300]] },
     { "type": "wire", "id": "W_PULLDOWN_RETURN", "points": [[225, 400], [225, 450]] },
-    { "type": "wire", "id": "W_SOURCE_RETURN", "points": [[100, 110], [30, 110], [30, 450], [225, 450]] },
+    { "type": "wire", "id": "W_SOURCE_RETURN", "points": [[100, 110], [30, 110], [30, 450], [325, 450]] },
     { "type": "junction", "id": "J_BASE", "x": 225, "y": 250 },
     { "type": "junction", "id": "J_RETURN", "x": 225, "y": 450 }
   ]

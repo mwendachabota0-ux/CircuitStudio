@@ -3,7 +3,7 @@ import { test } from "node:test";
 import {
   ChatWithCircuitBuilderBody,
   SyncCircuitBuilderHistoryBody,
-} from "@workspace/api-zod";
+} from "../../../../lib/api-zod/src/generated/api.ts";
 
 const longMessage = "Describe the circuit requirement in detail. ".repeat(500);
 const circuitSpec = {

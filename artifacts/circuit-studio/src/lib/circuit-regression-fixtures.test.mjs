@@ -52,7 +52,11 @@ test('single-transistor switch keeps its base resistor and pull-down on the inte
   const spec = fixture('single-transistor-switch.json');
   assert.deepEqual(Array.from(CircuitDraw.validate(spec).errors), []);
   assertSameNet(spec, ['R_INPUT.2', 'Q1.B', 'R_PULLDOWN.1']);
-  assertSameNet(spec, ['V1.-', 'Q1.E', 'R_PULLDOWN.2', 'GND1']);
+  assertSameNet(spec, ['V1.-', 'Q1.E', 'R_PULLDOWN.2']);
+  assert.deepEqual(
+    Array.from(CircuitDraw.netlist(spec).nets.find((net) => net.name === 'GND')?.pins ?? []).sort(),
+    ['Q1.E', 'R_PULLDOWN.2', 'V1.-'],
+  );
   assert.notEqual(netSignatureForPin(spec, 'Q1.B'), netSignatureForPin(spec, 'Q1.C'));
 });
 

@@ -7,3 +7,4 @@
 - [Circuit builder intent](circuit-studio-builder-intent.md) — save unfinished Chat sessions before a circuit is built; inferred intent still needs approval.
 - [Circuit Studio interface restraint](circuit-studio-copy.md) — keep copy concise and use cards only when they clarify actionable items.
 - [Circuit Studio symbol source](circuit-studio-symbol-source.md) — prefer verified KiCad symbols by default when drawing circuits.
+- [Native Node test imports](native-node-test-imports.md) — use explicit `.ts` generated-module imports when Node's strip-types runner cannot resolve extensionless package barrels.

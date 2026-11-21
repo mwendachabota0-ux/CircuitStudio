@@ -16,9 +16,21 @@ export type KicadSymbolIndexEntry = {
   library: string;
   name: string;
   description: string;
+  shortDescription: string;
+  longDescription: string;
   keywords: string;
+  researchStatus: "catalog_reference" | "corrected" | "needs_review";
   pinCount: number | null;
   extends?: string;
+};
+
+type KicadLibraryResourceEntry = {
+  catalogId: string;
+  shortDescription: string;
+  longDescription: string;
+  keywords: string[];
+  researchStatus: KicadSymbolIndexEntry["researchStatus"];
+  correctionNote: string;
 };
 
 export type KicadSymbolSearchResult = {
@@ -56,10 +68,21 @@ const SOURCE_INDEX_PATH = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../../data/kicad-symbol-index.json.gz",
 );
+const LIBRARY_RESOURCE_PATH = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "data/circuit-studio-library-resource.json.gz",
+);
+const SOURCE_LIBRARY_RESOURCE_PATH = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../../data/circuit-studio-library-resource.json.gz",
+);
 const MAX_SOURCE_BYTES = 1_500_000;
 const MAX_CACHED_SYMBOLS = 500;
 
 let indexPromise: Promise<KicadSymbolIndexEntry[]> | undefined;
+let libraryResourcePromise:
+  | Promise<Map<string, KicadLibraryResourceEntry>>
+  | undefined;
 const symbolCache = new Map<string, KicadSymbolData>();
 
 function normalized(value: string): string {
@@ -364,6 +387,8 @@ function getSearchScore(
     entry.name,
     entry.library,
     entry.description,
+    entry.shortDescription,
+    entry.longDescription,
     entry.keywords,
   ].map(normalizedSearchText);
   const searchableText = fields.join(" ");
@@ -380,15 +405,15 @@ function getSearchScore(
   }
   if (fields[1].startsWith(correctedQuery)) score += 1_500;
   if (fields[0].startsWith(correctedQuery)) score += 1_250;
-  if (correctedQuery && fields[4].includes(correctedQuery)) score += 1_000;
+  if (correctedQuery && fields[6].includes(correctedQuery)) score += 1_000;
 
   if (phraseAlternatives.some((alias) => searchableText.includes(normalizedSearchText(alias)))) {
     score += 1_000;
   }
   const searchableWords = searchableText.split(" ").filter(Boolean);
   const nameWords = fields.slice(0, 2).join(" ").split(" ").filter(Boolean);
-  const keywordWords = fields[4].split(" ").filter(Boolean);
-  const descriptionWords = fields[3].split(" ").filter(Boolean);
+  const keywordWords = fields[6].split(" ").filter(Boolean);
+  const descriptionWords = fields.slice(3, 6).join(" ").split(" ").filter(Boolean);
   let matchedTokens = 0;
   for (const token of queryTokens) {
     const alternatives = [token, ...(SEARCH_SYNONYMS[token] ?? [])]
@@ -537,11 +562,67 @@ function fallbackLibraryDescription(library: string): string {
     `${library.replace(/[_-]+/g, " ").replace(/\bIEEE\b/g, "").replace(/\s+/g, " ").trim()} symbol`;
 }
 
+async function getLibraryResource(): Promise<
+  Map<string, KicadLibraryResourceEntry>
+> {
+  libraryResourcePromise ??= readFile(LIBRARY_RESOURCE_PATH)
+    .catch((error: NodeJS.ErrnoException) => {
+      if (error.code !== "ENOENT") throw error;
+      return readFile(SOURCE_LIBRARY_RESOURCE_PATH);
+    })
+    .then((buffer) => {
+      const bundle = JSON.parse(gunzipSync(buffer).toString("utf8")) as {
+        schemaVersion?: unknown;
+        sourceVersion?: unknown;
+        entries?: unknown;
+      };
+      if (
+        bundle.schemaVersion !== 1 ||
+        bundle.sourceVersion !== `KiCad ${SOURCE_VERSION}` ||
+        !Array.isArray(bundle.entries)
+      ) {
+        throw new Error("The Circuit Studio library resource is invalid.");
+      }
+
+      const entries = bundle.entries as KicadLibraryResourceEntry[];
+      const byId = new Map<string, KicadLibraryResourceEntry>();
+      for (const entry of entries) {
+        if (
+          !entry ||
+          typeof entry.catalogId !== "string" ||
+          !entry.catalogId.includes(":") ||
+          typeof entry.shortDescription !== "string" ||
+          !entry.shortDescription.trim() ||
+          typeof entry.longDescription !== "string" ||
+          !entry.longDescription.trim() ||
+          !Array.isArray(entry.keywords) ||
+          entry.keywords.some((keyword) => typeof keyword !== "string") ||
+          !["catalog_reference", "corrected", "needs_review"].includes(
+            entry.researchStatus,
+          ) ||
+          byId.has(entry.catalogId)
+        ) {
+          throw new Error("The Circuit Studio library resource contains an invalid entry.");
+        }
+        byId.set(entry.catalogId, entry);
+      }
+      if (byId.size !== 22_911) {
+        throw new Error("The Circuit Studio library resource is incomplete.");
+      }
+      return byId;
+    })
+    .catch((error) => {
+      libraryResourcePromise = undefined;
+      throw error;
+    });
+  return libraryResourcePromise;
+}
+
 async function getIndex(): Promise<KicadSymbolIndexEntry[]> {
   indexPromise ??= readFile(INDEX_PATH).catch((error: NodeJS.ErrnoException) => {
     if (error.code !== "ENOENT") throw error;
     return readFile(SOURCE_INDEX_PATH);
-  }).then((buffer) => {
+  }).then(async (buffer) => {
     const parsed = JSON.parse(gunzipSync(buffer).toString("utf8")) as unknown;
     if (!Array.isArray(parsed)) throw new Error("The KiCad symbol index is invalid.");
     const entries = parsed.filter((entry): entry is KicadSymbolIndexEntry =>
@@ -569,7 +650,7 @@ async function getIndex(): Promise<KicadSymbolIndexEntry[]> {
       }
     }
 
-    return entries.map((entry) => {
+    const describedEntries = entries.map((entry) => {
       if (entry.description.trim()) return entry;
 
       const parent = entry.extends
@@ -589,6 +670,23 @@ async function getIndex(): Promise<KicadSymbolIndexEntry[]> {
         entry.keywords.trim() ||
         fallbackLibraryDescription(entry.library);
       return { ...entry, description };
+    });
+    const resourceById = await getLibraryResource();
+    if (describedEntries.length !== resourceById.size) {
+      throw new Error("The symbol index and its descriptions have different catalog sizes.");
+    }
+    return describedEntries.map((entry) => {
+      const resource = resourceById.get(entry.id);
+      if (!resource) {
+        throw new Error(`The library resource is missing ${entry.id}.`);
+      }
+      return {
+        ...entry,
+        shortDescription: resource.shortDescription,
+        longDescription: resource.longDescription,
+        keywords: resource.keywords.join(", "),
+        researchStatus: resource.researchStatus,
+      };
     });
   }).catch((error) => {
     indexPromise = undefined;
@@ -882,6 +980,10 @@ export function formatKicadSymbolPinGuide(
   }
   return [
     `${entry.id} — ${entry.description || entry.keywords || "KiCad library symbol"}`,
+    `Catalog detail: ${entry.longDescription}`,
+    entry.researchStatus === "needs_review"
+      ? "Description status: needs review; do not treat the proposed purpose as verified."
+      : "Description status: KiCad catalog reference; it is not a datasheet or electrical validation.",
     ...unitText,
   ].join("\n");
 }

@@ -182,7 +182,10 @@ export const SearchCircuitSymbolsResponse = zod.object({
   "library": zod.string(),
   "name": zod.string(),
   "description": zod.string(),
+  "shortDescription": zod.string(),
+  "longDescription": zod.string(),
   "keywords": zod.string(),
+  "researchStatus": zod.enum(['catalog_reference', 'corrected', 'needs_review']),
   "pinCount": zod.number().int().nullable(),
   "extends": zod.string().optional()
 }))

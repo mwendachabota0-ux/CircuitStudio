@@ -2,7 +2,10 @@ import {
   ChatWithCircuitBuilderBody,
   ChatWithCircuitBuilderResponse,
 } from "@workspace/api-zod";
-import { formatCircuitComponentGuide } from "@workspace/circuit-geometry";
+import {
+  formatCircuitComponentGuide,
+  formatRelevantCircuitComponentResearchContext,
+} from "@workspace/circuit-geometry";
 import type { GenerateContentResponse } from "@google/genai";
 import { getAuth } from "@clerk/express";
 import rateLimit from "express-rate-limit";
@@ -94,7 +97,7 @@ Safety and component support:
 - For unsupported symbols or missing verified IC/connector pinouts, explain the exact limitation without inventing symbols, pins, ratings, or part numbers. Suggest up to two concrete next prompts when a safe alternative exists. Suggested actions must be short, specific, and compatible with the user's goal; never suggest a way to recreate a rejected hazardous design.
 - If the user requests an IC but has not supplied a verified pinout, ask for the exact part and pinout before proposing that block. Generic pin blocks are drawing aids, not validation of the IC's actual pin mapping.
 - In Build mode, use the official KiCad library as the default source for schematic symbols. Prefer a supplied KiCad candidate whenever it matches a requested part instead of substituting a built-in approximation. Use type "kicad" with the exact symbolId and a valid unit/bodyStyle from its supplied definition. Use only listed pin numbers, names, and offsets; never invent a KiCad ID or pinout. The server attaches exact source drawings and pin geometry after generation. Do not return symbolData yourself. A library symbol is not confirmation of a physical part choice, rating, electrical correctness, or safety.
-- Each request includes relevant results discovered by searching the complete KiCad catalog. In Chat, use their descriptions and keywords to explain available component options and inform circuit-planning advice; do not claim a suitable symbol is unavailable without checking these results. In Build, prefer relevant catalog matches with an exact loaded pin guide, and use only pin data in those guides. Descriptions and keywords identify symbol purpose, not electrical ratings or verified circuit suitability.
+- Each request includes relevant results discovered by searching the complete KiCad catalog. In Chat, use their descriptions and keywords to explain available component options and inform circuit-planning advice; do not claim a suitable symbol is unavailable without checking these results. In Build, prefer relevant catalog matches with an exact loaded pin guide, and use only pin data in those guides. Descriptions and keywords identify symbol purpose, not electrical ratings or verified circuit suitability. If a symbol is marked needs_review, say its purpose is unverified and do not present it as a fact; prefer a catalog reference or ask for an authoritative part source.
 
 Use clear reference designators and unique wire IDs (W1, W2, ...). Connect every required pin exactly to a wire endpoint or another pin: all pins on supported discrete parts are required; a relay needs both coil pins, COM, and at least one of NC/NO, while the unused contact may remain open. Unused IC, connector, and KiCad symbol pins may remain unconnected. Keep wire segments horizontal or vertical, avoid zero-length segments and routes through two-terminal parts, and connect wire endpoints exactly to pins or other wire endpoints. Set open:true on a wire only when it is intentionally left disconnected. If a requested component has no supported equivalent, state the limitation instead of inventing a type or pin model.
 
@@ -232,6 +235,11 @@ router.post(
         ...brief.assumptions,
         ...history.map((message) => message.content),
       ].join(" ");
+      const studioComponentResearchContext =
+        formatRelevantCircuitComponentResearchContext([
+          buildContext,
+          JSON.stringify(currentSpec.elements.map((element) => element.type)),
+        ]);
       const relevantKicadSymbols = await findRelevantKicadSymbols([
         parsed.data.message,
         brief.goal,
@@ -304,15 +312,25 @@ router.post(
           .slice(0, 12)
           .map((entry) => {
             const details = [
-              entry.description,
+              entry.shortDescription || entry.description,
+              entry.longDescription,
               entry.keywords ? `keywords: ${entry.keywords}` : "",
               entry.pinCount === null ? "" : `indexed pins: ${entry.pinCount}`,
+              entry.researchStatus === "needs_review"
+                ? "NEEDS REVIEW: this purpose is unverified; do not state it as fact"
+                : "KiCad catalog reference; not electrical validation",
             ].filter(Boolean).join("; ");
             return `- ${entry.id} — ${details}`;
           });
         kicadDefinitions = [
           `Relevant results searched across the complete official KiCad catalog. Use these descriptions and keywords when discussing component choices. In Build mode, only place listed symbols that also have a verified pin guide below:\n${catalogMatches.join("\n")}`,
           kicadDefinitions,
+        ].filter(Boolean).join("\n\n");
+      }
+      if (studioComponentResearchContext) {
+        kicadDefinitions = [
+          kicadDefinitions,
+          studioComponentResearchContext,
         ].filter(Boolean).join("\n\n");
       }
     } catch (error) {

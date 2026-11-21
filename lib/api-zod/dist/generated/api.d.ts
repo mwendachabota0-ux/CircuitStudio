@@ -550,7 +550,10 @@ export declare const SearchCircuitSymbolsResponse: zod.ZodObject<{
         library: zod.ZodString;
         name: zod.ZodString;
         description: zod.ZodString;
+        shortDescription: zod.ZodString;
+        longDescription: zod.ZodString;
         keywords: zod.ZodString;
+        researchStatus: zod.ZodEnum<["catalog_reference", "corrected", "needs_review"]>;
         pinCount: zod.ZodNullable<zod.ZodNumber>;
         extends: zod.ZodOptional<zod.ZodString>;
     }, "strip", zod.ZodTypeAny, {
@@ -558,7 +561,10 @@ export declare const SearchCircuitSymbolsResponse: zod.ZodObject<{
         name: string;
         library: string;
         description: string;
+        shortDescription: string;
+        longDescription: string;
         keywords: string;
+        researchStatus: "catalog_reference" | "corrected" | "needs_review";
         pinCount: number | null;
         extends?: string | undefined;
     }, {
@@ -566,7 +572,10 @@ export declare const SearchCircuitSymbolsResponse: zod.ZodObject<{
         name: string;
         library: string;
         description: string;
+        shortDescription: string;
+        longDescription: string;
         keywords: string;
+        researchStatus: "catalog_reference" | "corrected" | "needs_review";
         pinCount: number | null;
         extends?: string | undefined;
     }>, "many">;
@@ -582,7 +591,10 @@ export declare const SearchCircuitSymbolsResponse: zod.ZodObject<{
         name: string;
         library: string;
         description: string;
+        shortDescription: string;
+        longDescription: string;
         keywords: string;
+        researchStatus: "catalog_reference" | "corrected" | "needs_review";
         pinCount: number | null;
         extends?: string | undefined;
     }[];
@@ -598,7 +610,10 @@ export declare const SearchCircuitSymbolsResponse: zod.ZodObject<{
         name: string;
         library: string;
         description: string;
+        shortDescription: string;
+        longDescription: string;
         keywords: string;
+        researchStatus: "catalog_reference" | "corrected" | "needs_review";
         pinCount: number | null;
         extends?: string | undefined;
     }[];

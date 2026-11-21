@@ -2,7 +2,10 @@ import { GenerateCircuitBody } from "@workspace/api-zod";
 import { getAuth } from "@clerk/express";
 import rateLimit from "express-rate-limit";
 import { Router, type IRouter, type RequestHandler } from "express";
-import { formatCircuitComponentGuide } from "@workspace/circuit-geometry";
+import {
+  formatCircuitComponentGuide,
+  formatRelevantCircuitComponentResearchContext,
+} from "@workspace/circuit-geometry";
 import { CircuitAiError, generateWithAccountUsage } from "../lib/circuitAi";
 import {
   CircuitSpecCompatibilityError,
@@ -53,7 +56,13 @@ router.post(
     }
 
     try {
-      const inputText = `${circuitSystemInstructions}\n\nCircuit request:\n${parsed.data.prompt}`;
+      const relevantComponentContext =
+        formatRelevantCircuitComponentResearchContext([parsed.data.prompt]);
+      const systemInstructions = [
+        circuitSystemInstructions,
+        relevantComponentContext,
+      ].filter(Boolean).join("\n\n");
+      const inputText = `${systemInstructions}\n\nCircuit request:\n${parsed.data.prompt}`;
       const response = await generateWithAccountUsage(
         userId!,
         { inputText, maxOutputTokens: 3072 },
@@ -62,7 +71,7 @@ router.post(
             model: "gemini-2.5-flash",
             contents: parsed.data.prompt,
             config: {
-              systemInstruction: circuitSystemInstructions,
+              systemInstruction: systemInstructions,
               responseMimeType: "application/json",
               maxOutputTokens: 3072,
               temperature: 0.2,

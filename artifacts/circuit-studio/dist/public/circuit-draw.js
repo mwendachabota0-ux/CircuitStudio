@@ -191,6 +191,68 @@
     });
   }
 
+  function kicadUnitOf(el) {
+    if (!el || !el.symbolData || !Array.isArray(el.symbolData.units)) return null;
+    var unitNumber = Number.isInteger(el.unit) ? el.unit : 1;
+    var bodyStyle = Number.isInteger(el.bodyStyle) ? el.bodyStyle : 1;
+    return el.symbolData.units.filter(function (unit) {
+      return unit && unit.unit === unitNumber && unit.bodyStyle === bodyStyle;
+    })[0] || null;
+  }
+
+  function transformKicadPoint(point, el) {
+    var flip = el.flip === true ? -1 : 1;
+    var rotation = Number(el.rotation || 0) * Math.PI / 180;
+    var x = point[0] * flip, y = point[1];
+    return [
+      el.at[0] + x * Math.cos(rotation) - y * Math.sin(rotation),
+      el.at[1] + x * Math.sin(rotation) + y * Math.cos(rotation)
+    ];
+  }
+
+  function kicadTransform(el) {
+    var rotation = Number(el.rotation || 0);
+    var flip = el.flip === true ? -1 : 1;
+    return 'translate(' + f(el.at[0]) + ' ' + f(el.at[1]) + ') rotate(' +
+      f(rotation) + ') scale(' + flip + ' 1)';
+  }
+
+  function trackKicadSymbol(el, track) {
+    var unit = kicadUnitOf(el);
+    if (!unit) return;
+    (unit.pins || []).forEach(function (pin) {
+      if (pin && isPt(pin.point)) {
+        var endpoint = transformKicadPoint(pin.point, el);
+        track(endpoint[0], endpoint[1]);
+      }
+      if (pin && isPt(pin.bodyPoint)) {
+        var bodyPoint = transformKicadPoint(pin.bodyPoint, el);
+        track(bodyPoint[0], bodyPoint[1]);
+      }
+    });
+    (unit.graphics || []).forEach(function (graphic) {
+      if (!graphic) return;
+      var points = Array.isArray(graphic.points) ? graphic.points : [];
+      points.forEach(function (point) {
+        if (!isPt(point)) return;
+        var world = transformKicadPoint(point, el);
+        track(world[0], world[1]);
+      });
+      if (graphic.type === 'circle' && points.length && isNum(graphic.radius)) {
+        var center = transformKicadPoint(points[0], el), radius = Math.abs(graphic.radius);
+        track(center[0] - radius, center[1] - radius);
+        track(center[0] + radius, center[1] + radius);
+      }
+      if (graphic.type === 'text' && points.length) {
+        var textPoint = transformKicadPoint(points[0], el);
+        var fontSize = isNum(graphic.fontSize) ? graphic.fontSize : 12;
+        var textWidth = String(graphic.text || '').length * fontSize * 0.6;
+        track(textPoint[0] - textWidth / 2, textPoint[1] - fontSize);
+        track(textPoint[0] + textWidth / 2, textPoint[1] + fontSize);
+      }
+    });
+  }
+
   function elementName(el, index) {
     var type = el && typeof el.type === 'string' ? el.type : 'element';
     var label = el && (el.id || el.label);
@@ -220,6 +282,12 @@
     return dot > 0.01 && dot < len2 - 0.01;
   }
 
+  function isAdvisoryUnconnectedPin(element, pinName) {
+    if (!element) return false;
+    if (element.type === 'ic' || element.type === 'connector' || element.type === 'kicad') return true;
+    return element.type === 'relay' && (pinName === 'NC' || pinName === 'NO');
+  }
+
   function analyse(spec) {
     var res = { errors: [], warnings: [], junctions: [], crossings: [], bbox: null, freeEnds: [] };
     var ends = {}, segs = [], allPins = [];
@@ -238,6 +306,18 @@
       track(p[0], p[1]);
     }
 
+    function pinHasConnection(pin) {
+      if (!pin) return false;
+      var pointKey = key(pin.point[0], pin.point[1]);
+      var node = ends[pointKey];
+      if (node && (node.wireOwners.length || node.pinOwners.some(function (owner) {
+        return owner !== pin.owner;
+      }))) return true;
+      return segs.some(function (segment) {
+        return onSegInterior(pin.point[0], pin.point[1], segment.a, segment.b);
+      });
+    }
+
     if (!spec || typeof spec !== 'object' || !Array.isArray(spec.elements)) {
       res.errors.push('The spec must be an object with an "elements" array.');
       return res;
@@ -254,6 +334,18 @@
       if (t === 'ic' || t === 'connector') {
         var pinSchemaError = CircuitGeometry.getCircuitElementSchemaError(el);
         if (pinSchemaError) { res.errors.push(id + ': ' + pinSchemaError); return; }
+      }
+      if (t === 'kicad') {
+        var kicadSchemaError = CircuitGeometry.getCircuitElementSchemaError(el);
+        if (kicadSchemaError) { res.errors.push(id + ': ' + kicadSchemaError); return; }
+        if (!el.symbolData) {
+          res.errors.push(id + ': the exact KiCad drawing and pin data have not been loaded. Rebuild the proposal with the selected library symbol.');
+          return;
+        }
+        if (!kicadUnitOf(el)) {
+          res.errors.push(id + ': the selected KiCad symbol unit and body style are not present in its imported data.');
+          return;
+        }
       }
 
       if (t === 'wire') {
@@ -311,8 +403,9 @@
       pinsOf(el).forEach(function (pin) {
         var owner = id + '.' + pin.n;
         addEnd(pin.p, owner, 'pin');
-        allPins.push({ owner: owner, point: pin.p });
+        allPins.push({ owner: owner, point: pin.p, element: el, name: pin.n });
       });
+      if (t === 'kicad') trackKicadSymbol(el, track);
       if (t === 'npn' || t === 'pnp') { track(el.at[0] - 44, el.at[1] - 44); track(el.at[0] + 44, el.at[1] + 80); }
       if (t === 'opamp') { track(el.at[0] - 40, el.at[1] - 70); track(el.at[0] + 40, el.at[1] + 40); }
       if (t === 'comparator') { track(el.at[0] - 48, el.at[1] - 50); track(el.at[0] + 48, el.at[1] + 50); }
@@ -392,9 +485,25 @@
             : ' Connect it to a supported component pin or another wire endpoint; set open:true only if it is intentionally left open.'));
           res.freeEnds.push({ point: point, kind: 'wire' });
         } else {
-          res.warnings.push(owner + ' at ' + location + ' is not connected to a wire.' + detail + ' If this pin should be connected, route a wire endpoint exactly to (' + f(e.x) + ',' + f(e.y) + '); otherwise leave it intentionally unused.');
+          var pin = allPins.filter(function (entry) { return entry.owner === owner; })[0];
+          var message = owner + ' at ' + location + ' is not connected to a wire.' + detail;
+          if (pin && !isAdvisoryUnconnectedPin(pin.element, pin.name)) {
+            res.errors.push(message + ' This required pin must be connected before the proposal can be applied.');
+          } else {
+            res.warnings.push(message + ' If this pin should be connected, route a wire endpoint exactly to (' + f(e.x) + ',' + f(e.y) + '); otherwise leave it intentionally unused.');
+          }
           res.freeEnds.push({ point: point, kind: 'pin' });
         }
+      }
+    });
+
+    spec.elements.forEach(function (el, i) {
+      if (!el || el.type !== 'relay') return;
+      var relayPins = allPins.filter(function (pin) { return pin.element === el; });
+      var nc = relayPins.filter(function (pin) { return pin.name === 'NC'; })[0];
+      var no = relayPins.filter(function (pin) { return pin.name === 'NO'; })[0];
+      if (!pinHasConnection(nc) && !pinHasConnection(no)) {
+        res.errors.push(elementName(el, i) + ' has neither NC nor NO contact connected. Connect at least one contact; the unused contact may remain open.');
       }
     });
 
@@ -847,6 +956,122 @@
     if (el.label) parts.text += textEl(x, y + height / 2 + 17, el.label, 'middle', 11, true, 'text');
   }
 
+  function kicadArcPath(points) {
+    var a = points[0], m = points[1], b = points[2];
+    var determinant = 2 * (a[0] * (m[1] - b[1]) + m[0] * (b[1] - a[1]) + b[0] * (a[1] - m[1]));
+    if (Math.abs(determinant) < 0.001) {
+      var controlX = 2 * m[0] - (a[0] + b[0]) / 2;
+      var controlY = 2 * m[1] - (a[1] + b[1]) / 2;
+      return 'M' + f(a[0]) + ' ' + f(a[1]) + ' Q' + f(controlX) + ' ' + f(controlY) + ' ' + f(b[0]) + ' ' + f(b[1]);
+    }
+    var aa = a[0] * a[0] + a[1] * a[1];
+    var mm = m[0] * m[0] + m[1] * m[1];
+    var bb = b[0] * b[0] + b[1] * b[1];
+    var centerX = (aa * (m[1] - b[1]) + mm * (b[1] - a[1]) + bb * (a[1] - m[1])) / determinant;
+    var centerY = (aa * (b[0] - m[0]) + mm * (a[0] - b[0]) + bb * (m[0] - a[0])) / determinant;
+    var radius = Math.sqrt(Math.pow(a[0] - centerX, 2) + Math.pow(a[1] - centerY, 2));
+    var tau = Math.PI * 2;
+    function angle(point) { return Math.atan2(point[1] - centerY, point[0] - centerX); }
+    function positiveAngle(value) { return (value % tau + tau) % tau; }
+    var start = angle(a), middle = angle(m), end = angle(b);
+    var clockwiseSpan = positiveAngle(end - start);
+    var middleClockwise = positiveAngle(middle - start);
+    var sweep = middleClockwise <= clockwiseSpan + 0.001 ? 1 : 0;
+    var span = sweep ? clockwiseSpan : positiveAngle(start - end);
+    return 'M' + f(a[0]) + ' ' + f(a[1]) + ' A' + f(radius) + ' ' + f(radius) + ' 0 ' +
+      (span > Math.PI ? 1 : 0) + ' ' + sweep + ' ' + f(b[0]) + ' ' + f(b[1]);
+  }
+
+  function drawKicadGraphic(graphic) {
+    var points = Array.isArray(graphic.points) ? graphic.points : [];
+    var fill = graphic.fillType === 'background' ? (T.background || '#fff') : 'none';
+    var width = isNum(graphic.strokeWidth) ? Math.max(0, graphic.strokeWidth) : T.lineWidth;
+    var style = ' stroke-width="' + f(width) + '" fill="' + esc(fill) + '"';
+    if (graphic.type === 'polyline' || graphic.type === 'bezier') {
+      if (points.length < 2) return '';
+      var path = '';
+      if (graphic.type === 'bezier' && points.length === 4) {
+        path = 'M' + f(points[0][0]) + ' ' + f(points[0][1]) +
+          ' C' + f(points[1][0]) + ' ' + f(points[1][1]) + ' ' +
+          f(points[2][0]) + ' ' + f(points[2][1]) + ' ' + f(points[3][0]) + ' ' + f(points[3][1]);
+      } else {
+        path = 'M' + f(points[0][0]) + ' ' + f(points[0][1]);
+        for (var p = 1; p < points.length; p++) path += ' L' + f(points[p][0]) + ' ' + f(points[p][1]);
+      }
+      if (graphic.closed) path += ' Z';
+      return '<path d="' + path + '"' + style + '/>';
+    }
+    if (graphic.type === 'rectangle' && points.length >= 2) {
+      var x = Math.min(points[0][0], points[1][0]), y = Math.min(points[0][1], points[1][1]);
+      return '<rect x="' + f(x) + '" y="' + f(y) + '" width="' + f(Math.abs(points[1][0] - points[0][0])) +
+        '" height="' + f(Math.abs(points[1][1] - points[0][1])) + '"' + style + '/>';
+    }
+    if (graphic.type === 'circle' && points.length && isNum(graphic.radius) && graphic.radius >= 0) {
+      return '<circle cx="' + f(points[0][0]) + '" cy="' + f(points[0][1]) + '" r="' +
+        f(graphic.radius) + '"' + style + '/>';
+    }
+    if (graphic.type === 'arc' && points.length >= 3) {
+      return '<path d="' + kicadArcPath(points) + '"' + style + '/>';
+    }
+    if (graphic.type === 'text' && points.length && typeof graphic.text === 'string') {
+      var size = isNum(graphic.fontSize) ? Math.max(1, graphic.fontSize) : 12;
+      return '<text x="' + f(points[0][0]) + '" y="' + f(points[0][1]) + '" text-anchor="middle"' +
+        ' dominant-baseline="middle" font-size="' + f(size) + '" fill="' + esc(T.text) +
+        '" stroke="none">' + esc(graphic.text) + '</text>';
+    }
+    return '';
+  }
+
+  function drawKicadPin(pin, el, parts) {
+    var point = pin.point, bodyPoint = pin.bodyPoint;
+    if (!isPt(point) || !isPt(bodyPoint)) return;
+    var dx = bodyPoint[0] - point[0], dy = bodyPoint[1] - point[1];
+    var length = Math.sqrt(dx * dx + dy * dy);
+    var ux = length > 0.001 ? dx / length : 1, uy = length > 0.001 ? dy / length : 0;
+    var worldPoint = transformKicadPoint(point, el);
+    var worldDirection = transformKicadPoint([point[0] + ux, point[1] + uy], el);
+    var worldUx = worldDirection[0] - worldPoint[0];
+    var marker = '';
+    if (length > 0.001) marker += ln(point[0], point[1], bodyPoint[0], bodyPoint[1]);
+    var shape = typeof pin.shape === 'string' ? pin.shape : '';
+    if (/inverted/.test(shape)) {
+      marker += '<circle cx="' + f(bodyPoint[0]) + '" cy="' + f(bodyPoint[1]) +
+        '" r="4" fill="' + esc(T.background || '#fff') + '"/>';
+    }
+    if (/clock/.test(shape)) {
+      var tipX = bodyPoint[0] + ux * 8, tipY = bodyPoint[1] + uy * 8;
+      var baseX = bodyPoint[0] - ux * 3, baseY = bodyPoint[1] - uy * 3;
+      var perpendicularX = -uy * 5, perpendicularY = ux * 5;
+      marker += '<path d="M' + f(tipX) + ' ' + f(tipY) + ' L' + f(baseX + perpendicularX) + ' ' +
+        f(baseY + perpendicularY) + ' L' + f(baseX - perpendicularX) + ' ' +
+        f(baseY - perpendicularY) + ' Z" fill="' + esc(T.background || '#fff') + '"/>';
+    }
+    if (marker) parts.comp += '<g transform="' + kicadTransform(el) + '">' + marker + '</g>';
+
+    var anchor = worldUx > 0.25 ? 'start' : worldUx < -0.25 ? 'end' : 'middle';
+    if (pin.showNumber && pin.number) {
+      var numberPoint = transformKicadPoint([point[0] - ux * 8, point[1] - uy * 8], el);
+      parts.text += textEl(numberPoint[0], numberPoint[1] + 3, pin.number, anchor === 'start' ? 'end' : anchor === 'end' ? 'start' : 'middle', 8, false, 'muted');
+    }
+    if (pin.showName && pin.name) {
+      var namePoint = transformKicadPoint([bodyPoint[0] + ux * 5, bodyPoint[1] + uy * 5], el);
+      parts.text += textEl(namePoint[0], namePoint[1] + 3, pin.name, anchor, 9, false, 'text');
+    }
+  }
+
+  function drawKicadSymbol(el, parts) {
+    var unit = kicadUnitOf(el);
+    if (!unit) return;
+    var drawing = (unit.graphics || []).map(drawKicadGraphic).join('');
+    parts.comp += '<g transform="' + kicadTransform(el) + '">' + drawing + '</g>';
+    (unit.pins || []).forEach(function (pin) { drawKicadPin(pin, el, parts); });
+
+    var lines = linesOf(el);
+    if (!lines.length) return;
+    if (el.labelAt) { parts.text += placeAt(lines, el); return; }
+    parts.text += placeLabel(lines, el.at[0], el.at[1], el.labelPos || 'above', 8, el.labelNudge);
+  }
+
   function drawWireCrossing(el, parts) {
     var x = el.at[0], y = el.at[1], orientation = el.orientation || 'horizontal';
     var mask = T.background || '#fff';
@@ -897,7 +1122,9 @@
 
   function render(spec, opts) {
     var a = analyse(spec);
-    if (a.errors.length) throw new Error('Invalid circuit spec:\n- ' + a.errors.join('\n- '));
+    if (a.errors.length && !(opts && opts.allowStructuralErrors === true)) {
+      throw new Error('Invalid circuit spec:\n- ' + a.errors.join('\n- '));
+    }
 
     T = {};
     [DEFAULT_THEME, spec.theme || {}, opts || {}].forEach(function (src) { for (var k in src) T[k] = src[k]; });
@@ -920,6 +1147,7 @@
         var lsz = el.size || 14;
         parts.text += textEl(el.at[0], el.at[1], el.text, el.anchor || 'start', lsz, el.bold !== undefined ? !!el.bold : lsz >= 14, el.muted ? 'muted' : 'text');
       } else if (t === 'crossing') { drawWireCrossing(el, parts);
+      } else if (t === 'kicad') { drawKicadSymbol(el, parts);
       } else if (TWO[t]) { drawTwo(el, parts);
       } else if (t === 'npn' || t === 'pnp') { drawTransistor(el, parts);
       } else if (t === 'nmos' || t === 'pmos' || t === 'mosfet' || t === 'njfet' || t === 'pjfet') { drawFieldEffectTransistor(el, parts);
@@ -974,7 +1202,8 @@
     pmos: 'P-channel MOSFET', mosfet: 'MOSFET', njfet: 'N-channel JFET', pjfet: 'P-channel JFET',
     potentiometer: 'Potentiometer', regulator: 'Voltage regulator', comparator: 'Comparator',
     transformer: 'Transformer', relay: 'Relay', bridge: 'Bridge rectifier', opto: 'Optocoupler',
-    ic: 'Integrated circuit', connector: 'Connector', opamp: 'Op-amp', antenna: 'Antenna (a plain wire)' };
+    ic: 'Integrated circuit', connector: 'Connector', kicad: 'KiCad library symbol',
+    opamp: 'Op-amp', antenna: 'Antenna (a plain wire)' };
 
   function netlist(spec, allowStructuralErrors) {
     var rep = analyse(spec);
@@ -998,7 +1227,12 @@
           var pn = pin.n === 'at' ? String(idx + 1) : pin.n;
           pins.push({ el: el, des: des, pin: pn, p: pin.p });
         });
-        if (isPart) parts.push({ des: des, type: NICE[el.type], value: el.value || '', el: el });
+        if (isPart) parts.push({
+          des: des,
+          type: el.type === 'kicad' ? (el.symbolId || NICE[el.type]) : NICE[el.type],
+          value: el.value || '',
+          el: el
+        });
       }
     });
 
@@ -1055,7 +1289,7 @@
     nl.parts.forEach(function (x) { out.push('| ' + x.designator + ' | ' + x.type + ' | ' + (x.value || '-') + ' |'); });
     out.push('', '## Nets (everything on one line is joined together)', '');
     nl.nets.forEach(function (nt) { out.push('- ' + nt.name + ': ' + nt.pins.join(', ')); });
-    out.push('', 'Pin names: two-terminal parts use the names in their symbol reference. Diode-family parts: A = anode, K = cathode. Battery and polarized source: + and -. BJT: B, C, E. FET: G, D, S. Potentiometer: A, W, B. Op-amp/comparator: INV, NONINV, OUT. IC and connector pin names follow the declared pin list.');
+    out.push('', 'Pin names: two-terminal parts use the names in their symbol reference. Diode-family parts: A = anode, K = cathode. Battery and polarized source: + and -. BJT: B, C, E. FET: G, D, S. Potentiometer: A, W, B. Op-amp/comparator: INV, NONINV, OUT. IC and connector pin names follow the declared pin list. KiCad library symbols use the exact pin numbers from the selected library symbol; this netlist is a drafting aid, not an electrical simulation.');
     return out.join('\n');
   }
 

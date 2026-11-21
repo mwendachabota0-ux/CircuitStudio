@@ -53691,7 +53691,10 @@ var SearchCircuitSymbolsResponse = objectType({
     "library": stringType(),
     "name": stringType(),
     "description": stringType(),
+    "shortDescription": stringType(),
+    "longDescription": stringType(),
     "keywords": stringType(),
+    "researchStatus": enumType(["catalog_reference", "corrected", "needs_review"]),
     "pinCount": numberType().int().nullable(),
     "extends": stringType().optional()
   }))
@@ -56059,6 +56062,582 @@ var DAY = 24 * HOUR;
 // src/routes/circuits.ts
 var import_express2 = __toESM(require_express2(), 1);
 
+// ../../lib/circuit-geometry/src/generatedStudioLibraryResource.js
+var STUDIO_LIBRARY_RESEARCH = {
+  "resistor": {
+    "shortDescription": "Limits current, sets voltage dividers, and provides bias or pull-up/down paths.",
+    "longDescription": "Circuit Studio built-in resistor schematic symbol (2-pin) from the Passives category. Rendered and structurally validated. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "resistor",
+      "current limiter",
+      "pull-up",
+      "pull-down",
+      "voltage divider"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "capacitor": {
+    "shortDescription": "Stores charge and is commonly used for filtering, decoupling, signal coupling, and timing.",
+    "longDescription": "Circuit Studio built-in capacitor schematic symbol (2-pin) from the Passives category. Rendered and structurally validated; electrical behavior is not simulated. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "capacitor",
+      "decoupling",
+      "bypass",
+      "coupling",
+      "filtering"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "electrolytic": {
+    "shortDescription": "Polarized capacitor; + and \u2212 follow pin order.",
+    "longDescription": "Circuit Studio built-in electrolytic capacitor schematic symbol (2-pin) from the Passives category. Rendered and structurally validated; electrical behavior is not simulated. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "electrolytic capacitor",
+      "electrolytic",
+      "polarized capacitor",
+      "smoothing",
+      "bulk cap"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "inductor": {
+    "shortDescription": "Coil for filtering, timing, or energy storage.",
+    "longDescription": "Circuit Studio built-in inductor schematic symbol (2-pin) from the Passives category. Rendered and structurally validated; electrical behavior is not simulated. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "inductor",
+      "coil",
+      "choke",
+      "energy storage"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "diode": {
+    "shortDescription": "Allows current mainly in one direction for rectification, reverse-polarity protection, and signal clamping.",
+    "longDescription": "Circuit Studio built-in diode schematic symbol (2-pin) from the Semiconductors category. Rendered and structurally validated; electrical behavior is not simulated. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "diode",
+      "rectifier",
+      "anode",
+      "cathode",
+      "clamping"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "zener": {
+    "shortDescription": "Reverse-breakdown diode symbol.",
+    "longDescription": "Circuit Studio built-in zener diode schematic symbol (2-pin) from the Semiconductors category. Rendered and structurally validated; electrical behavior is not simulated. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "zener diode",
+      "zener",
+      "breakdown diode",
+      "voltage reference",
+      "clamp"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "led": {
+    "shortDescription": "Converts forward current to light; use a series resistor to limit its current.",
+    "longDescription": "Circuit Studio built-in led schematic symbol (2-pin) from the Semiconductors category. Rendered and structurally validated; electrical behavior is not simulated. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "led",
+      "light emitting diode",
+      "indicator"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "battery": {
+    "shortDescription": "DC battery or cell with positive and negative pins.",
+    "longDescription": "Circuit Studio built-in battery schematic symbol (2-pin) from the Power category. Rendered and structurally validated. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "battery",
+      "cell",
+      "dc source",
+      "power supply"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "switch": {
+    "shortDescription": "Two-terminal open or closed switch.",
+    "longDescription": "Circuit Studio built-in switch schematic symbol (2-pin) from the Control category. Rendered and structurally validated. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "switch",
+      "spst",
+      "open",
+      "closed",
+      "contact"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "mic": {
+    "shortDescription": "Two-terminal microphone symbol.",
+    "longDescription": "Circuit Studio built-in microphone schematic symbol (2-pin) from the Input / output category. Rendered and structurally validated. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "microphone",
+      "mic",
+      "audio input",
+      "transducer"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "speaker": {
+    "shortDescription": "Two-terminal loudspeaker.",
+    "longDescription": "Circuit Studio built-in speaker schematic symbol (2-pin) from the Input / output category. Rendered and structurally validated. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "speaker",
+      "loudspeaker",
+      "audio output",
+      "transducer"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "lamp": {
+    "shortDescription": "Two-terminal lamp or indicator.",
+    "longDescription": "Circuit Studio built-in lamp schematic symbol (2-pin) from the Input / output category. Rendered and structurally validated. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "lamp",
+      "indicator",
+      "light",
+      "bulb"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "acsource": {
+    "shortDescription": "Generic alternating-current source; ratings are not checked.",
+    "longDescription": "Circuit Studio built-in ac source schematic symbol (2-pin) from the Power category. Rendered and structurally validated. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "ac source",
+      "acsource",
+      "alternating current",
+      "signal source",
+      "generator"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "crystal": {
+    "shortDescription": "Two-terminal crystal resonator.",
+    "longDescription": "Circuit Studio built-in crystal schematic symbol (2-pin) from the Passives category. Rendered and structurally validated. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "crystal",
+      "resonator",
+      "oscillator",
+      "quartz"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "fuse": {
+    "shortDescription": "Inline fuse symbol; protection rating is not verified.",
+    "longDescription": "Circuit Studio built-in fuse schematic symbol (2-pin) from the Protection category. Rendered and structurally validated; fuse sizing is not checked. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "fuse",
+      "protection",
+      "overcurrent"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "thermistor": {
+    "shortDescription": "Temperature-dependent resistor symbol.",
+    "longDescription": "Circuit Studio built-in thermistor schematic symbol (2-pin) from the Passives category. Rendered and structurally validated; temperature response is not simulated. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "thermistor",
+      "ntc",
+      "ptc",
+      "temperature sensor"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "photoresistor": {
+    "shortDescription": "Light-dependent resistor symbol.",
+    "longDescription": "Circuit Studio built-in photoresistor schematic symbol (2-pin) from the Passives category. Rendered and structurally validated; light response is not simulated. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "photoresistor",
+      "ldr",
+      "light dependent resistor",
+      "photocell"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "varistor": {
+    "shortDescription": "Voltage-dependent resistor; surge rating is not checked.",
+    "longDescription": "Circuit Studio built-in varistor schematic symbol (2-pin) from the Protection category. Rendered and structurally validated; surge protection ratings are not checked. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "varistor",
+      "mov",
+      "surge protection",
+      "voltage dependent resistor"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "photodiode": {
+    "shortDescription": "Light-sensitive diode with anode and cathode.",
+    "longDescription": "Circuit Studio built-in photodiode schematic symbol (2-pin) from the Semiconductors category. Rendered and structurally validated; optical behavior is not simulated. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "photodiode",
+      "light sensor",
+      "optical detector"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "schottky": {
+    "shortDescription": "Schottky barrier diode symbol.",
+    "longDescription": "Circuit Studio built-in schottky diode schematic symbol (2-pin) from the Semiconductors category. Rendered and structurally validated; forward drop and current ratings are not checked. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "schottky diode",
+      "schottky",
+      "barrier diode",
+      "low forward drop",
+      "rectifier"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "dcsource": {
+    "shortDescription": "Generic DC voltage source with + and \u2212 pins.",
+    "longDescription": "Circuit Studio built-in dc voltage source schematic symbol (2-pin) from the Power category. Rendered and structurally validated; source limits are not simulated. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "dc voltage source",
+      "dcsource",
+      "dc supply",
+      "voltage source",
+      "power supply"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "currentsource": {
+    "shortDescription": "Generic current source; output limits are not simulated.",
+    "longDescription": "Circuit Studio built-in current source schematic symbol (2-pin) from the Power category. Rendered and structurally validated; source limits are not simulated. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "current source",
+      "currentsource",
+      "bias"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "motor": {
+    "shortDescription": "Two-terminal motor or inductive load.",
+    "longDescription": "Circuit Studio built-in dc motor schematic symbol (2-pin) from the Input / output category. Rendered and structurally validated; motor behavior is not simulated. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "dc motor",
+      "motor",
+      "electromechanical",
+      "actuator"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "buzzer": {
+    "shortDescription": "Two-terminal audible indicator.",
+    "longDescription": "Circuit Studio built-in buzzer schematic symbol (2-pin) from the Input / output category. Rendered and structurally validated; drive requirements are not checked. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "buzzer",
+      "sounder",
+      "audio indicator",
+      "piezo"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "solarcell": {
+    "shortDescription": "Light-powered DC source symbol.",
+    "longDescription": "Circuit Studio built-in solar cell schematic symbol (2-pin) from the Power category. Rendered and structurally validated; light response is not simulated. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "solar cell",
+      "solarcell",
+      "photovoltaic",
+      "pv cell",
+      "energy harvesting"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "npn": {
+    "shortDescription": "Uses a small base current to control a larger collector-emitter current, often as a switch or amplifier.",
+    "longDescription": "Circuit Studio built-in npn transistor schematic symbol (3-pin) from the Semiconductors category. Rendered and structurally validated; no general transistor electrical simulation. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "npn transistor",
+      "npn",
+      "bipolar transistor",
+      "bjt",
+      "amplifier",
+      "switch"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "pnp": {
+    "shortDescription": "Provides a controllable high-side switch or amplifier; verify the emitter, base, and collector connections.",
+    "longDescription": "Circuit Studio built-in pnp transistor schematic symbol (3-pin) from the Semiconductors category. Rendered and structurally validated; no general transistor electrical simulation. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "pnp transistor",
+      "pnp",
+      "bipolar transistor",
+      "bjt",
+      "amplifier",
+      "switch"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "opamp": {
+    "shortDescription": "Generic three-pin amplifier symbol; supply pins are not modeled.",
+    "longDescription": "Circuit Studio built-in op-amp schematic symbol (3-pin) from the Semiconductors category. Rendered and structurally validated; no amplifier electrical simulation. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "op-amp",
+      "opamp",
+      "operational amplifier",
+      "comparator circuit",
+      "analog"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "ground": {
+    "shortDescription": "Single-pin ground reference.",
+    "longDescription": "Circuit Studio built-in ground schematic symbol (1-pin) from the Power category. Rendered and structurally validated. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "ground",
+      "gnd",
+      "earth",
+      "reference node",
+      "0v"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "antenna": {
+    "shortDescription": "Single-pin antenna connection.",
+    "longDescription": "Circuit Studio built-in antenna schematic symbol (1-pin) from the Input / output category. Rendered and structurally validated. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "antenna",
+      "aerial",
+      "rf",
+      "wireless"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "terminal": {
+    "shortDescription": "Named single-pin net or test point.",
+    "longDescription": "Circuit Studio built-in terminal schematic symbol (1-pin) from the Connectors category. Rendered and structurally validated. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "terminal",
+      "connector pin",
+      "test point",
+      "binding post"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "potentiometer": {
+    "shortDescription": "Three-pin adjustable resistor with A, W, and B pins.",
+    "longDescription": "Circuit Studio built-in potentiometer schematic symbol (3-pin) from the Passives category. Rendered and structurally validated; resistance and wiper position are not simulated. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "potentiometer",
+      "variable resistor",
+      "trimpot",
+      "divider"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "nmos": {
+    "shortDescription": "Uses gate voltage to control current between drain and source, commonly as a low-side switch.",
+    "longDescription": "Circuit Studio built-in n-channel mosfet schematic symbol (3-pin) from the Semiconductors category. Rendered and structurally validated; MOSFET behavior is not simulated. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "n-channel mosfet",
+      "nmos",
+      "mosfet",
+      "n-channel",
+      "transistor",
+      "switch"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "pmos": {
+    "shortDescription": "Uses gate voltage to control current between source and drain, commonly as a high-side switch.",
+    "longDescription": "Circuit Studio built-in p-channel mosfet schematic symbol (3-pin) from the Semiconductors category. Rendered and structurally validated; MOSFET behavior is not simulated. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "p-channel mosfet",
+      "pmos",
+      "mosfet",
+      "p-channel",
+      "transistor",
+      "switch"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "mosfet": {
+    "shortDescription": "Generic three-pin field-effect transistor; specify channel polarity when known.",
+    "longDescription": "Circuit Studio built-in mosfet schematic symbol (3-pin) from the Semiconductors category. Rendered and structurally validated; MOSFET behavior is not simulated. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "mosfet",
+      "transistor",
+      "field effect",
+      "switch"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "njfet": {
+    "shortDescription": "Three-pin junction FET symbol.",
+    "longDescription": "Circuit Studio built-in n-channel jfet schematic symbol (3-pin) from the Semiconductors category. Rendered and structurally validated; JFET behavior is not simulated. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "n-channel jfet",
+      "njfet",
+      "junction field effect transistor",
+      "n-channel",
+      "jfet"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "pjfet": {
+    "shortDescription": "Three-pin junction FET symbol.",
+    "longDescription": "Circuit Studio built-in p-channel jfet schematic symbol (3-pin) from the Semiconductors category. Rendered and structurally validated; JFET behavior is not simulated. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "p-channel jfet",
+      "pjfet",
+      "junction field effect transistor",
+      "p-channel",
+      "jfet"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "regulator": {
+    "shortDescription": "Generic input, ground, and output regulator block.",
+    "longDescription": "Circuit Studio built-in voltage regulator schematic symbol (3-pin) from the Power category. Rendered and structurally validated; regulation and thermal behavior are not simulated. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "voltage regulator",
+      "regulator",
+      "power management",
+      "ldo"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "comparator": {
+    "shortDescription": "Generic three-pin comparator; supply pins are not modeled.",
+    "longDescription": "Circuit Studio built-in comparator schematic symbol (3-pin) from the Semiconductors category. Rendered and structurally validated; comparator behavior is not simulated. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "comparator",
+      "analog comparator",
+      "threshold",
+      "differential input"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "transformer": {
+    "shortDescription": "Generic isolated primary and secondary symbol; ratings and safety are not verified.",
+    "longDescription": "Circuit Studio built-in transformer schematic symbol (4-pin) from the Power category. Rendered and structurally validated; voltage ratio and insulation are not simulated or verified. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "transformer",
+      "isolation",
+      "winding",
+      "ac conversion"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "relay": {
+    "shortDescription": "Two coil pins and COM, NC, and NO contacts.",
+    "longDescription": "Circuit Studio built-in relay schematic symbol (5-pin) from the Control category. Rendered and structurally validated; coil ratings and switching behavior are not simulated. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "relay",
+      "electromechanical switch",
+      "coil",
+      "contact"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "bridge": {
+    "shortDescription": "Four-pin AC-to-DC bridge symbol; ratings are not checked.",
+    "longDescription": "Circuit Studio built-in bridge rectifier schematic symbol (4-pin) from the Power category. Rendered and structurally validated; voltage and current ratings are not simulated. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "bridge rectifier",
+      "bridge",
+      "diode bridge",
+      "full-wave rectifier",
+      "rectification"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "opto": {
+    "shortDescription": "Four-pin optical input/output symbol; isolation certification is not implied.",
+    "longDescription": "Circuit Studio built-in optocoupler schematic symbol (4-pin) from the Semiconductors category. Rendered and structurally validated; transfer behavior is not simulated. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "optocoupler",
+      "opto",
+      "optoisolator",
+      "isolation"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "ic": {
+    "shortDescription": "Flexible block with named pins; provide a verified pinout.",
+    "longDescription": "Circuit Studio built-in integrated circuit schematic symbol (None-pin) from the Semiconductors category. Rendered and structurally validated; internal IC behavior and pinout correctness are not checked. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "integrated circuit",
+      "ic",
+      "chip",
+      "dip"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "connector": {
+    "shortDescription": "Flexible connector block with named pins.",
+    "longDescription": "Circuit Studio built-in connector schematic symbol (None-pin) from the Connectors category. Rendered and structurally validated; connector mechanical details are not modeled. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "connector",
+      "header",
+      "terminal block",
+      "interconnect"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "wire": {
+    "shortDescription": "Orthogonal route between exact pin coordinates.",
+    "longDescription": "Circuit Studio built-in wire schematic symbol (None-pin) from the Drawing category. Rendered and structurally validated; disconnected endpoints and component overlaps are blocking errors. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "wire",
+      "net",
+      "connection",
+      "trace"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "junction": {
+    "shortDescription": "Explicit connection point for crossing wires.",
+    "longDescription": "Circuit Studio built-in junction schematic symbol (1-pin) from the Drawing category. Rendered and structurally validated. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "junction",
+      "node",
+      "connection point",
+      "solder dot"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "crossing": {
+    "shortDescription": "Bridge mark shows two crossing wires that remain electrically separate.",
+    "longDescription": "Circuit Studio built-in wire crossing bridge schematic symbol (0-pin) from the Drawing category. Rendered and structurally validated; crossing geometry is checked. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "wire crossing bridge",
+      "crossing",
+      "no connection",
+      "crossover",
+      "wire hop"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "label": {
+    "shortDescription": "Non-electrical annotation.",
+    "longDescription": "Circuit Studio built-in text label schematic symbol (0-pin) from the Drawing category. Rendered and structurally validated. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "text label",
+      "label",
+      "net label",
+      "net name",
+      "annotation"
+    ],
+    "researchStatus": "catalog_reference"
+  },
+  "box": {
+    "shortDescription": "Non-electrical outline for grouping a section.",
+    "longDescription": "Circuit Studio built-in annotation box schematic symbol (0-pin) from the Drawing category. Rendered and structurally validated. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "keywords": [
+      "annotation box",
+      "box",
+      "annotation",
+      "frame",
+      "block"
+    ],
+    "researchStatus": "catalog_reference"
+  }
+};
+
 // ../../lib/circuit-geometry/src/index.ts
 var TWO_TERMINAL_PIN_NAMES = {
   resistor: ["1", "2"],
@@ -56217,10 +56796,14 @@ var COMPONENT_LIBRARY_METADATA = {
   label: { displayName: "Text label", category: "Drawing", description: "Non-electrical annotation." },
   box: { displayName: "Annotation box", category: "Drawing", description: "Non-electrical outline for grouping a section." }
 };
-var CIRCUIT_COMPONENT_LIBRARY = CIRCUIT_COMPONENT_REFERENCE.filter((entry) => entry.type !== "kicad").map((entry) => ({
-  ...entry,
-  ...COMPONENT_LIBRARY_METADATA[entry.type]
-}));
+var CIRCUIT_COMPONENT_LIBRARY = CIRCUIT_COMPONENT_REFERENCE.filter((entry) => entry.type !== "kicad").map((entry) => {
+  const research = STUDIO_LIBRARY_RESEARCH[entry.type];
+  return {
+    ...entry,
+    ...COMPONENT_LIBRARY_METADATA[entry.type],
+    ...research
+  };
+});
 function getCircuitComponentReference(type) {
   if (typeof type !== "string") return void 0;
   return CIRCUIT_COMPONENT_REFERENCE.find((entry) => entry.type === type);
@@ -56350,6 +56933,65 @@ function formatCircuitComponentGuide() {
     "- kicad (imported KiCad symbol): required symbolId, at; optional id, label, value, unit, bodyStyle, rotation, flip. Use only exact IDs and unit pin offsets provided in the selected library definitions. The server attaches the trusted source geometry.",
     "General pin offsets:",
     formatCircuitPinGuide()
+  ].join("\n");
+}
+function formatRelevantCircuitComponentResearchContext(queryTexts, requestedLimit = 8) {
+  const stopWords = /* @__PURE__ */ new Set([
+    "add",
+    "all",
+    "and",
+    "are",
+    "can",
+    "circuit",
+    "component",
+    "components",
+    "create",
+    "for",
+    "from",
+    "have",
+    "help",
+    "how",
+    "into",
+    "make",
+    "need",
+    "please",
+    "show",
+    "symbol",
+    "symbols",
+    "that",
+    "the",
+    "this",
+    "use",
+    "using",
+    "what",
+    "with"
+  ]);
+  const queryTokens = new Set(
+    queryTexts.join(" ").toLocaleLowerCase().match(/[a-z0-9]+/g)?.filter((token) => token.length > 1 && !stopWords.has(token)) ?? []
+  );
+  if (!queryTokens.size) return "";
+  const ranked = CIRCUIT_COMPONENT_LIBRARY.map((entry) => {
+    const identity = `${entry.type} ${entry.displayName}`.toLocaleLowerCase();
+    const keywords = entry.keywords.join(" ").toLocaleLowerCase();
+    const short = entry.shortDescription.toLocaleLowerCase();
+    const long = entry.longDescription.toLocaleLowerCase();
+    let score = 0;
+    for (const token of queryTokens) {
+      if (identity.includes(token)) score += 5;
+      else if (keywords.includes(token)) score += 4;
+      else if (short.includes(token)) score += 2;
+      else if (long.includes(token)) score += 1;
+    }
+    return { entry, score };
+  }).filter((item) => item.score > 0).sort(
+    (left, right) => right.score - left.score || left.entry.type.localeCompare(right.entry.type)
+  ).slice(0, Math.max(1, Math.min(12, Math.floor(requestedLimit) || 8)));
+  if (!ranked.length) return "";
+  return [
+    "Relevant built-in Circuit Studio component references. These descriptions explain symbol purpose; they do not verify electrical behavior, ratings, or safety.",
+    ...ranked.map(
+      ({ entry }) => `- ${entry.type} (${entry.displayName}): ${entry.shortDescription} Detailed reference: ${entry.longDescription} Search terms: ${entry.keywords.join(", ")}`
+    )
   ].join("\n");
 }
 
@@ -75626,9 +76268,18 @@ var SOURCE_INDEX_PATH = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../../data/kicad-symbol-index.json.gz"
 );
+var LIBRARY_RESOURCE_PATH = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "data/circuit-studio-library-resource.json.gz"
+);
+var SOURCE_LIBRARY_RESOURCE_PATH = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../../data/circuit-studio-library-resource.json.gz"
+);
 var MAX_SOURCE_BYTES = 15e5;
 var MAX_CACHED_SYMBOLS = 500;
 var indexPromise;
+var libraryResourcePromise;
 var symbolCache = /* @__PURE__ */ new Map();
 function normalized(value) {
   return value.toLocaleLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
@@ -75892,6 +76543,8 @@ function getSearchScore(entry, query, allowFuzzy = false) {
     entry.name,
     entry.library,
     entry.description,
+    entry.shortDescription,
+    entry.longDescription,
     entry.keywords
   ].map(normalizedSearchText);
   const searchableText = fields.join(" ");
@@ -75907,14 +76560,14 @@ function getSearchScore(entry, query, allowFuzzy = false) {
   }
   if (fields[1].startsWith(correctedQuery)) score += 1500;
   if (fields[0].startsWith(correctedQuery)) score += 1250;
-  if (correctedQuery && fields[4].includes(correctedQuery)) score += 1e3;
+  if (correctedQuery && fields[6].includes(correctedQuery)) score += 1e3;
   if (phraseAlternatives.some((alias) => searchableText.includes(normalizedSearchText(alias)))) {
     score += 1e3;
   }
   const searchableWords = searchableText.split(" ").filter(Boolean);
   const nameWords = fields.slice(0, 2).join(" ").split(" ").filter(Boolean);
-  const keywordWords = fields[4].split(" ").filter(Boolean);
-  const descriptionWords = fields[3].split(" ").filter(Boolean);
+  const keywordWords = fields[6].split(" ").filter(Boolean);
+  const descriptionWords = fields.slice(3, 6).join(" ").split(" ").filter(Boolean);
   let matchedTokens = 0;
   for (const token of queryTokens) {
     const alternatives = [token, ...SEARCH_SYNONYMS[token] ?? []].map(normalizedSearchText).filter(Boolean);
@@ -76036,11 +76689,40 @@ function fallbackLibraryDescription(library) {
   };
   return knownDescriptions[library] ?? `${library.replace(/[_-]+/g, " ").replace(/\bIEEE\b/g, "").replace(/\s+/g, " ").trim()} symbol`;
 }
+async function getLibraryResource() {
+  libraryResourcePromise ??= readFile(LIBRARY_RESOURCE_PATH).catch((error40) => {
+    if (error40.code !== "ENOENT") throw error40;
+    return readFile(SOURCE_LIBRARY_RESOURCE_PATH);
+  }).then((buffer) => {
+    const bundle = JSON.parse(gunzipSync(buffer).toString("utf8"));
+    if (bundle.schemaVersion !== 1 || bundle.sourceVersion !== `KiCad ${SOURCE_VERSION}` || !Array.isArray(bundle.entries)) {
+      throw new Error("The Circuit Studio library resource is invalid.");
+    }
+    const entries = bundle.entries;
+    const byId = /* @__PURE__ */ new Map();
+    for (const entry of entries) {
+      if (!entry || typeof entry.catalogId !== "string" || !entry.catalogId.includes(":") || typeof entry.shortDescription !== "string" || !entry.shortDescription.trim() || typeof entry.longDescription !== "string" || !entry.longDescription.trim() || !Array.isArray(entry.keywords) || entry.keywords.some((keyword) => typeof keyword !== "string") || !["catalog_reference", "corrected", "needs_review"].includes(
+        entry.researchStatus
+      ) || byId.has(entry.catalogId)) {
+        throw new Error("The Circuit Studio library resource contains an invalid entry.");
+      }
+      byId.set(entry.catalogId, entry);
+    }
+    if (byId.size !== 22911) {
+      throw new Error("The Circuit Studio library resource is incomplete.");
+    }
+    return byId;
+  }).catch((error40) => {
+    libraryResourcePromise = void 0;
+    throw error40;
+  });
+  return libraryResourcePromise;
+}
 async function getIndex() {
   indexPromise ??= readFile(INDEX_PATH).catch((error40) => {
     if (error40.code !== "ENOENT") throw error40;
     return readFile(SOURCE_INDEX_PATH);
-  }).then((buffer) => {
+  }).then(async (buffer) => {
     const parsed = JSON.parse(gunzipSync(buffer).toString("utf8"));
     if (!Array.isArray(parsed)) throw new Error("The KiCad symbol index is invalid.");
     const entries = parsed.filter(
@@ -76061,13 +76743,30 @@ async function getIndex() {
         }
       }
     }
-    return entries.map((entry) => {
+    const describedEntries = entries.map((entry) => {
       if (entry.description.trim()) return entry;
       const parent = entry.extends ? byId.get(`${entry.library}:${entry.extends}`) ?? byName.get(entry.extends)?.find((candidate) => candidate.description.trim()) : void 0;
       const sibling = byName.get(entry.name)?.find((candidate) => candidate.id !== entry.id && candidate.description.trim());
       const seriesMatch = entry.library === "74xx_IEEE" ? descriptionsBy74SeriesSuffix.get(get74SeriesSuffix(entry.name) ?? "") : void 0;
       const description = parent?.description.trim() || sibling?.description.trim() || seriesMatch?.description.trim() || entry.keywords.trim() || fallbackLibraryDescription(entry.library);
       return { ...entry, description };
+    });
+    const resourceById = await getLibraryResource();
+    if (describedEntries.length !== resourceById.size) {
+      throw new Error("The symbol index and its descriptions have different catalog sizes.");
+    }
+    return describedEntries.map((entry) => {
+      const resource = resourceById.get(entry.id);
+      if (!resource) {
+        throw new Error(`The library resource is missing ${entry.id}.`);
+      }
+      return {
+        ...entry,
+        shortDescription: resource.shortDescription,
+        longDescription: resource.longDescription,
+        keywords: resource.keywords.join(", "),
+        researchStatus: resource.researchStatus
+      };
     });
   }).catch((error40) => {
     indexPromise = void 0;
@@ -76298,6 +76997,8 @@ function formatKicadSymbolPinGuide(entry, symbolData) {
   }
   return [
     `${entry.id} \u2014 ${entry.description || entry.keywords || "KiCad library symbol"}`,
+    `Catalog detail: ${entry.longDescription}`,
+    entry.researchStatus === "needs_review" ? "Description status: needs review; do not treat the proposed purpose as verified." : "Description status: KiCad catalog reference; it is not a datasheet or electrical validation.",
     ...unitText
   ].join("\n");
 }
@@ -76387,7 +77088,12 @@ router.post(
       return;
     }
     try {
-      const inputText = `${circuitSystemInstructions}
+      const relevantComponentContext = formatRelevantCircuitComponentResearchContext([parsed.data.prompt]);
+      const systemInstructions = [
+        circuitSystemInstructions,
+        relevantComponentContext
+      ].filter(Boolean).join("\n\n");
+      const inputText = `${systemInstructions}
 
 Circuit request:
 ${parsed.data.prompt}`;
@@ -76398,7 +77104,7 @@ ${parsed.data.prompt}`;
           model: "gemini-2.5-flash",
           contents: parsed.data.prompt,
           config: {
-            systemInstruction: circuitSystemInstructions,
+            systemInstruction: systemInstructions,
             responseMimeType: "application/json",
             maxOutputTokens: 3072,
             temperature: 0.2
@@ -76717,11 +77423,19 @@ router4.post(
 ${JSON.stringify(currentSpec)}` : "",
       parsed.data.proposeEdits ? "Return a proposed edit based on the current CircuitSpec, but do not apply it." : "Do not include a proposedEdit."
     ].filter(Boolean).join("\n\n");
+    const relevantComponentContext = formatRelevantCircuitComponentResearchContext([
+      questionText,
+      currentSpec ? JSON.stringify(currentSpec.elements.map((element) => element.type)) : ""
+    ]);
+    const tutorSystemInstructions = [
+      tutorInstructions,
+      relevantComponentContext
+    ].filter(Boolean).join("\n\n");
     try {
       const response = await generateWithAccountUsage(
         userId,
         {
-          inputText: `${tutorInstructions}
+          inputText: `${tutorSystemInstructions}
 
 ${userMessage}`,
           maxOutputTokens: 2048,
@@ -76746,7 +77460,7 @@ ${userMessage}`,
             }
           ],
           config: {
-            systemInstruction: tutorInstructions,
+            systemInstruction: tutorSystemInstructions,
             responseMimeType: "application/json",
             maxOutputTokens: 2048,
             temperature: 0.2
@@ -77460,7 +78174,7 @@ Safety and component support:
 - For unsupported symbols or missing verified IC/connector pinouts, explain the exact limitation without inventing symbols, pins, ratings, or part numbers. Suggest up to two concrete next prompts when a safe alternative exists. Suggested actions must be short, specific, and compatible with the user's goal; never suggest a way to recreate a rejected hazardous design.
 - If the user requests an IC but has not supplied a verified pinout, ask for the exact part and pinout before proposing that block. Generic pin blocks are drawing aids, not validation of the IC's actual pin mapping.
 - In Build mode, use the official KiCad library as the default source for schematic symbols. Prefer a supplied KiCad candidate whenever it matches a requested part instead of substituting a built-in approximation. Use type "kicad" with the exact symbolId and a valid unit/bodyStyle from its supplied definition. Use only listed pin numbers, names, and offsets; never invent a KiCad ID or pinout. The server attaches exact source drawings and pin geometry after generation. Do not return symbolData yourself. A library symbol is not confirmation of a physical part choice, rating, electrical correctness, or safety.
-- Each request includes relevant results discovered by searching the complete KiCad catalog. In Chat, use their descriptions and keywords to explain available component options and inform circuit-planning advice; do not claim a suitable symbol is unavailable without checking these results. In Build, prefer relevant catalog matches with an exact loaded pin guide, and use only pin data in those guides. Descriptions and keywords identify symbol purpose, not electrical ratings or verified circuit suitability.
+- Each request includes relevant results discovered by searching the complete KiCad catalog. In Chat, use their descriptions and keywords to explain available component options and inform circuit-planning advice; do not claim a suitable symbol is unavailable without checking these results. In Build, prefer relevant catalog matches with an exact loaded pin guide, and use only pin data in those guides. Descriptions and keywords identify symbol purpose, not electrical ratings or verified circuit suitability. If a symbol is marked needs_review, say its purpose is unverified and do not present it as a fact; prefer a catalog reference or ask for an authoritative part source.
 
 Use clear reference designators and unique wire IDs (W1, W2, ...). Connect every required pin exactly to a wire endpoint or another pin: all pins on supported discrete parts are required; a relay needs both coil pins, COM, and at least one of NC/NO, while the unused contact may remain open. Unused IC, connector, and KiCad symbol pins may remain unconnected. Keep wire segments horizontal or vertical, avoid zero-length segments and routes through two-terminal parts, and connect wire endpoints exactly to pins or other wire endpoints. Set open:true on a wire only when it is intentionally left disconnected. If a requested component has no supported equivalent, state the limitation instead of inventing a type or pin model.
 
@@ -77583,6 +78297,10 @@ router5.post(
         ...brief.assumptions,
         ...history.map((message) => message.content)
       ].join(" ");
+      const studioComponentResearchContext = formatRelevantCircuitComponentResearchContext([
+        buildContext,
+        JSON.stringify(currentSpec.elements.map((element) => element.type))
+      ]);
       const relevantKicadSymbols = await findRelevantKicadSymbols([
         parsed.data.message,
         brief.goal,
@@ -77639,9 +78357,11 @@ ${definitions.map(({ guide }) => guide).join("\n\n")}`;
       if (catalogEntries.length) {
         const catalogMatches = catalogEntries.slice(0, 12).map((entry) => {
           const details = [
-            entry.description,
+            entry.shortDescription || entry.description,
+            entry.longDescription,
             entry.keywords ? `keywords: ${entry.keywords}` : "",
-            entry.pinCount === null ? "" : `indexed pins: ${entry.pinCount}`
+            entry.pinCount === null ? "" : `indexed pins: ${entry.pinCount}`,
+            entry.researchStatus === "needs_review" ? "NEEDS REVIEW: this purpose is unverified; do not state it as fact" : "KiCad catalog reference; not electrical validation"
           ].filter(Boolean).join("; ");
           return `- ${entry.id} \u2014 ${details}`;
         });
@@ -77649,6 +78369,12 @@ ${definitions.map(({ guide }) => guide).join("\n\n")}`;
           `Relevant results searched across the complete official KiCad catalog. Use these descriptions and keywords when discussing component choices. In Build mode, only place listed symbols that also have a verified pin guide below:
 ${catalogMatches.join("\n")}`,
           kicadDefinitions
+        ].filter(Boolean).join("\n\n");
+      }
+      if (studioComponentResearchContext) {
+        kicadDefinitions = [
+          kicadDefinitions,
+          studioComponentResearchContext
         ].filter(Boolean).join("\n\n");
       }
     } catch (error40) {

@@ -1703,7 +1703,14 @@ export function CircuitBuilderChat({
   ) => {
     setMode('build');
     if ('id' in entry) {
-      const description = entry.description || entry.keywords;
+      const description = [
+        entry.shortDescription || entry.description,
+        entry.longDescription,
+        entry.keywords ? `Search terms: ${entry.keywords}` : '',
+        entry.researchStatus === 'needs_review'
+          ? 'Description status: needs review; purpose is unverified.'
+          : '',
+      ].filter(Boolean).join(' ');
       composerRef.current?.setDraft(
         `Use this exact KiCad symbol ID: ${entry.id}. Add ${entry.name} to my current schematic using its real library pin names and positions.${description ? ` Symbol details: ${description}.` : ''}`,
       );
@@ -1712,7 +1719,7 @@ export function CircuitBuilderChat({
     composerRef.current?.setDraft(
       entry.category === 'Drawing'
         ? `Add a ${entry.displayName} (${entry.type}) drawing annotation to my current schematic. Do not treat it as an electrical component.`
-        : `Use a ${entry.displayName} (${entry.type}) in my current design. Use its supported pin model and ask me for any missing ratings or verified pinout before assuming them.`,
+        : `Use a ${entry.displayName} (${entry.type}) in my current design. Reference: ${entry.shortDescription} ${entry.longDescription} Use its supported pin model and ask me for any missing ratings or verified pinout before assuming them.`,
     );
   };
 

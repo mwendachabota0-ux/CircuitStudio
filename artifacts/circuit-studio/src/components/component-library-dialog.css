@@ -884,6 +884,17 @@
   font-size: 9px;
 }
 
+.component-library-dialog__review-tag {
+  align-self: flex-start;
+  margin: 4px 0 0;
+  padding: 3px 5px;
+  border: 1px solid #ecd7bd;
+  border-radius: 5px;
+  background: #fff7eb;
+  color: #8c623a;
+  font: 8px/1.2 var(--app-font-mono);
+}
+
 .component-library-dialog__item-description {
   min-height: 34px;
   margin: 7px 0 8px;

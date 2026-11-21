@@ -95,6 +95,32 @@ test("fills missing function descriptions from related KiCad symbols", async () 
   assert.ok(xilinx.results.every((entry) => entry.description.trim().length > 0));
 });
 
+test("serves cleaned short, long, and keyword descriptions with honest review status", async () => {
+  const transistorResults = await searchKicadSymbols("2N3904", "", 10, 0);
+  const transistor = transistorResults.results.find(
+    (entry) => entry.id === "Transistor_BJT:2N3904",
+  );
+
+  assert.ok(transistor);
+  assert.match(transistor.shortDescription, /Small Signal NPN Transistor/i);
+  assert.match(transistor.longDescription, /pin count is not recorded/i);
+  assert.deepEqual(transistor.keywords.split(", "), ["NPN", "Transistor", "2n3904"]);
+  assert.equal(transistor.researchStatus, "catalog_reference");
+
+  const needsReviewResults = await searchKicadSymbols(
+    "4001",
+    "4xxx_IEEE",
+    10,
+    0,
+  );
+  const needsReview = needsReviewResults.results.find(
+    (entry) => entry.id === "4xxx_IEEE:4001",
+  );
+  assert.ok(needsReview);
+  assert.equal(needsReview.researchStatus, "needs_review");
+  assert.match(needsReview.longDescription, /has not been verified/i);
+});
+
 test("matches explicitly named parts to exact KiCad catalog symbols", async () => {
   const ids = await findMentionedKicadSymbolIds(
     "Draw this using an LM358 and a BC547 transistor.",

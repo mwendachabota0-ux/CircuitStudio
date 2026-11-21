@@ -48,6 +48,7 @@ export * from './circuitReviewRequest';
 export * from './circuitReviewResponse';
 export * from './circuitSpec';
 export * from './circuitSymbolSearchItem';
+export * from './circuitSymbolSearchItemResearchStatus';
 export * from './circuitSymbolSearchResponse';
 export * from './externalCircuitFixReviewInput';
 export * from './externalCircuitFixReviewResponse';

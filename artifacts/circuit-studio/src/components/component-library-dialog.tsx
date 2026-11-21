@@ -280,8 +280,15 @@ function ComponentLibraryCard({
       entry.keywords.trim() ||
       `${entryName} schematic symbol from the ${entry.library} library.`
     : entry.description;
-  const entryUsage = commonSymbolUses[entryId] ?? entryDescription;
-  const entryKeywords = isKicadEntry ? entry.keywords.trim() : '';
+  const entryShortDescription =
+    entry.shortDescription.trim() || entryDescription;
+  const entryUsage = commonSymbolUses[entryId] ?? entryShortDescription;
+  const entryLongDescription = entry.longDescription.trim() || entryUsage;
+  const entryKeywords = isKicadEntry
+    ? entry.keywords.trim()
+    : entry.keywords.join(', ');
+  const needsReview =
+    isKicadEntry && entry.researchStatus === 'needs_review';
   const entryCategory = isKicadEntry ? entry.library : entry.category;
   const usagePanelId = getUsagePanelId(entryId);
   const pinSummary =
@@ -328,6 +335,14 @@ function ComponentLibraryCard({
           {isKicadEntry ? 'KiCad' : entryType}
         </span>
       </div>
+      {needsReview && (
+        <span
+          className="component-library-dialog__review-tag"
+          data-testid={`component-library-review-${entryId}`}
+        >
+          Needs review
+        </span>
+      )}
 
       <div className="component-library-dialog__item-content">
         <button
@@ -389,7 +404,12 @@ function ComponentLibraryCard({
         data-testid={`component-library-use-details-${entryId}`}
       >
         <strong>Function and use</strong>
-        <p>{entryUsage}</p>
+        <p>{entryLongDescription}</p>
+        {needsReview && (
+          <p className="component-library-dialog__usage-source">
+            This description is unverified and may be based on a fallback match.
+          </p>
+        )}
         {isKicadEntry && entryDescription !== entryUsage && (
           <p className="component-library-dialog__usage-source">
             KiCad description: {entryDescription}
@@ -482,6 +502,9 @@ export function ComponentLibraryDialog({
         entry.type,
         entry.category,
         entry.description,
+        entry.shortDescription,
+        entry.longDescription,
+        entry.keywords,
       ]
         .join(' ')
         .toLocaleLowerCase();

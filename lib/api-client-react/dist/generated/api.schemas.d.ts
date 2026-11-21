@@ -457,12 +457,21 @@ export interface CircuitBuilderHistorySyncResponse {
     /** @minimum 0 */
     savedCount: number;
 }
+export type CircuitSymbolSearchItemResearchStatus = typeof CircuitSymbolSearchItemResearchStatus[keyof typeof CircuitSymbolSearchItemResearchStatus];
+export declare const CircuitSymbolSearchItemResearchStatus: {
+    readonly catalog_reference: "catalog_reference";
+    readonly corrected: "corrected";
+    readonly needs_review: "needs_review";
+};
 export interface CircuitSymbolSearchItem {
     id: string;
     library: string;
     name: string;
     description: string;
+    shortDescription: string;
+    longDescription: string;
     keywords: string;
+    researchStatus: CircuitSymbolSearchItemResearchStatus;
     /** @nullable */
     pinCount: number | null;
     extends?: string;

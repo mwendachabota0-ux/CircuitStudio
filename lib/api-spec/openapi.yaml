@@ -1175,13 +1175,20 @@ components:
           type: string
         description:
           type: string
+        shortDescription:
+          type: string
+        longDescription:
+          type: string
         keywords:
           type: string
+        researchStatus:
+          type: string
+          enum: [catalog_reference, corrected, needs_review]
         pinCount:
           type: [integer, "null"]
         extends:
           type: string
-      required: [id, library, name, description, keywords, pinCount]
+      required: [id, library, name, description, shortDescription, longDescription, keywords, researchStatus, pinCount]
       additionalProperties: false
     CircuitSymbolSearchResponse:
       type: object

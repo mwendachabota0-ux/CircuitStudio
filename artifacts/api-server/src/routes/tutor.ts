@@ -9,7 +9,10 @@ import {
 import { getAuth } from "@clerk/express";
 import rateLimit from "express-rate-limit";
 import { Router, type IRouter, type RequestHandler } from "express";
-import { formatCircuitComponentGuide } from "@workspace/circuit-geometry";
+import {
+  formatCircuitComponentGuide,
+  formatRelevantCircuitComponentResearchContext,
+} from "@workspace/circuit-geometry";
 import { CircuitAiError, generateWithAccountUsage } from "../lib/circuitAi";
 import {
   CircuitSpecCompatibilityError,
@@ -203,12 +206,21 @@ router.post(
     ]
       .filter(Boolean)
       .join("\n\n");
+    const relevantComponentContext =
+      formatRelevantCircuitComponentResearchContext([
+        questionText,
+        currentSpec ? JSON.stringify(currentSpec.elements.map((element) => element.type)) : "",
+      ]);
+    const tutorSystemInstructions = [
+      tutorInstructions,
+      relevantComponentContext,
+    ].filter(Boolean).join("\n\n");
 
     try {
       const response = await generateWithAccountUsage(
         userId!,
         {
-          inputText: `${tutorInstructions}\n\n${userMessage}`,
+          inputText: `${tutorSystemInstructions}\n\n${userMessage}`,
           maxOutputTokens: 2048,
           imageTokenEstimate,
         },
@@ -234,7 +246,7 @@ router.post(
               },
             ],
             config: {
-              systemInstruction: tutorInstructions,
+              systemInstruction: tutorSystemInstructions,
               responseMimeType: "application/json",
               maxOutputTokens: 2048,
               temperature: 0.2,

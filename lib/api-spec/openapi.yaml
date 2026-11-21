@@ -1451,8 +1451,9 @@ components:
           type: integer
           minimum: 1
         rotation:
-          type: integer
-          enum: [0, 90, 180, 270]
+          type: number
+          format: double
+          description: Any finite rotation angle in degrees, including fractional and negative angles.
         symbolData:
           $ref: "#/components/schemas/KicadSymbolData"
         points:

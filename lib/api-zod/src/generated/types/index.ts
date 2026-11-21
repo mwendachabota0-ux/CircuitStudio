@@ -42,7 +42,6 @@ export * from './circuitBuilderSuggestedAction';
 export * from './circuitBuildProposal';
 export * from './circuitDesignBrief';
 export * from './circuitElement';
-export * from './circuitElementRotation';
 export * from './circuitPoint';
 export * from './circuitPrompt';
 export * from './circuitReviewRequest';

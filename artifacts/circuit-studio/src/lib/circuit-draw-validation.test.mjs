@@ -172,6 +172,66 @@ test("KiCad symbols render source geometry, exact pin labels, and world-space pi
   assert.match(buildSheet, /U1\.3/);
 });
 
+test("KiCad symbols accept and render arbitrary fractional rotation angles", () => {
+  const symbolData = {
+    id: "Device:R",
+    units: [{
+      unit: 1,
+      bodyStyle: 1,
+      pins: [
+        {
+          number: "1",
+          name: "A",
+          electricalType: "passive",
+          shape: "line",
+          point: [-30, 0],
+          bodyPoint: [-12, 0],
+          showName: true,
+          showNumber: true,
+        },
+        {
+          number: "2",
+          name: "B",
+          electricalType: "passive",
+          shape: "line",
+          point: [30, 0],
+          bodyPoint: [12, 0],
+          showName: true,
+          showNumber: true,
+        },
+      ],
+      graphics: [{
+        type: "rectangle",
+        points: [[-12, -16], [12, 16]],
+        strokeWidth: 2,
+        fillType: "background",
+      }],
+    }],
+  };
+  const spec = {
+    title: "Fractionally rotated KiCad symbol",
+    elements: [{
+      type: "kicad",
+      id: "R1",
+      symbolId: "Device:R",
+      at: [200, 150],
+      rotation: 37.5,
+      symbolData,
+    }],
+  };
+
+  const validation = CircuitDraw.validate(spec);
+  assert.deepEqual(Array.from(validation.errors), []);
+  assert.deepEqual(
+    CircuitGeometry.getCircuitPins(spec.elements[0]),
+    [
+      { name: "1", point: [176.2, 131.74] },
+      { name: "2", point: [223.8, 168.26] },
+    ],
+  );
+  assert.match(CircuitDraw.render(spec), /translate\(200 150\) rotate\(37\.5\) scale\(1 1\)/);
+});
+
 test("KiCad symbols without hydrated source data cannot be rendered as valid drafts", () => {
   const report = CircuitDraw.validate({
     title: "Missing KiCad source",

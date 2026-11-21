@@ -70,7 +70,7 @@ export declare const GenerateCircuitResponse: zod.ZodObject<{
         symbolId: zod.ZodOptional<zod.ZodString>;
         unit: zod.ZodOptional<zod.ZodNumber>;
         bodyStyle: zod.ZodOptional<zod.ZodNumber>;
-        rotation: zod.ZodOptional<zod.ZodUnion<[zod.ZodLiteral<0>, zod.ZodLiteral<90>, zod.ZodLiteral<180>, zod.ZodLiteral<270>]>>;
+        rotation: zod.ZodOptional<zod.ZodNumber>;
         symbolData: zod.ZodOptional<zod.ZodObject<{
             id: zod.ZodString;
             units: zod.ZodArray<zod.ZodObject<{
@@ -265,7 +265,7 @@ export declare const GenerateCircuitResponse: zod.ZodObject<{
         symbolId?: string | undefined;
         unit?: number | undefined;
         bodyStyle?: number | undefined;
-        rotation?: 0 | 90 | 180 | 270 | undefined;
+        rotation?: number | undefined;
         circle?: boolean | undefined;
         text?: string | undefined;
         points?: number[][] | undefined;
@@ -325,7 +325,7 @@ export declare const GenerateCircuitResponse: zod.ZodObject<{
         symbolId?: string | undefined;
         unit?: number | undefined;
         bodyStyle?: number | undefined;
-        rotation?: 0 | 90 | 180 | 270 | undefined;
+        rotation?: number | undefined;
         circle?: boolean | undefined;
         text?: string | undefined;
         points?: number[][] | undefined;
@@ -388,7 +388,7 @@ export declare const GenerateCircuitResponse: zod.ZodObject<{
         symbolId?: string | undefined;
         unit?: number | undefined;
         bodyStyle?: number | undefined;
-        rotation?: 0 | 90 | 180 | 270 | undefined;
+        rotation?: number | undefined;
         circle?: boolean | undefined;
         text?: string | undefined;
         points?: number[][] | undefined;
@@ -453,7 +453,7 @@ export declare const GenerateCircuitResponse: zod.ZodObject<{
         symbolId?: string | undefined;
         unit?: number | undefined;
         bodyStyle?: number | undefined;
-        rotation?: 0 | 90 | 180 | 270 | undefined;
+        rotation?: number | undefined;
         circle?: boolean | undefined;
         text?: string | undefined;
         points?: number[][] | undefined;
@@ -863,7 +863,7 @@ export declare const AskCircuitTutorBody: zod.ZodObject<{
             symbolId: zod.ZodOptional<zod.ZodString>;
             unit: zod.ZodOptional<zod.ZodNumber>;
             bodyStyle: zod.ZodOptional<zod.ZodNumber>;
-            rotation: zod.ZodOptional<zod.ZodUnion<[zod.ZodLiteral<0>, zod.ZodLiteral<90>, zod.ZodLiteral<180>, zod.ZodLiteral<270>]>>;
+            rotation: zod.ZodOptional<zod.ZodNumber>;
             symbolData: zod.ZodOptional<zod.ZodObject<{
                 id: zod.ZodString;
                 units: zod.ZodArray<zod.ZodObject<{
@@ -1058,7 +1058,7 @@ export declare const AskCircuitTutorBody: zod.ZodObject<{
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -1118,7 +1118,7 @@ export declare const AskCircuitTutorBody: zod.ZodObject<{
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -1181,7 +1181,7 @@ export declare const AskCircuitTutorBody: zod.ZodObject<{
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -1246,7 +1246,7 @@ export declare const AskCircuitTutorBody: zod.ZodObject<{
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -1320,7 +1320,7 @@ export declare const AskCircuitTutorBody: zod.ZodObject<{
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -1392,7 +1392,7 @@ export declare const AskCircuitTutorBody: zod.ZodObject<{
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -1494,7 +1494,7 @@ export declare const AskCircuitTutorResponse: zod.ZodObject<{
                 symbolId: zod.ZodOptional<zod.ZodString>;
                 unit: zod.ZodOptional<zod.ZodNumber>;
                 bodyStyle: zod.ZodOptional<zod.ZodNumber>;
-                rotation: zod.ZodOptional<zod.ZodUnion<[zod.ZodLiteral<0>, zod.ZodLiteral<90>, zod.ZodLiteral<180>, zod.ZodLiteral<270>]>>;
+                rotation: zod.ZodOptional<zod.ZodNumber>;
                 symbolData: zod.ZodOptional<zod.ZodObject<{
                     id: zod.ZodString;
                     units: zod.ZodArray<zod.ZodObject<{
@@ -1689,7 +1689,7 @@ export declare const AskCircuitTutorResponse: zod.ZodObject<{
                 symbolId?: string | undefined;
                 unit?: number | undefined;
                 bodyStyle?: number | undefined;
-                rotation?: 0 | 90 | 180 | 270 | undefined;
+                rotation?: number | undefined;
                 circle?: boolean | undefined;
                 text?: string | undefined;
                 points?: number[][] | undefined;
@@ -1749,7 +1749,7 @@ export declare const AskCircuitTutorResponse: zod.ZodObject<{
                 symbolId?: string | undefined;
                 unit?: number | undefined;
                 bodyStyle?: number | undefined;
-                rotation?: 0 | 90 | 180 | 270 | undefined;
+                rotation?: number | undefined;
                 circle?: boolean | undefined;
                 text?: string | undefined;
                 points?: number[][] | undefined;
@@ -1812,7 +1812,7 @@ export declare const AskCircuitTutorResponse: zod.ZodObject<{
                 symbolId?: string | undefined;
                 unit?: number | undefined;
                 bodyStyle?: number | undefined;
-                rotation?: 0 | 90 | 180 | 270 | undefined;
+                rotation?: number | undefined;
                 circle?: boolean | undefined;
                 text?: string | undefined;
                 points?: number[][] | undefined;
@@ -1877,7 +1877,7 @@ export declare const AskCircuitTutorResponse: zod.ZodObject<{
                 symbolId?: string | undefined;
                 unit?: number | undefined;
                 bodyStyle?: number | undefined;
-                rotation?: 0 | 90 | 180 | 270 | undefined;
+                rotation?: number | undefined;
                 circle?: boolean | undefined;
                 text?: string | undefined;
                 points?: number[][] | undefined;
@@ -1945,7 +1945,7 @@ export declare const AskCircuitTutorResponse: zod.ZodObject<{
                 symbolId?: string | undefined;
                 unit?: number | undefined;
                 bodyStyle?: number | undefined;
-                rotation?: 0 | 90 | 180 | 270 | undefined;
+                rotation?: number | undefined;
                 circle?: boolean | undefined;
                 text?: string | undefined;
                 points?: number[][] | undefined;
@@ -2013,7 +2013,7 @@ export declare const AskCircuitTutorResponse: zod.ZodObject<{
                 symbolId?: string | undefined;
                 unit?: number | undefined;
                 bodyStyle?: number | undefined;
-                rotation?: 0 | 90 | 180 | 270 | undefined;
+                rotation?: number | undefined;
                 circle?: boolean | undefined;
                 text?: string | undefined;
                 points?: number[][] | undefined;
@@ -2088,7 +2088,7 @@ export declare const AskCircuitTutorResponse: zod.ZodObject<{
                 symbolId?: string | undefined;
                 unit?: number | undefined;
                 bodyStyle?: number | undefined;
-                rotation?: 0 | 90 | 180 | 270 | undefined;
+                rotation?: number | undefined;
                 circle?: boolean | undefined;
                 text?: string | undefined;
                 points?: number[][] | undefined;
@@ -2163,7 +2163,7 @@ export declare const AskCircuitTutorResponse: zod.ZodObject<{
                 symbolId?: string | undefined;
                 unit?: number | undefined;
                 bodyStyle?: number | undefined;
-                rotation?: 0 | 90 | 180 | 270 | undefined;
+                rotation?: number | undefined;
                 circle?: boolean | undefined;
                 text?: string | undefined;
                 points?: number[][] | undefined;
@@ -2275,7 +2275,7 @@ export declare const ChatWithCircuitBuilderBody: zod.ZodObject<{
             symbolId: zod.ZodOptional<zod.ZodString>;
             unit: zod.ZodOptional<zod.ZodNumber>;
             bodyStyle: zod.ZodOptional<zod.ZodNumber>;
-            rotation: zod.ZodOptional<zod.ZodUnion<[zod.ZodLiteral<0>, zod.ZodLiteral<90>, zod.ZodLiteral<180>, zod.ZodLiteral<270>]>>;
+            rotation: zod.ZodOptional<zod.ZodNumber>;
             symbolData: zod.ZodOptional<zod.ZodObject<{
                 id: zod.ZodString;
                 units: zod.ZodArray<zod.ZodObject<{
@@ -2470,7 +2470,7 @@ export declare const ChatWithCircuitBuilderBody: zod.ZodObject<{
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -2530,7 +2530,7 @@ export declare const ChatWithCircuitBuilderBody: zod.ZodObject<{
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -2593,7 +2593,7 @@ export declare const ChatWithCircuitBuilderBody: zod.ZodObject<{
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -2658,7 +2658,7 @@ export declare const ChatWithCircuitBuilderBody: zod.ZodObject<{
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -2752,7 +2752,7 @@ export declare const ChatWithCircuitBuilderBody: zod.ZodObject<{
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -2832,7 +2832,7 @@ export declare const ChatWithCircuitBuilderBody: zod.ZodObject<{
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -2975,7 +2975,7 @@ export declare const ChatWithCircuitBuilderResponse: zod.ZodObject<{
                 symbolId: zod.ZodOptional<zod.ZodString>;
                 unit: zod.ZodOptional<zod.ZodNumber>;
                 bodyStyle: zod.ZodOptional<zod.ZodNumber>;
-                rotation: zod.ZodOptional<zod.ZodUnion<[zod.ZodLiteral<0>, zod.ZodLiteral<90>, zod.ZodLiteral<180>, zod.ZodLiteral<270>]>>;
+                rotation: zod.ZodOptional<zod.ZodNumber>;
                 symbolData: zod.ZodOptional<zod.ZodObject<{
                     id: zod.ZodString;
                     units: zod.ZodArray<zod.ZodObject<{
@@ -3170,7 +3170,7 @@ export declare const ChatWithCircuitBuilderResponse: zod.ZodObject<{
                 symbolId?: string | undefined;
                 unit?: number | undefined;
                 bodyStyle?: number | undefined;
-                rotation?: 0 | 90 | 180 | 270 | undefined;
+                rotation?: number | undefined;
                 circle?: boolean | undefined;
                 text?: string | undefined;
                 points?: number[][] | undefined;
@@ -3230,7 +3230,7 @@ export declare const ChatWithCircuitBuilderResponse: zod.ZodObject<{
                 symbolId?: string | undefined;
                 unit?: number | undefined;
                 bodyStyle?: number | undefined;
-                rotation?: 0 | 90 | 180 | 270 | undefined;
+                rotation?: number | undefined;
                 circle?: boolean | undefined;
                 text?: string | undefined;
                 points?: number[][] | undefined;
@@ -3293,7 +3293,7 @@ export declare const ChatWithCircuitBuilderResponse: zod.ZodObject<{
                 symbolId?: string | undefined;
                 unit?: number | undefined;
                 bodyStyle?: number | undefined;
-                rotation?: 0 | 90 | 180 | 270 | undefined;
+                rotation?: number | undefined;
                 circle?: boolean | undefined;
                 text?: string | undefined;
                 points?: number[][] | undefined;
@@ -3358,7 +3358,7 @@ export declare const ChatWithCircuitBuilderResponse: zod.ZodObject<{
                 symbolId?: string | undefined;
                 unit?: number | undefined;
                 bodyStyle?: number | undefined;
-                rotation?: 0 | 90 | 180 | 270 | undefined;
+                rotation?: number | undefined;
                 circle?: boolean | undefined;
                 text?: string | undefined;
                 points?: number[][] | undefined;
@@ -3426,7 +3426,7 @@ export declare const ChatWithCircuitBuilderResponse: zod.ZodObject<{
                 symbolId?: string | undefined;
                 unit?: number | undefined;
                 bodyStyle?: number | undefined;
-                rotation?: 0 | 90 | 180 | 270 | undefined;
+                rotation?: number | undefined;
                 circle?: boolean | undefined;
                 text?: string | undefined;
                 points?: number[][] | undefined;
@@ -3494,7 +3494,7 @@ export declare const ChatWithCircuitBuilderResponse: zod.ZodObject<{
                 symbolId?: string | undefined;
                 unit?: number | undefined;
                 bodyStyle?: number | undefined;
-                rotation?: 0 | 90 | 180 | 270 | undefined;
+                rotation?: number | undefined;
                 circle?: boolean | undefined;
                 text?: string | undefined;
                 points?: number[][] | undefined;
@@ -3601,7 +3601,7 @@ export declare const ChatWithCircuitBuilderResponse: zod.ZodObject<{
                 symbolId?: string | undefined;
                 unit?: number | undefined;
                 bodyStyle?: number | undefined;
-                rotation?: 0 | 90 | 180 | 270 | undefined;
+                rotation?: number | undefined;
                 circle?: boolean | undefined;
                 text?: string | undefined;
                 points?: number[][] | undefined;
@@ -3692,7 +3692,7 @@ export declare const ChatWithCircuitBuilderResponse: zod.ZodObject<{
                 symbolId?: string | undefined;
                 unit?: number | undefined;
                 bodyStyle?: number | undefined;
-                rotation?: 0 | 90 | 180 | 270 | undefined;
+                rotation?: number | undefined;
                 circle?: boolean | undefined;
                 text?: string | undefined;
                 points?: number[][] | undefined;
@@ -3819,7 +3819,7 @@ export declare const ReviewExternalCircuitFixBody: zod.ZodObject<{
             symbolId: zod.ZodOptional<zod.ZodString>;
             unit: zod.ZodOptional<zod.ZodNumber>;
             bodyStyle: zod.ZodOptional<zod.ZodNumber>;
-            rotation: zod.ZodOptional<zod.ZodUnion<[zod.ZodLiteral<0>, zod.ZodLiteral<90>, zod.ZodLiteral<180>, zod.ZodLiteral<270>]>>;
+            rotation: zod.ZodOptional<zod.ZodNumber>;
             symbolData: zod.ZodOptional<zod.ZodObject<{
                 id: zod.ZodString;
                 units: zod.ZodArray<zod.ZodObject<{
@@ -4014,7 +4014,7 @@ export declare const ReviewExternalCircuitFixBody: zod.ZodObject<{
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -4074,7 +4074,7 @@ export declare const ReviewExternalCircuitFixBody: zod.ZodObject<{
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -4137,7 +4137,7 @@ export declare const ReviewExternalCircuitFixBody: zod.ZodObject<{
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -4202,7 +4202,7 @@ export declare const ReviewExternalCircuitFixBody: zod.ZodObject<{
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -4303,7 +4303,7 @@ export declare const ReviewExternalCircuitFixBody: zod.ZodObject<{
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -4384,7 +4384,7 @@ export declare const ReviewExternalCircuitFixBody: zod.ZodObject<{
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -4627,7 +4627,7 @@ export declare const SaveCircuitBuilderRepairLessonBody: zod.ZodUnion<[zod.ZodOb
             symbolId: zod.ZodOptional<zod.ZodString>;
             unit: zod.ZodOptional<zod.ZodNumber>;
             bodyStyle: zod.ZodOptional<zod.ZodNumber>;
-            rotation: zod.ZodOptional<zod.ZodUnion<[zod.ZodLiteral<0>, zod.ZodLiteral<90>, zod.ZodLiteral<180>, zod.ZodLiteral<270>]>>;
+            rotation: zod.ZodOptional<zod.ZodNumber>;
             symbolData: zod.ZodOptional<zod.ZodObject<{
                 id: zod.ZodString;
                 units: zod.ZodArray<zod.ZodObject<{
@@ -4822,7 +4822,7 @@ export declare const SaveCircuitBuilderRepairLessonBody: zod.ZodUnion<[zod.ZodOb
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -4882,7 +4882,7 @@ export declare const SaveCircuitBuilderRepairLessonBody: zod.ZodUnion<[zod.ZodOb
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -4945,7 +4945,7 @@ export declare const SaveCircuitBuilderRepairLessonBody: zod.ZodUnion<[zod.ZodOb
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -5010,7 +5010,7 @@ export declare const SaveCircuitBuilderRepairLessonBody: zod.ZodUnion<[zod.ZodOb
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -5077,7 +5077,7 @@ export declare const SaveCircuitBuilderRepairLessonBody: zod.ZodUnion<[zod.ZodOb
             symbolId: zod.ZodOptional<zod.ZodString>;
             unit: zod.ZodOptional<zod.ZodNumber>;
             bodyStyle: zod.ZodOptional<zod.ZodNumber>;
-            rotation: zod.ZodOptional<zod.ZodUnion<[zod.ZodLiteral<0>, zod.ZodLiteral<90>, zod.ZodLiteral<180>, zod.ZodLiteral<270>]>>;
+            rotation: zod.ZodOptional<zod.ZodNumber>;
             symbolData: zod.ZodOptional<zod.ZodObject<{
                 id: zod.ZodString;
                 units: zod.ZodArray<zod.ZodObject<{
@@ -5272,7 +5272,7 @@ export declare const SaveCircuitBuilderRepairLessonBody: zod.ZodUnion<[zod.ZodOb
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -5332,7 +5332,7 @@ export declare const SaveCircuitBuilderRepairLessonBody: zod.ZodUnion<[zod.ZodOb
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -5395,7 +5395,7 @@ export declare const SaveCircuitBuilderRepairLessonBody: zod.ZodUnion<[zod.ZodOb
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -5460,7 +5460,7 @@ export declare const SaveCircuitBuilderRepairLessonBody: zod.ZodUnion<[zod.ZodOb
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -5530,7 +5530,7 @@ export declare const SaveCircuitBuilderRepairLessonBody: zod.ZodUnion<[zod.ZodOb
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -5596,7 +5596,7 @@ export declare const SaveCircuitBuilderRepairLessonBody: zod.ZodUnion<[zod.ZodOb
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -5666,7 +5666,7 @@ export declare const SaveCircuitBuilderRepairLessonBody: zod.ZodUnion<[zod.ZodOb
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -5732,7 +5732,7 @@ export declare const SaveCircuitBuilderRepairLessonBody: zod.ZodUnion<[zod.ZodOb
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -6003,7 +6003,7 @@ export declare const ListCircuitBuilderHistoryResponseItem: zod.ZodObject<{
             symbolId: zod.ZodOptional<zod.ZodString>;
             unit: zod.ZodOptional<zod.ZodNumber>;
             bodyStyle: zod.ZodOptional<zod.ZodNumber>;
-            rotation: zod.ZodOptional<zod.ZodUnion<[zod.ZodLiteral<0>, zod.ZodLiteral<90>, zod.ZodLiteral<180>, zod.ZodLiteral<270>]>>;
+            rotation: zod.ZodOptional<zod.ZodNumber>;
             symbolData: zod.ZodOptional<zod.ZodObject<{
                 id: zod.ZodString;
                 units: zod.ZodArray<zod.ZodObject<{
@@ -6198,7 +6198,7 @@ export declare const ListCircuitBuilderHistoryResponseItem: zod.ZodObject<{
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -6258,7 +6258,7 @@ export declare const ListCircuitBuilderHistoryResponseItem: zod.ZodObject<{
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -6321,7 +6321,7 @@ export declare const ListCircuitBuilderHistoryResponseItem: zod.ZodObject<{
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -6386,7 +6386,7 @@ export declare const ListCircuitBuilderHistoryResponseItem: zod.ZodObject<{
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -6455,7 +6455,7 @@ export declare const ListCircuitBuilderHistoryResponseItem: zod.ZodObject<{
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -6553,7 +6553,7 @@ export declare const ListCircuitBuilderHistoryResponseItem: zod.ZodObject<{
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -6782,7 +6782,7 @@ export declare const ListCircuitBuilderHistoryResponse: zod.ZodArray<zod.ZodObje
             symbolId: zod.ZodOptional<zod.ZodString>;
             unit: zod.ZodOptional<zod.ZodNumber>;
             bodyStyle: zod.ZodOptional<zod.ZodNumber>;
-            rotation: zod.ZodOptional<zod.ZodUnion<[zod.ZodLiteral<0>, zod.ZodLiteral<90>, zod.ZodLiteral<180>, zod.ZodLiteral<270>]>>;
+            rotation: zod.ZodOptional<zod.ZodNumber>;
             symbolData: zod.ZodOptional<zod.ZodObject<{
                 id: zod.ZodString;
                 units: zod.ZodArray<zod.ZodObject<{
@@ -6977,7 +6977,7 @@ export declare const ListCircuitBuilderHistoryResponse: zod.ZodArray<zod.ZodObje
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -7037,7 +7037,7 @@ export declare const ListCircuitBuilderHistoryResponse: zod.ZodArray<zod.ZodObje
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -7100,7 +7100,7 @@ export declare const ListCircuitBuilderHistoryResponse: zod.ZodArray<zod.ZodObje
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -7165,7 +7165,7 @@ export declare const ListCircuitBuilderHistoryResponse: zod.ZodArray<zod.ZodObje
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -7234,7 +7234,7 @@ export declare const ListCircuitBuilderHistoryResponse: zod.ZodArray<zod.ZodObje
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -7332,7 +7332,7 @@ export declare const ListCircuitBuilderHistoryResponse: zod.ZodArray<zod.ZodObje
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -7621,7 +7621,7 @@ export declare const SyncCircuitBuilderHistoryBody: zod.ZodObject<{
                 symbolId: zod.ZodOptional<zod.ZodString>;
                 unit: zod.ZodOptional<zod.ZodNumber>;
                 bodyStyle: zod.ZodOptional<zod.ZodNumber>;
-                rotation: zod.ZodOptional<zod.ZodUnion<[zod.ZodLiteral<0>, zod.ZodLiteral<90>, zod.ZodLiteral<180>, zod.ZodLiteral<270>]>>;
+                rotation: zod.ZodOptional<zod.ZodNumber>;
                 symbolData: zod.ZodOptional<zod.ZodObject<{
                     id: zod.ZodString;
                     units: zod.ZodArray<zod.ZodObject<{
@@ -7816,7 +7816,7 @@ export declare const SyncCircuitBuilderHistoryBody: zod.ZodObject<{
                 symbolId?: string | undefined;
                 unit?: number | undefined;
                 bodyStyle?: number | undefined;
-                rotation?: 0 | 90 | 180 | 270 | undefined;
+                rotation?: number | undefined;
                 circle?: boolean | undefined;
                 text?: string | undefined;
                 points?: number[][] | undefined;
@@ -7876,7 +7876,7 @@ export declare const SyncCircuitBuilderHistoryBody: zod.ZodObject<{
                 symbolId?: string | undefined;
                 unit?: number | undefined;
                 bodyStyle?: number | undefined;
-                rotation?: 0 | 90 | 180 | 270 | undefined;
+                rotation?: number | undefined;
                 circle?: boolean | undefined;
                 text?: string | undefined;
                 points?: number[][] | undefined;
@@ -7939,7 +7939,7 @@ export declare const SyncCircuitBuilderHistoryBody: zod.ZodObject<{
                 symbolId?: string | undefined;
                 unit?: number | undefined;
                 bodyStyle?: number | undefined;
-                rotation?: 0 | 90 | 180 | 270 | undefined;
+                rotation?: number | undefined;
                 circle?: boolean | undefined;
                 text?: string | undefined;
                 points?: number[][] | undefined;
@@ -8004,7 +8004,7 @@ export declare const SyncCircuitBuilderHistoryBody: zod.ZodObject<{
                 symbolId?: string | undefined;
                 unit?: number | undefined;
                 bodyStyle?: number | undefined;
-                rotation?: 0 | 90 | 180 | 270 | undefined;
+                rotation?: number | undefined;
                 circle?: boolean | undefined;
                 text?: string | undefined;
                 points?: number[][] | undefined;
@@ -8073,7 +8073,7 @@ export declare const SyncCircuitBuilderHistoryBody: zod.ZodObject<{
                 symbolId?: string | undefined;
                 unit?: number | undefined;
                 bodyStyle?: number | undefined;
-                rotation?: 0 | 90 | 180 | 270 | undefined;
+                rotation?: number | undefined;
                 circle?: boolean | undefined;
                 text?: string | undefined;
                 points?: number[][] | undefined;
@@ -8171,7 +8171,7 @@ export declare const SyncCircuitBuilderHistoryBody: zod.ZodObject<{
                 symbolId?: string | undefined;
                 unit?: number | undefined;
                 bodyStyle?: number | undefined;
-                rotation?: 0 | 90 | 180 | 270 | undefined;
+                rotation?: number | undefined;
                 circle?: boolean | undefined;
                 text?: string | undefined;
                 points?: number[][] | undefined;
@@ -8271,7 +8271,7 @@ export declare const SyncCircuitBuilderHistoryBody: zod.ZodObject<{
                 symbolId?: string | undefined;
                 unit?: number | undefined;
                 bodyStyle?: number | undefined;
-                rotation?: 0 | 90 | 180 | 270 | undefined;
+                rotation?: number | undefined;
                 circle?: boolean | undefined;
                 text?: string | undefined;
                 points?: number[][] | undefined;
@@ -8371,7 +8371,7 @@ export declare const SyncCircuitBuilderHistoryBody: zod.ZodObject<{
                 symbolId?: string | undefined;
                 unit?: number | undefined;
                 bodyStyle?: number | undefined;
-                rotation?: 0 | 90 | 180 | 270 | undefined;
+                rotation?: number | undefined;
                 circle?: boolean | undefined;
                 text?: string | undefined;
                 points?: number[][] | undefined;
@@ -8593,7 +8593,7 @@ export declare const ReviewCircuitBody: zod.ZodObject<{
             symbolId: zod.ZodOptional<zod.ZodString>;
             unit: zod.ZodOptional<zod.ZodNumber>;
             bodyStyle: zod.ZodOptional<zod.ZodNumber>;
-            rotation: zod.ZodOptional<zod.ZodUnion<[zod.ZodLiteral<0>, zod.ZodLiteral<90>, zod.ZodLiteral<180>, zod.ZodLiteral<270>]>>;
+            rotation: zod.ZodOptional<zod.ZodNumber>;
             symbolData: zod.ZodOptional<zod.ZodObject<{
                 id: zod.ZodString;
                 units: zod.ZodArray<zod.ZodObject<{
@@ -8788,7 +8788,7 @@ export declare const ReviewCircuitBody: zod.ZodObject<{
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -8848,7 +8848,7 @@ export declare const ReviewCircuitBody: zod.ZodObject<{
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -8911,7 +8911,7 @@ export declare const ReviewCircuitBody: zod.ZodObject<{
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -8976,7 +8976,7 @@ export declare const ReviewCircuitBody: zod.ZodObject<{
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -9043,7 +9043,7 @@ export declare const ReviewCircuitBody: zod.ZodObject<{
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;
@@ -9110,7 +9110,7 @@ export declare const ReviewCircuitBody: zod.ZodObject<{
             symbolId?: string | undefined;
             unit?: number | undefined;
             bodyStyle?: number | undefined;
-            rotation?: 0 | 90 | 180 | 270 | undefined;
+            rotation?: number | undefined;
             circle?: boolean | undefined;
             text?: string | undefined;
             points?: number[][] | undefined;

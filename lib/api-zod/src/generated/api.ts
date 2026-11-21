@@ -91,7 +91,7 @@ export const GenerateCircuitResponse = zod.object({
   "symbolId": zod.string().regex(generateCircuitResponseElementsItemSymbolIdRegExp).optional(),
   "unit": zod.number().int().min(1).optional(),
   "bodyStyle": zod.number().int().min(1).optional(),
-  "rotation": zod.union([zod.literal(0),zod.literal(90),zod.literal(180),zod.literal(270)]).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
   "symbolData": zod.object({
   "id": zod.string(),
   "units": zod.array(zod.object({
@@ -335,7 +335,7 @@ export const AskCircuitTutorBody = zod.object({
   "symbolId": zod.string().regex(askCircuitTutorBodyCurrentSpecElementsItemSymbolIdRegExp).optional(),
   "unit": zod.number().int().min(1).optional(),
   "bodyStyle": zod.number().int().min(1).optional(),
-  "rotation": zod.union([zod.literal(0),zod.literal(90),zod.literal(180),zod.literal(270)]).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
   "symbolData": zod.object({
   "id": zod.string(),
   "units": zod.array(zod.object({
@@ -458,7 +458,7 @@ export const AskCircuitTutorResponse = zod.object({
   "symbolId": zod.string().regex(askCircuitTutorResponseProposedEditSpecElementsItemSymbolIdRegExp).optional(),
   "unit": zod.number().int().min(1).optional(),
   "bodyStyle": zod.number().int().min(1).optional(),
-  "rotation": zod.union([zod.literal(0),zod.literal(90),zod.literal(180),zod.literal(270)]).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
   "symbolData": zod.object({
   "id": zod.string(),
   "units": zod.array(zod.object({
@@ -602,7 +602,7 @@ export const ChatWithCircuitBuilderBody = zod.object({
   "symbolId": zod.string().regex(chatWithCircuitBuilderBodyCurrentSpecElementsItemSymbolIdRegExp).optional(),
   "unit": zod.number().int().min(1).optional(),
   "bodyStyle": zod.number().int().min(1).optional(),
-  "rotation": zod.union([zod.literal(0),zod.literal(90),zod.literal(180),zod.literal(270)]).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
   "symbolData": zod.object({
   "id": zod.string(),
   "units": zod.array(zod.object({
@@ -773,7 +773,7 @@ export const ChatWithCircuitBuilderResponse = zod.object({
   "symbolId": zod.string().regex(chatWithCircuitBuilderResponseProposalSpecElementsItemSymbolIdRegExp).optional(),
   "unit": zod.number().int().min(1).optional(),
   "bodyStyle": zod.number().int().min(1).optional(),
-  "rotation": zod.union([zod.literal(0),zod.literal(90),zod.literal(180),zod.literal(270)]).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
   "symbolData": zod.object({
   "id": zod.string(),
   "units": zod.array(zod.object({
@@ -936,7 +936,7 @@ export const ReviewExternalCircuitFixBody = zod.object({
   "symbolId": zod.string().regex(reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolIdRegExp).optional(),
   "unit": zod.number().int().min(1).optional(),
   "bodyStyle": zod.number().int().min(1).optional(),
-  "rotation": zod.union([zod.literal(0),zod.literal(90),zod.literal(180),zod.literal(270)]).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
   "symbolData": zod.object({
   "id": zod.string(),
   "units": zod.array(zod.object({
@@ -1193,7 +1193,7 @@ export const SaveCircuitBuilderRepairLessonBody = zod.union([zod.object({
   "symbolId": zod.string().regex(saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolIdRegExp).optional(),
   "unit": zod.number().int().min(1).optional(),
   "bodyStyle": zod.number().int().min(1).optional(),
-  "rotation": zod.union([zod.literal(0),zod.literal(90),zod.literal(180),zod.literal(270)]).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
   "symbolData": zod.object({
   "id": zod.string(),
   "units": zod.array(zod.object({
@@ -1259,7 +1259,7 @@ export const SaveCircuitBuilderRepairLessonBody = zod.union([zod.object({
   "symbolId": zod.string().regex(saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolIdRegExp).optional(),
   "unit": zod.number().int().min(1).optional(),
   "bodyStyle": zod.number().int().min(1).optional(),
-  "rotation": zod.union([zod.literal(0),zod.literal(90),zod.literal(180),zod.literal(270)]).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
   "symbolData": zod.object({
   "id": zod.string(),
   "units": zod.array(zod.object({
@@ -1476,7 +1476,7 @@ export const ListCircuitBuilderHistoryResponseItem = zod.object({
   "symbolId": zod.string().regex(listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolIdRegExp).optional(),
   "unit": zod.number().int().min(1).optional(),
   "bodyStyle": zod.number().int().min(1).optional(),
-  "rotation": zod.union([zod.literal(0),zod.literal(90),zod.literal(180),zod.literal(270)]).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
   "symbolData": zod.object({
   "id": zod.string(),
   "units": zod.array(zod.object({
@@ -1686,7 +1686,7 @@ export const SyncCircuitBuilderHistoryBody = zod.object({
   "symbolId": zod.string().regex(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolIdRegExp).optional(),
   "unit": zod.number().int().min(1).optional(),
   "bodyStyle": zod.number().int().min(1).optional(),
-  "rotation": zod.union([zod.literal(0),zod.literal(90),zod.literal(180),zod.literal(270)]).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
   "symbolData": zod.object({
   "id": zod.string(),
   "units": zod.array(zod.object({
@@ -1892,7 +1892,7 @@ export const ReviewCircuitBody = zod.object({
   "symbolId": zod.string().regex(reviewCircuitBodySpecElementsItemSymbolIdRegExp).optional(),
   "unit": zod.number().int().min(1).optional(),
   "bodyStyle": zod.number().int().min(1).optional(),
-  "rotation": zod.union([zod.literal(0),zod.literal(90),zod.literal(180),zod.literal(270)]).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
   "symbolData": zod.object({
   "id": zod.string(),
   "units": zod.array(zod.object({

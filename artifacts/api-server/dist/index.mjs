@@ -53612,7 +53612,7 @@ var GenerateCircuitResponse = objectType({
     "symbolId": stringType().regex(generateCircuitResponseElementsItemSymbolIdRegExp).optional(),
     "unit": numberType().int().min(1).optional(),
     "bodyStyle": numberType().int().min(1).optional(),
-    "rotation": unionType([literalType(0), literalType(90), literalType(180), literalType(270)]).optional(),
+    "rotation": numberType().optional().describe("Any finite rotation angle in degrees, including fractional and negative angles."),
     "symbolData": objectType({
       "id": stringType(),
       "units": arrayType(objectType({
@@ -53793,7 +53793,7 @@ var AskCircuitTutorBody = objectType({
       "symbolId": stringType().regex(askCircuitTutorBodyCurrentSpecElementsItemSymbolIdRegExp).optional(),
       "unit": numberType().int().min(1).optional(),
       "bodyStyle": numberType().int().min(1).optional(),
-      "rotation": unionType([literalType(0), literalType(90), literalType(180), literalType(270)]).optional(),
+      "rotation": numberType().optional().describe("Any finite rotation angle in degrees, including fractional and negative angles."),
       "symbolData": objectType({
         "id": stringType(),
         "units": arrayType(objectType({
@@ -53894,7 +53894,7 @@ var AskCircuitTutorResponse = objectType({
         "symbolId": stringType().regex(askCircuitTutorResponseProposedEditSpecElementsItemSymbolIdRegExp).optional(),
         "unit": numberType().int().min(1).optional(),
         "bodyStyle": numberType().int().min(1).optional(),
-        "rotation": unionType([literalType(0), literalType(90), literalType(180), literalType(270)]).optional(),
+        "rotation": numberType().optional().describe("Any finite rotation angle in degrees, including fractional and negative angles."),
         "symbolData": objectType({
           "id": stringType(),
           "units": arrayType(objectType({
@@ -54001,7 +54001,7 @@ var ChatWithCircuitBuilderBody = objectType({
       "symbolId": stringType().regex(chatWithCircuitBuilderBodyCurrentSpecElementsItemSymbolIdRegExp).optional(),
       "unit": numberType().int().min(1).optional(),
       "bodyStyle": numberType().int().min(1).optional(),
-      "rotation": unionType([literalType(0), literalType(90), literalType(180), literalType(270)]).optional(),
+      "rotation": numberType().optional().describe("Any finite rotation angle in degrees, including fractional and negative angles."),
       "symbolData": objectType({
         "id": stringType(),
         "units": arrayType(objectType({
@@ -54131,7 +54131,7 @@ var ChatWithCircuitBuilderResponse = objectType({
         "symbolId": stringType().regex(chatWithCircuitBuilderResponseProposalSpecElementsItemSymbolIdRegExp).optional(),
         "unit": numberType().int().min(1).optional(),
         "bodyStyle": numberType().int().min(1).optional(),
-        "rotation": unionType([literalType(0), literalType(90), literalType(180), literalType(270)]).optional(),
+        "rotation": numberType().optional().describe("Any finite rotation angle in degrees, including fractional and negative angles."),
         "symbolData": objectType({
           "id": stringType(),
           "units": arrayType(objectType({
@@ -54253,7 +54253,7 @@ var ReviewExternalCircuitFixBody = objectType({
       "symbolId": stringType().regex(reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolIdRegExp).optional(),
       "unit": numberType().int().min(1).optional(),
       "bodyStyle": numberType().int().min(1).optional(),
-      "rotation": unionType([literalType(0), literalType(90), literalType(180), literalType(270)]).optional(),
+      "rotation": numberType().optional().describe("Any finite rotation angle in degrees, including fractional and negative angles."),
       "symbolData": objectType({
         "id": stringType(),
         "units": arrayType(objectType({
@@ -54424,7 +54424,7 @@ var SaveCircuitBuilderRepairLessonBody = unionType([objectType({
       "symbolId": stringType().regex(saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolIdRegExp).optional(),
       "unit": numberType().int().min(1).optional(),
       "bodyStyle": numberType().int().min(1).optional(),
-      "rotation": unionType([literalType(0), literalType(90), literalType(180), literalType(270)]).optional(),
+      "rotation": numberType().optional().describe("Any finite rotation angle in degrees, including fractional and negative angles."),
       "symbolData": objectType({
         "id": stringType(),
         "units": arrayType(objectType({
@@ -54490,7 +54490,7 @@ var SaveCircuitBuilderRepairLessonBody = unionType([objectType({
       "symbolId": stringType().regex(saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolIdRegExp).optional(),
       "unit": numberType().int().min(1).optional(),
       "bodyStyle": numberType().int().min(1).optional(),
-      "rotation": unionType([literalType(0), literalType(90), literalType(180), literalType(270)]).optional(),
+      "rotation": numberType().optional().describe("Any finite rotation angle in degrees, including fractional and negative angles."),
       "symbolData": objectType({
         "id": stringType(),
         "units": arrayType(objectType({
@@ -54650,7 +54650,7 @@ var ListCircuitBuilderHistoryResponseItem = objectType({
       "symbolId": stringType().regex(listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolIdRegExp).optional(),
       "unit": numberType().int().min(1).optional(),
       "bodyStyle": numberType().int().min(1).optional(),
-      "rotation": unionType([literalType(0), literalType(90), literalType(180), literalType(270)]).optional(),
+      "rotation": numberType().optional().describe("Any finite rotation angle in degrees, including fractional and negative angles."),
       "symbolData": objectType({
         "id": stringType(),
         "units": arrayType(objectType({
@@ -54806,7 +54806,7 @@ var SyncCircuitBuilderHistoryBody = objectType({
         "symbolId": stringType().regex(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolIdRegExp).optional(),
         "unit": numberType().int().min(1).optional(),
         "bodyStyle": numberType().int().min(1).optional(),
-        "rotation": unionType([literalType(0), literalType(90), literalType(180), literalType(270)]).optional(),
+        "rotation": numberType().optional().describe("Any finite rotation angle in degrees, including fractional and negative angles."),
         "symbolData": objectType({
           "id": stringType(),
           "units": arrayType(objectType({
@@ -54935,7 +54935,7 @@ var ReviewCircuitBody = objectType({
       "symbolId": stringType().regex(reviewCircuitBodySpecElementsItemSymbolIdRegExp).optional(),
       "unit": numberType().int().min(1).optional(),
       "bodyStyle": numberType().int().min(1).optional(),
-      "rotation": unionType([literalType(0), literalType(90), literalType(180), literalType(270)]).optional(),
+      "rotation": numberType().optional().describe("Any finite rotation angle in degrees, including fractional and negative angles."),
       "symbolData": objectType({
         "id": stringType(),
         "units": arrayType(objectType({
@@ -56853,8 +56853,8 @@ function getCircuitElementSchemaError(element) {
         return `kicad ${property} must be a positive integer.`;
       }
     }
-    if (record2.rotation !== void 0 && (typeof record2.rotation !== "number" || !Number.isFinite(record2.rotation) || ![0, 90, 180, 270].includes(record2.rotation))) {
-      return "kicad rotation must be 0, 90, 180, or 270 degrees.";
+    if (record2.rotation !== void 0 && (typeof record2.rotation !== "number" || !Number.isFinite(record2.rotation))) {
+      return "kicad rotation must be a finite angle in degrees.";
     }
     if (record2.symbolData !== void 0) {
       const symbolData = record2.symbolData;
@@ -56916,7 +56916,7 @@ function formatCircuitPinGuide() {
   lines.push(
     `opamp: INV=${formatOffset([-40, -20])}, NONINV=${formatOffset([-40, 20])}, OUT=${formatOffset([40, 0])}; swap:true exchanges the two input y offsets.`,
     "ground, antenna, terminal: the pin is exactly at the element at coordinate.",
-    "kicad: use the exact symbolId and per-unit pin offsets supplied in the selected KiCad library definitions; element.at is the symbol origin, rotation is 0, 90, 180, or 270, and unit/bodyStyle default to 1."
+    "kicad: use the exact symbolId and per-unit pin offsets supplied in the selected KiCad library definitions; element.at is the symbol origin, rotation accepts any finite angle in degrees (including fractional and negative angles). Preserve the exact angle the user requests; otherwise, choose an angle that improves a clear layout. Rotate each pin offset around the origin using x\u2032=x cos(\u03B8)\u2212y sin(\u03B8), y\u2032=x sin(\u03B8)+y cos(\u03B8), then add element.at. unit/bodyStyle default to 1."
   );
   return lines.join("\n");
 }

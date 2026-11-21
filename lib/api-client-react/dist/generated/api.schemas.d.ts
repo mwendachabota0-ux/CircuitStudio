@@ -37,13 +37,6 @@ export interface TutorImage {
  * @maxItems 2
  */
 export type CircuitPoint = number[];
-export type CircuitElementRotation = typeof CircuitElementRotation[keyof typeof CircuitElementRotation];
-export declare const CircuitElementRotation: {
-    readonly NUMBER_0: 0;
-    readonly NUMBER_90: 90;
-    readonly NUMBER_180: 180;
-    readonly NUMBER_270: 270;
-};
 export interface KicadSymbolPin {
     number: string;
     name: string;
@@ -114,7 +107,8 @@ export interface CircuitElement {
     unit?: number;
     /** @minimum 1 */
     bodyStyle?: number;
-    rotation?: CircuitElementRotation;
+    /** Any finite rotation angle in degrees, including fractional and negative angles. */
+    rotation?: number;
     symbolData?: KicadSymbolData;
     points?: CircuitPoint[];
     x?: number;

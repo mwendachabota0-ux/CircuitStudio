@@ -347,10 +347,9 @@ export function getCircuitElementSchemaError(element: unknown): string | null {
     if (
       record.rotation !== undefined &&
       (typeof record.rotation !== 'number' ||
-        !Number.isFinite(record.rotation) ||
-        ![0, 90, 180, 270].includes(record.rotation))
+        !Number.isFinite(record.rotation))
     ) {
-      return 'kicad rotation must be 0, 90, 180, or 270 degrees.';
+      return 'kicad rotation must be a finite angle in degrees.';
     }
     if (record.symbolData !== undefined) {
       const symbolData = record.symbolData as Partial<KicadSymbolData> | null;
@@ -624,7 +623,7 @@ export function formatCircuitPinGuide(): string {
   lines.push(
     `opamp: INV=${formatOffset([-40, -20])}, NONINV=${formatOffset([-40, 20])}, OUT=${formatOffset([40, 0])}; swap:true exchanges the two input y offsets.`,
     'ground, antenna, terminal: the pin is exactly at the element at coordinate.',
-    'kicad: use the exact symbolId and per-unit pin offsets supplied in the selected KiCad library definitions; element.at is the symbol origin, rotation is 0, 90, 180, or 270, and unit/bodyStyle default to 1.',
+    'kicad: use the exact symbolId and per-unit pin offsets supplied in the selected KiCad library definitions; element.at is the symbol origin, rotation accepts any finite angle in degrees (including fractional and negative angles). Preserve the exact angle the user requests; otherwise, choose an angle that improves a clear layout. Rotate each pin offset around the origin using x′=x cos(θ)−y sin(θ), y′=x sin(θ)+y cos(θ), then add element.at. unit/bodyStyle default to 1.',
   );
 
   return lines.join('\n');

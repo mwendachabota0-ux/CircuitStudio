@@ -202,8 +202,8 @@ function renderRejectedProposalPreview(
   }
 }
 
-function formatValidationFailure(errors: string[], repairAttemptCount: number): string {
-  return `The proposal still has ${errors.length} blocking validation error${errors.length === 1 ? '' : 's'} after ${repairAttemptCount} repair attempt${repairAttemptCount === 1 ? '' : 's'}. The full list and rejected draft are shown below.`;
+function formatValidationFailure(repairAttemptCount: number): string {
+  return `Repair stopped after ${repairAttemptCount} attempt${repairAttemptCount === 1 ? '' : 's'}.`;
 }
 
 function asCircuitSpec(value: unknown): CircuitBuildChatInput['currentSpec'] | null {
@@ -1133,7 +1133,7 @@ export function CircuitBuilderChat({
         let message: string;
         if (error.failureKind === 'validation') {
           message = error.validationFindings.length
-            ? formatValidationFailure(error.validationFindings, error.repairAttemptCount)
+            ? formatValidationFailure(error.repairAttemptCount)
             : 'The proposal could not be checked. Your message is still here.';
         } else if (error.failureKind === 'output') {
           const compatibilityMessage = error.cause instanceof Error

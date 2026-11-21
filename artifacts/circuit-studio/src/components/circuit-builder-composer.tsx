@@ -87,18 +87,18 @@ const CircuitBuilderComposer = forwardRef<
   };
 
   const composerHint = isHistoryLoading
-    ? 'Loading your account history…'
+    ? 'Loading history…'
     : isWorking
-    ? 'You can draft a follow-up while the AI works'
+    ? 'Draft a follow-up while Studio works'
     : briefEditing
-      ? 'Save or cancel your notes before sending'
+      ? 'Save or cancel notes first'
       : hasProposal
-        ? 'Apply or discard the staged proposal before sending another request'
+        ? 'Review or discard the proposal first'
         : hasUnappliedJsonEdits
-          ? 'Apply your JSON edit before sending it to Studio AI'
+          ? 'Apply your JSON edit first'
         : mode === 'chat'
-          ? 'Enter to send · Shift + Enter for a new line'
-          : 'A proposal is staged for your review, never applied automatically';
+          ? 'Enter to send · Shift+Enter for newline'
+          : 'Review the proposal; it won’t apply itself.';
 
   const sendLabel = isHistoryLoading
     ? 'Loading'

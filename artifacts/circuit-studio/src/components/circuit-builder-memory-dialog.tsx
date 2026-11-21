@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   getListCircuitBuilderMemoriesQueryKey,
@@ -57,6 +57,13 @@ export function CircuitBuilderMemoryDialog({
   const [confirmClear, setConfirmClear] = useState(false);
   const [actionError, setActionError] = useState('');
   const [helpOpen, setHelpOpen] = useState(false);
+
+  useEffect(() => {
+    if (!helpOpen) return;
+
+    const timeout = window.setTimeout(() => setHelpOpen(false), 15_000);
+    return () => window.clearTimeout(timeout);
+  }, [helpOpen]);
 
   const refreshMemories = async () => {
     await queryClient.invalidateQueries({

@@ -357,6 +357,31 @@
 }
 
 .builder-chat__error > span { flex: 1; }
+.builder-chat__retry-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 9px;
+  flex: none;
+}
+.builder-chat__fresh-retry {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #80583b;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.builder-chat__fresh-retry:hover:not(:disabled) { color: #523520; }
+.builder-chat__fresh-retry:disabled { cursor: not-allowed; opacity: .55; }
+.builder-chat__fresh-retry-note {
+  margin: -3px 12px 9px;
+  color: #766351;
+  font-size: 9px;
+  line-height: 1.45;
+}
 .builder-chat__validation-findings,
 .builder-chat__rejected {
   margin: 0 12px 9px;

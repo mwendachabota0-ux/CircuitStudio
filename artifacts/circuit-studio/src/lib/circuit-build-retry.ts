@@ -238,6 +238,26 @@ export function buildManualRetryRequest(
   return safeRequest;
 }
 
+export function buildFreshRetryRequest(
+  originalRequest: CircuitBuildChatInput,
+  brief: CircuitDesignBrief,
+): CircuitBuildChatInput {
+  return normalizeCircuitBuildRequest({
+    ...originalRequest,
+    mode: 'build',
+    brief,
+    responseFormatRetry: false,
+  });
+}
+
+export function shouldOfferFreshRetry(
+  diagnostics: readonly RepairAttemptDiagnostic[],
+  validationFindings: readonly string[],
+): boolean {
+  return validationFindings.length > 0 &&
+    diagnostics.some((diagnostic) => diagnostic.outcome === 'exhausted');
+}
+
 function canonicalizeElement(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalizeElement);
   if (!value || typeof value !== 'object') return value;

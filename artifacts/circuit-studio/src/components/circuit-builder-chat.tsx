@@ -29,6 +29,7 @@ import type {
 } from '@workspace/api-client-react';
 import type { CircuitComponentLibraryEntry } from '@workspace/circuit-geometry';
 import {
+  buildFreshRetryRequest,
   buildManualRetryRequest,
   buildOutputRepairRequest,
   buildRepairRequest,
@@ -41,6 +42,7 @@ import {
   normalizeCircuitBuildRequest,
   restoreProtectedNonWireElements,
   runCircuitBuildAttempts,
+  shouldOfferFreshRetry,
   type BuildRetryKind,
   type RepairAttemptDiagnostic,
 } from '../lib/circuit-build-retry';
@@ -1401,6 +1403,28 @@ export function CircuitBuilderChat({
     );
   };
 
+  const startFreshRetry = async () => {
+    if (!lastRequest || chatMutation.isPending || requestCycleActive) return;
+    const findings = retryFeedback?.validationFindings ?? [];
+    const rejectedSpec = asCircuitSpec(rejectedProposalSpec);
+    const repairLessonSeed = rejectedSpec && findings.length
+      ? {
+          beforeSpec: rejectedSpec,
+          findings,
+          context: `A fresh retry was started after ${MAX_AUTO_RETRIES} automatic repairs did not clear the blocking errors.`,
+        }
+      : undefined;
+
+    await runRequest(
+      buildFreshRetryRequest(lastRequest, saved.brief),
+      composerRef.current?.getDraftRevision() ?? 0,
+      undefined,
+      false,
+      true,
+      repairLessonSeed,
+    );
+  };
+
   const repairCurrentDraft = () => {
     if (
       !canRepairCurrentDraft ||
@@ -1704,6 +1728,10 @@ export function CircuitBuilderChat({
       ? chatMutation.error.message
       : 'The request did not go through. Your message is still here.'
   );
+  const canStartFreshRetry = shouldOfferFreshRetry(
+    repairDiagnostics,
+    retryFeedback?.validationFindings ?? [],
+  );
   const hasBrief = Boolean(saved.brief.goal || saved.brief.requirements.length || saved.brief.assumptions.length || saved.brief.openQuestions.length);
   const retryHistorySync = () => {
     if (!historyQuery.isSuccess || !historyDeletionsQuery.isSuccess) {
@@ -1954,12 +1982,30 @@ export function CircuitBuilderChat({
             <>
               <div className="builder-chat__error" role="alert" data-testid="status-builder-error">
                 <span>{errorMessage}</span>
-                {retryFeedback.canRetryManually && (
-                  <button type="button" className="builder-chat__text-link" onClick={retryRequest} disabled={!lastRequest || hasUnappliedJsonEdits} data-testid="button-retry-builder-chat">
-                    {rejectedProposalSpec && retryFeedback.validationFindings?.length ? 'Continue repair' : 'Retry'}
-                  </button>
-                )}
+                <div className="builder-chat__retry-actions">
+                  {retryFeedback.canRetryManually && (
+                    <button type="button" className="builder-chat__text-link" onClick={retryRequest} disabled={!lastRequest || hasUnappliedJsonEdits} data-testid="button-retry-builder-chat">
+                      {rejectedProposalSpec && retryFeedback.validationFindings?.length ? 'Continue repair' : 'Retry'}
+                    </button>
+                  )}
+                  {canStartFreshRetry && (
+                    <button
+                      type="button"
+                      className="builder-chat__fresh-retry"
+                      onClick={() => void startFreshRetry()}
+                      disabled={!lastRequest || hasUnappliedJsonEdits}
+                      data-testid="button-start-fresh-retry"
+                    >
+                      Start fresh
+                    </button>
+                  )}
+                </div>
               </div>
+              {canStartFreshRetry && (
+                <p className="builder-chat__fresh-retry-note" role="note">
+                  Three automatic repairs still left blocking errors. Start again from your original request, or continue repairing this proposal. Your workbench drawing stays unchanged.
+                </p>
+              )}
               {!!retryFeedback.validationFindings?.length && (
                 <section className="builder-chat__validation-findings" aria-label="Blocking validation errors" data-testid="list-builder-validation-findings">
                   <strong>{retryFeedback.validationFindings.length} blocking validation error{retryFeedback.validationFindings.length === 1 ? '' : 's'}</strong>

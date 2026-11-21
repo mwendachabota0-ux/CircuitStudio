@@ -5,6 +5,7 @@ import type {
   CircuitDesignBrief,
 } from '@workspace/api-client-react';
 import {
+  buildFreshRetryRequest,
   buildManualRetryRequest,
   buildOutputRepairRequest,
   buildRepairRequest,
@@ -21,6 +22,7 @@ import {
   restoreProtectedNonWireElements,
   runCircuitBuildAttempts,
   shouldClearSubmittedDraft,
+  shouldOfferFreshRetry,
 } from './circuit-build-retry.ts';
 import { getLocalBuilderModeIntent } from './circuit-build-intent.ts';
 
@@ -90,6 +92,49 @@ test('compacts oversized history before retrying and repairs the rejected propos
   assert.match(retry.message, /last failing AI proposal/);
   assert.match(retry.message, /The LED return wire is disconnected/);
   assert.ok(retry.history?.every((item) => item.content.length <= 3_000));
+});
+
+test('fresh retry uses the original request instead of the rejected proposal', () => {
+  const originalSpec = {
+    title: 'Workbench draft',
+    elements: [{ type: 'resistor', id: 'R1', value: '1k' }],
+  };
+  const rejectedProposal = {
+    title: 'Incorrect generated draft',
+    elements: [{ type: 'unsupported', id: 'X1' }],
+  };
+  const request = {
+    ...baseRequest,
+    currentSpec: originalSpec,
+    history: [{ role: 'user' as const, content: 'Keep the existing resistor.' }],
+  };
+  const updatedBrief = { ...brief, goal: 'Build an LED indicator with the existing resistor.' };
+  const fresh = buildFreshRetryRequest(request, updatedBrief);
+
+  assert.equal(fresh.mode, 'build');
+  assert.deepEqual(fresh.currentSpec, originalSpec);
+  assert.notDeepEqual(fresh.currentSpec, rejectedProposal);
+  assert.equal(fresh.message, request.message);
+  assert.deepEqual(fresh.history, request.history);
+  assert.deepEqual(fresh.brief, updatedBrief);
+  assert.equal(fresh.responseFormatRetry, false);
+});
+
+test('offers fresh retry only after automatic repairs are exhausted with blocking errors', () => {
+  const exhausted = [{
+    attempt: 3,
+    outcome: 'exhausted' as const,
+    nonWireElementsModified: false,
+    metadataModified: false,
+    validationErrors: ['A required pin is not connected.'],
+    validationWarnings: [],
+  }];
+  const outstandingFindings = ['A required pin is not connected.'];
+
+  assert.equal(shouldOfferFreshRetry([], outstandingFindings), false);
+  assert.equal(shouldOfferFreshRetry(exhausted, []), false);
+  assert.equal(shouldOfferFreshRetry([{ ...exhausted[0], outcome: 'rejected' }], outstandingFindings), false);
+  assert.equal(shouldOfferFreshRetry(exhausted, outstandingFindings), true);
 });
 
 test('uses local mode shortcuts only for explicit mode changes', () => {

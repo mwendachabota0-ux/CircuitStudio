@@ -23,6 +23,7 @@ import {
 import { enforceBuildPermission } from "../lib/circuitBuilderPermission";
 import {
   formatKicadSymbolPinGuide,
+  findRelevantKicadSymbols,
   findMentionedKicadSymbolIds,
   getKicadSymbolData,
   getKicadSymbolIndexEntry,
@@ -93,6 +94,7 @@ Safety and component support:
 - For unsupported symbols or missing verified IC/connector pinouts, explain the exact limitation without inventing symbols, pins, ratings, or part numbers. Suggest up to two concrete next prompts when a safe alternative exists. Suggested actions must be short, specific, and compatible with the user's goal; never suggest a way to recreate a rejected hazardous design.
 - If the user requests an IC but has not supplied a verified pinout, ask for the exact part and pinout before proposing that block. Generic pin blocks are drawing aids, not validation of the IC's actual pin mapping.
 - In Build mode, use the official KiCad library as the default source for schematic symbols. Prefer a supplied KiCad candidate whenever it matches a requested part instead of substituting a built-in approximation. Use type "kicad" with the exact symbolId and a valid unit/bodyStyle from its supplied definition. Use only listed pin numbers, names, and offsets; never invent a KiCad ID or pinout. The server attaches exact source drawings and pin geometry after generation. Do not return symbolData yourself. A library symbol is not confirmation of a physical part choice, rating, electrical correctness, or safety.
+- Each request includes relevant results discovered by searching the complete KiCad catalog. In Chat, use their descriptions and keywords to explain available component options and inform circuit-planning advice; do not claim a suitable symbol is unavailable without checking these results. In Build, prefer relevant catalog matches with an exact loaded pin guide, and use only pin data in those guides. Descriptions and keywords identify symbol purpose, not electrical ratings or verified circuit suitability.
 
 Use clear reference designators and unique wire IDs (W1, W2, ...). Connect every required pin exactly to a wire endpoint or another pin: all pins on supported discrete parts are required; a relay needs both coil pins, COM, and at least one of NC/NO, while the unused contact may remain open. Unused IC, connector, and KiCad symbol pins may remain unconnected. Keep wire segments horizontal or vertical, avoid zero-length segments and routes through two-terminal parts, and connect wire endpoints exactly to pins or other wire endpoints. Set open:true on a wire only when it is intentionally left disconnected. If a requested component has no supported equivalent, state the limitation instead of inventing a type or pin model.
 
@@ -230,35 +232,88 @@ router.post(
         ...brief.assumptions,
         ...history.map((message) => message.content),
       ].join(" ");
-      const ids = new Set([
+      const relevantKicadSymbols = await findRelevantKicadSymbols([
+        parsed.data.message,
+        brief.goal,
+        brief.requirements.join(" "),
+        brief.assumptions.join(" "),
+        ...history
+          .filter((message) => message.role === "user")
+          .slice(-3)
+          .map((message) => message.content),
+      ]);
+      const mentionedIds = await findMentionedKicadSymbolIds(buildContext);
+      const requiredIds = new Set([
         ...selectedKicadSymbolIds([
           ...history.map((message) => message.content),
           parsed.data.message,
         ]),
-        ...(parsed.data.mode === "build"
-          ? [
-            ...getDefaultKicadSymbolIds(buildContext),
-            ...await findMentionedKicadSymbolIds(buildContext),
-          ]
-          : []),
+        ...mentionedIds,
         ...currentSpec.elements.flatMap((element) =>
           element.type === "kicad" && typeof element.symbolId === "string"
             ? [element.symbolId]
             : []
         ),
+        ...(parsed.data.mode === "build"
+          ? getDefaultKicadSymbolIds(buildContext)
+          : []),
       ]);
-      const definitions = await Promise.all([...ids].map(async (id) => {
-        const entry = await getKicadSymbolIndexEntry(id);
-        if (!entry) {
-          throw new CircuitSpecCompatibilityError(
-            `KiCad symbol ${id} is not in the installed symbol catalog.`,
+      const optionalCandidateIds = parsed.data.mode === "build"
+        ? relevantKicadSymbols
+          .map((entry) => entry.id)
+          .filter((id) => !requiredIds.has(id))
+          .slice(0, 10)
+        : [];
+      const optionalCandidateIdSet = new Set(optionalCandidateIds);
+      const ids = new Set([...requiredIds, ...optionalCandidateIds]);
+      const loadedDefinitions = await Promise.all([...ids].map(async (id) => {
+        try {
+          const entry = await getKicadSymbolIndexEntry(id);
+          if (!entry) {
+            throw new CircuitSpecCompatibilityError(
+              `KiCad symbol ${id} is not in the installed symbol catalog.`,
+            );
+          }
+          const symbolData = await getKicadSymbolData(id);
+          return {
+            id,
+            guide: formatKicadSymbolPinGuide(entry, symbolData),
+          };
+        } catch (error) {
+          if (!optionalCandidateIdSet.has(id)) throw error;
+          req.log.info(
+            { symbolId: id, errorType: getSafeErrorType(error) },
+            "A relevant KiCad candidate could not be loaded",
           );
+          return null;
         }
-        const symbolData = await getKicadSymbolData(id);
-        return formatKicadSymbolPinGuide(entry, symbolData);
       }));
+      const definitions = loadedDefinitions.filter(
+        (definition): definition is NonNullable<typeof definition> =>
+          definition !== null,
+      );
       if (definitions.length) {
-        kicadDefinitions = `Selected KiCad library symbols (pin offsets are relative to each symbol's at origin, in screen coordinates):\n${definitions.join("\n\n")}`;
+        kicadDefinitions = `Verified KiCad library symbol pin guides (pin offsets are relative to each symbol's at origin, in screen coordinates):\n${definitions.map(({ guide }) => guide).join("\n\n")}`;
+      }
+      const symbolsWithPinGuides = new Set(definitions.map(({ id }) => id));
+      const catalogEntries = parsed.data.mode === "build"
+        ? relevantKicadSymbols.filter((entry) => symbolsWithPinGuides.has(entry.id))
+        : relevantKicadSymbols;
+      if (catalogEntries.length) {
+        const catalogMatches = catalogEntries
+          .slice(0, 12)
+          .map((entry) => {
+            const details = [
+              entry.description,
+              entry.keywords ? `keywords: ${entry.keywords}` : "",
+              entry.pinCount === null ? "" : `indexed pins: ${entry.pinCount}`,
+            ].filter(Boolean).join("; ");
+            return `- ${entry.id} — ${details}`;
+          });
+        kicadDefinitions = [
+          `Relevant results searched across the complete official KiCad catalog. Use these descriptions and keywords when discussing component choices. In Build mode, only place listed symbols that also have a verified pin guide below:\n${catalogMatches.join("\n")}`,
+          kicadDefinitions,
+        ].filter(Boolean).join("\n\n");
       }
     } catch (error) {
       if (error instanceof CircuitSpecCompatibilityError) {

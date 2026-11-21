@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  findRelevantKicadSymbols,
   findMentionedKicadSymbolIds,
   searchKicadSymbols,
 } from "./kicadSymbols.ts";
@@ -104,4 +105,34 @@ test("matches explicitly named parts to exact KiCad catalog symbols", async () =
     "Transistor_BJT:BC547",
   ]);
   assert.deepEqual(await findMentionedKicadSymbolIds("Use a 5V supply with R1 and C1."), []);
+});
+
+test("discovers relevant symbols across the full catalog for planning and builds", async () => {
+  const preamp = await findRelevantKicadSymbols([
+    "I want to amplify a microphone using a low-noise audio preamp.",
+  ]);
+  assert.ok(preamp.some((entry) => entry.id === "Amplifier_Audio:SSM2165"));
+
+  const temperature = await findRelevantKicadSymbols([
+    "Choose a temperature sensor to switch on a fan.",
+    "Temperature sensing and fan control",
+  ]);
+  assert.ok(temperature.some((entry) => entry.library === "Sensor_Temperature"));
+  assert.ok(temperature.some((entry) => entry.library === "Motor"));
+
+  const commonOnly = await findRelevantKicadSymbols([
+    "Please help me draw a circuit and show the symbols.",
+  ]);
+  assert.deepEqual(commonOnly, []);
+});
+
+test("uses component-purpose aliases to search catalog descriptions", async () => {
+  const darknessSensor = await searchKicadSymbols("darkness", "", 20);
+  assert.ok(
+    darknessSensor.results.some((entry) =>
+      /photo|light sensor|photodiode/i.test(
+        `${entry.name} ${entry.description} ${entry.keywords}`,
+      )
+    ),
+  );
 });

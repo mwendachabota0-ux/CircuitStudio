@@ -148,7 +148,82 @@ const SEARCH_SYNONYMS: Record<string, string[]> = {
   cell: ["battery"],
   "negative voltage": ["-10v", "power symbol"],
   "power symbol": ["power", "vcc", "vdd"],
+  "light sensor": [
+    "ambient light sensor",
+    "photoresistor",
+    "photodiode",
+    "phototransistor",
+  ],
+  darkness: ["light sensor", "photoresistor", "light dependent resistor", "photocell"],
+  photocell: ["photoresistor", "photodiode"],
+  preamp: ["preamplifier", "microphone amplifier", "audio amplifier"],
+  "microphone preamp": ["microphone preamplifier", "audio preamplifier"],
+  alarm: ["buzzer", "speaker", "piezo", "oscillator"],
+  siren: ["buzzer", "speaker", "oscillator"],
+  flashlight: ["led", "battery", "switch", "lamp"],
+  "fan control": ["fan controller", "motor", "mosfet", "pwm"],
+  "fan controller": ["fan", "motor", "mosfet", "pwm"],
+  fan: ["motor", "fan controller"],
+  "water level": ["float switch", "level sensor"],
+  "motion detector": ["pir sensor", "infrared sensor", "motion sensor"],
+  "distance sensor": ["ultrasonic sensor", "range sensor", "proximity sensor"],
+  wireless: ["bluetooth", "wifi", "rf transceiver", "radio"],
+  "can bus": ["can transceiver", "controller area network"],
 };
+
+const SYMBOL_DISCOVERY_STOP_WORDS = new Set([
+  "about",
+  "also",
+  "an",
+  "and",
+  "are",
+  "as",
+  "at",
+  "be",
+  "build",
+  "can",
+  "circuit",
+  "circuits",
+  "choose",
+  "could",
+  "create",
+  "design",
+  "draw",
+  "for",
+  "from",
+  "give",
+  "help",
+  "how",
+  "i",
+  "in",
+  "into",
+  "is",
+  "it",
+  "make",
+  "me",
+  "my",
+  "of",
+  "on",
+  "or",
+  "please",
+  "schematic",
+  "should",
+  "show",
+  "some",
+  "symbol",
+  "symbols",
+  "that",
+  "the",
+  "this",
+  "to",
+  "use",
+  "using",
+  "want",
+  "what",
+  "when",
+  "with",
+  "would",
+]);
 const SEARCH_CORRECTION_WORDS = [
   "resistor",
   "capacitor",
@@ -310,9 +385,6 @@ function getSearchScore(
   if (phraseAlternatives.some((alias) => searchableText.includes(normalizedSearchText(alias)))) {
     score += 1_000;
   }
-  const featuredPriority = FEATURED_SYMBOL_IDS.indexOf(entry.id);
-  if (featuredPriority >= 0) score += 500 - featuredPriority;
-
   const searchableWords = searchableText.split(" ").filter(Boolean);
   const nameWords = fields.slice(0, 2).join(" ").split(" ").filter(Boolean);
   const keywordWords = fields[4].split(" ").filter(Boolean);
@@ -324,6 +396,8 @@ function getSearchScore(
       .filter(Boolean);
     const matchesWord = (word: string, alternative: string) =>
       alternative.length <= 2
+        ? word === alternative
+        : word.length <= 2
         ? word === alternative
         : word.includes(alternative) || alternative.includes(word);
     const nameMatch = nameWords.some((word) =>
@@ -369,6 +443,10 @@ function getSearchScore(
     score += 500 + matchedTokens * 120;
   } else {
     score += matchedTokens * 25;
+  }
+  if (score > 0) {
+    const featuredPriority = FEATURED_SYMBOL_IDS.indexOf(entry.id);
+    if (featuredPriority >= 0) score += 500 - featuredPriority;
   }
   return score;
 }
@@ -611,6 +689,103 @@ export async function searchKicadSymbols(
     families: availableFamilies,
     results: matchedEntries.slice(offset, offset + limit),
   };
+}
+
+function prepareSymbolDiscoveryQueries(
+  queryTexts: string[],
+): Array<{ query: PreparedSearchQuery; weight: number }> {
+  const prepared: Array<{ query: PreparedSearchQuery; weight: number }> = [];
+  const seen = new Set<string>();
+
+  for (const [textIndex, text] of queryTexts.slice(0, 8).entries()) {
+    const normalizedText = normalizedSearchText(text);
+    const phraseQueries = Object.keys(SEARCH_SYNONYMS).filter(
+      (phrase) => phrase.includes(" ") && normalizedText.includes(phrase),
+    );
+    const tokens = [...new Set(
+      normalizedText
+        .split(" ")
+        .filter((token) =>
+          token.length > 1 && !SYMBOL_DISCOVERY_STOP_WORDS.has(token)
+        ),
+    )].slice(0, 18);
+    if (!tokens.length && !phraseQueries.length) continue;
+
+    const candidates = [
+      ...phraseQueries,
+      ...(tokens.length ? [tokens.join(" ")] : []),
+      ...Array.from({ length: Math.min(tokens.length - 1, 4) }, (_, index) =>
+        tokens.slice(index, index + 2).join(" ")
+      ),
+      ...tokens.filter((token) => token.length >= 3),
+    ];
+    const sourceWeight = textIndex === 0 ? 1.6 : textIndex === 1 ? 1.3 : 1;
+    for (const candidate of candidates) {
+      if (seen.has(candidate)) continue;
+      seen.add(candidate);
+      const query = prepareSearchQuery(candidate);
+      if (query.queryTokens.length) prepared.push({ query, weight: sourceWeight });
+      if (prepared.length >= 16) return prepared;
+    }
+  }
+  return prepared;
+}
+
+/**
+ * Finds candidates against the complete KiCad index, using each piece of the
+ * current request separately so a long conversation does not become an
+ * all-words-must-match search.
+ */
+export async function findRelevantKicadSymbols(
+  queryTexts: string[],
+  requestedLimit = 12,
+): Promise<KicadSymbolIndexEntry[]> {
+  const queries = prepareSymbolDiscoveryQueries(queryTexts);
+  if (!queries.length) return [];
+
+  const index = await getIndex();
+  const limit = Math.max(1, Math.min(20, Math.floor(requestedLimit) || 12));
+  const ranked: Array<{ entry: KicadSymbolIndexEntry; score: number }> = [];
+
+  for (const entry of index) {
+    let bestScore = 0;
+    let supportingQueries = 0;
+    for (const { query, weight } of queries) {
+      const score = getSearchScore(entry, query);
+      if (score <= 0) continue;
+      const weightedScore = score * weight;
+      bestScore = Math.max(bestScore, weightedScore);
+      supportingQueries += 1;
+    }
+    if (bestScore > 0) {
+      ranked.push({
+        entry,
+        score: bestScore + Math.max(0, supportingQueries - 1) * 35,
+      });
+    }
+  }
+
+  const sorted = ranked
+    .sort((left, right) =>
+      right.score - left.score || left.entry.id.localeCompare(right.entry.id)
+    );
+  const selected: KicadSymbolIndexEntry[] = [];
+  const deferred: KicadSymbolIndexEntry[] = [];
+  const countsByLibrary = new Map<string, number>();
+  for (const { entry } of sorted) {
+    const libraryCount = countsByLibrary.get(entry.library) ?? 0;
+    if (libraryCount >= 2) {
+      deferred.push(entry);
+      continue;
+    }
+    selected.push(entry);
+    countsByLibrary.set(entry.library, libraryCount + 1);
+    if (selected.length >= limit) break;
+  }
+  if (selected.length < limit) {
+    selected.push(...deferred.slice(0, limit - selected.length));
+  }
+  return selected;
 }
 
 function addCacheEntry(id: string, data: KicadSymbolData): void {

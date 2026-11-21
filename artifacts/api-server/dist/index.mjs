@@ -75698,8 +75698,82 @@ var SEARCH_SYNONYMS = {
   battery: ["cell"],
   cell: ["battery"],
   "negative voltage": ["-10v", "power symbol"],
-  "power symbol": ["power", "vcc", "vdd"]
+  "power symbol": ["power", "vcc", "vdd"],
+  "light sensor": [
+    "ambient light sensor",
+    "photoresistor",
+    "photodiode",
+    "phototransistor"
+  ],
+  darkness: ["light sensor", "photoresistor", "light dependent resistor", "photocell"],
+  photocell: ["photoresistor", "photodiode"],
+  preamp: ["preamplifier", "microphone amplifier", "audio amplifier"],
+  "microphone preamp": ["microphone preamplifier", "audio preamplifier"],
+  alarm: ["buzzer", "speaker", "piezo", "oscillator"],
+  siren: ["buzzer", "speaker", "oscillator"],
+  flashlight: ["led", "battery", "switch", "lamp"],
+  "fan control": ["fan controller", "motor", "mosfet", "pwm"],
+  "fan controller": ["fan", "motor", "mosfet", "pwm"],
+  fan: ["motor", "fan controller"],
+  "water level": ["float switch", "level sensor"],
+  "motion detector": ["pir sensor", "infrared sensor", "motion sensor"],
+  "distance sensor": ["ultrasonic sensor", "range sensor", "proximity sensor"],
+  wireless: ["bluetooth", "wifi", "rf transceiver", "radio"],
+  "can bus": ["can transceiver", "controller area network"]
 };
+var SYMBOL_DISCOVERY_STOP_WORDS = /* @__PURE__ */ new Set([
+  "about",
+  "also",
+  "an",
+  "and",
+  "are",
+  "as",
+  "at",
+  "be",
+  "build",
+  "can",
+  "circuit",
+  "circuits",
+  "choose",
+  "could",
+  "create",
+  "design",
+  "draw",
+  "for",
+  "from",
+  "give",
+  "help",
+  "how",
+  "i",
+  "in",
+  "into",
+  "is",
+  "it",
+  "make",
+  "me",
+  "my",
+  "of",
+  "on",
+  "or",
+  "please",
+  "schematic",
+  "should",
+  "show",
+  "some",
+  "symbol",
+  "symbols",
+  "that",
+  "the",
+  "this",
+  "to",
+  "use",
+  "using",
+  "want",
+  "what",
+  "when",
+  "with",
+  "would"
+]);
 var SEARCH_CORRECTION_WORDS = [
   "resistor",
   "capacitor",
@@ -75784,9 +75858,34 @@ function editDistanceWithin(left, right, maximum) {
   }
   return previous[right.length] <= maximum;
 }
-function getSearchScore(entry, query, allowFuzzy = false) {
+function prepareSearchQuery(query) {
   const searchQuery = normalizedSearchText(query);
   const compactQuery = compactSearchText(query);
+  const queryTokens = searchQuery.split(" ").filter((token) => token && !["a", "an", "and", "for", "in", "of", "the", "to", "with"].includes(token)).map((token) => {
+    if (token.length < 4) return token;
+    return SEARCH_CORRECTION_WORDS.find(
+      (candidate) => editDistanceWithin(token, candidate, token.length >= 8 ? 2 : 1)
+    ) ?? token;
+  });
+  const correctedQuery = queryTokens.join(" ");
+  return {
+    searchQuery,
+    compactQuery,
+    correctedQuery,
+    compactCorrectedQuery: compactSearchText(correctedQuery),
+    queryTokens,
+    phraseAlternatives: SEARCH_SYNONYMS[searchQuery] ?? []
+  };
+}
+function getSearchScore(entry, query, allowFuzzy = false) {
+  const {
+    searchQuery,
+    compactQuery,
+    correctedQuery,
+    compactCorrectedQuery,
+    queryTokens,
+    phraseAlternatives
+  } = query;
   if (!searchQuery) return 0;
   const fields = [
     entry.id,
@@ -75796,16 +75895,8 @@ function getSearchScore(entry, query, allowFuzzy = false) {
     entry.keywords
   ].map(normalizedSearchText);
   const searchableText = fields.join(" ");
-  const queryTokens = searchQuery.split(" ").filter((token) => token && !["a", "an", "and", "for", "in", "of", "the", "to", "with"].includes(token)).map((token) => {
-    if (token.length < 4) return token;
-    return SEARCH_CORRECTION_WORDS.find(
-      (candidate) => editDistanceWithin(token, candidate, token.length >= 8 ? 2 : 1)
-    ) ?? token;
-  });
-  const correctedQuery = queryTokens.join(" ");
   const compactId = compactSearchText(entry.id);
   const compactName = compactSearchText(entry.name);
-  const compactCorrectedQuery = compactSearchText(correctedQuery);
   let score = 0;
   if (compactQuery && compactName === compactQuery) score += 1e4;
   if (compactQuery && compactId === compactQuery) score += 11e3;
@@ -75817,12 +75908,9 @@ function getSearchScore(entry, query, allowFuzzy = false) {
   if (fields[1].startsWith(correctedQuery)) score += 1500;
   if (fields[0].startsWith(correctedQuery)) score += 1250;
   if (correctedQuery && fields[4].includes(correctedQuery)) score += 1e3;
-  const phraseAlternatives = SEARCH_SYNONYMS[searchQuery] ?? [];
   if (phraseAlternatives.some((alias) => searchableText.includes(normalizedSearchText(alias)))) {
     score += 1e3;
   }
-  const featuredPriority = FEATURED_SYMBOL_IDS.indexOf(entry.id);
-  if (featuredPriority >= 0) score += 500 - featuredPriority;
   const searchableWords = searchableText.split(" ").filter(Boolean);
   const nameWords = fields.slice(0, 2).join(" ").split(" ").filter(Boolean);
   const keywordWords = fields[4].split(" ").filter(Boolean);
@@ -75830,7 +75918,7 @@ function getSearchScore(entry, query, allowFuzzy = false) {
   let matchedTokens = 0;
   for (const token of queryTokens) {
     const alternatives = [token, ...SEARCH_SYNONYMS[token] ?? []].map(normalizedSearchText).filter(Boolean);
-    const matchesWord = (word, alternative) => alternative.length <= 2 ? word === alternative : word.includes(alternative) || alternative.includes(word);
+    const matchesWord = (word, alternative) => alternative.length <= 2 ? word === alternative : word.length <= 2 ? word === alternative : word.includes(alternative) || alternative.includes(word);
     const nameMatch = nameWords.some(
       (word) => alternatives.some((alternative) => matchesWord(word, alternative))
     );
@@ -75872,6 +75960,10 @@ function getSearchScore(entry, query, allowFuzzy = false) {
     score += 500 + matchedTokens * 120;
   } else {
     score += matchedTokens * 25;
+  }
+  if (score > 0) {
+    const featuredPriority = FEATURED_SYMBOL_IDS.indexOf(entry.id);
+    if (featuredPriority >= 0) score += 500 - featuredPriority;
   }
   return score;
 }
@@ -76008,7 +76100,8 @@ async function searchKicadSymbols(query, library, requestedLimit, requestedOffse
   const libraries = [...new Set(index2.map((entry) => entry.library))].sort((left, right) => left.localeCompare(right));
   const limit = Math.max(1, Math.min(100, Math.floor(requestedLimit) || 100));
   const offset = Math.max(0, Math.floor(requestedOffset) || 0);
-  const normalizedQuery = normalizedSearchText(query);
+  const searchQuery = prepareSearchQuery(query);
+  const normalizedQuery = searchQuery.searchQuery;
   const normalizedLibrary = normalized(library);
   const availableFamilies = [...KICAD_SYMBOL_FAMILIES];
   const libraryMatches = (entry) => !normalizedLibrary || normalized(entry.library).includes(normalizedLibrary);
@@ -76016,9 +76109,9 @@ async function searchKicadSymbols(query, library, requestedLimit, requestedOffse
   const candidates = (featured ? getFeaturedSymbols(index2, 100) : index2).filter(
     (entry) => libraryMatches(entry) && familyMatches(entry)
   );
-  let matches2 = candidates.map((entry) => ({ entry, score: getSearchScore(entry, query) })).filter(({ score }) => !normalizedQuery || score > 0);
+  let matches2 = candidates.map((entry) => ({ entry, score: getSearchScore(entry, searchQuery) })).filter(({ score }) => !normalizedQuery || score > 0);
   if (normalizedQuery && matches2.length === 0) {
-    matches2 = candidates.map((entry) => ({ entry, score: getSearchScore(entry, query, true) })).filter(({ score }) => score > 0);
+    matches2 = candidates.map((entry) => ({ entry, score: getSearchScore(entry, searchQuery, true) })).filter(({ score }) => score > 0);
   }
   if (normalizedQuery) {
     matches2.sort(
@@ -76046,6 +76139,84 @@ async function searchKicadSymbols(query, library, requestedLimit, requestedOffse
     families: availableFamilies,
     results: matchedEntries.slice(offset, offset + limit)
   };
+}
+function prepareSymbolDiscoveryQueries(queryTexts) {
+  const prepared = [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const [textIndex, text3] of queryTexts.slice(0, 8).entries()) {
+    const normalizedText = normalizedSearchText(text3);
+    const phraseQueries = Object.keys(SEARCH_SYNONYMS).filter(
+      (phrase) => phrase.includes(" ") && normalizedText.includes(phrase)
+    );
+    const tokens = [...new Set(
+      normalizedText.split(" ").filter(
+        (token) => token.length > 1 && !SYMBOL_DISCOVERY_STOP_WORDS.has(token)
+      )
+    )].slice(0, 18);
+    if (!tokens.length && !phraseQueries.length) continue;
+    const candidates = [
+      ...phraseQueries,
+      ...tokens.length ? [tokens.join(" ")] : [],
+      ...Array.from(
+        { length: Math.min(tokens.length - 1, 4) },
+        (_2, index2) => tokens.slice(index2, index2 + 2).join(" ")
+      ),
+      ...tokens.filter((token) => token.length >= 3)
+    ];
+    const sourceWeight = textIndex === 0 ? 1.6 : textIndex === 1 ? 1.3 : 1;
+    for (const candidate of candidates) {
+      if (seen.has(candidate)) continue;
+      seen.add(candidate);
+      const query = prepareSearchQuery(candidate);
+      if (query.queryTokens.length) prepared.push({ query, weight: sourceWeight });
+      if (prepared.length >= 16) return prepared;
+    }
+  }
+  return prepared;
+}
+async function findRelevantKicadSymbols(queryTexts, requestedLimit = 12) {
+  const queries = prepareSymbolDiscoveryQueries(queryTexts);
+  if (!queries.length) return [];
+  const index2 = await getIndex();
+  const limit = Math.max(1, Math.min(20, Math.floor(requestedLimit) || 12));
+  const ranked = [];
+  for (const entry of index2) {
+    let bestScore = 0;
+    let supportingQueries = 0;
+    for (const { query, weight } of queries) {
+      const score = getSearchScore(entry, query);
+      if (score <= 0) continue;
+      const weightedScore = score * weight;
+      bestScore = Math.max(bestScore, weightedScore);
+      supportingQueries += 1;
+    }
+    if (bestScore > 0) {
+      ranked.push({
+        entry,
+        score: bestScore + Math.max(0, supportingQueries - 1) * 35
+      });
+    }
+  }
+  const sorted = ranked.sort(
+    (left, right) => right.score - left.score || left.entry.id.localeCompare(right.entry.id)
+  );
+  const selected = [];
+  const deferred = [];
+  const countsByLibrary = /* @__PURE__ */ new Map();
+  for (const { entry } of sorted) {
+    const libraryCount = countsByLibrary.get(entry.library) ?? 0;
+    if (libraryCount >= 2) {
+      deferred.push(entry);
+      continue;
+    }
+    selected.push(entry);
+    countsByLibrary.set(entry.library, libraryCount + 1);
+    if (selected.length >= limit) break;
+  }
+  if (selected.length < limit) {
+    selected.push(...deferred.slice(0, limit - selected.length));
+  }
+  return selected;
 }
 function addCacheEntry(id, data) {
   symbolCache.delete(id);
@@ -77289,6 +77460,7 @@ Safety and component support:
 - For unsupported symbols or missing verified IC/connector pinouts, explain the exact limitation without inventing symbols, pins, ratings, or part numbers. Suggest up to two concrete next prompts when a safe alternative exists. Suggested actions must be short, specific, and compatible with the user's goal; never suggest a way to recreate a rejected hazardous design.
 - If the user requests an IC but has not supplied a verified pinout, ask for the exact part and pinout before proposing that block. Generic pin blocks are drawing aids, not validation of the IC's actual pin mapping.
 - In Build mode, use the official KiCad library as the default source for schematic symbols. Prefer a supplied KiCad candidate whenever it matches a requested part instead of substituting a built-in approximation. Use type "kicad" with the exact symbolId and a valid unit/bodyStyle from its supplied definition. Use only listed pin numbers, names, and offsets; never invent a KiCad ID or pinout. The server attaches exact source drawings and pin geometry after generation. Do not return symbolData yourself. A library symbol is not confirmation of a physical part choice, rating, electrical correctness, or safety.
+- Each request includes relevant results discovered by searching the complete KiCad catalog. In Chat, use their descriptions and keywords to explain available component options and inform circuit-planning advice; do not claim a suitable symbol is unavailable without checking these results. In Build, prefer relevant catalog matches with an exact loaded pin guide, and use only pin data in those guides. Descriptions and keywords identify symbol purpose, not electrical ratings or verified circuit suitability.
 
 Use clear reference designators and unique wire IDs (W1, W2, ...). Connect every required pin exactly to a wire endpoint or another pin: all pins on supported discrete parts are required; a relay needs both coil pins, COM, and at least one of NC/NO, while the unused contact may remain open. Unused IC, connector, and KiCad symbol pins may remain unconnected. Keep wire segments horizontal or vertical, avoid zero-length segments and routes through two-terminal parts, and connect wire endpoints exactly to pins or other wire endpoints. Set open:true on a wire only when it is intentionally left disconnected. If a requested component has no supported equivalent, state the limitation instead of inventing a type or pin model.
 
@@ -77411,32 +77583,73 @@ router5.post(
         ...brief.assumptions,
         ...history.map((message) => message.content)
       ].join(" ");
-      const ids = /* @__PURE__ */ new Set([
+      const relevantKicadSymbols = await findRelevantKicadSymbols([
+        parsed.data.message,
+        brief.goal,
+        brief.requirements.join(" "),
+        brief.assumptions.join(" "),
+        ...history.filter((message) => message.role === "user").slice(-3).map((message) => message.content)
+      ]);
+      const mentionedIds = await findMentionedKicadSymbolIds(buildContext);
+      const requiredIds = /* @__PURE__ */ new Set([
         ...selectedKicadSymbolIds([
           ...history.map((message) => message.content),
           parsed.data.message
         ]),
-        ...parsed.data.mode === "build" ? [
-          ...getDefaultKicadSymbolIds(buildContext),
-          ...await findMentionedKicadSymbolIds(buildContext)
-        ] : [],
+        ...mentionedIds,
         ...currentSpec.elements.flatMap(
           (element) => element.type === "kicad" && typeof element.symbolId === "string" ? [element.symbolId] : []
-        )
+        ),
+        ...parsed.data.mode === "build" ? getDefaultKicadSymbolIds(buildContext) : []
       ]);
-      const definitions = await Promise.all([...ids].map(async (id) => {
-        const entry = await getKicadSymbolIndexEntry(id);
-        if (!entry) {
-          throw new CircuitSpecCompatibilityError(
-            `KiCad symbol ${id} is not in the installed symbol catalog.`
+      const optionalCandidateIds = parsed.data.mode === "build" ? relevantKicadSymbols.map((entry) => entry.id).filter((id) => !requiredIds.has(id)).slice(0, 10) : [];
+      const optionalCandidateIdSet = new Set(optionalCandidateIds);
+      const ids = /* @__PURE__ */ new Set([...requiredIds, ...optionalCandidateIds]);
+      const loadedDefinitions = await Promise.all([...ids].map(async (id) => {
+        try {
+          const entry = await getKicadSymbolIndexEntry(id);
+          if (!entry) {
+            throw new CircuitSpecCompatibilityError(
+              `KiCad symbol ${id} is not in the installed symbol catalog.`
+            );
+          }
+          const symbolData = await getKicadSymbolData(id);
+          return {
+            id,
+            guide: formatKicadSymbolPinGuide(entry, symbolData)
+          };
+        } catch (error40) {
+          if (!optionalCandidateIdSet.has(id)) throw error40;
+          req.log.info(
+            { symbolId: id, errorType: getSafeErrorType(error40) },
+            "A relevant KiCad candidate could not be loaded"
           );
+          return null;
         }
-        const symbolData = await getKicadSymbolData(id);
-        return formatKicadSymbolPinGuide(entry, symbolData);
       }));
+      const definitions = loadedDefinitions.filter(
+        (definition) => definition !== null
+      );
       if (definitions.length) {
-        kicadDefinitions = `Selected KiCad library symbols (pin offsets are relative to each symbol's at origin, in screen coordinates):
-${definitions.join("\n\n")}`;
+        kicadDefinitions = `Verified KiCad library symbol pin guides (pin offsets are relative to each symbol's at origin, in screen coordinates):
+${definitions.map(({ guide }) => guide).join("\n\n")}`;
+      }
+      const symbolsWithPinGuides = new Set(definitions.map(({ id }) => id));
+      const catalogEntries = parsed.data.mode === "build" ? relevantKicadSymbols.filter((entry) => symbolsWithPinGuides.has(entry.id)) : relevantKicadSymbols;
+      if (catalogEntries.length) {
+        const catalogMatches = catalogEntries.slice(0, 12).map((entry) => {
+          const details = [
+            entry.description,
+            entry.keywords ? `keywords: ${entry.keywords}` : "",
+            entry.pinCount === null ? "" : `indexed pins: ${entry.pinCount}`
+          ].filter(Boolean).join("; ");
+          return `- ${entry.id} \u2014 ${details}`;
+        });
+        kicadDefinitions = [
+          `Relevant results searched across the complete official KiCad catalog. Use these descriptions and keywords when discussing component choices. In Build mode, only place listed symbols that also have a verified pin guide below:
+${catalogMatches.join("\n")}`,
+          kicadDefinitions
+        ].filter(Boolean).join("\n\n");
       }
     } catch (error40) {
       if (error40 instanceof CircuitSpecCompatibilityError) {

@@ -339,7 +339,7 @@ function ComponentLibraryCard({
           onClick={() => onToggleUsage(entryId)}
           data-testid={`component-library-description-${entryId}`}
         >
-          {entryDescription}
+          {entryUsage}
         </button>
 
         <div className="component-library-dialog__item-meta">

@@ -1163,7 +1163,7 @@ function Studio({ userId }: { userId: string }) {
                     ? 'Studio AI is interpreting this edit…'
                     : jsonError
                       ? `${jsonError} Click Apply edit to ask Studio AI.`
-                      : 'Unapplied edits · Studio AI still uses the workbench draft.'}
+                      : 'Unapplied edits'}
                 </span>
               )}
               <div className="editor-actions">

@@ -193,6 +193,30 @@
 .builder-chat__repair-action:disabled { cursor: not-allowed; opacity: .55; }
 .builder-chat__repair-action svg { width: 13px; height: 13px; }
 
+.builder-chat__repair-notice-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: none;
+}
+
+.builder-chat__repair-dismiss {
+  display: inline-grid;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  place-items: center;
+  border: 1px solid #eadcc9;
+  border-radius: 6px;
+  background: transparent;
+  color: #80583b;
+  cursor: pointer;
+}
+
+.builder-chat__repair-dismiss:hover { background: #f6ecdd; }
+.builder-chat__repair-dismiss:focus-visible { outline: 2px solid #80583b; outline-offset: 2px; }
+.builder-chat__repair-dismiss svg { width: 14px; height: 14px; }
+
 .builder-chat__body {
   position: relative;
   min-height: 0;
@@ -688,13 +712,6 @@
   padding: 18px 3px;
   color: #8a948c;
   text-align: center;
-}
-
-.builder-chat__brief-empty > svg {
-  width: 23px;
-  height: 23px;
-  margin-bottom: 5px;
-  color: #b07a56;
 }
 
 .builder-chat__brief-empty p {

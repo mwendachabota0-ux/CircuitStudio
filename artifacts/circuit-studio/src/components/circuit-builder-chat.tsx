@@ -564,6 +564,8 @@ export function CircuitBuilderChat({
     useState<ProposalRepairLesson | null>(null);
   const [repairLessonNotice, setRepairLessonNotice] =
     useState<RepairLessonNotice | null>(null);
+  const [dismissedRepairNoticeKey, setDismissedRepairNoticeKey] =
+    useState<string | null>(null);
   const [rejectedProposalSpec, setRejectedProposalSpec] = useState<CircuitBuildChatInput['currentSpec'] | null>(null);
   const [rejectedProposalSvg, setRejectedProposalSvg] = useState('');
   const [rejectedPreviewOpen, setRejectedPreviewOpen] = useState(false);
@@ -1009,6 +1011,13 @@ export function CircuitBuilderChat({
 
   const visibleMessages = saved.messages;
   const aiUnavailable = usageQuery.data ? !usageQuery.data.canUseAi : false;
+  const repairNoticeKey = validationFindings.join('\u0000');
+
+  useEffect(() => {
+    if (!canRepairCurrentDraft || validationFindings.length === 0) {
+      setDismissedRepairNoticeKey(null);
+    }
+  }, [canRepairCurrentDraft, validationFindings.length]);
 
   const localProposalState = useMemo(() => {
     if (!proposal) return null;
@@ -2089,23 +2098,37 @@ export function CircuitBuilderChat({
         </div>
         <p className="builder-chat__sr-only" role="status" aria-live="polite" data-testid="status-builder-mode">{mode === 'chat' ? 'Clarify the idea, no edits proposed' : 'Shape an editable draft for review'}</p>
       </div>
-      {canRepairCurrentDraft && validationFindings.length > 0 && (
+      {canRepairCurrentDraft &&
+        validationFindings.length > 0 &&
+        dismissedRepairNoticeKey !== repairNoticeKey && (
         <div className="builder-chat__repair-notice" data-testid="panel-repair-current-draft">
           <div>
             <strong>{validationFindings.length} structural issue{validationFindings.length === 1 ? '' : 's'} found</strong>
             <p>Studio will check the fix. Your drawing changes only when you apply it.</p>
           </div>
-          <button
-            type="button"
-            className="builder-chat__repair-action"
-            onClick={repairCurrentDraft}
-            disabled={aiUnavailable || chatMutation.isPending || requestCycleActive || briefEditing || !!proposal}
-            title={proposal ? 'Apply or discard the staged proposal first.' : undefined}
-            data-testid="button-repair-current-draft"
-          >
-            <Wrench aria-hidden="true" />
-            {requestCycleActive ? 'Repairing…' : 'Repair draft with AI'}
-          </button>
+          <div className="builder-chat__repair-notice-actions">
+            <button
+              type="button"
+              className="builder-chat__repair-action"
+              onClick={repairCurrentDraft}
+              disabled={aiUnavailable || chatMutation.isPending || requestCycleActive || briefEditing || !!proposal}
+              title={proposal ? 'Apply or discard the staged proposal first.' : undefined}
+              data-testid="button-repair-current-draft"
+            >
+              <Wrench aria-hidden="true" />
+              {requestCycleActive ? 'Repairing…' : 'Repair draft with AI'}
+            </button>
+            <button
+              type="button"
+              className="builder-chat__repair-dismiss"
+              onClick={() => setDismissedRepairNoticeKey(repairNoticeKey)}
+              aria-label="Close structural issue banner"
+              title="Close"
+              data-testid="button-dismiss-repair-notice"
+            >
+              <X aria-hidden="true" />
+            </button>
+          </div>
         </div>
       )}
 
@@ -2502,7 +2525,6 @@ export function CircuitBuilderChat({
               </div>
             ) : (
               <div className="builder-chat__brief-empty" data-testid="status-builder-brief-empty">
-                <Plus aria-hidden="true" />
                 <button type="button" className="builder-chat__text-link" onClick={editBrief} data-testid="button-add-brief">Add a starting note</button>
               </div>
             )}

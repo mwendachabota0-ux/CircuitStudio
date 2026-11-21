@@ -646,6 +646,11 @@ library?: string;
  * @maximum 100
  */
 limit?: number;
+/**
+ * @minimum 0
+ * @maximum 1000000
+ */
+offset?: number;
 };
 
 export type GetCircuitSymbolDataParams = {

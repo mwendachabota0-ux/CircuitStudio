@@ -19,5 +19,10 @@ export type SearchCircuitSymbolsParams = {
      * @maximum 100
      */
     limit?: number;
+    /**
+     * @minimum 0
+     * @maximum 1000000
+     */
+    offset?: number;
 };
 //# sourceMappingURL=searchCircuitSymbolsParams.d.ts.map

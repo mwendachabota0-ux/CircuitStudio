@@ -42,17 +42,85 @@ const MAX_CACHED_SYMBOLS = 500;
 let indexPromise: Promise<KicadSymbolIndexEntry[]> | undefined;
 const symbolCache = new Map<string, KicadSymbolData>();
 
+function normalized(value: string): string {
+  return value.toLocaleLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function get74SeriesSuffix(name: string): string | undefined {
+  const digits = name.match(/(\d{2,5})[a-z]*$/i)?.[1];
+  if (!digits) return undefined;
+  return digits.startsWith("74") && digits.length > 2
+    ? digits.slice(2)
+    : digits;
+}
+
+function fallbackLibraryDescription(library: string): string {
+  const knownDescriptions: Record<string, string> = {
+    "74xx_IEEE": "74-series logic function",
+    "4xxx_IEEE": "4000-series CMOS logic function",
+    FPGA_Xilinx: "Xilinx FPGA logic device",
+    Video: "Video signal-processing component",
+    Transformer: "Transformer",
+    Memory_RAM: "RAM device",
+    Memory_ROM: "ROM device",
+    MCU_NXP_ColdFire: "NXP ColdFire microcontroller",
+    MCU_Texas: "Texas Instruments controller",
+    Valve: "Vacuum tube",
+  };
+  return knownDescriptions[library] ??
+    `${library.replace(/[_-]+/g, " ").replace(/\bIEEE\b/g, "").replace(/\s+/g, " ").trim()} symbol`;
+}
+
 async function getIndex(): Promise<KicadSymbolIndexEntry[]> {
   indexPromise ??= readFile(INDEX_PATH).then((buffer) => {
     const parsed = JSON.parse(gunzipSync(buffer).toString("utf8")) as unknown;
     if (!Array.isArray(parsed)) throw new Error("The KiCad symbol index is invalid.");
-    return parsed.filter((entry): entry is KicadSymbolIndexEntry =>
+    const entries = parsed.filter((entry): entry is KicadSymbolIndexEntry =>
       !!entry &&
       typeof entry === "object" &&
       typeof (entry as KicadSymbolIndexEntry).id === "string" &&
       typeof (entry as KicadSymbolIndexEntry).library === "string" &&
       typeof (entry as KicadSymbolIndexEntry).name === "string",
     );
+    const byId = new Map(entries.map((entry) => [entry.id, entry]));
+    const byName = new Map<string, KicadSymbolIndexEntry[]>();
+    const descriptionsBy74SeriesSuffix = new Map<string, KicadSymbolIndexEntry>();
+
+    for (const entry of entries) {
+      const sameNameEntries = byName.get(entry.name) ?? [];
+      sameNameEntries.push(entry);
+      byName.set(entry.name, sameNameEntries);
+
+      if (entry.library === "74xx" && entry.description.trim()) {
+        const suffix = get74SeriesSuffix(entry.name);
+        const current = suffix ? descriptionsBy74SeriesSuffix.get(suffix) : undefined;
+        if (suffix && (!current || entry.name.length < current.name.length)) {
+          descriptionsBy74SeriesSuffix.set(suffix, entry);
+        }
+      }
+    }
+
+    return entries.map((entry) => {
+      if (entry.description.trim()) return entry;
+
+      const parent = entry.extends
+        ? byId.get(`${entry.library}:${entry.extends}`) ??
+          byName.get(entry.extends)?.find((candidate) => candidate.description.trim())
+        : undefined;
+      const sibling = byName
+        .get(entry.name)
+        ?.find((candidate) => candidate.id !== entry.id && candidate.description.trim());
+      const seriesMatch = entry.library === "74xx_IEEE"
+        ? descriptionsBy74SeriesSuffix.get(get74SeriesSuffix(entry.name) ?? "")
+        : undefined;
+      const description =
+        parent?.description.trim() ||
+        sibling?.description.trim() ||
+        seriesMatch?.description.trim() ||
+        entry.keywords.trim() ||
+        fallbackLibraryDescription(entry.library);
+      return { ...entry, description };
+    });
   }).catch((error) => {
     indexPromise = undefined;
     throw error;
@@ -66,53 +134,19 @@ export async function getKicadSymbolIndexEntry(
   return (await getIndex()).find((entry) => entry.id === id);
 }
 
-const featuredSymbolIds = [
-  "Device:R",
-  "Device:C",
-  "Device:C_Polarized",
-  "Device:D",
-  "Device:LED",
-  "Transistor_BJT:Q_NPN_BCE",
-  "Transistor_BJT:Q_PNP_BCE",
-  "Transistor_FET:Q_NMOS_GDS",
-  "Transistor_FET:Q_PMOS_GDS",
-  "Timer:NE555",
-  "Regulator_Linear:LM7805",
-  "Amplifier_Operational:LM358",
-  "power:GND",
-  "Connector_Generic:Conn_01x02",
-];
-
-function normalized(value: string): string {
-  return value.toLocaleLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
-}
-
 export async function searchKicadSymbols(
   query: string,
   library: string,
   requestedLimit: number,
+  requestedOffset = 0,
 ): Promise<KicadSymbolSearchResult> {
   const index = await getIndex();
   const libraries = [...new Set(index.map((entry) => entry.library))]
     .sort((left, right) => left.localeCompare(right));
   const limit = Math.max(1, Math.min(100, Math.floor(requestedLimit) || 40));
+  const offset = Math.max(0, Math.floor(requestedOffset) || 0);
   const normalizedQuery = normalized(query);
   const normalizedLibrary = normalized(library);
-
-  if (!normalizedQuery && !normalizedLibrary) {
-    const byId = new Map(index.map((entry) => [entry.id, entry]));
-    const featured = featuredSymbolIds.flatMap((id) => {
-      const entry = byId.get(id);
-      return entry ? [entry] : [];
-    });
-    return {
-      sourceVersion: SOURCE_VERSION,
-      total: featured.length,
-      hasMore: index.length > featured.length,
-      libraries,
-      results: featured.slice(0, limit),
-    };
-  }
 
   const libraryMatches = (entry: KicadSymbolIndexEntry) =>
     !normalizedLibrary ||
@@ -147,9 +181,9 @@ export async function searchKicadSymbols(
   return {
     sourceVersion: SOURCE_VERSION,
     total: matches.length,
-    hasMore: matches.length > limit,
+    hasMore: offset + limit < matches.length,
     libraries,
-    results: matches.slice(0, limit),
+    results: matches.slice(offset, offset + limit),
   };
 }
 

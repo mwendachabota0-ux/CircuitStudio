@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
-import { ArrowUpRight, CircuitBoard, LoaderCircle, Search, X } from 'lucide-react';
+import {
+  ArrowUpRight,
+  ChevronLeft,
+  ChevronRight,
+  CircuitBoard,
+  LoaderCircle,
+  Search,
+  X,
+} from 'lucide-react';
 import { CIRCUIT_COMPONENT_LIBRARY } from '@workspace/circuit-geometry';
 import {
   getGetCircuitSymbolDataQueryKey,
@@ -46,6 +54,7 @@ const previewOptions = {
 };
 
 type LibraryEntry = CircuitComponentLibraryEntry | CircuitSymbolSearchItem;
+const KICAD_PAGE_SIZE = 40;
 
 function createBuiltinPreviewSpec(
   entry: CircuitComponentLibraryEntry,
@@ -308,6 +317,7 @@ export function ComponentLibraryDialog({
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('all');
   const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [kicadPageIndex, setKicadPageIndex] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -315,10 +325,15 @@ export function ComponentLibraryDialog({
     return () => window.clearTimeout(timer);
   }, [query]);
 
+  useEffect(() => {
+    listRef.current?.scrollTo({ top: 0 });
+  }, [source, category, debouncedQuery, kicadPageIndex]);
+
   const searchParams = {
     ...(debouncedQuery ? { q: debouncedQuery } : {}),
     ...(category !== 'all' ? { library: category } : {}),
-    limit: 40,
+    limit: KICAD_PAGE_SIZE,
+    offset: kicadPageIndex * KICAD_PAGE_SIZE,
   };
 
   const kicadSearch = useSearchCircuitSymbols(
@@ -360,6 +375,12 @@ export function ComponentLibraryDialog({
 
   const kicadEntries = kicadSearch.data?.results ?? [];
   const kicadLibraries = kicadSearch.data?.libraries ?? [];
+  const kicadTotal = kicadSearch.data?.total ?? 0;
+  const kicadTotalPages = Math.max(1, Math.ceil(kicadTotal / KICAD_PAGE_SIZE));
+  const kicadResultStart = kicadEntries.length
+    ? kicadPageIndex * KICAD_PAGE_SIZE + 1
+    : 0;
+  const kicadResultEnd = kicadPageIndex * KICAD_PAGE_SIZE + kicadEntries.length;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -400,6 +421,7 @@ export function ComponentLibraryDialog({
               onClick={() => {
                 setSource('studio');
                 setCategory('all');
+                setKicadPageIndex(0);
               }}
               data-testid="component-library-source-studio"
             >
@@ -416,6 +438,7 @@ export function ComponentLibraryDialog({
               onClick={() => {
                 setSource('kicad');
                 setCategory('all');
+                setKicadPageIndex(0);
               }}
               data-testid="component-library-source-kicad"
             >
@@ -437,7 +460,10 @@ export function ComponentLibraryDialog({
             <input
               type="search"
               value={query}
-              onChange={(event) => setQuery(event.currentTarget.value)}
+              onChange={(event) => {
+                setQuery(event.currentTarget.value);
+                setKicadPageIndex(0);
+              }}
               placeholder="Search by name, type, or description"
               autoComplete="off"
               data-testid="component-library-search"
@@ -446,7 +472,10 @@ export function ComponentLibraryDialog({
               <button
                 className="component-library-dialog__clear-search"
                 type="button"
-                onClick={() => setQuery('')}
+                onClick={() => {
+                  setQuery('');
+                  setKicadPageIndex(0);
+                }}
                 aria-label="Clear search"
                 data-testid="component-library-clear-search"
               >
@@ -459,7 +488,10 @@ export function ComponentLibraryDialog({
             <span>{source === 'kicad' ? 'Library' : 'Category'}</span>
             <select
               value={category}
-              onChange={(event) => setCategory(event.currentTarget.value)}
+              onChange={(event) => {
+                setCategory(event.currentTarget.value);
+                setKicadPageIndex(0);
+              }}
               data-testid="component-library-category-filter"
             >
               <option value="all">{source === 'kicad' ? 'All libraries' : 'All categories'}</option>
@@ -480,10 +512,18 @@ export function ComponentLibraryDialog({
         >
           <span>
             {source === 'kicad' ? (
-              <>
-                <strong>{kicadEntries.length}</strong>
-                {kicadSearch.data?.hasMore ? ` shown of ${kicadSearch.data.total}` : ' symbols'}
-              </>
+              kicadSearch.isLoading ? (
+                <strong>Loading KiCad symbols…</strong>
+              ) : (
+                <>
+                  <strong>
+                    {kicadResultStart > 0
+                      ? `${kicadResultStart.toLocaleString()}–${kicadResultEnd.toLocaleString()}`
+                      : '0'}
+                  </strong>{' '}
+                  of {kicadTotal.toLocaleString()} symbols
+                </>
+              )
             ) : (
               <>
                 <strong>{filteredEntries.length}</strong>{' '}
@@ -544,6 +584,7 @@ export function ComponentLibraryDialog({
                 onClick={() => {
                   setQuery('');
                   setCategory('all');
+                  setKicadPageIndex(0);
                 }}
                 data-testid="component-library-reset"
               >
@@ -552,6 +593,38 @@ export function ComponentLibraryDialog({
             </div>
           )}
         </div>
+
+        {source === 'kicad' && kicadSearch.data && (
+          <nav
+            className="component-library-dialog__pagination"
+            aria-label="KiCad symbol result pages"
+            data-testid="component-library-pagination"
+          >
+            <button
+              type="button"
+              onClick={() => setKicadPageIndex((page) => Math.max(0, page - 1))}
+              disabled={kicadPageIndex === 0 || kicadSearch.isLoading}
+              aria-label="Previous page"
+              data-testid="component-library-previous-page"
+            >
+              <ChevronLeft aria-hidden="true" />
+              Previous
+            </button>
+            <span data-testid="component-library-page-count">
+              Page {(kicadPageIndex + 1).toLocaleString()} of {kicadTotalPages.toLocaleString()}
+            </span>
+            <button
+              type="button"
+              onClick={() => setKicadPageIndex((page) => page + 1)}
+              disabled={!kicadSearch.data.hasMore || kicadSearch.isLoading}
+              aria-label="Next page"
+              data-testid="component-library-next-page"
+            >
+              Next
+              <ChevronRight aria-hidden="true" />
+            </button>
+          </nav>
+        )}
 
         <p
           className="component-library-dialog__note"

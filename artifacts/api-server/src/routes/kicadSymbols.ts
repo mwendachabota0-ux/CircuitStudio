@@ -41,14 +41,25 @@ router.get(
     const requestedLimit = typeof req.query.limit === "string"
       ? Number(req.query.limit)
       : 40;
+    const requestedOffset = typeof req.query.offset === "string"
+      ? Number(req.query.offset)
+      : 0;
 
     if (!Number.isInteger(requestedLimit) || requestedLimit < 1 || requestedLimit > 100) {
       res.status(400).json({ error: "limit must be an integer from 1 to 100." });
       return;
     }
+    if (
+      !Number.isInteger(requestedOffset) ||
+      requestedOffset < 0 ||
+      requestedOffset > 1_000_000
+    ) {
+      res.status(400).json({ error: "offset must be an integer from 0 to 1000000." });
+      return;
+    }
 
     try {
-      res.json(await searchKicadSymbols(query, library, requestedLimit));
+      res.json(await searchKicadSymbols(query, library, requestedLimit, requestedOffset));
     } catch (error) {
       req.log.error(
         { reason: error instanceof Error ? error.name : "unknown" },

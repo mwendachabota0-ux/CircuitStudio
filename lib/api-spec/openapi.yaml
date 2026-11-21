@@ -105,6 +105,14 @@ paths:
             minimum: 1
             maximum: 100
             default: 40
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 1000000
+            default: 0
       responses:
         "200":
           description: Matching symbols from the official KiCad library

@@ -512,18 +512,24 @@ export declare const searchCircuitSymbolsQueryQMax = 120;
 export declare const searchCircuitSymbolsQueryLibraryMax = 120;
 export declare const searchCircuitSymbolsQueryLimitDefault = 40;
 export declare const searchCircuitSymbolsQueryLimitMax = 100;
+export declare const searchCircuitSymbolsQueryOffsetDefault = 0;
+export declare const searchCircuitSymbolsQueryOffsetMin = 0;
+export declare const searchCircuitSymbolsQueryOffsetMax = 1000000;
 export declare const SearchCircuitSymbolsQueryParams: zod.ZodObject<{
     q: zod.ZodOptional<zod.ZodString>;
     library: zod.ZodOptional<zod.ZodString>;
     limit: zod.ZodDefault<zod.ZodNumber>;
+    offset: zod.ZodDefault<zod.ZodNumber>;
 }, "strip", zod.ZodTypeAny, {
     limit: number;
+    offset: number;
     q?: string | undefined;
     library?: string | undefined;
 }, {
     q?: string | undefined;
     library?: string | undefined;
     limit?: number | undefined;
+    offset?: number | undefined;
 }>;
 export declare const SearchCircuitSymbolsResponse: zod.ZodObject<{
     sourceVersion: zod.ZodString;

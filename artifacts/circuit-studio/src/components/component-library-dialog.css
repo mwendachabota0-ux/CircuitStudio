@@ -1150,7 +1150,70 @@
 }
 
 .component-library-dialog__symbol-svg svg {
+  display: block;
   max-height: 100%;
+  max-width: 100%;
+  width: 84%;
+  height: 84%;
+  margin: auto;
+  object-fit: contain;
+  overflow: hidden;
+}
+
+.component-library-dialog__pagination {
+  flex: none;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 6px 22px;
+  border-top: 1px solid #e6ece5;
+  background: #fff;
+  color: #5d7267;
+  font: 10px var(--app-font-mono);
+}
+
+.component-library-dialog__pagination button {
+  min-height: 27px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: 1px solid #dfe7df;
+  border-radius: 6px;
+  background: #f8faf7;
+  color: #315647;
+  font: 600 10px var(--app-font-sans);
+}
+
+.component-library-dialog__pagination button:hover:not(:disabled) {
+  border-color: #c7d8ca;
+  background: #edf4ed;
+}
+
+.component-library-dialog__pagination button:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
+
+.component-library-dialog__pagination svg {
+  width: 13px;
+  height: 13px;
+}
+
+@media (max-width: 620px) {
+  .component-library-dialog__pagination {
+    gap: 8px;
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .component-library-dialog__pagination button {
+    padding-right: 6px;
+    padding-left: 6px;
+    font-size: 9px;
+  }
 }
 
 @media (max-width: 1100px) {

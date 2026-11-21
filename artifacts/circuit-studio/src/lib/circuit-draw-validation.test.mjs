@@ -59,6 +59,53 @@ test("canonical pin definitions are shared by generation, validation, and render
   assert.match(CircuitDraw.render(CircuitDraw.autoFix(astableFlasher).spec), /<svg/);
 });
 
+test("layout analysis detects overlapping Studio labels", () => {
+  const warnings = CircuitDraw.layoutWarnings({
+    title: "Label overlap",
+    elements: [
+      { type: "label", id: "Label1", text: "Power input", at: [100, 100] },
+      { type: "label", id: "Label2", text: "Main supply", at: [112, 100] },
+    ],
+  });
+
+  assert.ok(warnings.some((warning) => warning.includes("overlaps text")));
+});
+
+test("layout analysis detects wires that cross readable text", () => {
+  const warnings = CircuitDraw.layoutWarnings({
+    title: "Wire through text",
+    elements: [
+      { type: "label", id: "Label1", text: "Power", at: [100, 100] },
+      {
+        type: "wire",
+        id: "W1",
+        open: true,
+        points: [[80, 90], [180, 90]],
+      },
+    ],
+  });
+
+  assert.ok(warnings.some((warning) => warning.includes("crosses text")));
+});
+
+test("layout analysis allows separated labels and clear wire routes", () => {
+  const warnings = CircuitDraw.layoutWarnings({
+    title: "Clear layout",
+    elements: [
+      { type: "label", id: "Label1", text: "Power", at: [100, 100] },
+      { type: "label", id: "Label2", text: "Output", at: [250, 100] },
+      {
+        type: "wire",
+        id: "W1",
+        open: true,
+        points: [[80, 130], [280, 130]],
+      },
+    ],
+  });
+
+  assert.deepEqual(Array.from(warnings), []);
+});
+
 test("KiCad symbols render source geometry, exact pin labels, and world-space pins", () => {
   const symbolData = {
     id: "Timer:NE555",

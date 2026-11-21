@@ -35,6 +35,7 @@ import type {
 import type { CircuitComponentLibraryEntry } from '@workspace/circuit-geometry';
 import {
   buildManualRetryRequest,
+  buildLayoutRepairRequest,
   buildOutputRepairRequest,
   buildRepairRequest,
   buildWireRebuildRequest,
@@ -43,6 +44,8 @@ import {
   classifyProposalValidation,
   getProtectedCircuitChanges,
   getProtectedCircuitSignature,
+  getLayoutInvariantSignature,
+  getCircuitNetlistSignature,
   getModeAfterFailedRequest,
   getRetryRecoveryKind,
   MAX_AUTO_RETRIES,
@@ -133,6 +136,13 @@ type ValidationReport = {
 type ProposalQualityReviewState =
   | { kind: 'idle' | 'loading' | 'unavailable' | 'skipped' }
   | { kind: 'ready'; review: CircuitProposalReview };
+type LayoutRepairOutcome =
+  | {
+      kind: 'success';
+      proposal: { summary: string; spec: NonNullable<CircuitBuildChatInput['currentSpec']> };
+      inspection: ReturnType<typeof inspectProposal>;
+    }
+  | { kind: 'failure'; message: string };
 type ProposalFeedbackReason = Exclude<
   CircuitBuilderFeedbackInput['reason'],
   'overall'
@@ -237,6 +247,20 @@ function inspectProposal(spec: CircuitBuildChatInput['currentSpec']): {
       canRepair: true,
     };
   }
+}
+
+function withLayoutWarnings(
+  review: CircuitProposalReview,
+  spec: CircuitSpec,
+): CircuitProposalReview {
+  const deterministicWarnings = window.CircuitDraw?.layoutWarnings(spec) ?? [];
+  return {
+    ...review,
+    readabilityWarnings: [...new Set([
+      ...review.readabilityWarnings,
+      ...deterministicWarnings,
+    ])].slice(0, 5),
+  };
 }
 
 function renderRejectedProposalPreview(
@@ -569,6 +593,7 @@ export function CircuitBuilderChat({
   const [proposalValidation, setProposalValidation] = useState<ValidationReport | null>(null);
   const [proposalQualityReview, setProposalQualityReview] =
     useState<ProposalQualityReviewState>({ kind: 'idle' });
+  const [layoutRepairNotice, setLayoutRepairNotice] = useState('');
   const [proposalError, setProposalError] = useState('');
   const [proposalRepairLesson, setProposalRepairLesson] =
     useState<ProposalRepairLesson | null>(null);
@@ -691,31 +716,263 @@ export function CircuitBuilderChat({
   const clearProposalQualityReview = () => {
     proposalReviewRunIdRef.current += 1;
     setProposalQualityReview({ kind: 'idle' });
+    setLayoutRepairNotice('');
   };
+
+  const runLayoutRepair = useCallback(async (
+    spec: NonNullable<CircuitBuildChatInput['currentSpec']>,
+    originalRequest: CircuitBuildChatInput,
+    brief: CircuitDesignBrief,
+    findings: string[],
+  ): Promise<LayoutRepairOutcome> => {
+    if (!window.CircuitDraw) {
+      return {
+        kind: 'failure',
+        message: 'The layout repair service is unavailable; the original proposal was kept.',
+      };
+    }
+    const layoutRequest = buildLayoutRepairRequest(
+      originalRequest,
+      brief,
+      spec,
+      findings,
+    );
+    let latestBrief = brief;
+    setRetryAttempt(0);
+    setRetryKind(null);
+    chatMutation.reset();
+
+    try {
+      const result = await runCircuitBuildAttempts({
+        initialRequest: layoutRequest,
+        send: (workingRequest) => chatMutation.mutateAsync({ data: workingRequest }),
+        getProposal: (response) => response.proposal?.spec ?? null,
+        inspectProposal,
+        prepareResponse: (response) => {
+          if (!response.proposal?.spec || !window.CircuitDraw) return response;
+          const autoFixed = window.CircuitDraw.autoFix(response.proposal.spec);
+          return autoFixed.changes.length
+            ? { ...response, proposal: { ...response.proposal, spec: autoFixed.spec } }
+            : response;
+        },
+        getProtectedCircuitSignature: (candidate) =>
+          getProtectedCircuitSignature(candidate as NonNullable<CircuitBuildChatInput['currentSpec']>),
+        getProtectedCircuitChanges: (baseline, candidate) =>
+          getProtectedCircuitChanges(
+            baseline as NonNullable<CircuitBuildChatInput['currentSpec']>,
+            candidate as NonNullable<CircuitBuildChatInput['currentSpec']>,
+          ),
+        restoreProtectedSpec: (response, baseline) => {
+          if (!response.proposal?.spec) return response;
+          return {
+            ...response,
+            proposal: {
+              ...response.proposal,
+              spec: restoreProtectedNonWireElements(
+                baseline as NonNullable<CircuitBuildChatInput['currentSpec']>,
+                response.proposal.spec,
+              ),
+            },
+          };
+        },
+        makeRepairRequest: (response, validationFindings) => buildRepairRequest(
+          layoutRequest,
+          latestBrief,
+          validationFindings,
+          response.proposal?.spec ?? spec,
+        ),
+        makeOutputRepairRequest: buildOutputRepairRequest,
+        onResponse: (response) => {
+          latestBrief = response.brief ?? latestBrief;
+        },
+        onRetry: (attempt, kind) => {
+          setRetryAttempt(attempt);
+          setRetryKind(kind);
+        },
+      });
+      void queryClient.invalidateQueries({ queryKey: getGetAiUsageQueryKey() });
+
+      const candidate = result.response.proposal;
+      const candidateSpec = candidate?.spec;
+      const inspection = result.proposalInspection;
+      if (!candidateSpec || !inspection || inspection.validation.errors.length || !inspection.svg) {
+        return {
+          kind: 'failure',
+          message: 'The layout attempt did not pass pin and wire checks; the original proposal was kept.',
+        };
+      }
+
+      if (
+        getLayoutInvariantSignature(spec) !== getLayoutInvariantSignature(candidateSpec)
+      ) {
+        return {
+          kind: 'failure',
+          message: 'The layout attempt changed a component or its details; the original proposal was kept.',
+        };
+      }
+
+      try {
+        const beforeNetlist = getCircuitNetlistSignature(window.CircuitDraw.netlist(spec));
+        const afterNetlist = getCircuitNetlistSignature(window.CircuitDraw.netlist(candidateSpec));
+        if (beforeNetlist !== afterNetlist) {
+          return {
+            kind: 'failure',
+            message: 'The layout attempt changed pin-to-pin connectivity; the original proposal was kept.',
+          };
+        }
+      } catch {
+        return {
+          kind: 'failure',
+          message: 'Studio could not verify the pin-to-pin connections after reflow; the original proposal was kept.',
+        };
+      }
+
+      return {
+        kind: 'success',
+        proposal: {
+          summary: candidate.summary,
+          spec: candidateSpec,
+        },
+        inspection,
+      };
+    } catch {
+      return {
+        kind: 'failure',
+        message: 'The layout attempt could not be completed; the original proposal was kept.',
+      };
+    }
+  }, [chatMutation.mutateAsync, queryClient]);
 
   const runProposalQualityReview = useCallback(async (
     spec: CircuitSpec,
     originalRequest: string,
     brief: CircuitDesignBrief,
+    options?: {
+      automaticLayoutRepair?: boolean;
+      buildRequest?: CircuitBuildChatInput;
+    },
   ) => {
     const runId = ++proposalReviewRunIdRef.current;
     setProposalQualityReview({ kind: 'loading' });
+    setLayoutRepairNotice('');
+    let firstReview: CircuitProposalReview | null = null;
     try {
-      const review = await proposalReviewMutation.mutateAsync({
+      firstReview = await proposalReviewMutation.mutateAsync({
         data: {
           spec,
           originalRequest: originalRequest.slice(0, 6000) || 'Review this staged circuit proposal.',
           brief,
         },
       });
-      if (proposalReviewRunIdRef.current !== runId) return;
-      setProposalQualityReview({ kind: 'ready', review });
       void queryClient.invalidateQueries({ queryKey: getGetAiUsageQueryKey() });
     } catch {
+      // Local text and wire collision checks can still trigger a safe layout pass.
+    }
+    if (proposalReviewRunIdRef.current !== runId) return;
+
+    const deterministicWarnings = window.CircuitDraw?.layoutWarnings(spec) ?? [];
+    const initialReview = firstReview
+      ? withLayoutWarnings(firstReview, spec)
+      : deterministicWarnings.length
+        ? {
+            intentConcerns: [],
+            readabilityWarnings: deterministicWarnings.slice(0, 5),
+            unknowns: [],
+          }
+        : null;
+
+    if (
+      options?.automaticLayoutRepair &&
+      options.buildRequest &&
+      initialReview?.readabilityWarnings.length
+    ) {
+      setLayoutRepairNotice(
+        'Studio found readability issues and is trying a layout-only repair. The original will stay unless its parts and connections match.',
+      );
+      const outcome = await runLayoutRepair(
+        spec,
+        options.buildRequest,
+        brief,
+        initialReview.readabilityWarnings,
+      );
       if (proposalReviewRunIdRef.current !== runId) return;
+      if (outcome.kind === 'failure') {
+        setLayoutRepairNotice(outcome.message);
+        setProposalQualityReview({
+          kind: 'ready',
+          review: {
+            ...initialReview,
+            readabilityWarnings: [
+              ...initialReview.readabilityWarnings.slice(0, 4),
+              outcome.message,
+            ],
+          },
+        });
+        return;
+      }
+
+      setProposal(outcome.proposal);
+      setProposalSvg(outcome.inspection.svg);
+      setProposalValidation(outcome.inspection.validation);
+      setProposalError('');
+      setLayoutRepairNotice(
+        'Layout updated after Studio confirmed the same parts and pin-to-pin connections.',
+      );
+
+      let finalReview: CircuitProposalReview | null = null;
+      try {
+        finalReview = await proposalReviewMutation.mutateAsync({
+          data: {
+            spec: outcome.proposal.spec,
+            originalRequest: originalRequest.slice(0, 6000) || 'Review this staged circuit proposal.',
+            brief,
+          },
+        });
+        void queryClient.invalidateQueries({ queryKey: getGetAiUsageQueryKey() });
+      } catch {
+        // Keep the verified layout and report the local checks below.
+      }
+      if (proposalReviewRunIdRef.current !== runId) return;
+
+      const nextReview = finalReview
+        ? withLayoutWarnings(finalReview, outcome.proposal.spec)
+        : {
+            ...initialReview,
+            readabilityWarnings: window.CircuitDraw?.layoutWarnings(outcome.proposal.spec).slice(0, 5) ?? [],
+          };
+      setProposalQualityReview({ kind: 'ready', review: nextReview });
+      if (!finalReview) {
+        setLayoutRepairNotice(
+          'Layout updated and connections verified; the second AI readability review was unavailable.',
+        );
+      }
+      return;
+    }
+
+    if (initialReview) {
+      setProposalQualityReview({ kind: 'ready', review: initialReview });
+    } else {
       setProposalQualityReview({ kind: 'unavailable' });
     }
-  }, [proposalReviewMutation.mutateAsync, queryClient]);
+  }, [proposalReviewMutation.mutateAsync, queryClient, runLayoutRepair]);
+
+  const retryProposalLayout = () => {
+    const spec = proposal?.spec ? asCircuitSpec(proposal.spec) : null;
+    if (!spec || !lastRequest) return;
+    const brief = saved.brief;
+    const buildRequest = normalizeCircuitBuildRequest({
+      ...lastRequest,
+      mode: 'build',
+      currentSpec: spec,
+      brief,
+    });
+    void runProposalQualityReview(
+      spec,
+      buildRequest.message,
+      brief,
+      { automaticLayoutRepair: true, buildRequest },
+    );
+  };
 
   const saveProposalFeedback = async (input: CircuitBuilderFeedbackInput) => {
     const result = await feedbackMutation.mutateAsync({ data: input });
@@ -1340,6 +1597,7 @@ export function CircuitBuilderChat({
               response.proposal.spec,
               safeRequest.message,
               nextBrief,
+              { automaticLayoutRepair: true, buildRequest: safeRequest },
             );
           }
           const automaticSeed = repairLessonContext
@@ -2436,7 +2694,10 @@ export function CircuitBuilderChat({
               <div className="builder-chat__quality-review" data-testid="panel-proposal-quality-review">
                 <strong>Intent and readability review</strong>
                 {proposalQualityReview.kind === 'loading' && (
-                  <p role="status">Studio is checking how well the draft matches your request and whether it is readable…</p>
+                  <p role="status">{layoutRepairNotice || 'Studio is checking how well the draft matches your request and whether it is readable…'}</p>
+                )}
+                {layoutRepairNotice && proposalQualityReview.kind !== 'loading' && (
+                  <p className="builder-chat__quality-review-note" role="status">{layoutRepairNotice}</p>
                 )}
                 {proposalQualityReview.kind === 'skipped' && (
                   <p>AI review was skipped because blocking connection findings need attention first.</p>
@@ -2456,6 +2717,15 @@ export function CircuitBuilderChat({
                       <div className="builder-chat__quality-review-group is-layout">
                         <strong>Readability warnings</strong>
                         <ul>{proposalQualityReview.review.readabilityWarnings.map((item, index) => <li key={`readability-${index}`}>{item}</li>)}</ul>
+                        <button
+                          type="button"
+                          className="builder-chat__text-link is-muted"
+                          onClick={retryProposalLayout}
+                          disabled={chatMutation.isPending || requestCycleActive}
+                          data-testid="button-improve-proposal-layout"
+                        >
+                          Try layout improvement again
+                        </button>
                       </div>
                     )}
                     {proposalQualityReview.review.unknowns.length > 0 && (

@@ -5,6 +5,7 @@ import type {
   CircuitDesignBrief,
 } from '@workspace/api-client-react';
 import {
+  buildLayoutRepairRequest,
   buildManualRetryRequest,
   buildOutputRepairRequest,
   buildRepairRequest,
@@ -15,6 +16,8 @@ import {
   CircuitBuildAttemptError,
   getRetryRecoveryKind,
   getNonWireElementSignature,
+  getLayoutInvariantSignature,
+  getCircuitNetlistSignature,
   getBuildRetryPolicy,
   getModeAfterFailedRequest,
   getProtectedCircuitChanges,
@@ -120,6 +123,100 @@ test('whole-circuit rebuild uses the original request and updated brief', () => 
   assert.deepEqual(fresh.history, request.history);
   assert.deepEqual(fresh.brief, updatedBrief);
   assert.equal(fresh.responseFormatRetry, false);
+});
+
+test('layout repair authorizes visual movement while preserving the complete CircuitSpec as source', () => {
+  const spec = {
+    title: 'Indicator',
+    width: 640,
+    height: 360,
+    elements: [
+      { type: 'resistor', id: 'R1', label: 'R1', value: '1k', from: [80, 120], to: [140, 120] },
+      { type: 'led', id: 'D1', label: 'D1', value: 'red', from: [200, 120], to: [240, 120] },
+      { type: 'wire', id: 'W1', points: [[140, 120], [200, 120]] },
+    ],
+  };
+  const repair = buildLayoutRepairRequest(baseRequest, brief, spec, [
+    'Visual layout issue: text for resistor R1 overlaps text for led D1.',
+  ]);
+
+  assert.equal(repair.mode, 'build');
+  assert.deepEqual(repair.currentSpec, spec);
+  assert.match(repair.message, /explicitly authorized layout-only change/);
+  assert.match(repair.message, /pin-to-pin netlist must remain exactly the same/);
+  assert.match(repair.message, /Visual layout issue/);
+  assert.equal(repair.history?.at(-1)?.content, baseRequest.message);
+});
+
+test('layout invariant signature allows position and routing changes but protects part details', () => {
+  const before = {
+    title: 'Indicator',
+    width: 640,
+    height: 360,
+    elements: [
+      { type: 'resistor', id: 'R1', label: 'R1', value: '1k', from: [80, 120], to: [140, 120] },
+      { type: 'label', id: 'L1', text: 'VCC', at: [80, 60] },
+      { type: 'wire', id: 'W1', points: [[140, 120], [200, 120]] },
+    ],
+  };
+  const moved = {
+    ...before,
+    width: 800,
+    height: 500,
+    elements: [
+      { type: 'resistor', id: 'R1', label: 'R1', value: '1k', from: [100, 200], to: [100, 260], rotation: 90 },
+      { type: 'label', id: 'L1', text: 'VCC', at: [130, 200] },
+      { type: 'wire', id: 'W2', points: [[100, 260], [180, 260], [180, 300]] },
+    ],
+  };
+  const changedValue = {
+    ...moved,
+    elements: moved.elements.map((element) =>
+      element.id === 'R1' ? { ...element, value: '2k' } : element,
+    ),
+  };
+
+  assert.equal(getLayoutInvariantSignature(before), getLayoutInvariantSignature(moved));
+  assert.notEqual(getLayoutInvariantSignature(before), getLayoutInvariantSignature(changedValue));
+});
+
+test('canonical netlist signature ignores auto-generated net names but preserves pin connectivity', () => {
+  const first = {
+    parts: [
+      { designator: 'R1', type: 'resistor', value: '1k' },
+      { designator: 'D1', type: 'led', value: 'red' },
+    ],
+    nets: [
+      { name: 'N1', pins: ['R1.2', 'D1.A'] },
+      { name: 'GND', pins: ['R1.1'] },
+      { name: 'N2', pins: ['D1.K'] },
+    ],
+  };
+  const sameWithDifferentGeneratedNames = {
+    parts: [...first.parts].reverse(),
+    nets: [
+      { name: 'N9', pins: ['D1.A', 'R1.2'] },
+      { name: 'GND', pins: ['R1.1'] },
+      { name: 'N10', pins: ['D1.K'] },
+    ],
+  };
+  const changedConnections = {
+    ...sameWithDifferentGeneratedNames,
+    nets: [
+      { name: 'N9', pins: ['D1.A', 'R1.1'] },
+      { name: 'GND', pins: ['R1.2'] },
+      { name: 'N10', pins: ['D1.K'] },
+    ],
+  };
+
+  assert.equal(
+    getCircuitNetlistSignature(first),
+    getCircuitNetlistSignature(sameWithDifferentGeneratedNames),
+  );
+  assert.notEqual(
+    getCircuitNetlistSignature(first),
+    getCircuitNetlistSignature(changedConnections),
+  );
 });
 
 test('rewiring starts without old routing elements and preserves the component set', () => {

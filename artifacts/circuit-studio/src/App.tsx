@@ -58,7 +58,12 @@ type CircuitDrawRenderOptions = {
 type CircuitDrawApi = {
   render: (spec: CircuitSpec, options?: CircuitDrawRenderOptions) => string;
   validate: (spec: CircuitSpec) => ValidationReport;
+  layoutWarnings: (spec: CircuitSpec) => string[];
   autoFix: (spec: CircuitSpec) => { spec: CircuitSpec; changes: string[] };
+  netlist: (spec: CircuitSpec) => {
+    parts: Array<{ designator: string; type: string; value: string }>;
+    nets: Array<{ name: string; pins: string[] }>;
+  };
   buildSheet: (spec: CircuitSpec) => string;
 };
 declare global {

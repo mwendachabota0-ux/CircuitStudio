@@ -383,6 +383,76 @@ export function getProtectedCircuitSignature(
   });
 }
 
+const layoutOnlyProperties = new Set([
+  'at',
+  'from',
+  'to',
+  'points',
+  'x',
+  'y',
+  'w',
+  'h',
+  'width',
+  'height',
+  'rotation',
+  'flip',
+  'labelAt',
+  'labelPos',
+  'labelNudge',
+  'labelAnchor',
+]);
+
+export function getLayoutInvariantSignature(
+  spec: NonNullable<CircuitBuildChatInput['currentSpec']>,
+): string {
+  const metadata = Object.fromEntries(
+    Object.entries(spec as Record<string, unknown>)
+      .filter(([key]) => key !== 'elements' && key !== 'width' && key !== 'height'),
+  );
+  const elements = spec.elements
+    .filter((element) => !isWireRoutingElement(element))
+    .map((element) =>
+      Object.fromEntries(
+        Object.entries(element as Record<string, unknown>)
+          .filter(([key]) => !layoutOnlyProperties.has(key)),
+      ),
+    )
+    .map((element) => JSON.stringify(canonicalizeElement(element)))
+    .sort();
+  return JSON.stringify({
+    metadata: canonicalizeElement(metadata),
+    elements,
+  });
+}
+
+export type CircuitNetlistSnapshot = {
+  parts: Array<{ designator: string; type: string; value: string }>;
+  nets: Array<{ name: string; pins: string[] }>;
+};
+
+export function getCircuitNetlistSignature(
+  netlist: CircuitNetlistSnapshot,
+): string {
+  const parts = netlist.parts
+    .map((part) => ({
+      designator: String(part.designator),
+      type: String(part.type),
+      value: String(part.value),
+    }))
+    .sort((left, right) =>
+      left.designator.localeCompare(right.designator) ||
+      left.type.localeCompare(right.type) ||
+      left.value.localeCompare(right.value),
+    );
+  const nets = netlist.nets
+    .map((net) => ({
+      name: /^N\d+$/i.test(net.name) ? '' : String(net.name),
+      pins: net.pins.map(String).sort(),
+    }))
+    .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
+  return JSON.stringify({ parts, nets });
+}
+
 export function getProtectedCircuitChanges(
   protectedSpec: NonNullable<CircuitBuildChatInput['currentSpec']>,
   proposedSpec: NonNullable<CircuitBuildChatInput['currentSpec']>,
@@ -421,6 +491,41 @@ export function buildOutputRepairRequest(
     responseFormatRetry: true,
     history,
     message: 'The previous attempt did not match Circuit Studio’s required response format. Answer the original latest request again using the included conversation, design brief, and current CircuitSpec. Return exactly one valid JSON object with the required fields. In Build mode, include a complete supported CircuitSpec when the request is clear enough. Do not add Markdown fences or extra fields.',
+  });
+}
+
+export function buildLayoutRepairRequest(
+  originalRequest: CircuitBuildChatInput,
+  brief: CircuitDesignBrief,
+  spec: NonNullable<CircuitBuildChatInput['currentSpec']>,
+  findings: string[],
+): CircuitBuildChatInput {
+  const history = [
+    ...(originalRequest.history ?? []),
+    { role: 'user' as const, content: originalRequest.message },
+  ].slice(-8);
+  const findingText = findings
+    .slice(0, 10)
+    .map((finding) => `- ${finding.slice(0, 400)}`)
+    .join('\n');
+
+  return normalizeCircuitBuildRequest({
+    ...originalRequest,
+    mode: 'build',
+    brief,
+    currentSpec: spec,
+    responseFormatRetry: false,
+    history,
+    message: `The user has requested a visual layout improvement for this proposed circuit. This is an explicitly authorized layout-only change: you may reposition and rotate existing symbols, adjust label placement, resize the sheet, and reroute existing wires.
+
+Keep the circuit's parts and electrical design unchanged. Preserve every component's type, ID, reference, value, symbolId, unit, bodyStyle, pin definitions, and all non-layout properties. Do not add or remove parts, change component values or switch state, or change which pins share a net. The final pin-to-pin netlist must remain exactly the same. You may reroute, split, or merge wires as needed to preserve those same connections.
+
+Improve visual hierarchy and whitespace; avoid a single long row when a balanced arrangement fits better. Keep related parts grouped, use clear orthogonal routes, and prevent labels, pins, symbols, and wires from overlapping. Return a complete CircuitSpec, not an SVG.
+
+Readability findings:
+${findingText || '- Improve the overall arrangement and label clearance.'}
+
+Original user request: ${originalRequest.message.slice(0, 1200)}`,
   });
 }
 

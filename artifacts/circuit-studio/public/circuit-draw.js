@@ -54,14 +54,26 @@
   var ARROW = ' marker-end="url(#cd-arrow)"';
 
   var TEXTBOX = null; // collects estimated text extents so auto-sizing can include labels
+  var TEXTOWNER = '';
+  var TEXTROLE = 'symbol-text';
   function textEl(x, y, s, anchor, size, bold, tone) {
     var fill = tone === 'muted' ? T.muted : T.text;
     if (TEXTBOX) {
       var w = String(s).length * (size || 12) * (bold ? 0.62 : 0.56), x0 = anchor === 'middle' ? x - w / 2 : anchor === 'end' ? x - w : x;
-      TEXTBOX.push([x0, y - (size || 12), x0 + w, y + 4]);
+      var box = [x0, y - (size || 12), x0 + w, y + 4];
+      box.owner = TEXTOWNER;
+      box.role = TEXTROLE;
+      box.text = String(s);
+      TEXTBOX.push(box);
     }
     return '<text x="' + f(x) + '" y="' + f(y) + '" text-anchor="' + (anchor || 'start') + '" font-size="' + (size || 12) + '"' +
       (bold ? ' font-weight="bold"' : '') + ' fill="' + fill + '">' + esc(s) + '</text>';
+  }
+  function withTextRole(role, draw) {
+    var previousRole = TEXTROLE;
+    TEXTROLE = role;
+    try { return draw(); }
+    finally { TEXTROLE = previousRole; }
   }
 
   /* ---------- two-terminal symbols ----------
@@ -899,27 +911,31 @@
 
   // Place label lines around the point (px,py). pos: above | below | left | right
   function placeLabel(lines, px, py, pos, d, nudge) {
-    var n = lines.length, out = '';
-    nudge = nudge || [0, 0];
-    for (var i = 0; i < n; i++) {
-      var L = lines[i], x = px, y = py, a = 'middle';
-      if (pos === 'above') { y = py - d - (n - 1 - i) * 16; }
-      else if (pos === 'below') { y = py + d + 12 + i * 16; }
-      else {
-        y = py + (i - (n - 1) / 2) * 16 + 4;
-        if (pos === 'left') { x = px - d; a = 'end'; } else { x = px + d; a = 'start'; }
+    return withTextRole('component-label', function () {
+      var n = lines.length, out = '';
+      nudge = nudge || [0, 0];
+      for (var i = 0; i < n; i++) {
+        var L = lines[i], x = px, y = py, a = 'middle';
+        if (pos === 'above') { y = py - d - (n - 1 - i) * 16; }
+        else if (pos === 'below') { y = py + d + 12 + i * 16; }
+        else {
+          y = py + (i - (n - 1) / 2) * 16 + 4;
+          if (pos === 'left') { x = px - d; a = 'end'; } else { x = px + d; a = 'start'; }
+        }
+        out += textEl(x + nudge[0], y + nudge[1], L.s, a, L.bold ? 14 : 12, L.bold, L.bold ? 'text' : 'muted');
       }
-      out += textEl(x + nudge[0], y + nudge[1], L.s, a, L.bold ? 14 : 12, L.bold, L.bold ? 'text' : 'muted');
-    }
-    return out;
+      return out;
+    });
   }
 
   function placeAt(lines, el) {
-    var out = '', anchor = el.labelAnchor || 'start';
-    for (var i = 0; i < lines.length; i++) {
-      out += textEl(el.labelAt[0], el.labelAt[1] + i * 16, lines[i].s, anchor, lines[i].bold ? 14 : 12, lines[i].bold, lines[i].bold ? 'text' : 'muted');
-    }
-    return out;
+    return withTextRole('component-label', function () {
+      var out = '', anchor = el.labelAnchor || 'start';
+      for (var i = 0; i < lines.length; i++) {
+        out += textEl(el.labelAt[0], el.labelAt[1] + i * 16, lines[i].s, anchor, lines[i].bold ? 14 : 12, lines[i].bold, lines[i].bold ? 'text' : 'muted');
+      }
+      return out;
+    });
   }
 
   /* ---------- drawing ---------- */
@@ -964,10 +980,14 @@
     if (!lines.length) return;
     if (el.labelAt) { parts.text += placeAt(lines, el); return; }
     var lx = x + 10 * (el.flip ? -1 : 1), ly = y + 62;
-    for (var i = 0; i < lines.length; i++) {
-      parts.text += textEl(lx + (el.labelNudge ? el.labelNudge[0] : 0), ly + i * 16 + (el.labelNudge ? el.labelNudge[1] : 0),
-        lines[i].s, el.flip ? 'start' : 'end', lines[i].bold ? 14 : 12, lines[i].bold, lines[i].bold ? 'text' : 'muted');
-    }
+    parts.text += withTextRole('component-label', function () {
+      var text = '';
+      for (var i = 0; i < lines.length; i++) {
+        text += textEl(lx + (el.labelNudge ? el.labelNudge[0] : 0), ly + i * 16 + (el.labelNudge ? el.labelNudge[1] : 0),
+          lines[i].s, el.flip ? 'start' : 'end', lines[i].bold ? 14 : 12, lines[i].bold, lines[i].bold ? 'text' : 'muted');
+      }
+      return text;
+    });
   }
 
   function drawOpamp(el, parts) {
@@ -1087,10 +1107,16 @@
       var offsetY = (index - (group.length - 1) / 2) * 24;
       var pinX = x + (side === 'left' ? -64 : 64);
       parts.comp += ln(pinX, y + offsetY, x + (side === 'left' ? -44 : 44), y + offsetY);
-      parts.text += textEl(x + (side === 'left' ? -48 : 48), y + offsetY + 3, pin.n, side === 'left' ? 'end' : 'start', 9, false, 'muted');
+      parts.text += withTextRole('pin-label', function () {
+        return textEl(x + (side === 'left' ? -48 : 48), y + offsetY + 3, pin.n, side === 'left' ? 'end' : 'start', 9, false, 'muted');
+      });
     });
-    if (el.value) parts.text += textEl(x, y + 4, el.value, 'middle', 11, true, 'text');
-    if (el.label) parts.text += textEl(x, y + height / 2 + 17, el.label, 'middle', 11, true, 'text');
+    if (el.value) parts.text += withTextRole('component-label', function () {
+      return textEl(x, y + 4, el.value, 'middle', 11, true, 'text');
+    });
+    if (el.label) parts.text += withTextRole('component-label', function () {
+      return textEl(x, y + height / 2 + 17, el.label, 'middle', 11, true, 'text');
+    });
   }
 
   function kicadArcPath(points) {
@@ -1201,7 +1227,9 @@
     if (!unit) return;
     var drawing = (unit.graphics || []).map(drawKicadGraphic).join('');
     parts.comp += '<g transform="' + kicadTransform(el) + '">' + drawing + '</g>';
-    (unit.pins || []).forEach(function (pin) { drawKicadPin(pin, el, parts); });
+    (unit.pins || []).forEach(function (pin) {
+      withTextRole('pin-label', function () { drawKicadPin(pin, el, parts); });
+    });
 
     var lines = linesOf(el);
     if (!lines.length) return;
@@ -1257,7 +1285,7 @@
 
   /* ---------- main entry ---------- */
 
-  function render(spec, opts) {
+  function render(spec, opts, layoutBoxes) {
     var a = analyse(spec);
     if (a.errors.length && !(opts && opts.allowStructuralErrors === true)) {
       throw new Error('Invalid circuit spec:\n- ' + a.errors.join('\n- '));
@@ -1268,21 +1296,31 @@
 
     var parts = { box: '', wire: '', comp: '', text: '' };
     WIRESEGS = []; TEXTBOX = [];
-    spec.elements.forEach(function (el) {
-      if (el.type === 'wire') for (var i = 0; i < el.points.length - 1; i++) WIRESEGS.push([el.points[i], el.points[i + 1]]);
+    spec.elements.forEach(function (el, index) {
+      if (el.type === 'wire') {
+        for (var i = 0; i < el.points.length - 1; i++) {
+          WIRESEGS.push([el.points[i], el.points[i + 1], elementName(el, index)]);
+        }
+      }
     });
 
-    spec.elements.forEach(function (el) {
+    spec.elements.forEach(function (el, index) {
       var t = el.type;
+      TEXTOWNER = elementName(el, index);
+      TEXTROLE = 'symbol-text';
       if (t === 'box') {
         parts.box += '<rect x="' + f(el.x) + '" y="' + f(el.y) + '" width="' + f(el.w) + '" height="' + f(el.h) +
           '" rx="8" stroke="' + T.muted + '" stroke-width="0.8" stroke-dasharray="6 4"/>';
-        if (el.label) parts.text += textEl(el.x + 14, el.y + 22, el.label, 'start', 14, true, 'text');
+        if (el.label) parts.text += withTextRole('annotation-label', function () {
+          return textEl(el.x + 14, el.y + 22, el.label, 'start', 14, true, 'text');
+        });
       } else if (t === 'wire') {
         parts.wire += '<polyline points="' + el.points.map(function (p) { return f(p[0]) + ',' + f(p[1]); }).join(' ') + '"/>';
       } else if (t === 'label') {
         var lsz = el.size || 14;
-        parts.text += textEl(el.at[0], el.at[1], el.text, el.anchor || 'start', lsz, el.bold !== undefined ? !!el.bold : lsz >= 14, el.muted ? 'muted' : 'text');
+        parts.text += withTextRole('annotation-label', function () {
+          return textEl(el.at[0], el.at[1], el.text, el.anchor || 'start', lsz, el.bold !== undefined ? !!el.bold : lsz >= 14, el.muted ? 'muted' : 'text');
+        });
       } else if (t === 'crossing') { drawWireCrossing(el, parts);
       } else if (t === 'kicad') { drawKicadSymbol(el, parts);
       } else if (TWO[t]) { drawTwo(el, parts);
@@ -1314,7 +1352,12 @@
       W = Math.ceil(bb.x1 - bb.x0 + 2 * pad); H = Math.ceil(bb.y1 - bb.y0 + 2 * pad);
     }
 
+    if (Array.isArray(layoutBoxes)) {
+      TEXTBOX.forEach(function (box) { layoutBoxes.push(box); });
+    }
     TEXTBOX = null;
+    TEXTOWNER = '';
+    TEXTROLE = 'symbol-text';
     return '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="' + vx + ' ' + vy + ' ' + W + ' ' + H +
       '" font-family="' + esc(T.font) + '">' +
       '<title>' + esc(spec.title || 'Circuit schematic') + '</title>' +
@@ -1325,6 +1368,63 @@
       parts.box + parts.wire + parts.comp + '</g>' +
       '<g fill="' + T.stroke + '" stroke="none">' + dots + '</g>' +
       '<g>' + parts.text + '</g></svg>';
+  }
+
+  function layoutWarnings(spec) {
+    var boxes = [];
+    try {
+      render(spec, { allowStructuralErrors: true }, boxes);
+    } catch (_error) {
+      TEXTBOX = null;
+      TEXTOWNER = '';
+      TEXTROLE = 'symbol-text';
+      return [];
+    }
+
+    var warnings = [], seen = {};
+    function addWarning(message) {
+      if (seen[message] || warnings.length >= 12) return;
+      seen[message] = true;
+      warnings.push(message);
+    }
+    function overlaps(a, b) {
+      return Math.min(a[2], b[2]) - Math.max(a[0], b[0]) > 2 &&
+        Math.min(a[3], b[3]) - Math.max(a[1], b[1]) > 2;
+    }
+    for (var i = 0; i < boxes.length; i++) {
+      for (var j = i + 1; j < boxes.length; j++) {
+        var first = boxes[i], second = boxes[j];
+        var sameOwner = first.owner === second.owner;
+        if (sameOwner && first.role !== 'component-label' && second.role !== 'component-label') continue;
+        if (!overlaps(first, second)) continue;
+        if (sameOwner) {
+          addWarning('Visual layout issue: text for ' + first.owner + ' overlaps other text on the same element; move the label away from its symbol or pins.');
+        } else {
+          addWarning('Visual layout issue: text for ' + first.owner + ' overlaps text for ' + second.owner + '; reposition a component or label.');
+        }
+      }
+    }
+
+    WIRESEGS.forEach(function (segment) {
+      var a = segment[0], b = segment[1], wireName = segment[2] || 'a wire';
+      boxes.forEach(function (box) {
+        var crossesText = false;
+        if (Math.abs(a[1] - b[1]) < 0.001) {
+          var y = a[1];
+          crossesText = y >= box[1] - 2 && y <= box[3] + 2 &&
+            Math.min(Math.max(a[0], b[0]), box[2]) - Math.max(Math.min(a[0], b[0]), box[0]) > 6;
+        } else if (Math.abs(a[0] - b[0]) < 0.001) {
+          var x = a[0];
+          crossesText = x >= box[0] - 2 && x <= box[2] + 2 &&
+            Math.min(Math.max(a[1], b[1]), box[3]) - Math.max(Math.min(a[1], b[1]), box[1]) > 6;
+        }
+        if (crossesText) {
+          addWarning('Visual layout issue: ' + wireName + ' crosses text for ' + box.owner + '; reroute the wire or move the label.');
+        }
+      });
+    });
+
+    return warnings;
   }
 
 
@@ -1434,6 +1534,7 @@
     version: VERSION,
     render: render,
     validate: validate,
+    layoutWarnings: layoutWarnings,
     autoFix: autoFix,
     netlist: netlist,
     buildSheet: buildSheet,

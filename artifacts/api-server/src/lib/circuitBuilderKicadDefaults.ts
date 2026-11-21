@@ -1,33 +1,7 @@
-const BASE_KICAD_SYMBOLS = [
-  "Device:R",
-  "Device:C",
-  "Device:LED",
-  "power:GND",
-];
-
 const CONTEXTUAL_KICAD_SYMBOLS: Array<{
   pattern: RegExp;
   ids: string[];
 }> = [
-  { pattern: /\b(?:diode|rectifier|schottky|zener)\b/i, ids: ["Device:D"] },
-  {
-    pattern: /\b(?:electrolytic|polarized|polarised)\b/i,
-    ids: ["Device:C_Polarized"],
-  },
-  {
-    pattern: /\b(?:transistor|npn|bjt|astable|multivibrator|flasher)\b/i,
-    ids: ["Transistor_BJT:Q_NPN_BCE"],
-  },
-  { pattern: /\bpnp\b/i, ids: ["Transistor_BJT:Q_PNP_BCE"] },
-  {
-    pattern: /\b(?:mosfet|nmos|n-channel)\b/i,
-    ids: ["Transistor_FET:Q_NMOS_GDS"],
-  },
-  {
-    pattern: /\b(?:pmos|p-channel)\b/i,
-    ids: ["Transistor_FET:Q_PMOS_GDS"],
-  },
-  { pattern: /\b(?:battery|cell)\b/i, ids: ["Device:Battery"] },
   { pattern: /\bNE555P?\b/i, ids: ["Timer:NE555P"] },
   { pattern: /\bLM555(?:xN)?\b/i, ids: ["Timer:LM555xN"] },
   { pattern: /\bTLC555(?:xP)?\b/i, ids: ["Timer:TLC555xP"] },
@@ -36,15 +10,6 @@ const CONTEXTUAL_KICAD_SYMBOLS: Array<{
     pattern: /\b(?:LM7805|L7805|uA7805|7805)\b/i,
     ids: ["Regulator_Linear:LM7805_TO220"],
   },
-  { pattern: /\bfuse\b/i, ids: ["Device:Fuse"] },
-  { pattern: /\bpush.?button\b/i, ids: ["Switch:SW_Push"] },
-  { pattern: /\b(?:switch|spst)\b/i, ids: ["Switch:SW_SPST"] },
-  {
-    pattern: /\b(?:connector|plug|socket)\b/i,
-    ids: ["Connector_Generic:Conn_01x02"],
-  },
-  { pattern: /\bspeaker\b/i, ids: ["Device:Speaker"] },
-  { pattern: /\bbuzzer\b/i, ids: ["Device:Buzzer"] },
   {
     pattern: /\b(?:5\s?volts?|5\s?v)\b/i,
     ids: ["power:+5V"],
@@ -56,7 +21,7 @@ const CONTEXTUAL_KICAD_SYMBOLS: Array<{
 ];
 
 export function getDefaultKicadSymbolIds(context: string): string[] {
-  const ids = new Set(BASE_KICAD_SYMBOLS);
+  const ids = new Set<string>();
 
   for (const rule of CONTEXTUAL_KICAD_SYMBOLS) {
     if (!rule.pattern.test(context)) continue;
@@ -64,4 +29,29 @@ export function getDefaultKicadSymbolIds(context: string): string[] {
   }
 
   return [...ids].slice(0, 12);
+}
+
+const EXACT_PART_IDENTIFIER =
+  /\b(?:[a-z]{2,8}[-/]?\d{2,6}[a-z0-9-]*|\d{2,3}[a-z]{2,4}\d{1,4}[a-z0-9-]*)\b/i;
+const GENERIC_555_REQUEST = /\b(?:ne\s?555|555\s+(?:timer|ic))\b/i;
+
+export function shouldSearchKicadLibrary(input: {
+  context: string;
+  hasStudioMatch: boolean;
+  hasExplicitKicadId?: boolean;
+  hasExistingKicadSymbol?: boolean;
+}): boolean {
+  if (
+    !input.hasStudioMatch ||
+    input.hasExplicitKicadId ||
+    input.hasExistingKicadSymbol ||
+    getDefaultKicadSymbolIds(input.context).length > 0
+  ) {
+    return true;
+  }
+
+  return (
+    EXACT_PART_IDENTIFIER.test(input.context) ||
+    GENERIC_555_REQUEST.test(input.context)
+  );
 }

@@ -1,47 +1,69 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { getDefaultKicadSymbolIds } from "./circuitBuilderKicadDefaults.ts";
+import {
+  getDefaultKicadSymbolIds,
+  shouldSearchKicadLibrary,
+} from "./circuitBuilderKicadDefaults.ts";
 
-test("offers common KiCad symbols for new circuit builds", () => {
-  assert.deepEqual(getDefaultKicadSymbolIds("draw a circuit"), [
-    "Device:R",
-    "Device:C",
-    "Device:LED",
-    "power:GND",
-  ]);
+test("does not load KiCad defaults for generic Studio-library components", () => {
+  assert.deepEqual(getDefaultKicadSymbolIds("draw a circuit"), []);
+  assert.deepEqual(
+    getDefaultKicadSymbolIds("battery, resistor, LED, diode, NPN, fuse, switch"),
+    [],
+  );
 });
 
-test("adds exact KiCad candidates that match the requested circuit parts", () => {
+test("loads KiCad candidates for exact parts and named power symbols", () => {
   const ids = getDefaultKicadSymbolIds(
-    "Make an NE555 astable flasher with an electrolytic capacitor, NPN transistor, pushbutton, and 5V supply.",
+    "Make an NE555P astable flasher with a generic NPN and 5V rail.",
   );
 
-  for (const id of [
-    "Device:R",
-    "Device:C",
-    "Device:LED",
-    "power:GND",
-    "Transistor_BJT:Q_NPN_BCE",
-    "Device:C_Polarized",
-    "Timer:NE555P",
-    "Switch:SW_Push",
-    "power:+5V",
-  ]) {
+  for (const id of ["Timer:NE555P", "power:+5V"]) {
     assert.ok(ids.includes(id), `expected ${id}`);
   }
+  assert.equal(ids.length, 2);
 });
 
-test("offers PNP and MOSFET symbols without substituting another pinout", () => {
+test("leaves generic transistor and MOSFET requests in the Studio library", () => {
   const ids = getDefaultKicadSymbolIds("Use a PNP transistor and an N-channel MOSFET.");
 
-  assert.ok(ids.includes("Transistor_BJT:Q_PNP_BCE"));
-  assert.ok(ids.includes("Transistor_FET:Q_NMOS_GDS"));
-  assert.ok(!ids.includes("Transistor_FET:Q_PMOS_GDS"));
+  assert.deepEqual(ids, []);
 });
 
-test("does not choose a specific IC for a generic IC request", () => {
+test("keeps a generic 555 request eligible for a KiCad fallback without choosing an exact model", () => {
   const ids = getDefaultKicadSymbolIds("Draw a 555 timer circuit with an op-amp.");
 
   assert.ok(!ids.includes("Timer:NE555P"));
   assert.ok(!ids.includes("Amplifier_Operational:LM358"));
+});
+
+test("searches Studio first and consults KiCad only when fallback may be needed", () => {
+  assert.equal(
+    shouldSearchKicadLibrary({
+      context: "Build a battery-powered LED circuit with a resistor.",
+      hasStudioMatch: true,
+    }),
+    false,
+  );
+  assert.equal(
+    shouldSearchKicadLibrary({
+      context: "Build a battery-powered LM358 circuit.",
+      hasStudioMatch: true,
+    }),
+    true,
+  );
+  assert.equal(
+    shouldSearchKicadLibrary({
+      context: "Build a 555 timer circuit with an LED.",
+      hasStudioMatch: true,
+    }),
+    true,
+  );
+  assert.equal(
+    shouldSearchKicadLibrary({
+      context: "Build a circuit.",
+      hasStudioMatch: false,
+    }),
+    true,
+  );
 });

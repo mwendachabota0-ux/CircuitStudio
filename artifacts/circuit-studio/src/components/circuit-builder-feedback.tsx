@@ -70,14 +70,14 @@ export function CircuitBuilderFeedback({
   return (
     <section className="builder-chat__rating" aria-label="Rate this circuit proposal">
       <div className="builder-chat__rating-heading">
-        <strong>Was this proposal useful?</strong>
+      <strong>Was this circuit useful?</strong>
         <span>Feedback can guide similar requests on your account.</span>
       </div>
       <div className="builder-chat__rating-votes">
         <button
           type="button"
           className={savedVote === 'up' ? 'is-selected' : ''}
-          aria-label="I like this proposal"
+          aria-label="I like this circuit"
           aria-pressed={savedVote === 'up'}
           disabled={saving || savedVote !== null}
           onClick={() => void saveFeedback('up', 'overall', '')}
@@ -91,7 +91,7 @@ export function CircuitBuilderFeedback({
         <button
           type="button"
           className={savedVote === 'down' ? 'is-selected' : ''}
-          aria-label="I dislike this proposal"
+          aria-label="I dislike this circuit"
           aria-pressed={savedVote === 'down'}
           disabled={saving || savedVote !== null}
           onClick={() => {

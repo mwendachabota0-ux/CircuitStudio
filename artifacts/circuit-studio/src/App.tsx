@@ -712,6 +712,7 @@ function Studio({ userId }: { userId: string }) {
   const [jsonRepairRequest, setJsonRepairRequest] = useState<JsonRepairRequest | null>(null);
   const jsonRepairRequestIdRef = useRef(0);
   const [hasStagedBuilderProposal, setHasStagedBuilderProposal] = useState(false);
+  const [schematicFeedbackHost, setSchematicFeedbackHost] = useState<HTMLDivElement | null>(null);
   const [libraryReady, setLibraryReady] = useState(!!window.CircuitDraw);
   const [toast, setToast] = useState('');
   const [copied, setCopied] = useState(false);
@@ -1003,6 +1004,7 @@ function Studio({ userId }: { userId: string }) {
             canRepairCurrentDraft={libraryReady && !jsonError && !jsonEditorDirty && report.errors.length > 0}
             hasUnappliedJsonEdits={jsonEditorDirty}
             jsonRepairRequest={jsonRepairRequest}
+            schematicFeedbackHost={schematicFeedbackHost}
             onProposalStateChange={setHasStagedBuilderProposal}
             onJsonRepairRequestHandled={(id) => {
               setJsonRepairRequest((current) => current?.id === id ? null : current);
@@ -1050,6 +1052,11 @@ function Studio({ userId }: { userId: string }) {
                   : report.errors.length ? <div className="schematic-paper canvas-empty"><h3>This schematic needs repair</h3><p>Fix the errors to preview it.</p></div>
                     : <div className="schematic-paper canvas-empty"><div className="empty-icon"><CircuitBoard /></div><h3>Ready to draw</h3><p>Your schematic will appear here.</p></div>}
             </div>
+            <div
+              className="schematic-feedback-host"
+              ref={setSchematicFeedbackHost}
+              data-testid="slot-schematic-feedback"
+            />
             <div className="canvas-foot"><span data-testid="status-canvas">{report.errors.length ? svg ? 'Needs repair' : 'Drawing paused' : 'Vector schematic'}</span><span>Canvas {spec.width || 'auto'} × {spec.height || 'auto'}</span></div>
           </div>
         </section>

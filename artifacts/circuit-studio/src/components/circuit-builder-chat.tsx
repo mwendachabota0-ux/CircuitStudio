@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   getChatWithCircuitBuilderMutationKey,
@@ -480,6 +481,7 @@ export type CircuitBuilderChatProps = {
   canRepairCurrentDraft: boolean;
   hasUnappliedJsonEdits: boolean;
   jsonRepairRequest: JsonRepairRequest | null;
+  schematicFeedbackHost: HTMLElement | null;
   onJsonRepairRequestHandled: (id: number) => void;
   onProposalStateChange: (hasProposal: boolean) => void;
   onApplySpec: (
@@ -504,6 +506,7 @@ export function CircuitBuilderChat({
   canRepairCurrentDraft,
   hasUnappliedJsonEdits,
   jsonRepairRequest,
+  schematicFeedbackHost,
   onJsonRepairRequestHandled,
   onProposalStateChange,
   onApplySpec,
@@ -555,6 +558,13 @@ export function CircuitBuilderChat({
     useState<CircuitBuilderMemoryImportStatus>({ kind: 'idle' });
   const [clearChatOpen, setClearChatOpen] = useState(false);
   const [proposal, setProposal] = useState<{ summary: string; spec: CircuitBuildChatInput['currentSpec'] } | null>(null);
+  const [appliedProposalFeedback, setAppliedProposalFeedback] = useState<{
+    id: number;
+    circuitTitle: string;
+    requestSummary: string;
+    specSignature: string;
+  } | null>(null);
+  const appliedProposalFeedbackIdRef = useRef(0);
   const [proposalSvg, setProposalSvg] = useState('');
   const [proposalValidation, setProposalValidation] = useState<ValidationReport | null>(null);
   const [proposalQualityReview, setProposalQualityReview] =
@@ -1011,6 +1021,10 @@ export function CircuitBuilderChat({
 
   const visibleMessages = saved.messages;
   const aiUnavailable = usageQuery.data ? !usageQuery.data.canUseAi : false;
+  const currentSpecSignature = useMemo(
+    () => JSON.stringify(currentSpec ?? null),
+    [currentSpec],
+  );
   const repairNoticeKey = validationFindings.join('\u0000');
 
   useEffect(() => {
@@ -1838,8 +1852,9 @@ export function CircuitBuilderChat({
     reason: ProposalFeedbackReason,
     details: string,
   ) => {
-    if (!proposal || chatMutation.isPending || requestCycleActive) return;
     const currentProposal = proposal;
+    const revisionSpec = currentProposal?.spec ?? currentSpec;
+    if (!revisionSpec || chatMutation.isPending || requestCycleActive) return;
     const reasonText: Record<ProposalFeedbackReason, string> = {
       'incorrect-wiring': 'the wiring was incorrect',
       'wrong-parts-or-values': 'the parts or values were wrong',
@@ -1849,12 +1864,12 @@ export function CircuitBuilderChat({
     };
     const goal = saved.brief.goal.trim() ||
       lastRequest?.message.trim() ||
-      currentProposal.spec.title;
+      revisionSpec.title;
     const userDetail = details.trim()
       ? ` My detail: ${details.trim().slice(0, 500)}`
       : '';
     const revisionPrompt = [
-      `Please revise the staged "${currentProposal.spec.title}" circuit based on my feedback: ${reasonText[reason]}.${userDetail}`,
+      `Please revise the "${revisionSpec.title}" circuit based on my feedback: ${reasonText[reason]}.${userDetail}`,
       `Keep the original goal: "${goal.slice(0, 600)}".`,
       'Address the specific issue, improve the schematic readability where needed, and do not invent missing ratings or values.',
       'Return a new staged proposal for me to review; do not apply it to the workbench.',
@@ -1865,18 +1880,18 @@ export function CircuitBuilderChat({
     const request: CircuitBuildChatInput = {
       message: revisionPrompt,
       mode: 'build',
-      currentSpec: currentProposal.spec,
+      currentSpec: revisionSpec,
       history,
       brief: saved.brief,
     };
-    setRejectedProposalSpec(currentProposal.spec);
-    setRejectedProposalSvg(renderRejectedProposalPreview(currentProposal.spec));
+    setRejectedProposalSpec(revisionSpec);
+    setRejectedProposalSvg(renderRejectedProposalPreview(revisionSpec));
     setMode('build');
     setSaved((current) => ({
       ...current,
       messages: [...current.messages, newMessage('user', revisionPrompt)].slice(-60),
     }));
-    discardProposal();
+    if (currentProposal) discardProposal();
     await runRequest(
       request,
       composerRef.current?.getDraftRevision() ?? 0,
@@ -1884,7 +1899,7 @@ export function CircuitBuilderChat({
       true,
       true,
       undefined,
-      currentProposal.spec,
+      revisionSpec,
     );
   };
 
@@ -1896,6 +1911,12 @@ export function CircuitBuilderChat({
       proposalValidation.errors.length ||
       proposalQualityReview.kind === 'loading'
     ) return;
+    setAppliedProposalFeedback({
+      id: ++appliedProposalFeedbackIdRef.current,
+      circuitTitle: proposal.spec.title,
+      requestSummary: saved.brief.goal || lastRequest?.message || '',
+      specSignature: JSON.stringify(proposal.spec),
+    });
     onApplySpec(proposal.spec);
     setProposal(null);
     setProposalSvg('');
@@ -2455,14 +2476,6 @@ export function CircuitBuilderChat({
                   <p>Review not started.</p>
                 )}
               </div>
-              <CircuitBuilderFeedback
-                circuitTitle={proposal.spec.title}
-                requestSummary={saved.brief.goal || lastRequest?.message || ''}
-                onSave={saveProposalFeedback}
-                onRevise={(reason, details) => {
-                  void reviseProposalFromFeedback(reason, details);
-                }}
-              />
               <div className="builder-chat__proposal-actions">
                 <button type="button" className="builder-chat__text-link is-muted" onClick={discardProposal} data-testid="button-discard-proposal-link">Discard</button>
                 <button
@@ -2637,6 +2650,21 @@ export function CircuitBuilderChat({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {appliedProposalFeedback &&
+        schematicFeedbackHost &&
+        currentSpecSignature === appliedProposalFeedback.specSignature &&
+        createPortal(
+          <CircuitBuilderFeedback
+            circuitTitle={appliedProposalFeedback.circuitTitle}
+            requestSummary={appliedProposalFeedback.requestSummary}
+            onSave={saveProposalFeedback}
+            onRevise={(reason, details) => {
+              void reviseProposalFromFeedback(reason, details);
+            }}
+          />,
+          schematicFeedbackHost,
+          String(appliedProposalFeedback.id),
+        )}
     </section>
   );
 }

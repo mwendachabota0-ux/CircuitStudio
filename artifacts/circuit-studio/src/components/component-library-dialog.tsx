@@ -227,7 +227,7 @@ export function ComponentLibraryDialog({
           {source === 'kicad' && kicadSearch.isLoading ? (
             <div className="component-library-dialog__empty" role="status" data-testid="component-library-loading">
               <h3>Loading KiCad symbols</h3>
-              <p>Searching the indexed catalog of 22,911 schematic symbols.</p>
+              <p>Searching symbols…</p>
             </div>
           ) : source === 'kicad' && kicadSearch.isError ? (
             <div className="component-library-dialog__empty" role="alert" data-testid="component-library-error">

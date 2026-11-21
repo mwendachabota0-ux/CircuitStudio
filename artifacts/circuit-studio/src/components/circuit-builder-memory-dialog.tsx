@@ -11,11 +11,11 @@ import type { CircuitBuilderMemory } from '@workspace/api-client-react';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { CircleHelp } from 'lucide-react';
 
 const categoryLabels: Record<CircuitBuilderMemory['category'], string> = {
   'work-style': 'How you like to work',
@@ -56,6 +56,7 @@ export function CircuitBuilderMemoryDialog({
   const [drafts, setDrafts] = useState<Record<number, string>>({});
   const [confirmClear, setConfirmClear] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const refreshMemories = async () => {
     await queryClient.invalidateQueries({
@@ -76,7 +77,7 @@ export function CircuitBuilderMemoryDialog({
       });
       await refreshMemories();
     } catch {
-      setActionError('Could not save that memory. Please try again.');
+      setActionError('Could not save memory. Try again.');
     }
   };
 
@@ -91,7 +92,7 @@ export function CircuitBuilderMemoryDialog({
       });
       await refreshMemories();
     } catch {
-      setActionError('Could not remove that memory. Please try again.');
+      setActionError('Could not remove memory. Try again.');
     }
   };
 
@@ -103,7 +104,7 @@ export function CircuitBuilderMemoryDialog({
       setConfirmClear(false);
       await refreshMemories();
     } catch {
-      setActionError('Could not clear saved memories. Please try again.');
+      setActionError('Could not clear memories. Try again.');
     }
   };
 
@@ -116,36 +117,57 @@ export function CircuitBuilderMemoryDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="builder-memory-dialog">
         <DialogHeader>
-          <DialogTitle>What I remember</DialogTitle>
-          <DialogDescription>
-            These are account-level memories, not saved chat transcripts.
-            After a corrected circuit passes checks and you apply it, Circuit Studio
-            saves a short lesson about the mistake, fix, and how to avoid it next time.
-            When saved history is first imported, short excerpts from up to 12
-            recent chat/build sessions in this browser are sent to Gemini to
-            find reusable details; only the assumptions are saved. This does not
-            train Gemini.
-            Later chats save useful details automatically. New topics stay fresh,
-            and only relevant memories are used. Correct them in chat or edit
-            them here.
-          </DialogDescription>
+          <div className="builder-memory-dialog__title-row">
+            <DialogTitle>What I remember</DialogTitle>
+            <button
+              type="button"
+              className="builder-memory-dialog__help-trigger"
+              aria-label="About saved memories"
+              aria-expanded={helpOpen}
+              aria-controls="builder-memory-help"
+              onClick={() => setHelpOpen((isOpen) => !isOpen)}
+              data-testid="button-memory-help"
+            >
+              <CircleHelp aria-hidden="true" />
+            </button>
+          </div>
+          {helpOpen && (
+            <div
+              id="builder-memory-help"
+              className="builder-memory-dialog__help-content"
+              role="note"
+              aria-label="Saved memory details"
+              data-testid="memory-help"
+            >
+              <p>Memories are saved to your account, not as chat transcripts.</p>
+              <p>Applying a checked repair can save a lesson.</p>
+              <p>
+                On first import, short excerpts from up to 12 recent sessions are
+                sent to Gemini to find reusable assumptions. Only assumptions are
+                saved, not chats; they do not train Gemini.
+              </p>
+              <p>Relevant memories can shape future chats. Edit or remove them here.</p>
+            </div>
+          )}
         </DialogHeader>
 
         {historyImportStatus.kind === 'loading' && (
           <p className="builder-memory-dialog__empty" role="status">
-            Reviewing recent chats for useful assumptions…
+            Updating memories…
           </p>
         )}
         {historyImportStatus.kind === 'done' && (
           <p className="builder-memory-dialog__empty" role="status">
             {historyImportStatus.learnedCount === undefined
-              ? 'Recent chats were already reviewed.'
-              : `Reviewed ${historyImportStatus.conversationCount ?? 'recent'} recent chats and saved ${historyImportStatus.learnedCount} useful assumption${historyImportStatus.learnedCount === 1 ? '' : 's'}.`}
+              ? 'Memories are up to date.'
+              : historyImportStatus.learnedCount === 0
+                ? 'No new memories.'
+                : `Added ${historyImportStatus.learnedCount} memor${historyImportStatus.learnedCount === 1 ? 'y' : 'ies'}.`}
           </p>
         )}
         {historyImportStatus.kind === 'error' && (
           <p className="builder-memory-dialog__error" role="alert">
-            Recent chats could not be reviewed. Your saved assumptions are unchanged.{' '}
+            Could not update memories. Your saved memories are unchanged.{' '}
             <button
               type="button"
               onClick={onRetryHistoryImport}
@@ -157,17 +179,16 @@ export function CircuitBuilderMemoryDialog({
 
         {actionError && <p className="builder-memory-dialog__error" role="alert">{actionError}</p>}
         {memoriesQuery.isLoading && (
-          <p className="builder-memory-dialog__empty" role="status">Loading saved memories…</p>
+          <p className="builder-memory-dialog__empty" role="status">Loading memories…</p>
         )}
         {memoriesQuery.isError && (
           <p className="builder-memory-dialog__error" role="alert">
-            Saved memories could not be loaded. Please try closing and reopening this panel.
+            Could not load memories. Reopen to try again.
           </p>
         )}
         {memoriesQuery.data?.length === 0 && !memoriesQuery.isLoading && (
           <p className="builder-memory-dialog__empty">
-            Nothing saved yet. Circuit Studio keeps only useful, reusable
-            context—not every old conversation.
+            No saved memories yet.
           </p>
         )}
 
@@ -183,7 +204,7 @@ export function CircuitBuilderMemoryDialog({
                     <span>{categoryLabels[memory.category]}</span>
                   </div>
                   <label className="builder-memory-dialog__label" htmlFor={`builder-memory-${memory.id}`}>
-                    Edit this memory
+                    Edit memory
                   </label>
                   <textarea
                     id={`builder-memory-${memory.id}`}
@@ -223,7 +244,7 @@ export function CircuitBuilderMemoryDialog({
           {memoriesQuery.data && memoriesQuery.data.length > 0 && (
             confirmClear ? (
               <div className="builder-memory-dialog__clear-confirm" role="alert">
-                <span>This removes every saved memory.</span>
+                <span>Delete all saved memories?</span>
                 <button type="button" className="is-danger" onClick={() => void removeAllMemories()} disabled={busy}>
                   Delete all
                 </button>

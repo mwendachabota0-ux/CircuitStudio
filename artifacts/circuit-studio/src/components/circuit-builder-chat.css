@@ -1169,6 +1169,55 @@
   font: 700 17px/1.3 var(--app-font-display);
 }
 
+.builder-memory-dialog__title-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+@media (min-width: 640px) {
+  .builder-memory-dialog__title-row { justify-content: flex-start; }
+}
+
+.builder-memory-dialog__help-trigger {
+  width: 25px;
+  height: 25px;
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #75817b;
+  transition: background .16s ease, color .16s ease;
+}
+
+.builder-memory-dialog__help-trigger svg { width: 16px; height: 16px; }
+.builder-memory-dialog__help-trigger:hover { background: #edf2ed; color: #176b55; }
+.builder-memory-dialog__help-trigger:focus-visible {
+  outline: 2px solid #4b9278;
+  outline-offset: 2px;
+}
+
+.builder-memory-dialog__help-content {
+  width: 100%;
+  display: grid;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 10px 12px;
+  border: 1px solid #dedbd1;
+  border-radius: 8px;
+  background: #f5f4ed;
+  color: #52635e;
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: left;
+}
+
+.builder-memory-dialog__help-content p { margin: 0; }
+
 .builder-memory-dialog [data-slot="dialog-description"] {
   color: #697871;
   font-size: 11px;

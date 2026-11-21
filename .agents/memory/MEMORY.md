@@ -5,3 +5,4 @@
 - [Circuit Studio input focus](circuit-studio-input-focus.md) — treat broad focus loss as a client hit-testing issue unless fresh logs show API failures.
 - [Circuit topology checks](circuit-studio-topology-checks.md) — continue manual retries from rejected proposals and distinguish blockers from advisory warnings.
 - [Circuit builder intent](circuit-studio-builder-intent.md) — save unfinished Chat sessions before a circuit is built; inferred intent still needs approval.
+- [Circuit Studio copy](circuit-studio-copy.md) — keep interface text concise; move optional process details into help and retain essential safety/confirmation copy.

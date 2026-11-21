@@ -1926,7 +1926,7 @@ export function CircuitBuilderChat({
         <div className="builder-chat__repair-notice" data-testid="panel-repair-current-draft">
           <div>
             <strong>{validationFindings.length} structural issue{validationFindings.length === 1 ? '' : 's'} found</strong>
-            <p>Ask Studio to repair the wiring. It will check the proposal; your drawing stays unchanged until you apply it.</p>
+            <p>Studio will check the fix. Your drawing changes only when you apply it.</p>
           </div>
           <button
             type="button"
@@ -2114,8 +2114,8 @@ export function CircuitBuilderChat({
                   data-testid="panel-external-circuit-fix"
                 >
                   <h3>Paste the external fix here</h3>
-                  <p>Paste the AI’s complete plain-JSON CircuitSpec. Studio checks its structure and asks Studio AI to review it before staging.</p>
-                  <label htmlFor="external-circuit-fix-json">Corrected CircuitSpec JSON</label>
+                  <p>Paste the corrected circuit here.</p>
+                  <label htmlFor="external-circuit-fix-json">Corrected circuit JSON</label>
                   <textarea
                     id="external-circuit-fix-json"
                     value={externalFixDraft}
@@ -2151,15 +2151,15 @@ export function CircuitBuilderChat({
                       role={externalFixFeedback.approved ? 'status' : 'alert'}
                       data-testid="status-external-circuit-fix-review"
                     >
-                      <strong>{externalFixFeedback.approved ? 'Studio AI approved this fix for staging.' : 'Studio AI did not approve this fix.'}</strong>
+                      <strong>{externalFixFeedback.approved ? 'Fix approved.' : 'Fix needs changes.'}</strong>
                       <p>{externalFixFeedback.summary}</p>
                       {!!externalFixFeedback.concerns.length && (
                         <ul>{externalFixFeedback.concerns.map((concern, index) => <li key={`external-concern-${index}`}>{concern}</li>)}</ul>
                       )}
-                      {externalFixFeedback.approved && <p>The staged proposal is shown below. It has not been applied to your workbench.</p>}
+                      {externalFixFeedback.approved && <p>Ready to review. Not applied yet.</p>}
                     </div>
                   )}
-                  <p className="builder-chat__external-fix-note">Structural checks and AI review are not electrical simulation or safety verification. Your current workbench draft stays unchanged until you choose Apply.</p>
+                  <p className="builder-chat__external-fix-note">Not an electrical or safety check. Your drawing changes only when you apply the fix.</p>
                 </section>
               )}
             </>
@@ -2258,7 +2258,6 @@ export function CircuitBuilderChat({
             ) : (
               <div className="builder-chat__brief-empty" data-testid="status-builder-brief-empty">
                 <Plus aria-hidden="true" />
-                <p>The AI uses these notes to keep important details in view. Add your own, or let the conversation fill them in.</p>
                 <button type="button" className="builder-chat__text-link" onClick={editBrief} data-testid="button-add-brief">Add a starting note</button>
               </div>
             )}
@@ -2294,8 +2293,8 @@ export function CircuitBuilderChat({
             <DialogDescription className="builder-chat__clear-description">
               {historySyncMutation.isPending && 'Wait for the account sync to finish. '}
               {historyDeleteTarget?.id === activeSessionId
-                ? 'This removes this conversation and its saved notes from your account and this device. A fresh chat will start with your current schematic, which will stay unchanged.'
-                : 'This removes this conversation and its saved notes from your account and this device. Your current conversation and schematic will stay unchanged.'}
+                ? 'Deletes this chat and its notes. Your schematic stays unchanged.'
+                : 'Deletes this chat and its notes. Your current work stays unchanged.'}
             </DialogDescription>
           </DialogHeader>
           {historyDeleteError && <p className="builder-chat__history-error" role="alert" data-testid="status-delete-builder-history-error">{historyDeleteError}</p>}
@@ -2331,7 +2330,7 @@ export function CircuitBuilderChat({
             <DialogHeader className="easyeda-sheet-header">
               <DialogTitle className="easyeda-sheet-title">{rejectedProposalSpec.title}</DialogTitle>
               <DialogDescription className="easyeda-sheet-description">
-                This draft did not pass structural checks. Preview only; it has not been applied to your workbench.
+                Failed checks. Preview only; not applied.
               </DialogDescription>
             </DialogHeader>
             <div
@@ -2358,7 +2357,7 @@ export function CircuitBuilderChat({
           <DialogHeader>
             <DialogTitle className="builder-chat__clear-title">Clear this chat?</DialogTitle>
             <DialogDescription className="builder-chat__clear-description">
-              This removes its saved messages and design notes from History. Your current schematic will stay unchanged.
+              Deletes chat messages and notes. Your schematic stays unchanged.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="builder-chat__clear-footer">

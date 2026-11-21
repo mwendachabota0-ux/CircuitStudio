@@ -829,14 +829,35 @@
   margin-top: 7px;
 }
 .builder-chat__rejected-preview-canvas .builder-chat__svg svg { max-height: 220px; }
-.builder-chat__rejected-preview.is-expanded .builder-chat__rejected-preview-canvas {
-  max-height: min(58vh, 560px);
+.builder-chat__rejected-preview-modal-body {
+  display: grid;
+  place-items: center;
+  min-height: min(54vh, 420px);
+  background-color: #fffefa;
+  background-image: radial-gradient(#e7e3d9 .65px, transparent .65px);
+  background-size: 16px 16px;
 }
-.builder-chat__rejected-preview.is-expanded .builder-chat__rejected-preview-canvas .builder-chat__svg {
-  min-height: min(56vh, 540px);
+.builder-chat__rejected-preview-modal-body .builder-chat__svg {
+  height: auto;
+  min-height: 0;
 }
-.builder-chat__rejected-preview.is-expanded .builder-chat__rejected-preview-canvas .builder-chat__svg svg {
-  max-height: min(54vh, 520px);
+.builder-chat__rejected-preview-modal-body .builder-chat__svg svg {
+  max-width: 100%;
+  max-height: min(58dvh, 620px);
+}
+.builder-chat__rejected-preview-modal-footer {
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.builder-chat__rejected-preview-modal-footer > span {
+  color: #8e8172;
+  font-size: 9px;
+}
+.builder-chat__rejected-preview-modal-footer .quiet-button {
+  min-height: 30px;
+  padding: 7px 10px;
+  font-size: 10px;
 }
 .builder-chat__rejected-preview-empty,
 .builder-chat__rejected-preview-note {

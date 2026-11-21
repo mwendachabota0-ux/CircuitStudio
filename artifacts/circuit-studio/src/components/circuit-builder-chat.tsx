@@ -66,7 +66,6 @@ import {
   Copy,
   Brain,
   Maximize2,
-  Minimize2,
   History,
   Library,
   MessageCircle,
@@ -511,7 +510,7 @@ export function CircuitBuilderChat({
   const [proposalError, setProposalError] = useState('');
   const [rejectedProposalSpec, setRejectedProposalSpec] = useState<CircuitBuildChatInput['currentSpec'] | null>(null);
   const [rejectedProposalSvg, setRejectedProposalSvg] = useState('');
-  const [rejectedPreviewExpanded, setRejectedPreviewExpanded] = useState(false);
+  const [rejectedPreviewOpen, setRejectedPreviewOpen] = useState(false);
   const [rejectedSpecCopyState, setRejectedSpecCopyState] = useState<RejectedSpecCopyState>('idle');
   const [externalFixCopiedContextKey, setExternalFixCopiedContextKey] = useState<string | null>(null);
   const [externalFixCopyState, setExternalFixCopyState] = useState<RejectedSpecCopyState>('idle');
@@ -866,7 +865,7 @@ export function CircuitBuilderChat({
   }, [externalFixContextKey]);
 
   useEffect(() => {
-    if (!rejectedProposalSpec) setRejectedPreviewExpanded(false);
+    if (!rejectedProposalSpec) setRejectedPreviewOpen(false);
   }, [rejectedProposalSpec]);
 
   const addMessage = (message: ThreadMessage) => {
@@ -1820,7 +1819,7 @@ export function CircuitBuilderChat({
               )}
               {rejectedProposalSpec && (
                 <section
-                  className={`builder-chat__rejected-preview${rejectedPreviewExpanded ? ' is-expanded' : ''}`}
+                  className="builder-chat__rejected-preview"
                   aria-label="Schematic needing repair"
                   data-testid="preview-rejected-proposal"
                 >
@@ -1831,21 +1830,18 @@ export function CircuitBuilderChat({
                       <button
                         type="button"
                         className="builder-chat__rejected-preview-toggle"
-                        aria-expanded={rejectedPreviewExpanded}
-                        aria-controls="rejected-proposal-preview-visual"
-                        onClick={() => setRejectedPreviewExpanded((expanded) => !expanded)}
+                        aria-haspopup="dialog"
+                        aria-controls="dialog-rejected-proposal-preview"
+                        onClick={() => setRejectedPreviewOpen(true)}
                         data-testid="button-toggle-rejected-preview"
                       >
-                        {rejectedPreviewExpanded
-                          ? <Minimize2 aria-hidden="true" />
-                          : <Maximize2 aria-hidden="true" />}
-                        {rejectedPreviewExpanded ? 'Collapse preview' : 'Expand preview'}
+                        <Maximize2 aria-hidden="true" />
+                        Expand preview
                       </button>
                     )}
                   </div>
                   {rejectedProposalSvg
                     ? <div
-                        id="rejected-proposal-preview-visual"
                         className="builder-chat__preview builder-chat__rejected-preview-canvas"
                       >
                         <div className="builder-chat__svg" dangerouslySetInnerHTML={{ __html: rejectedProposalSvg }} />
@@ -2105,6 +2101,38 @@ export function CircuitBuilderChat({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {rejectedProposalSpec && (
+        <Dialog open={rejectedPreviewOpen} onOpenChange={setRejectedPreviewOpen}>
+          <DialogContent
+            id="dialog-rejected-proposal-preview"
+            className="easyeda-sheet-dialog"
+            data-testid="dialog-rejected-proposal-preview"
+          >
+            <DialogHeader className="easyeda-sheet-header">
+              <DialogTitle className="easyeda-sheet-title">{rejectedProposalSpec.title}</DialogTitle>
+              <DialogDescription className="easyeda-sheet-description">
+                This draft did not pass structural checks. Preview only; it has not been applied to your workbench.
+              </DialogDescription>
+            </DialogHeader>
+            <div
+              className="easyeda-sheet-body builder-chat__rejected-preview-modal-body"
+              role="region"
+              aria-label="Rejected schematic preview"
+              tabIndex={0}
+            >
+              {rejectedProposalSvg
+                ? <div className="builder-chat__svg" dangerouslySetInnerHTML={{ __html: rejectedProposalSvg }} />
+                : <p className="builder-chat__rejected-preview-empty">This schematic could not be rendered yet.</p>}
+            </div>
+            <div className="easyeda-sheet-footer builder-chat__rejected-preview-modal-footer">
+              <span>Needs repair · preview only</span>
+              <button type="button" className="quiet-button" onClick={() => setRejectedPreviewOpen(false)}>
+                Close preview
+              </button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
       <Dialog open={clearChatOpen} onOpenChange={setClearChatOpen}>
         <DialogContent className="builder-chat__clear-dialog">
           <DialogHeader>

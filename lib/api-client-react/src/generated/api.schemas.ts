@@ -448,6 +448,19 @@ export interface CircuitBuilderHistorySession {
   currentSpec: CircuitSpec;
 }
 
+export interface CircuitBuilderHistoryDeletion {
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  sessionId: string;
+  /**
+     * @minimum 0
+     * @maximum 8640000000000000
+     */
+  deletedAt: number;
+}
+
 export interface CircuitBuilderHistorySyncInput {
   /**
      * @minItems 1

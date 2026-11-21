@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   createBuilderHistorySession,
+  filterDeletedBuilderHistorySessions,
   getBuilderHistoryMemoryExcerpts,
   getBuilderHistoryPreview,
   getBuilderHistoryTitle,
@@ -132,6 +133,18 @@ test('account history wins over stale local sessions and newer local sessions sy
   assert.deepEqual(merged.map((session) => session.id), ['same-session', 'local-only']);
   assert.equal(merged[0].saved.messages[0].content, 'Newer account copy.');
   assert.deepEqual(candidates.map((session) => session.id), ['local-only']);
+});
+
+test('account deletion markers filter stale local history before it can sync again', () => {
+  const sessions = [
+    { id: 'keep-this', title: 'Current conversation' },
+    { id: 'deleted-session', title: 'Old device copy' },
+  ];
+
+  assert.deepEqual(
+    filterDeletedBuilderHistorySessions(sessions, new Set(['deleted-session'])),
+    [{ id: 'keep-this', title: 'Current conversation' }],
+  );
 });
 
 test('memory import uses bounded user statements and brief details, not empty chats', () => {

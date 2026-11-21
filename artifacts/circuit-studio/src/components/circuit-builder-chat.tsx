@@ -4,11 +4,14 @@ import {
   getChatWithCircuitBuilderMutationKey,
   getGetAiUsageQueryKey,
   getListCircuitBuilderHistoryQueryKey,
+  getListDeletedCircuitBuilderHistoryQueryKey,
   getListCircuitBuilderMemoriesQueryKey,
   useChatWithCircuitBuilder,
   useGetAiUsage,
   useListCircuitBuilderHistory,
+  useListDeletedCircuitBuilderHistory,
   useLearnFromCircuitBuilderHistory,
+  useDeleteCircuitBuilderHistory,
   useReviewExternalCircuitFix,
   useSyncCircuitBuilderHistory,
 } from '@workspace/api-client-react';
@@ -84,6 +87,7 @@ import {
 } from '@/components/ui/dialog';
 import {
   createBuilderHistorySession,
+  filterDeletedBuilderHistorySessions,
   getBuilderHistoryPreview,
   getBuilderHistoryTitle,
   upsertBuilderHistorySession,
@@ -470,7 +474,15 @@ export function CircuitBuilderChat({
       refetchOnMount: 'always',
     },
   });
+  const historyDeletionsQuery = useListDeletedCircuitBuilderHistory({
+    query: {
+      queryKey: [...getListDeletedCircuitBuilderHistoryQueryKey(), userId],
+      retry: 1,
+      refetchOnMount: 'always',
+    },
+  });
   const historySyncMutation = useSyncCircuitBuilderHistory();
+  const historyDeleteMutation = useDeleteCircuitBuilderHistory();
   const chatMutation = useChatWithCircuitBuilder({
     mutation: { mutationKey: getChatWithCircuitBuilderMutationKey() },
   });
@@ -485,6 +497,8 @@ export function CircuitBuilderChat({
   const [saved, setSaved] = useState<SavedState>(historyBootstrap.active.saved);
   const [mode, setMode] = useState<ChatMode>(historyBootstrap.active.mode);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyDeleteTarget, setHistoryDeleteTarget] = useState<BuilderHistoryEntry | null>(null);
+  const [historyDeleteError, setHistoryDeleteError] = useState('');
   const [memoryOpen, setMemoryOpen] = useState(false);
   const [historySaveError, setHistorySaveError] = useState('');
   const [historyHydrated, setHistoryHydrated] = useState(false);
@@ -594,23 +608,44 @@ export function CircuitBuilderChat({
       setHistorySaveError('Could not load account history. Existing conversations remain available on this device.');
       return;
     }
-    if (!historyQuery.isSuccess) return;
+    if (historyDeletionsQuery.isError) {
+      setHistoryHydrated(true);
+      setHistorySaveError('Could not check deleted account history. Existing conversations remain available on this device.');
+      return;
+    }
+    if (!historyQuery.isSuccess || !historyDeletionsQuery.isSuccess) return;
 
+    const deletedSessionIds = new Set(
+      (historyDeletionsQuery.data ?? []).map((deletion) => deletion.sessionId),
+    );
     const accountSessions = (historyQuery.data ?? [])
       .map(normalizeAccountHistorySession)
-      .filter((session): session is BuilderHistoryEntry => !!session);
+      .filter((session): session is BuilderHistoryEntry =>
+        !!session && !deletedSessionIds.has(session.id),
+      );
     const hasLocalHistory = historyBootstrap.hasStoredHistory ||
       historyBootstrap.hasLegacyConversation ||
       sessions.some((session) => session.saved.messages.some((message) => message.id !== 'welcome'));
-    const localSessions = hasLocalHistory ? sessions : [];
+    const localSessions = hasLocalHistory
+      ? filterDeletedBuilderHistorySessions(sessions, deletedSessionIds)
+      : [];
     const mergedSessions = mergeBuilderHistorySessions(localSessions, accountSessions);
-    const availableSessions = mergedSessions.length ? mergedSessions : [historyBootstrap.active];
+    const fallbackSession = deletedSessionIds.has(historyBootstrap.active.id)
+      ? createBuilderHistorySession({
+          id: createHistoryId(),
+          saved: { brief: emptyBrief(), aiBrief: emptyBrief(), messages: [initialMessage] },
+          currentSpec,
+          mode: 'chat',
+        })
+      : historyBootstrap.active;
+    const availableSessions = mergedSessions.length ? mergedSessions : [fallbackSession];
     const localActiveId = hasLocalHistory ? activeSessionId : '';
     const restoredSession = availableSessions.find((session) => session.id === localActiveId) ??
       availableSessions[0];
 
     historyBootstrapCompleteRef.current = true;
     setHistoryHydrated(true);
+    setHistorySaveError('');
     setSessions(availableSessions);
     setActiveSessionId(restoredSession.id);
     setSaved(restoredSession.saved);
@@ -648,6 +683,9 @@ export function CircuitBuilderChat({
     historyQuery.data,
     historyQuery.isError,
     historyQuery.isSuccess,
+    historyDeletionsQuery.data,
+    historyDeletionsQuery.isError,
+    historyDeletionsQuery.isSuccess,
     onApplySpec,
     sessions,
     syncHistorySessions,
@@ -1423,6 +1461,49 @@ export function CircuitBuilderChat({
     setHistoryOpen(false);
   };
 
+  const deleteHistorySession = async () => {
+    const target = historyDeleteTarget;
+    if (
+      !target ||
+      historyDeleteMutation.isPending ||
+      historySyncMutation.isPending ||
+      chatMutation.isPending ||
+      requestCycleActive
+    ) return;
+
+    setHistoryDeleteError('');
+    try {
+      await historyDeleteMutation.mutateAsync({ sessionId: target.id });
+      const nextSessions = sessions.filter((session) => session.id !== target.id);
+
+      if (target.id === activeSessionId) {
+        const nextSession = createBuilderHistorySession({
+          id: createHistoryId(),
+          saved: { brief: emptyBrief(), aiBrief: emptyBrief(), messages: [initialMessage] },
+          currentSpec,
+          mode: 'chat',
+        });
+        nextSessions.unshift(nextSession);
+        pendingRestoreRef.current = null;
+        setActiveSessionId(nextSession.id);
+        setSaved(nextSession.saved);
+        setMode('chat');
+        clearTransientConversationState();
+      }
+
+      setSessions(nextSessions);
+      setHistoryDeleteTarget(null);
+      void queryClient.invalidateQueries({
+        queryKey: [...getListCircuitBuilderHistoryQueryKey(), userId],
+      });
+      void queryClient.invalidateQueries({
+        queryKey: [...getListDeletedCircuitBuilderHistoryQueryKey(), userId],
+      });
+    } catch {
+      setHistoryDeleteError('This conversation could not be deleted. It is still saved; please try again.');
+    }
+  };
+
   const prepareComponentPrompt = (
     entry: CircuitComponentLibraryEntry | CircuitSymbolSearchItem,
   ) => {
@@ -1471,8 +1552,9 @@ export function CircuitBuilderChat({
   );
   const hasBrief = Boolean(saved.brief.goal || saved.brief.requirements.length || saved.brief.assumptions.length || saved.brief.openQuestions.length);
   const retryHistorySync = () => {
-    if (!historyQuery.isSuccess) {
+    if (!historyQuery.isSuccess || !historyDeletionsQuery.isSuccess) {
       void historyQuery.refetch();
+      void historyDeletionsQuery.refetch();
       return;
     }
 
@@ -1568,7 +1650,13 @@ export function CircuitBuilderChat({
           data-testid="panel-builder-history"
         >
           <div className="builder-chat__history-heading">
-            <div><strong>Recent conversations</strong><span>Saved to your account, including chats in progress</span></div>
+            <div>
+              <strong>Recent conversations</strong>
+              <span>
+                Saved to your account, including chats in progress
+                {sessions.length > 4 ? ' · scroll for older' : ''}
+              </span>
+            </div>
             <button type="button" className="builder-chat__text-link" onClick={() => setHistoryOpen(false)}>Close</button>
           </div>
           {historySaveError && (
@@ -1581,12 +1669,12 @@ export function CircuitBuilderChat({
           )}
           <div className="builder-chat__history-list" role="list">
             {sessions.map((session) => (
-              <div key={session.id} role="listitem">
+              <div className="builder-chat__history-row" key={session.id} role="listitem">
                 <button
                   type="button"
                   className={`builder-chat__history-item${session.id === activeSessionId ? ' is-current' : ''}`}
                   onClick={() => openHistorySession(session)}
-                  disabled={!historyHydrated || chatMutation.isPending || requestCycleActive}
+                  disabled={!historyHydrated || historyDeleteMutation.isPending || chatMutation.isPending || requestCycleActive}
                   aria-current={session.id === activeSessionId ? 'page' : undefined}
                   data-testid={`button-builder-history-${session.id}`}
                 >
@@ -1594,6 +1682,20 @@ export function CircuitBuilderChat({
                     <strong>{session.title}</strong><time dateTime={new Date(session.updatedAt).toISOString()}>{formatHistoryTime(session.updatedAt)}</time>
                   </span>
                   <span className="builder-chat__history-preview">{getBuilderHistoryPreview(session.saved.messages)}</span>
+                </button>
+                <button
+                  type="button"
+                  className="builder-chat__history-delete"
+                  onClick={() => {
+                    setHistoryDeleteError('');
+                    setHistoryDeleteTarget(session);
+                  }}
+                  disabled={!historyHydrated || historyDeleteMutation.isPending || historySyncMutation.isPending || chatMutation.isPending || requestCycleActive}
+                  aria-label={`Delete conversation: ${session.title}`}
+                  title="Delete conversation"
+                  data-testid={`button-delete-builder-history-${session.id}`}
+                >
+                  <Trash2 aria-hidden="true" />
                 </button>
               </div>
             ))}
@@ -1961,6 +2063,48 @@ export function CircuitBuilderChat({
         onOpenChange={setComponentLibraryOpen}
         onSelect={prepareComponentPrompt}
       />
+      <Dialog
+        open={!!historyDeleteTarget}
+        onOpenChange={(open) => {
+          if (!open && !historyDeleteMutation.isPending) {
+            setHistoryDeleteTarget(null);
+            setHistoryDeleteError('');
+          }
+        }}
+      >
+        <DialogContent className="builder-chat__clear-dialog">
+          <DialogHeader>
+            <DialogTitle className="builder-chat__clear-title">Delete saved conversation?</DialogTitle>
+            <DialogDescription className="builder-chat__clear-description">
+              {historySyncMutation.isPending && 'Wait for the account sync to finish. '}
+              {historyDeleteTarget?.id === activeSessionId
+                ? 'This removes this conversation and its saved notes from your account and this device. A fresh chat will start with your current schematic, which will stay unchanged.'
+                : 'This removes this conversation and its saved notes from your account and this device. Your current conversation and schematic will stay unchanged.'}
+            </DialogDescription>
+          </DialogHeader>
+          {historyDeleteError && <p className="builder-chat__history-error" role="alert" data-testid="status-delete-builder-history-error">{historyDeleteError}</p>}
+          <DialogFooter className="builder-chat__clear-footer">
+            <button
+              type="button"
+              className="builder-chat__clear-cancel"
+              onClick={() => { setHistoryDeleteTarget(null); setHistoryDeleteError(''); }}
+              disabled={historyDeleteMutation.isPending}
+              data-testid="button-cancel-delete-builder-history"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="builder-chat__clear-confirm"
+              onClick={() => void deleteHistorySession()}
+              disabled={historyDeleteMutation.isPending || historySyncMutation.isPending || chatMutation.isPending || requestCycleActive}
+              data-testid="button-confirm-delete-builder-history"
+            >
+              {historyDeleteMutation.isPending ? 'Deleting…' : 'Delete conversation'}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog open={clearChatOpen} onOpenChange={setClearChatOpen}>
         <DialogContent className="builder-chat__clear-dialog">
           <DialogHeader>

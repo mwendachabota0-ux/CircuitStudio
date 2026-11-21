@@ -187,6 +187,13 @@ export function mergeBuilderHistorySessions<SavedState, CircuitSpec>(
   return [...merged.values()].sort((left, right) => right.updatedAt - left.updatedAt);
 }
 
+export function filterDeletedBuilderHistorySessions<Session extends { id: string }>(
+  sessions: readonly Session[],
+  deletedSessionIds: ReadonlySet<string>,
+): Session[] {
+  return sessions.filter((session) => !deletedSessionIds.has(session.id));
+}
+
 export function getBuilderHistorySyncCandidates<SavedState, CircuitSpec>(
   localSessions: readonly BuilderHistorySession<SavedState, CircuitSpec>[],
   accountSessions: readonly BuilderHistorySession<SavedState, CircuitSpec>[],

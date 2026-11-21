@@ -15,6 +15,7 @@ export * from './circuitBuildChatMessage';
 export * from './circuitBuildChatMessageRole';
 export * from './circuitBuildChatResponse';
 export * from './circuitBuildChatResponseNextMode';
+export * from './circuitBuilderHistoryDeletion';
 export * from './circuitBuilderHistoryExcerpt';
 export * from './circuitBuilderHistoryImportInput';
 export * from './circuitBuilderHistoryImportResponse';

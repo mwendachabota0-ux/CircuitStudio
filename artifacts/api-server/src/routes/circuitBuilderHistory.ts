@@ -1,12 +1,18 @@
 import {
+  DeleteCircuitBuilderHistoryParams,
+  ListDeletedCircuitBuilderHistoryResponse,
   ListCircuitBuilderHistoryResponse,
   SyncCircuitBuilderHistoryBody,
   SyncCircuitBuilderHistoryResponse,
 } from "@workspace/api-zod";
-import { desc, eq, lte } from "drizzle-orm";
+import { and, desc, eq, lte } from "drizzle-orm";
 import { getAuth } from "@clerk/express";
 import { Router, type IRouter, type RequestHandler } from "express";
-import { circuitBuilderHistory, db } from "@workspace/db";
+import {
+  circuitBuilderHistory,
+  circuitBuilderHistoryDeletions,
+  db,
+} from "@workspace/db";
 
 const router: IRouter = Router();
 
@@ -28,10 +34,15 @@ router.get(
       .from(circuitBuilderHistory)
       .where(eq(circuitBuilderHistory.userId, userId))
       .orderBy(desc(circuitBuilderHistory.updatedAt));
+    const deletions = await db
+      .select({ sessionId: circuitBuilderHistoryDeletions.sessionId })
+      .from(circuitBuilderHistoryDeletions)
+      .where(eq(circuitBuilderHistoryDeletions.userId, userId));
+    const deletedSessionIds = new Set(deletions.map((deletion) => deletion.sessionId));
 
     res.json(
       ListCircuitBuilderHistoryResponse.parse(
-        records.map((record) => ({
+        records.filter((record) => !deletedSessionIds.has(record.sessionId)).map((record) => ({
           id: record.sessionId,
           title: record.title,
           createdAt: record.createdAt.getTime(),
@@ -39,6 +50,28 @@ router.get(
           mode: record.mode,
           saved: record.savedState,
           currentSpec: record.currentSpec,
+        })),
+      ),
+    );
+  },
+);
+
+router.get(
+  "/circuit-builder/history/deletions",
+  requireAuth,
+  async (req, res): Promise<void> => {
+    const userId = getAuth(req).userId!;
+    const records = await db
+      .select()
+      .from(circuitBuilderHistoryDeletions)
+      .where(eq(circuitBuilderHistoryDeletions.userId, userId))
+      .orderBy(desc(circuitBuilderHistoryDeletions.deletedAt));
+
+    res.json(
+      ListDeletedCircuitBuilderHistoryResponse.parse(
+        records.map((record) => ({
+          sessionId: record.sessionId,
+          deletedAt: record.deletedAt.getTime(),
         })),
       ),
     );
@@ -62,7 +95,14 @@ router.put(
     let savedCount = 0;
 
     await db.transaction(async (transaction) => {
+      const deletions = await transaction
+        .select({ sessionId: circuitBuilderHistoryDeletions.sessionId })
+        .from(circuitBuilderHistoryDeletions)
+        .where(eq(circuitBuilderHistoryDeletions.userId, userId));
+      const deletedSessionIds = new Set(deletions.map((deletion) => deletion.sessionId));
+
       for (const session of uniqueSessions) {
+        if (deletedSessionIds.has(session.id)) continue;
         const updatedAt = new Date(session.updatedAt);
         const [saved] = await transaction
           .insert(circuitBuilderHistory)
@@ -95,6 +135,37 @@ router.put(
     });
 
     res.json(SyncCircuitBuilderHistoryResponse.parse({ savedCount }));
+  },
+);
+
+router.delete(
+  "/circuit-builder/history/:sessionId",
+  requireAuth,
+  async (req, res): Promise<void> => {
+    const parsed = DeleteCircuitBuilderHistoryParams.safeParse(req.params);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
+      return;
+    }
+
+    const userId = getAuth(req).userId!;
+    await db.transaction(async (transaction) => {
+      await transaction
+        .delete(circuitBuilderHistory)
+        .where(and(
+          eq(circuitBuilderHistory.userId, userId),
+          eq(circuitBuilderHistory.sessionId, parsed.data.sessionId),
+        ));
+      await transaction
+        .insert(circuitBuilderHistoryDeletions)
+        .values({
+          userId,
+          sessionId: parsed.data.sessionId,
+        })
+        .onConflictDoNothing();
+    });
+
+    res.sendStatus(204);
   },
 );
 

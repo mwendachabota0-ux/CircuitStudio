@@ -26,6 +26,7 @@ import type {
   ApiError,
   CircuitBuildChatInput,
   CircuitBuildChatResponse,
+  CircuitBuilderHistoryDeletion,
   CircuitBuilderHistoryImportInput,
   CircuitBuilderHistoryImportResponse,
   CircuitBuilderHistorySession,
@@ -996,6 +997,159 @@ export const useSyncCircuitBuilderHistory = <TError = ErrorType<ApiError>,
         TContext
       > => {
       return useMutation(getSyncCircuitBuilderHistoryMutationOptions(options));
+    }
+
+export const getListDeletedCircuitBuilderHistoryUrl = () => {
+
+
+
+
+  return `/api/circuit-builder/history/deletions`
+}
+
+/**
+ * Returns account-owned conversation deletion markers so older device copies cannot restore deleted sessions.
+ * @summary List deleted Circuit Studio conversations
+ */
+export const listDeletedCircuitBuilderHistory = async ( options?: Parameters<typeof customFetch>[1]): Promise<CircuitBuilderHistoryDeletion[]> => {
+
+  return customFetch<CircuitBuilderHistoryDeletion[]>(getListDeletedCircuitBuilderHistoryUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListDeletedCircuitBuilderHistoryQueryKey = () => {
+    return [
+    `/api/circuit-builder/history/deletions`
+    ] as const;
+    }
+
+
+export const getListDeletedCircuitBuilderHistoryQueryOptions = <TData = Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>, TError = ErrorType<ApiError>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListDeletedCircuitBuilderHistoryQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>> = ({ signal }) => listDeletedCircuitBuilderHistory({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListDeletedCircuitBuilderHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>>
+export type ListDeletedCircuitBuilderHistoryQueryError = ErrorType<ApiError>
+
+
+/**
+ * @summary List deleted Circuit Studio conversations
+ */
+
+export function useListDeletedCircuitBuilderHistory<TData = Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>, TError = ErrorType<ApiError>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListDeletedCircuitBuilderHistoryQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDeleteCircuitBuilderHistoryUrl = (sessionId: string,) => {
+
+
+
+
+  return `/api/circuit-builder/history/${sessionId}`
+}
+
+/**
+ * Deletes one conversation owned by the signed-in user.
+ * @summary Delete a saved Circuit Studio conversation
+ */
+export const deleteCircuitBuilderHistory = async (sessionId: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteCircuitBuilderHistoryUrl(sessionId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteCircuitBuilderHistoryMutationKey = () => ['deleteCircuitBuilderHistory'] as const;
+
+export const getDeleteCircuitBuilderHistoryMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCircuitBuilderHistory>>, TError,DeleteCircuitBuilderHistoryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteCircuitBuilderHistory>>, TError,DeleteCircuitBuilderHistoryMutationVariables, TContext> => {
+
+const mutationKey = getDeleteCircuitBuilderHistoryMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteCircuitBuilderHistory>>, DeleteCircuitBuilderHistoryMutationVariables> = (props) => {
+          const {sessionId} = props ?? {};
+
+          return  deleteCircuitBuilderHistory(sessionId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteCircuitBuilderHistoryMutationResult = NonNullable<Awaited<ReturnType<typeof deleteCircuitBuilderHistory>>>
+
+    export type DeleteCircuitBuilderHistoryMutationError = ErrorType<ApiError>
+    export type DeleteCircuitBuilderHistoryMutationVariables = {sessionId: string}
+
+    /**
+ * @summary Delete a saved Circuit Studio conversation
+ */
+export const useDeleteCircuitBuilderHistory = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCircuitBuilderHistory>>, TError,DeleteCircuitBuilderHistoryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteCircuitBuilderHistory>>,
+        TError,
+        DeleteCircuitBuilderHistoryMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteCircuitBuilderHistoryMutationOptions(options));
     }
 
 export const getUpdateCircuitBuilderMemoryUrl = (id: number,) => {

@@ -6980,6 +6980,46 @@ export declare const SyncCircuitBuilderHistoryResponse: zod.ZodObject<{
     savedCount: number;
 }>;
 /**
+ * Returns account-owned conversation deletion markers so older device copies cannot restore deleted sessions.
+ * @summary List deleted Circuit Studio conversations
+ */
+export declare const listDeletedCircuitBuilderHistoryResponseSessionIdMax = 128;
+export declare const listDeletedCircuitBuilderHistoryResponseDeletedAtMin = 0;
+export declare const listDeletedCircuitBuilderHistoryResponseDeletedAtMax = 8640000000000000;
+export declare const ListDeletedCircuitBuilderHistoryResponseItem: zod.ZodObject<{
+    sessionId: zod.ZodString;
+    deletedAt: zod.ZodNumber;
+}, "strip", zod.ZodTypeAny, {
+    sessionId: string;
+    deletedAt: number;
+}, {
+    sessionId: string;
+    deletedAt: number;
+}>;
+export declare const ListDeletedCircuitBuilderHistoryResponse: zod.ZodArray<zod.ZodObject<{
+    sessionId: zod.ZodString;
+    deletedAt: zod.ZodNumber;
+}, "strip", zod.ZodTypeAny, {
+    sessionId: string;
+    deletedAt: number;
+}, {
+    sessionId: string;
+    deletedAt: number;
+}>, "many">;
+/**
+ * Deletes one conversation owned by the signed-in user.
+ * @summary Delete a saved Circuit Studio conversation
+ */
+export declare const deleteCircuitBuilderHistoryPathSessionIdMax = 128;
+export declare const DeleteCircuitBuilderHistoryParams: zod.ZodObject<{
+    sessionId: zod.ZodString;
+}, "strip", zod.ZodTypeAny, {
+    sessionId: string;
+}, {
+    sessionId: string;
+}>;
+export declare const DeleteCircuitBuilderHistoryResponse: zod.ZodVoid;
+/**
  * @summary Edit a saved Circuit Studio assumption
  */
 export declare const UpdateCircuitBuilderMemoryParams: zod.ZodObject<{

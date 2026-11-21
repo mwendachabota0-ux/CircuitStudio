@@ -385,6 +385,56 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+  /circuit-builder/history/deletions:
+    get:
+      operationId: listDeletedCircuitBuilderHistory
+      tags: [account]
+      summary: List deleted Circuit Studio conversations
+      description: Returns account-owned conversation deletion markers so older device copies cannot restore deleted sessions.
+      responses:
+        "200":
+          description: Deleted conversation identifiers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CircuitBuilderHistoryDeletion"
+        "401":
+          description: Authentication is required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /circuit-builder/history/{sessionId}:
+    parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+    delete:
+      operationId: deleteCircuitBuilderHistory
+      tags: [account]
+      summary: Delete a saved Circuit Studio conversation
+      description: Deletes one conversation owned by the signed-in user.
+      responses:
+        "204":
+          description: Conversation deleted, or no matching conversation exists
+        "400":
+          description: Invalid conversation identifier
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Authentication is required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
   /circuit-builder/memories/{id}:
     parameters:
       - name: id
@@ -909,6 +959,19 @@ components:
         currentSpec:
           $ref: "#/components/schemas/CircuitSpec"
       required: [id, title, createdAt, updatedAt, mode, saved, currentSpec]
+      additionalProperties: false
+    CircuitBuilderHistoryDeletion:
+      type: object
+      properties:
+        sessionId:
+          type: string
+          minLength: 1
+          maxLength: 128
+        deletedAt:
+          type: integer
+          minimum: 0
+          maximum: 8640000000000000
+      required: [sessionId, deletedAt]
       additionalProperties: false
     CircuitBuilderHistorySyncInput:
       type: object

@@ -778,14 +778,16 @@
 .builder-chat__rejected-preview-head {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   color: #596a60;
   font-size: 9px;
   font-weight: 600;
 }
 .builder-chat__rejected-preview-title {
-  flex: 1;
+  flex: 1 1 100%;
   min-width: 0;
+  line-height: 1.4;
   overflow-wrap: anywhere;
 }
 .builder-chat__rejected-preview-toggle {
@@ -793,6 +795,7 @@
   align-items: center;
   justify-content: center;
   flex: none;
+  margin-left: auto;
   gap: 4px;
   min-height: 25px;
   padding: 4px 7px;

@@ -1825,7 +1825,6 @@ export function CircuitBuilderChat({
                 >
                   <div className="builder-chat__rejected-preview-head">
                     <span className="builder-chat__repair-badge">Needs repair</span>
-                    <span className="builder-chat__rejected-preview-title">{rejectedProposalSpec.title}</span>
                     {!!rejectedProposalSvg && (
                       <button
                         type="button"
@@ -1839,6 +1838,7 @@ export function CircuitBuilderChat({
                         Expand preview
                       </button>
                     )}
+                    <span className="builder-chat__rejected-preview-title">{rejectedProposalSpec.title}</span>
                   </div>
                   {rejectedProposalSvg
                     ? <div

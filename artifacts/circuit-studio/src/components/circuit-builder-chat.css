@@ -388,6 +388,10 @@
   line-height: 1.5;
 }
 
+.builder-chat__validation-findings > summary {
+  cursor: pointer;
+}
+
 .builder-chat__validation-findings ol {
   max-height: 220px;
   overflow: auto;

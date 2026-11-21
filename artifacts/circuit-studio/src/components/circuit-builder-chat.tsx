@@ -2186,16 +2186,20 @@ export function CircuitBuilderChat({
                 </div>
               </div>
               {!!retryFeedback.validationFindings?.length && (
-                <section className="builder-chat__validation-findings" aria-label="Blocking validation errors" data-testid="list-builder-validation-findings">
-                  <strong>{retryFeedback.validationFindings.length} blocking validation error{retryFeedback.validationFindings.length === 1 ? '' : 's'}</strong>
+                <details className="builder-chat__validation-findings" data-testid="list-builder-validation-findings">
+                  <summary>
+                    <strong>{retryFeedback.validationFindings.length} blocking validation error{retryFeedback.validationFindings.length === 1 ? '' : 's'}</strong>
+                  </summary>
                   <ol>{retryFeedback.validationFindings.map((finding, index) => <li key={`failure-${index}`}>{finding}</li>)}</ol>
-                </section>
+                </details>
               )}
               {!!retryFeedback.validationWarnings?.length && (
-                <section className="builder-chat__validation-findings is-warning" aria-label="Advisory validation warnings" data-testid="list-builder-validation-warnings">
-                  <strong>{retryFeedback.validationWarnings.length} advisory warning{retryFeedback.validationWarnings.length === 1 ? '' : 's'} (not blocking)</strong>
+                <details className="builder-chat__validation-findings is-warning" data-testid="list-builder-validation-warnings">
+                  <summary>
+                    <strong>{retryFeedback.validationWarnings.length} advisory warning{retryFeedback.validationWarnings.length === 1 ? '' : 's'} (not blocking)</strong>
+                  </summary>
                   <ol>{retryFeedback.validationWarnings.map((warning, index) => <li key={`warning-${index}`}>{warning}</li>)}</ol>
-                </section>
+                </details>
               )}
               {rejectedProposalSpec && (
                 <section

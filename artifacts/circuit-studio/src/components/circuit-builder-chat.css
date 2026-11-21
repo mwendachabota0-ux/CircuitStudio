@@ -600,10 +600,16 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  overflow: hidden;
   padding: 15px 13px 12px;
   background: #f8f7f1;
+}
+
+.builder-chat__brief-scroll {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   scrollbar-color: #d5d1c6 transparent;
   scrollbar-width: thin;
 }
@@ -688,6 +694,7 @@
 .builder-chat__brief-footer {
   display: flex;
   align-items: center;
+  flex: none;
   margin-top: auto;
   padding-top: 12px;
 }

@@ -1910,39 +1910,41 @@ export function CircuitBuilderChat({
         </div>
 
         <aside className="builder-chat__brief" aria-label="Design brief" data-testid="panel-builder-brief">
-          <div className="builder-chat__brief-heading">
-            <div><p className="builder-chat__eyebrow">Working notes</p><h3>Design brief</h3></div>
-            {briefEditing
-              ? <button className="builder-chat__text-link" type="button" onClick={() => setBriefEditing(false)} data-testid="button-cancel-edit-brief">Cancel</button>
-              : <button className="builder-chat__text-link" type="button" onClick={editBrief} data-testid="button-edit-brief">{hasBrief ? 'Edit' : 'Add notes'}</button>}
+          <div className="builder-chat__brief-scroll" data-testid="scroll-builder-brief">
+            <div className="builder-chat__brief-heading">
+              <div><p className="builder-chat__eyebrow">Working notes</p><h3>Design brief</h3></div>
+              {briefEditing
+                ? <button className="builder-chat__text-link" type="button" onClick={() => setBriefEditing(false)} data-testid="button-cancel-edit-brief">Cancel</button>
+                : <button className="builder-chat__text-link" type="button" onClick={editBrief} data-testid="button-edit-brief">{hasBrief ? 'Edit' : 'Add notes'}</button>}
+            </div>
+            <p className="builder-chat__brief-help">This is the circuit’s running brief: its goal, requirements, assumptions, and unanswered questions. The AI uses it to stay on track; saved edits are preserved while it adds new details.</p>
+            {briefEditing ? (
+              <div className="builder-chat__brief-editor">
+                <label htmlFor="builder-brief-goal">Goal</label>
+                <textarea id="builder-brief-goal" value={briefGoalDraft} maxLength={1000} rows={3} onChange={(event) => setBriefGoalDraft(event.target.value)} data-testid="input-builder-brief-goal" placeholder="What should the circuit do?" />
+                <label htmlFor="builder-brief-requirements">Requirements <span>one per line</span></label>
+                <textarea id="builder-brief-requirements" value={briefRequirementsDraft} maxLength={3600} rows={3} onChange={(event) => setBriefRequirementsDraft(event.target.value)} data-testid="input-builder-brief-requirements" placeholder="Supply, parts, constraints…" />
+                <label htmlFor="builder-brief-assumptions">Assumptions <span>one per line</span></label>
+                <textarea id="builder-brief-assumptions" value={briefAssumptionsDraft} maxLength={3600} rows={3} onChange={(event) => setBriefAssumptionsDraft(event.target.value)} data-testid="input-builder-brief-assumptions" placeholder="Choices the AI is treating as tentative…" />
+                <label htmlFor="builder-brief-open-questions">Open questions <span>one per line</span></label>
+                <textarea id="builder-brief-open-questions" value={briefOpenQuestionsDraft} maxLength={3600} rows={3} onChange={(event) => setBriefOpenQuestionsDraft(event.target.value)} data-testid="input-builder-brief-open-questions" placeholder="Details still to decide…" />
+                <button className="builder-chat__brief-save" type="button" onClick={saveBrief} data-testid="button-save-brief">Save notes</button>
+              </div>
+            ) : hasBrief ? (
+              <div className="builder-chat__brief-content" data-testid="status-builder-brief">
+                {saved.brief.goal && <div className="builder-chat__brief-block"><span>Goal</span><p>{saved.brief.goal}</p></div>}
+                {saved.brief.requirements.length > 0 && <BriefList title="Requirements" items={saved.brief.requirements} />}
+                {saved.brief.assumptions.length > 0 && <BriefList title="Assumptions" items={saved.brief.assumptions} />}
+                {saved.brief.openQuestions.length > 0 && <BriefList title="Open questions" items={saved.brief.openQuestions} />}
+              </div>
+            ) : (
+              <div className="builder-chat__brief-empty" data-testid="status-builder-brief-empty">
+                <Plus aria-hidden="true" />
+                <p>The AI uses these notes to keep important details in view. Add your own, or let the conversation fill them in.</p>
+                <button type="button" className="builder-chat__text-link" onClick={editBrief} data-testid="button-add-brief">Add a starting note</button>
+              </div>
+            )}
           </div>
-          <p className="builder-chat__brief-help">This is the circuit’s running brief: its goal, requirements, assumptions, and unanswered questions. The AI uses it to stay on track; saved edits are preserved while it adds new details.</p>
-          {briefEditing ? (
-            <div className="builder-chat__brief-editor">
-              <label htmlFor="builder-brief-goal">Goal</label>
-              <textarea id="builder-brief-goal" value={briefGoalDraft} maxLength={1000} rows={3} onChange={(event) => setBriefGoalDraft(event.target.value)} data-testid="input-builder-brief-goal" placeholder="What should the circuit do?" />
-              <label htmlFor="builder-brief-requirements">Requirements <span>one per line</span></label>
-              <textarea id="builder-brief-requirements" value={briefRequirementsDraft} maxLength={3600} rows={3} onChange={(event) => setBriefRequirementsDraft(event.target.value)} data-testid="input-builder-brief-requirements" placeholder="Supply, parts, constraints…" />
-              <label htmlFor="builder-brief-assumptions">Assumptions <span>one per line</span></label>
-              <textarea id="builder-brief-assumptions" value={briefAssumptionsDraft} maxLength={3600} rows={3} onChange={(event) => setBriefAssumptionsDraft(event.target.value)} data-testid="input-builder-brief-assumptions" placeholder="Choices the AI is treating as tentative…" />
-              <label htmlFor="builder-brief-open-questions">Open questions <span>one per line</span></label>
-              <textarea id="builder-brief-open-questions" value={briefOpenQuestionsDraft} maxLength={3600} rows={3} onChange={(event) => setBriefOpenQuestionsDraft(event.target.value)} data-testid="input-builder-brief-open-questions" placeholder="Details still to decide…" />
-              <button className="builder-chat__brief-save" type="button" onClick={saveBrief} data-testid="button-save-brief">Save notes</button>
-            </div>
-          ) : hasBrief ? (
-            <div className="builder-chat__brief-content" data-testid="status-builder-brief">
-              {saved.brief.goal && <div className="builder-chat__brief-block"><span>Goal</span><p>{saved.brief.goal}</p></div>}
-              {saved.brief.requirements.length > 0 && <BriefList title="Requirements" items={saved.brief.requirements} />}
-              {saved.brief.assumptions.length > 0 && <BriefList title="Assumptions" items={saved.brief.assumptions} />}
-              {saved.brief.openQuestions.length > 0 && <BriefList title="Open questions" items={saved.brief.openQuestions} />}
-            </div>
-          ) : (
-            <div className="builder-chat__brief-empty" data-testid="status-builder-brief-empty">
-              <Plus aria-hidden="true" />
-              <p>The AI uses these notes to keep important details in view. Add your own, or let the conversation fill them in.</p>
-              <button type="button" className="builder-chat__text-link" onClick={editBrief} data-testid="button-add-brief">Add a starting note</button>
-            </div>
-          )}
           <div className="builder-chat__brief-footer">
             <p>{!historyHydrated
               ? 'Loading your account history…'

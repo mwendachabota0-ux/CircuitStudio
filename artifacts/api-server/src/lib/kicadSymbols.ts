@@ -237,23 +237,18 @@ function editDistanceWithin(left: string, right: string, maximum: number): boole
   return previous[right.length] <= maximum;
 }
 
-function getSearchScore(
-  entry: KicadSymbolIndexEntry,
-  query: string,
-  allowFuzzy = false,
-): number {
+type PreparedSearchQuery = {
+  searchQuery: string;
+  compactQuery: string;
+  correctedQuery: string;
+  compactCorrectedQuery: string;
+  queryTokens: string[];
+  phraseAlternatives: string[];
+};
+
+function prepareSearchQuery(query: string): PreparedSearchQuery {
   const searchQuery = normalizedSearchText(query);
   const compactQuery = compactSearchText(query);
-  if (!searchQuery) return 0;
-
-  const fields = [
-    entry.id,
-    entry.name,
-    entry.library,
-    entry.description,
-    entry.keywords,
-  ].map(normalizedSearchText);
-  const searchableText = fields.join(" ");
   const queryTokens = searchQuery
     .split(" ")
     .filter((token) => token && !["a", "an", "and", "for", "in", "of", "the", "to", "with"].includes(token))
@@ -264,9 +259,41 @@ function getSearchScore(
       ) ?? token;
     });
   const correctedQuery = queryTokens.join(" ");
+  return {
+    searchQuery,
+    compactQuery,
+    correctedQuery,
+    compactCorrectedQuery: compactSearchText(correctedQuery),
+    queryTokens,
+    phraseAlternatives: SEARCH_SYNONYMS[searchQuery] ?? [],
+  };
+}
+
+function getSearchScore(
+  entry: KicadSymbolIndexEntry,
+  query: PreparedSearchQuery,
+  allowFuzzy = false,
+): number {
+  const {
+    searchQuery,
+    compactQuery,
+    correctedQuery,
+    compactCorrectedQuery,
+    queryTokens,
+    phraseAlternatives,
+  } = query;
+  if (!searchQuery) return 0;
+
+  const fields = [
+    entry.id,
+    entry.name,
+    entry.library,
+    entry.description,
+    entry.keywords,
+  ].map(normalizedSearchText);
+  const searchableText = fields.join(" ");
   const compactId = compactSearchText(entry.id);
   const compactName = compactSearchText(entry.name);
-  const compactCorrectedQuery = compactSearchText(correctedQuery);
   let score = 0;
 
   if (compactQuery && compactName === compactQuery) score += 10_000;
@@ -280,7 +307,6 @@ function getSearchScore(
   if (fields[0].startsWith(correctedQuery)) score += 1_250;
   if (correctedQuery && fields[4].includes(correctedQuery)) score += 1_000;
 
-  const phraseAlternatives = SEARCH_SYNONYMS[searchQuery] ?? [];
   if (phraseAlternatives.some((alias) => searchableText.includes(normalizedSearchText(alias)))) {
     score += 1_000;
   }
@@ -535,7 +561,8 @@ export async function searchKicadSymbols(
     .sort((left, right) => left.localeCompare(right));
   const limit = Math.max(1, Math.min(100, Math.floor(requestedLimit) || 100));
   const offset = Math.max(0, Math.floor(requestedOffset) || 0);
-  const normalizedQuery = normalizedSearchText(query);
+  const searchQuery = prepareSearchQuery(query);
+  const normalizedQuery = searchQuery.searchQuery;
   const normalizedLibrary = normalized(library);
   const availableFamilies = [...KICAD_SYMBOL_FAMILIES];
 
@@ -548,11 +575,11 @@ export async function searchKicadSymbols(
     (entry) => libraryMatches(entry) && familyMatches(entry),
   );
   let matches = candidates
-    .map((entry) => ({ entry, score: getSearchScore(entry, query) }))
+    .map((entry) => ({ entry, score: getSearchScore(entry, searchQuery) }))
     .filter(({ score }) => !normalizedQuery || score > 0);
   if (normalizedQuery && matches.length === 0) {
     matches = candidates
-      .map((entry) => ({ entry, score: getSearchScore(entry, query, true) }))
+      .map((entry) => ({ entry, score: getSearchScore(entry, searchQuery, true) }))
       .filter(({ score }) => score > 0);
   }
 

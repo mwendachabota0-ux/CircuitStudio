@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   getListCircuitBuilderMemoriesQueryKey,
@@ -57,13 +57,34 @@ export function CircuitBuilderMemoryDialog({
   const [confirmClear, setConfirmClear] = useState(false);
   const [actionError, setActionError] = useState('');
   const [helpOpen, setHelpOpen] = useState(false);
+  const helpTriggerRef = useRef<HTMLButtonElement>(null);
+  const helpContentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!helpOpen) return;
 
-    const timeout = window.setTimeout(() => setHelpOpen(false), 15_000);
-    return () => window.clearTimeout(timeout);
+    const closeHelpWhenClickingOutside = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (
+        helpContentRef.current?.contains(target) ||
+        helpTriggerRef.current?.contains(target)
+      ) {
+        return;
+      }
+
+      setHelpOpen(false);
+    };
+
+    document.addEventListener('pointerdown', closeHelpWhenClickingOutside);
+    return () =>
+      document.removeEventListener('pointerdown', closeHelpWhenClickingOutside);
   }, [helpOpen]);
+
+  const handleDialogOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) setHelpOpen(false);
+    onOpenChange(nextOpen);
+  };
 
   const refreshMemories = async () => {
     await queryClient.invalidateQueries({
@@ -121,7 +142,7 @@ export function CircuitBuilderMemoryDialog({
     clearMutation.isPending;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent className="builder-memory-dialog">
         <DialogHeader>
           <div className="builder-memory-dialog__title-row">
@@ -129,6 +150,7 @@ export function CircuitBuilderMemoryDialog({
             <button
               type="button"
               className="builder-memory-dialog__help-trigger"
+              ref={helpTriggerRef}
               aria-label="About saved memories"
               aria-expanded={helpOpen}
               aria-controls="builder-memory-help"
@@ -142,6 +164,7 @@ export function CircuitBuilderMemoryDialog({
             <div
               id="builder-memory-help"
               className="builder-memory-dialog__help-content"
+              ref={helpContentRef}
               role="note"
               aria-label="Saved memory details"
               data-testid="memory-help"

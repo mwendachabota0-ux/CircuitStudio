@@ -86,20 +86,6 @@ const CircuitBuilderComposer = forwardRef<
     }
   };
 
-  const composerHint = isHistoryLoading
-    ? 'Loading history…'
-    : isWorking
-    ? 'Draft a follow-up while Studio works'
-    : briefEditing
-      ? 'Save or cancel notes first'
-      : hasProposal
-        ? 'Review or discard the proposal first'
-        : hasUnappliedJsonEdits
-          ? 'Apply your JSON edit first'
-        : mode === 'chat'
-          ? 'Enter to send · Shift+Enter for newline'
-          : 'Review the proposal; it won’t apply itself.';
-
   const sendLabel = isHistoryLoading
     ? 'Loading'
     : isWorking
@@ -126,7 +112,7 @@ const CircuitBuilderComposer = forwardRef<
         data-testid="input-builder-message"
       />
       <div className="builder-chat__composer-foot">
-        <span>{composerHint}</span>
+        <span className="text-[7px]">Enter to send · Shift+Enter for newline</span>
         <div className="builder-chat__composer-controls">
           {activeKeyNumber !== undefined && (
             <span

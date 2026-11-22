@@ -327,3 +327,28 @@ The source work is complete. Before verifying the DB change, the user must ident
 | `git diff --check` | **PASS** |
 
 No signed-in browser or end-to-end UI verification was performed. The code is covered by unit/service tests and typechecked; do not claim a signed-in visual test. The configured Circuit Studio preview workflow stopped during restart after the test/build batch. Two restart attempts timed out before new workflow output; an earlier log showed missing paths/dependencies during rebuild, although those files and workspace links are present in the current checkout. No further restart was attempted. The required builds and source checks passed independently. If preview is needed, restart the existing managed workflow from the workspace; do not create a duplicate workflow.
+
+---
+
+## Batch 6 — Phase 2A research checkpoint
+
+**Status:** Phase 2A design is complete. The placement engine remains unimplemented, as required. Only the two authorized documentation files changed.
+
+### Verified evidence for continuation
+
+- The V2 schema is in `lib/circuit-document/src/model.ts`: `electrical` carries component and pin identities, net IDs/membership, no-connects and unassigned pins; `drawing` carries pixel canvas, placements, routes, visual markers, and annotations. `validateCircuitDocumentV2` in `lib/circuit-document/src/validation.ts` enforces that every pin occupies exactly one connectivity state and keeps consistency warnings distinct from blocking validity errors.
+- `drawing.placements` is optional per component and unique when present. It stores `position`, finite `rotation`, `flip`, optional `legacyGeometry` (`from`/`to`/`at`), and arbitrary properties. Legacy import derives position from `at` or the endpoint midpoint; for two-terminal parts the preserved endpoints remain the actual pin coordinates. `worldPinPoints` uses shared geometry plus placement legacy coordinates. Legacy projection uses `legacyGeometry` for two-terminal endpoints and at/origin placements; it does not synthesize wires.
+- `lib/circuit-geometry/src/index.ts` supplies stable pin names/coordinates through `getCircuitPins`; renderer `pinsOf` delegates to it. KiCad pin identity includes selected unit/body style, number/name and duplicate occurrence via `getCircuitPinDefinitions`. No shared body-bounds API exists.
+- `artifacts/circuit-studio/public/circuit-draw.js` owns separate body-bound tables and `componentBodyBounds`; `layoutWarnings` only diagnoses overlaps, clearances, wire/body intersections, and text collisions. It is a legacy CircuitSpec analyzer, not an automatic placer. KiCad transform order is horizontal mirror then rotation; source symbol text bounds and stroke detail are approximate or omitted.
+- The existing V2 lab (`artifacts/circuit-studio/src/components/circuit-document-v2-lab.tsx`, `src/lib/circuit-document-v2-lab.ts`) explicitly imports trusted legacy drafts, validates and saves a separate V2 local draft, displays diagnostics and a read-only legacy-compatible projection, and gates optional remote sync behind the unchanged false database-verification constant. It has no native V2 renderer or placement controls.
+- `lib/circuit-document/test/fixtures/v2-fixtures.mjs` contains 16 structural fixtures: series LED, parallel branches, transistor switch, astable and base-short variants, crossing nets, multi-pin branch, distinct/shared grounds, duplicate display names, no-connect, unassigned pin, distinct DC source, repeated KiCad pins, far-apart same-net pins, and an invalid cross-net junction. The KiCad cases are single-unit; no true multi-unit fixture is present.
+- Local manifests, lockfile, source imports, and installed workspace packages have no graph/diagram placement library in use. The only `cola`-pattern installed package found was Orval's unrelated Pinia Colada package.
+
+### Phase 2A outcome and next recommended task
+
+- `docs/CIRCUIT_LAYOUT_ENGINE_DESIGN.md` now contains the verified architecture and geometry audit, algorithm comparison, hybrid recommendation, typed API proposal, preservation modes, route-staleness policy, deterministic requirements, acceptance tests/metrics, risks, implementation phases, and out-of-scope list.
+- Phase 1D remains unchanged: the V2 lab is isolated, authenticated, feature-flagged, read-only, and local-first. Its preview is a guarded legacy-compatible projection, not a native V2 renderer. Server sync remains blocked by the false database-verification gate. No signed-in visual UI test was performed in this design-only assignment.
+- The main implementation blockers are the absence of one authoritative body/text geometry contract, lack of a pinned-versus-generated placement field, duplicated geometry-affecting compatibility properties, and route records without stable pin endpoint references. Current fixtures do not cover a true multi-unit KiCad symbol.
+- **Recommended next task — Phase 2B:** define and test one shared component-geometry resolver (stable transformed pin anchors plus conservative body/text bounds), settle component-versus-placement geometry authority, and add a backward-safe optional user-pinned placement field. Do not add automatic movement until these contracts and their fixtures pass.
+- Changed files: `docs/CIRCUIT_LAYOUT_ENGINE_DESIGN.md` and `docs/IMPLEMENTATION_HANDOFF.md`. No source, test, schema, dependency, database, migration, API, UI, or build files changed; no remote repository or external source was accessed.
+- Documentation whitespace and fenced-code checks passed. Application tests/builds were not run because this batch made documentation-only changes.

@@ -14,8 +14,30 @@ const samples = JSON.parse(
 const compatibleFm = JSON.parse(
   readFileSync(new URL("./fixtures/fm-transmitter-compatible.json", import.meta.url), "utf8"),
 );
+const exampleKicadSymbolData = {
+  id: "Device:AuditExample",
+  units: [{
+    unit: 1,
+    bodyStyle: 1,
+    pins: [],
+    graphics: [{
+      type: "rectangle",
+      points: [[-10, -10], [10, 10]],
+      strokeWidth: 1,
+      fillType: "none",
+    }],
+  }],
+};
 
 function exampleElement(component) {
+  if (component.type === "kicad") {
+    return {
+      type: "kicad",
+      symbolId: "Device:AuditExample",
+      at: [200, 200],
+      symbolData: exampleKicadSymbolData,
+    };
+  }
   if ("minimumTerminalDistance" in component) {
     return {
       type: component.type,
@@ -39,6 +61,29 @@ function exampleElement(component) {
   return { type: component.type, at: [200, 200] };
 }
 
+function openPinLeads(element) {
+  const pins = CircuitGeometry.getCircuitPins(element);
+  const anchor = Array.isArray(element.at)
+    ? element.at
+    : Array.isArray(element.from) && Array.isArray(element.to)
+      ? [(element.from[0] + element.to[0]) / 2, (element.from[1] + element.to[1]) / 2]
+      : null;
+  return pins.map((pin, index) => {
+    let dx = anchor ? pin.point[0] - anchor[0] : 1;
+    let dy = anchor ? pin.point[1] - anchor[1] : 0;
+    const length = Math.hypot(dx, dy) || 1;
+    dx = Math.round((dx / length) * 24);
+    dy = Math.round((dy / length) * 24);
+    if (dx === 0 && dy === 0) dx = 24;
+    return {
+      type: "wire",
+      id: `W_TEST_${index + 1}`,
+      open: true,
+      points: [pin.point, [pin.point[0] + dx, pin.point[1] + dy]],
+    };
+  });
+}
+
 test("the renderer and shared geometry expose the same exact component types", () => {
   assert.deepEqual(
     Array.from(CircuitDraw.types),
@@ -59,7 +104,10 @@ test("every catalog schema has a renderable CircuitDraw example", () => {
             { ...element, at: [150, 200] },
           ],
         }
-      : { title: `Reference: ${component.type}`, elements: [element] };
+      : {
+          title: `Reference: ${component.type}`,
+          elements: [element, ...openPinLeads(element)],
+        };
     assert.deepEqual(
       Array.from(CircuitDraw.validate(spec).errors),
       [],
@@ -146,4 +194,22 @@ test("IC, potentiometer, and MOSFET symbols use explicit catalog entries", () =>
     assert.match(guide, /Use only these exact CircuitDraw element type identifiers and schemas/);
   }
   assert.match(guide, /no IC supply pins are modeled/);
+});
+
+test("loads researched component descriptions without repeating the unknown-pin error", () => {
+  const entries = CircuitGeometry.CIRCUIT_COMPONENT_LIBRARY;
+  assert.equal(entries.length, 50);
+  assert.ok(entries.every((entry) => entry.longDescription.trim()));
+  assert.ok(
+    entries.every(
+      (entry) => !entry.longDescription.includes("None-pin symbol drawing"),
+    ),
+  );
+
+  const context =
+    CircuitGeometry.formatRelevantCircuitComponentResearchContext([
+      "I need an adjustable variable resistor",
+    ]);
+  assert.match(context, /potentiometer \(Potentiometer\)/i);
+  assert.match(context, /adjustable resistor/i);
 });

@@ -9,7 +9,10 @@ import type { CircuitSymbolSearchItem } from './circuitSymbolSearchItem';
 
 export interface CircuitSymbolSearchResponse {
   sourceVersion: string;
+  catalogTotal: number;
   total: number;
   hasMore: boolean;
+  libraries: string[];
+  families: string[];
   results: CircuitSymbolSearchItem[];
 }

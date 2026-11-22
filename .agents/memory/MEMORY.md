@@ -3,5 +3,9 @@
 - [Schematic view controls](schematic-view-controls.md) — keep Fit-to-view and fullscreen as separate actions; don't turn Fit into a fullscreen toggle.
 - [Working-note ownership](circuit-studio-working-notes.md) — AI adds context, but saved user edits remain protected and editable.
 - [Circuit Studio input focus](circuit-studio-input-focus.md) — treat broad focus loss as a client hit-testing issue unless fresh logs show API failures.
-- [Circuit topology checks](circuit-studio-topology-checks.md) — restore original components during repairs and distinguish blockers from advisory warnings.
-- [Circuit builder intent](circuit-studio-builder-intent.md) — choose Chat or Build from the user's meaning and context, not a fixed phrase list.
+- [Circuit topology checks](circuit-studio-topology-checks.md) — continue manual retries from rejected proposals and distinguish blockers from advisory warnings.
+- [Circuit builder intent](circuit-studio-builder-intent.md) — save unfinished Chat sessions before a circuit is built; inferred intent still needs approval.
+- [Circuit Studio interface restraint](circuit-studio-copy.md) — keep copy concise and use cards only when they clarify actionable items.
+- [Circuit Studio symbol source](circuit-studio-symbol-source.md) — prefer verified KiCad symbols by default when drawing circuits.
+- [Native Node test imports](native-node-test-imports.md) — use explicit `.ts` generated-module imports when Node's strip-types runner cannot resolve extensionless package barrels.
+- [Vite package firewall](vite-package-firewall.md) — if Replit blocks the locked Vite tarball, update the shared catalog and lockfile to a compatible allowed release.

@@ -133,7 +133,9 @@ function point(value: SExpr | undefined, key: string): [number, number] | undefi
 }
 
 function toCanvasPoint([x, y]: readonly [number, number]): CircuitPoint {
-  return [x * PIXELS_PER_MILLIMETER, -y * PIXELS_PER_MILLIMETER];
+  const pixelX = x * PIXELS_PER_MILLIMETER;
+  const pixelY = -y * PIXELS_PER_MILLIMETER;
+  return [pixelX === 0 ? 0 : pixelX, pixelY === 0 ? 0 : pixelY];
 }
 
 function hasHiddenFlag(value: SExpr | undefined): boolean {
@@ -148,7 +150,7 @@ function strokeWidth(value: SExprList): number {
 }
 
 function fillType(value: SExprList): KicadSymbolGraphic["fillType"] {
-  const fill = text(child(value, "fill")?.[1]);
+  const fill = text(child(child(value, "fill"), "type")?.[1]);
   if (fill === "background") return "background";
   if (fill === "outline") return "outline";
   return "none";

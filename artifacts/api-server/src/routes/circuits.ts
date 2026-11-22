@@ -2,7 +2,10 @@ import { GenerateCircuitBody } from "@workspace/api-zod";
 import { getAuth } from "@clerk/express";
 import rateLimit from "express-rate-limit";
 import { Router, type IRouter, type RequestHandler } from "express";
-import { formatCircuitComponentGuide } from "@workspace/circuit-geometry";
+import {
+  formatCircuitComponentGuide,
+  formatRelevantCircuitComponentResearchContext,
+} from "@workspace/circuit-geometry";
 import { CircuitAiError, generateWithAccountUsage } from "../lib/circuitAi";
 import {
   CircuitSpecCompatibilityError,
@@ -36,7 +39,7 @@ Coordinates are pixels from the top-left, with y increasing downward. Use a 10 p
 
 ${formatCircuitComponentGuide()}
 
-Use 80–100 px for most two-terminal parts. Use short, unique designators in "label" (R1, C1, Q1, D1, L1, MK1, SW1, B1, ANT1) and descriptive values in "value". Give wires unique IDs (W1, W2, ...) so connection diagnostics can identify them. Put supply at the top, ground at the bottom, and signal flow left to right where practical.
+Use 80–100 px for most two-terminal parts. Keep at least 20 px between distinct symbol bodies where possible, reserve clear space for labels and pin names, and avoid compressing a multi-branch circuit into one long row. Give connected parts visible lead wires; route around symbol bodies and text. Use short, unique designators in "label" (R1, C1, Q1, D1, L1, MK1, SW1, B1, ANT1) and descriptive values in "value". Give wires unique IDs (W1, W2, ...) so connection diagnostics can identify them. Put supply at the top, ground at the bottom, and signal flow left to right where practical. Increase width or height when needed to preserve margins.
 
 Do not invent unsupported component types or draw SVG. If a requested part has no supported equivalent, state the limitation instead of assigning it imaginary pins. For a two-transistor astable multivibrator or alternating LED flasher, keep each transistor's base separate from its collector and emitter, give each base its own resistor to the positive supply, and cross-couple each collector to the opposite transistor's base through a timing capacitor. Never connect a transistor's base directly to its own collector or connect a timing capacitor to that same transistor's base. Make a best effort to ensure every connection and value follows the request. Structural validation checks the drawing and selected topology rules only; it is not general electrical validation or simulation.`;
 
@@ -53,7 +56,13 @@ router.post(
     }
 
     try {
-      const inputText = `${circuitSystemInstructions}\n\nCircuit request:\n${parsed.data.prompt}`;
+      const relevantComponentContext =
+        formatRelevantCircuitComponentResearchContext([parsed.data.prompt]);
+      const systemInstructions = [
+        circuitSystemInstructions,
+        relevantComponentContext,
+      ].filter(Boolean).join("\n\n");
+      const inputText = `${systemInstructions}\n\nCircuit request:\n${parsed.data.prompt}`;
       const response = await generateWithAccountUsage(
         userId!,
         { inputText, maxOutputTokens: 3072 },
@@ -62,7 +71,7 @@ router.post(
             model: "gemini-2.5-flash",
             contents: parsed.data.prompt,
             config: {
-              systemInstruction: circuitSystemInstructions,
+              systemInstruction: systemInstructions,
               responseMimeType: "application/json",
               maxOutputTokens: 3072,
               temperature: 0.2,

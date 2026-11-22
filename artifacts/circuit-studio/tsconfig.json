@@ -16,6 +16,9 @@
   },
   "references": [
     {
+      "path": "../../lib/circuit-geometry"
+    },
+    {
       "path": "../../lib/api-client-react"
     }
   ]

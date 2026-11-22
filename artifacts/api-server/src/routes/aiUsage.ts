@@ -25,12 +25,52 @@ const requireAuth: RequestHandler = (req, res, next) => {
   next();
 };
 
+function getUsageReadDiagnostics(error: unknown): Record<string, string> {
+  const diagnostics: Record<string, string> = {};
+  let current = error;
+
+  for (let depth = 0; depth < 4; depth += 1) {
+    if (typeof current !== "object" || current === null) break;
+    const record = current as Record<string, unknown>;
+
+    if (
+      !diagnostics.errorType &&
+      typeof record.name === "string" &&
+      /^[A-Za-z][A-Za-z0-9_]*$/.test(record.name)
+    ) {
+      diagnostics.errorType = record.name;
+    }
+    if (
+      !diagnostics.postgresCode &&
+      typeof record.code === "string" &&
+      /^[0-9A-Z]{5}$/.test(record.code)
+    ) {
+      diagnostics.postgresCode = record.code;
+    }
+    if (
+      !diagnostics.databaseTable &&
+      typeof record.table === "string" &&
+      /^[a-z_][a-z0-9_]*$/i.test(record.table)
+    ) {
+      diagnostics.databaseTable = record.table;
+    }
+
+    current = record.cause;
+  }
+
+  if (!diagnostics.errorType) diagnostics.errorType = "UnknownError";
+  return diagnostics;
+}
+
 router.get("/ai/usage", requireAuth, async (req, res): Promise<void> => {
   const userId = getAuth(req).userId;
   try {
     res.json(await getCircuitAiUsage(userId!));
-  } catch {
-    req.log.error({ reason: "usage_read_failed" }, "Could not read AI usage");
+  } catch (error) {
+    req.log.error(
+      { reason: "usage_read_failed", ...getUsageReadDiagnostics(error) },
+      "Could not read AI usage",
+    );
     res.status(503).json({ error: "AI usage is temporarily unavailable." });
   }
 });

@@ -54,8 +54,8 @@ function validPoint(value: unknown): value is CircuitPoint {
 
 /**
  * Determines whether one existing placement may move under an explicit mode.
- * Unmarked legacy placements are protected by default in preserve-pinned;
- * reflow is the explicit authorization to move an old unmarked placement.
+ * Existing placements without an explicit userPinned:false marker stay
+ * protected in every mode; reflow only moves explicitly movable placements.
  */
 export function resolvePlacementMobility(
   request: PlacementMobilityRequest,
@@ -97,9 +97,14 @@ export function resolvePlacementMobility(
         };
   }
 
-  return request.placement.userPinned === true
-    ? { mobility: 'protected', reason: 'user-pinned' }
-    : { mobility: 'movable', reason: 'explicit-reflow' };
+  return request.placement.userPinned === false
+    ? { mobility: 'movable', reason: 'explicit-reflow' }
+    : {
+        mobility: 'protected',
+        reason: request.placement.userPinned === true
+          ? 'user-pinned'
+          : 'legacy-placement',
+      };
 }
 
 /**

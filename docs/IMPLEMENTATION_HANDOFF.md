@@ -397,3 +397,24 @@ No signed-in browser or end-to-end UI verification was performed. The code is co
 ### Safe continuation
 
 The next placement feature is Phase 2C's isolated pure placement core, but it requires a separate authorization/specification. Do not implement placement or routing as part of this batch. If the missing local Phase 2B-1 attachment is later supplied, compare it against this implementation before expanding scope. No signed-in UI or workflow restart was needed for this library/documentation-only change.
+
+---
+
+## Batch 8 — Phase 2B-2 working checkpoint
+
+**Status:** Implementing the pure deterministic `layoutCircuitDocument` engine from the two locally attached Phase 2B-2 specifications. No chat progress updates are being sent per the request.
+
+### Reconciled starting point
+
+- Both Phase 2B-2 attachment files were read locally. No remote repository or external source is being accessed.
+- Phase 2A provides the hybrid topology/layering design and proposal contract; Batch 7 implements the shared geometry resolver and lock/route-impact helpers.
+- `lib/circuit-document/src/placement-policy.ts` currently permits an unmarked legacy placement to move in explicit `reflow`. The newer Batch 8 requirement says both `userPinned: true` and omitted lock values stay protected; only explicit `userPinned: false` placements may move. This assignment will implement that stricter rule and cover it with tests.
+- Existing `validateCircuitDocumentV2`, geometry resolution, and electrical membership are the trust boundary. Layout may only return a new drawing proposal; it must not mutate the input, electrical state, routes, junctions, crossings, or annotations.
+- The implementation will remain a pure V2 library function. Automatic routing, generation, persistence/database work, UI, and canvas editing are explicitly excluded.
+
+### Planned implementation and verification
+
+1. Add a versioned typed request/result API with deterministic topology grouping, feedback/high-fanout metrics, geometry-aware collision-free placement, canvas/unsupported-geometry diagnostics, and conservative stale-route blocking.
+2. Reuse the Phase 2B-1 resolver and policy helpers; ensure repeated and permuted inputs yield the same placement map.
+3. Add focused tests for electrical invariance, lock modes, overlap prevention, feedback/high fanout, unsupported geometry, route preservation/blocking, empty/minimal/larger inputs, and deterministic ordering.
+4. Update this handoff and the layout design after source verification; run focused package tests, the relevant typecheck, and whitespace checks.

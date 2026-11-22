@@ -1,0 +1,13 @@
+{
+  "title": "Series LED with switch",
+  "elements": [
+    { "type": "battery", "id": "B1", "value": "9V", "from": [80, 120], "to": [80, 160] },
+    { "type": "switch", "id": "SW1", "from": [150, 120], "to": [200, 120], "closed": true },
+    { "type": "resistor", "id": "R1", "value": "330 ohm", "from": [260, 120], "to": [320, 120] },
+    { "type": "led", "id": "D1", "value": "red", "from": [390, 120], "to": [430, 120] },
+    { "type": "wire", "id": "W_BATTERY_SWITCH", "points": [[80, 120], [150, 120]] },
+    { "type": "wire", "id": "W_SWITCH_RESISTOR", "points": [[200, 120], [260, 120]] },
+    { "type": "wire", "id": "W_RESISTOR_LED", "points": [[320, 120], [390, 120]] },
+    { "type": "wire", "id": "W_RETURN", "points": [[430, 120], [480, 120], [480, 220], [80, 220], [80, 160]] }
+  ]
+}

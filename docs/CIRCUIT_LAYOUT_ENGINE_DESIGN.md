@@ -1,7 +1,7 @@
 # Circuit Studio V2 Deterministic Placement Engine
 
 **Batch:** 6 — Phase 2A
-**Status:** Design and investigation only; no placement engine is implemented.
+**Status:** Phase 2A design checkpoint. Phase 2B-1 geometry/policy helpers and the Phase 2B-2 deterministic placement core are implemented in the records below.
 **Evidence boundary:** Current local workspace only. No remote repository, package registry, database, or external source was accessed.
 
 ## Executive summary
@@ -472,5 +472,68 @@ Phase 2B-1 implementation without changing the original Phase 2A scope:
   crossings. Legacy projection warns when either explicit `userPinned` state
   would be lost.
 - No automatic placement, graph ordering, wire routing, UI, API/database
-  integration, or validator behavior was added or changed. The Phase 2C
-  placement core remains a separate future scope.
+  integration, or validator behavior was added or changed in Phase 2B-1.
+  Phase 2B-2 later added the separate deterministic placement core; routing
+  remains a future, separately scoped capability.
+
+## Phase 2B-2 deterministic placement implementation
+
+The library now exports a pure `layoutCircuitDocument` proposal function for
+`CircuitDocumentV2`. It accepts the three placement modes and the versioned
+layout hints/result contract. It parses and validates the V2 input, clones it,
+and only replaces `drawing.placements`; the complete electrical object and all
+existing routes, junctions, crossings, annotations, canvas dimensions, and
+metadata are retained.
+
+### Topology and placement
+
+- Connected subcircuits are built from component-pin membership and stable
+  **net IDs**, never display names or drawing proximity. Each net remains one
+  hyperedge, including shared/high-fanout nets.
+- Deterministic roles and pin-flow hints establish stable ranks. Feedback SCC
+  members share a rank; connected groups are separated into stable rows, with
+  stable ID tie-breaking and fixed iteration limits.
+- The engine uses `resolveCircuitDocumentComponentGeometry` for pin positions,
+  body bounds, and text bounds. It checks symbol/text collisions, body
+  clearance, pin-access corridors, and existing canvas limits before accepting
+  a placement. All newly placed origins are snapped to the requested grid.
+- For a known two-terminal catalog type only, a new placement with no source
+  endpoints may use the catalog's declared `minimumTerminalDistance` as its
+  initial endpoint span. Existing or unknown geometry is never assigned
+  invented bounds; unresolved geometry produces a diagnostic and blocks any
+  operation that needs it as a movable part or obstacle.
+- Existing placements are protected unless `userPinned: false` is explicit
+  and the selected mode allows movement. Request-level pins/fixed positions
+  become obstacles; an unplaced request-pinned component without a fixed
+  position is blocked.
+
+### Routes, results, and checks
+
+- The engine never edits route points, junctions, or crossings. Moving an
+  existing component conservatively marks every route on its nets as affected;
+  without a router, it returns a blocked proposal with candidate placements
+  and `layout-routes-stale`, rather than a completed document.
+- New placements can report unrouted affected nets after the drawing
+  consistency check. A successful proposal is not a claim that the circuit is
+  fully routed or electrically simulated.
+- Results include stable diagnostics, component/overlap/clearance/text/canvas
+  metrics, topology counts, route-impact IDs, and `circuit-layout/1`.
+- The focused tests cover repeatability and input-array permutation, exact
+  electrical invariance, lock modes, overlaps and canvas limits, feedback and
+  high fanout, duplicate display names, unsupported KiCad text bounds, route
+  preservation/blocking, and empty/minimal/larger documents.
+
+### Remaining limitations
+
+- Candidate search is a deterministic expanding grid spiral capped at 80
+  cells per component. Dense or constrained arrangements may be blocked even
+  when a valid arrangement exists farther away; the diagnostic reports that
+  no safe candidate was found within the bound.
+- The layout uses topology ranks and feedback clusters, not a full general
+  schematic optimizer. It does not reserve a dedicated feedback wire lane,
+  optimize actual wire length, route wires, or infer circuit behavior.
+- Body/text geometry is limited by the shared resolver's conservative
+  estimates. Route corridors are geometric clearance estimates, not evidence
+  that a future router will succeed.
+- No UI, AI generation, persistence/database change, electrical simulation,
+  route generation, or direct canvas editing is included in this phase.

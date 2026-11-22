@@ -117,7 +117,7 @@ function graphLayers(
 ): {
   rankByComponent: Map<string, number>;
   orderIndexByComponent: Map<string, number>;
-  adjacency: Map<string, string[]>;
+  adjacency: Map<string, Set<string>>;
 } {
   const groupSet = new Set(groupComponentIds);
   const adjacency = new Map<string, Set<string>>();

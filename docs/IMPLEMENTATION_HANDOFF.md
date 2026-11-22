@@ -396,25 +396,54 @@ No signed-in browser or end-to-end UI verification was performed. The code is co
 
 ### Safe continuation
 
-The next placement feature is Phase 2C's isolated pure placement core, but it requires a separate authorization/specification. Do not implement placement or routing as part of this batch. If the missing local Phase 2B-1 attachment is later supplied, compare it against this implementation before expanding scope. No signed-in UI or workflow restart was needed for this library/documentation-only change.
+The deterministic placement core is now implemented in Phase 2B-2. Any routing or visual integration still needs a separate specification and authorization. The implementation is library-only, so no signed-in UI or workflow restart was needed.
 
 ---
 
-## Batch 8 — Phase 2B-2 working checkpoint
+## Batch 8 — Phase 2B-2 completed
 
-**Status:** Implementing the pure deterministic `layoutCircuitDocument` engine from the two locally attached Phase 2B-2 specifications. No chat progress updates are being sent per the request.
+**Status:** Completed. The pure deterministic `layoutCircuitDocument` engine is implemented and verified from the two locally attached Phase 2B-2 specifications.
 
 ### Reconciled starting point
 
-- Both Phase 2B-2 attachment files were read locally. No remote repository or external source is being accessed.
+- Both Phase 2B-2 attachment files were read locally. No remote repository or external source was accessed.
 - Phase 2A provides the hybrid topology/layering design and proposal contract; Batch 7 implements the shared geometry resolver and lock/route-impact helpers.
-- `lib/circuit-document/src/placement-policy.ts` currently permits an unmarked legacy placement to move in explicit `reflow`. The newer Batch 8 requirement says both `userPinned: true` and omitted lock values stay protected; only explicit `userPinned: false` placements may move. This assignment will implement that stricter rule and cover it with tests.
+- Existing placements with `userPinned: true` or an omitted lock value remain protected in all modes. Existing placements move only when explicitly marked `userPinned: false` and the selected mode permits reflow.
 - Existing `validateCircuitDocumentV2`, geometry resolution, and electrical membership are the trust boundary. Layout may only return a new drawing proposal; it must not mutate the input, electrical state, routes, junctions, crossings, or annotations.
-- The implementation will remain a pure V2 library function. Automatic routing, generation, persistence/database work, UI, and canvas editing are explicitly excluded.
+- The engine remains a pure V2 library function. Automatic routing, generation, persistence/database work, UI, and canvas editing are explicitly excluded.
 
-### Planned implementation and verification
+### Implemented behavior
 
-1. Add a versioned typed request/result API with deterministic topology grouping, feedback/high-fanout metrics, geometry-aware collision-free placement, canvas/unsupported-geometry diagnostics, and conservative stale-route blocking.
-2. Reuse the Phase 2B-1 resolver and policy helpers; ensure repeated and permuted inputs yield the same placement map.
-3. Add focused tests for electrical invariance, lock modes, overlap prevention, feedback/high fanout, unsupported geometry, route preservation/blocking, empty/minimal/larger inputs, and deterministic ordering.
-4. Update this handoff and the layout design after source verification; run focused package tests, the relevant typecheck, and whitespace checks.
+1. Added the versioned `layoutCircuitDocument` API and deterministic placement proposal for `place-unplaced`, `reflow`, and `preserve-pinned`.
+2. Reused the shared geometry resolver, placement mobility policy, and route-impact helper. Topology uses net IDs and hyperedges, with stable connected groups, role-aware ranks, feedback-cluster ranks, and high-fanout metrics.
+3. New placements use catalog geometry; the engine blocks unresolved geometry, impossible canvas/search constraints, invalid hints, and stale routes. It does not write routes or resize the canvas.
+4. Added focused coverage for repeated/permuted inputs, exact electrical-model preservation, lock modes, overlap/canvas constraints, feedback/high fanout, same-name distinct nets, unknown KiCad text bounds, route preservation/blocking, and empty/minimal/larger documents.
+
+### Changed files
+
+- `lib/circuit-document/src/layout.ts` — pure deterministic engine and structured result diagnostics/metrics.
+- `lib/circuit-document/src/index.ts` — public exports for layout types, topology, and engine.
+- `lib/circuit-document/src/layout-topology.ts` — corrected the internal adjacency return type to represent its actual stable neighbor sets.
+- `lib/circuit-document/test/layout.test.mjs` — Phase 2B-2 focused regression suite.
+- `lib/circuit-document/dist/` — generated public declaration files and maps for the new exports.
+- `docs/CIRCUIT_LAYOUT_ENGINE_DESIGN.md` — Phase 2B-2 implementation record and remaining limitations.
+- `docs/IMPLEMENTATION_HANDOFF.md` — this completion checkpoint.
+
+### Verification
+
+| Command | Result |
+| --- | --- |
+| `node --experimental-strip-types --test lib/circuit-document/test/layout.test.mjs` | **PASS** — 8 focused tests |
+| `pnpm --filter @workspace/circuit-document exec tsc -p tsconfig.json --noEmit` | **PASS** |
+| `pnpm --filter @workspace/circuit-document test` | **PASS** — 86 tests |
+| `pnpm run typecheck` | **PASS** — libraries, API server, Circuit Studio, mockup sandbox, and scripts |
+| `git diff --check` | **PASS** |
+
+### Remaining limitations and safe continuation
+
+- Placement is deterministic and geometry-aware, but the expanding grid search is bounded to 80 cells around each preferred location; a dense or unusually constrained board can return `layout-no-safe-position`.
+- Feedback clusters share a rank; the engine does not reserve routed loop lanes or produce wire paths. High-fanout topology is retained as a hyperedge and measured, but there is no route-length optimizer.
+- Geometry and text extents remain the shared resolver's documented conservative estimates. Unknown geometry is surfaced rather than guessed. New two-terminal placements may use the catalog's declared minimum terminal spacing only when the geometry is known and the source has no endpoints.
+- No UI, AI, database/persistence behavior, electrical simulation, wire routing, or direct canvas editing was started.
+- TypeScript emitted the new package declaration files and refreshed tracked incremental build metadata during verification.
+- Phase 2B-2 is complete. Any visual integration or routing is a separately scoped follow-up.

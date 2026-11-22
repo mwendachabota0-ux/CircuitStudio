@@ -25,8 +25,8 @@ export type PlacementRouteImpact = {
 };
 /**
  * Determines whether one existing placement may move under an explicit mode.
- * Unmarked legacy placements are protected by default in preserve-pinned;
- * reflow is the explicit authorization to move an old unmarked placement.
+ * Existing placements without an explicit userPinned:false marker stay
+ * protected in every mode; reflow only moves explicitly movable placements.
  */
 export declare function resolvePlacementMobility(request: PlacementMobilityRequest): PlacementMobilityDecision;
 /**

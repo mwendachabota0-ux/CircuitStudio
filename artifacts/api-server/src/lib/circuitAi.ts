@@ -6,6 +6,14 @@ import {
 } from "@workspace/db";
 import { and, eq, lt, sql } from "drizzle-orm";
 import { GoogleGenAI, type GenerateContentResponse } from "@google/genai";
+import {
+  getProviderErrorDiagnostics,
+  type ProviderErrorDiagnostics,
+} from "./providerErrorDiagnostics";
+import {
+  canFallbackToAnotherKey,
+  orderKeysAfter,
+} from "./circuitAiKeySelection";
 
 const MAX_CONFIGURED_KEYS = 10;
 const STALE_RESERVATION_AGE_MS = 60 * 60 * 1000;
@@ -17,6 +25,7 @@ export class CircuitAiError extends Error {
     readonly statusCode: number,
     readonly retryable = false,
     readonly retryAfterMs?: number,
+    readonly providerDiagnostics?: ProviderErrorDiagnostics,
   ) {
     super(message);
     this.name = "CircuitAiError";
@@ -273,15 +282,6 @@ async function settleReservation(
   });
 }
 
-function canFallbackToAnotherKey(error: unknown): boolean {
-  if (!error || typeof error !== "object") return false;
-  const record = error as { status?: unknown; code?: unknown; message?: unknown };
-  const status = Number(record.status);
-  if (status === 429 || status === 503) return true;
-  const code = `${record.code ?? ""} ${record.message ?? ""}`.toLowerCase();
-  return /quota|rate.?limit|resource.?exhausted/.test(code);
-}
-
 function providerErrorText(error: unknown): string {
   if (!error || typeof error !== "object") return "";
   const record = error as { code?: unknown; message?: unknown; status?: unknown };
@@ -351,6 +351,9 @@ export async function generateWithAccountUsage(
     inputText: string;
     maxOutputTokens: number;
     imageTokenEstimate?: number;
+    afterKeyNumber?: number;
+    onKeyUsed?: (keyNumber: number) => void;
+    onKeyFallback?: (failedKeyNumber: number, nextKeyNumber: number) => void;
   },
   generate: (client: GoogleGenAI) => Promise<GenerateContentResponse>,
 ): Promise<GenerateContentResponse> {
@@ -378,14 +381,19 @@ export async function generateWithAccountUsage(
       true,
     );
   }
-  const orderedKeys = [
-    ...keys.filter((key) => key.number === reservation.keyNumber),
-    ...keys.filter((key) => key.number !== reservation.keyNumber),
-  ];
+  const orderedKeys = options.afterKeyNumber === undefined
+    ? [
+        ...keys.filter((key) => key.number === reservation.keyNumber),
+        ...keys.filter((key) => key.number !== reservation.keyNumber),
+      ]
+    : orderKeysAfter(keys, options.afterKeyNumber);
+  const attemptedKeyNumbers: number[] = [];
+  const rateLimitedKeyNumbers: number[] = [];
 
   try {
     for (let index = 0; index < orderedKeys.length; index += 1) {
       const key = orderedKeys[index];
+      attemptedKeyNumbers.push(key.number);
       let response: GenerateContentResponse;
       try {
         response = await generate(
@@ -395,17 +403,30 @@ export async function generateWithAccountUsage(
           }),
         );
       } catch (error) {
+        const rateLimited = isProviderRateLimited(error);
+        if (rateLimited) rateLimitedKeyNumbers.push(key.number);
         if (index < orderedKeys.length - 1 && canFallbackToAnotherKey(error)) {
+          options.onKeyFallback?.(key.number, orderedKeys[index + 1].number);
           continue;
         }
-        const rateLimited = isProviderRateLimited(error);
+        const everyConfiguredKeyRateLimited =
+          attemptedKeyNumbers.length === orderedKeys.length &&
+          rateLimitedKeyNumbers.length === orderedKeys.length;
         throw new CircuitAiError(
-          "Gemini could not complete this request. Try again shortly or select another configured key.",
+          everyConfiguredKeyRateLimited
+            ? `All ${orderedKeys.length} configured Gemini keys are rate-limited. Circuit Studio tried each key; wait for quota to reset or configure another key.`
+            : "Gemini could not complete this request. Circuit Studio tried the configured keys that could be used. Try again shortly or select another configured key.",
           502,
           rateLimited
-            ? providerRetryAfterMs(error) !== undefined
+            ? true
             : isTransientProviderFailure(error),
           providerRetryAfterMs(error),
+          getProviderErrorDiagnostics(
+            error,
+            key.number,
+            attemptedKeyNumbers,
+            rateLimitedKeyNumbers,
+          ),
         );
       }
 
@@ -418,6 +439,12 @@ export async function generateWithAccountUsage(
         throw new CircuitAiError(
           "Gemini did not return token usage, so this response could not be safely recorded.",
           502,
+          false,
+          undefined,
+          {
+            providerKeyNumber: key.number,
+            failurePhase: "usage_metadata_missing",
+          },
         );
       }
 
@@ -428,6 +455,7 @@ export async function generateWithAccountUsage(
         reservation.keyNumber,
         key.number,
       );
+      options.onKeyUsed?.(key.number);
       return response;
     }
     throw new CircuitAiError(

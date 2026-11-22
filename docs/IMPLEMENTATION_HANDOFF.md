@@ -1,0 +1,269 @@
+# CircuitStudio local implementation handoff
+
+**Audit date:** 2026-11-22
+
+**Original audit scope:** Read-only review of the local workspace, tests, builds, and application wiring. This file now also records Batch 4 Phase 1C implementation and verification checkpoints below.
+
+## Workspace snapshot and provenance
+
+- The supplied reconciliation note says this workspace was imported from downloaded project files. That origin was not independently verified.
+- Local Git metadata is present: branch `main`, commit `203630c6a137ae9811f78e6e9104c253ef5b03c4`, tracking `origin/main`, with no local ahead/behind count reported. The worktree was clean before this handoff was created.
+- No remote was contacted, fetched, or compared. Treat the current local checkout as the source of truth until the user directs otherwise.
+- `CircuitStudio-architecture-audit.txt` is historical, not a current implementation checklist. Its claims that topology validation depends on circuit titles and its test counts are stale; current source and tests show the title-independence repair described below.
+
+## Current implementation status
+
+| Area | Status | Finding |
+| --- | --- | --- |
+| Phase 0: retry and topology safeguards | **VERIFIED** | Implemented and covered by current regression tests. |
+| Phase 1A: V2 circuit document model | **VERIFIED** | Shared model, validation, legacy adapters, fixtures, and round-trip tests exist. |
+| Phase 1B: V2 persistence foundation | **VERIFIED** | Versioned local/server persistence code and a separate database table definition exist; these are not connected to the live workbench. |
+| Development database migration/table | **BLOCKED / NOT RUN** | Static schema/SQL checks pass, but no isolated database was identified and table presence remains unverified. |
+| Authenticated V2 document API | **IMPLEMENTED** | Separate Clerk-authenticated read/write endpoints use atomic storage revisions and generated contracts. |
+| Live workbench V2 integration | **NOT STARTED** | Generation, editing, history, drawing, and exports still use legacy `CircuitSpec`. |
+| Deterministic placement, automatic routing, V2 generation/rendering | **NOT STARTED** | No such implementation was found. |
+
+### Phase 0 — verified
+
+Relevant code and tests:
+
+- `artifacts/circuit-studio/src/lib/circuit-build-retry.ts`
+- `artifacts/circuit-studio/src/lib/circuit-build-retry.test.ts`
+- `artifacts/circuit-studio/src/lib/circuit-regression-fixtures.test.mjs`
+- `artifacts/circuit-studio/public/circuit-draw.js`
+- `artifacts/circuit-studio/src/lib/fixtures/`
+
+The astable-flasher fault checks classify circuit structure rather than reading the title. They look for a recognizable two-transistor, capacitor-feedback topology and then report faults such as tied bases or incorrect feedback. Tests confirm that the same base-short finding is produced under descriptive and neutral titles, and that an unrelated shared-base switch is not mislabeled as an astable.
+
+Build retries use an immutable original snapshot, restore protected non-wire component data, and track actual retry counts. Circuit and pin-to-net signatures protect connectivity during ordinary repair and layout-repair attempts; repairs are rejected when the baseline or candidate connectivity cannot be trusted. The explicit wire-rebuild recovery path is allowed to change connections because rebuilding them is its purpose. This protection is based on the legacy drawing/netlist representation, not on the V2 model being active in the workbench.
+
+Regression coverage also includes preserving component properties and positions, route-only changes, disconnected or merged nets, retry exhaustion, and retaining a rejected proposal when a repair fails.
+
+### Phase 1A — verified
+
+Relevant code and tests:
+
+- `lib/circuit-document/src/model.ts`
+- `lib/circuit-document/src/validation.ts`
+- `lib/circuit-document/src/legacy.ts`
+- `lib/circuit-document/test/fixtures/v2-fixtures.mjs`
+- `lib/circuit-document/DESIGN.md`
+
+The strict V2 document has distinct electrical and drawing representations. Electrical data includes stable component and pin identities, explicit net membership, no-connects, and unassigned pins. Drawing data includes placements, geometry, routes, junctions, crossings, and annotations. Validation separates schema, electrical, drawing, and consistency findings.
+
+Legacy import uses CircuitDraw's existing netlist membership instead of inferring connectivity independently. Projection back to legacy refuses cases that would lose meaning, including explicit no-connects or unassigned pins, separate ground nets that legacy behavior would merge, incomplete routes, and changed pin-to-net membership. Fixture-backed tests cover topology, crossings, pin identity, ground behavior, and safe projection boundaries.
+
+### Phase 1B — persistence code verified; database deployment blocked
+
+Relevant code:
+
+- `lib/circuit-document/src/persistence.ts`
+- `artifacts/api-server/src/lib/circuitDocumentDraftService.ts`
+- `artifacts/api-server/src/lib/circuitDocumentDraftRepository.ts`
+- `lib/db/src/schema/`
+- `lib/db/migrations/0001_circuit_studio_v2_drafts.sql`
+
+The persistence envelope records its format, envelope version, and whether the payload is legacy or V2. V2 drafts use a separate user-scoped browser-storage key and a separate `circuit_studio_v2_drafts` table keyed by user and session. Server service/repository code validates V2 writes and reads, scopes records to the signed-in user, and quarantines malformed, mixed, or unsupported documents rather than silently downgrading them. Local/server reconciliation rejects divergent copies.
+
+The database schema and SQL define the same V2 draft fields and composite user/session key. However, `lib/db/migrations/` contains only the SQL file and no Drizzle journal/registration metadata; `lib/db` scripts expose `push` and `push-force`, not a registered SQL migration runner. A current offline check,
+
+```sh
+env NEON_DATABASE_URL= DATABASE_URL=postgres://offline:offline@127.0.0.1:1/offline \
+  pnpm --filter @workspace/db exec drizzle-kit check --config ./drizzle.config.ts
+```
+
+stopped at Drizzle's AWS Data API configuration validation (`database` was missing; `secretArn` was interpreted as `postgresql`). It did not connect to a database. The configured application database is external Neon, and no safe read-only connection for that database was available in this audit. Therefore, the V2 table's presence in the development database is **unverified**. No migration, schema push, or database query was run.
+
+## Live application wiring
+
+The current application remains legacy-first:
+
+- `artifacts/api-server/src/routes/circuits.ts` generates legacy `CircuitSpec` output. `artifacts/api-server/src/routes/circuitBuilder.ts` accepts and returns legacy circuit proposals.
+- `artifacts/circuit-studio/src/App.tsx` uses `CircuitDraw.render`, validation, netlist, and sheet-building functions with `CircuitSpec`. The workbench draft remains in the legacy `circuit-studio-draft-v1:${userId}` local-storage slot.
+- Builder proposals are staged for review and only replace the draft after the user applies them. Account history stores legacy `currentSpec` snapshots and restores them through the same legacy path.
+- The V2 persistence service is exposed through authenticated read/write API routes, but those routes are not called by the workbench. V2 browser storage is not the live draft store.
+- SVG/PNG, JSON, BOM, and technical-document exports are produced from the current legacy `CircuitSpec`; there is no V2-aware renderer or export pipeline.
+- The schematic viewport supports pan/zoom/fit/fullscreen, but pointer handling is for panning. Direct canvas component placement, moving, deletion, and wire drawing were not found; edits are made through the structured draft/AI proposal paths.
+- Tutor image input exists, but no dedicated V2-aware visual-versus-electrical schematic review was found.
+
+## Architectural work still outstanding
+
+All items below are **NOT STARTED** unless noted:
+
+- **Deterministic component placement:** AI output supplies component coordinates; current layout analysis reports overlaps but does not place or reposition parts algorithmically.
+- **Automatic wire routing/pathfinding:** AI output supplies route coordinates. CircuitDraw auto-fixes a narrowly defined set of endpoint/tail issues; there is no obstacle-avoiding router or A* implementation.
+- **Collision avoidance and route optimization:** current checks warn about overlapping bodies, labels, and wires. They do not automatically resolve collisions or optimize routes.
+- **V2-aware generation and rendering:** model/API contracts and the live renderer still use legacy `CircuitSpec`.
+- **General electrical rule checking:** there are targeted topology and structural checks, including astable-flasher checks, but no general-purpose ERC.
+- **Circuit simulation:** none found.
+- **Direct canvas editing:** none found beyond viewport controls.
+- **Dedicated visual review:** image-capable Tutor behavior exists, but not a standalone review that compares a schematic image/render with V2 electrical connectivity.
+
+## Verification performed
+
+All commands below were run against the current local checkout. Results:
+
+| Check | Result |
+| --- | --- |
+| `pnpm --filter @workspace/circuit-document test` | **PASS** — 65 tests |
+| `pnpm --filter @workspace/api-server test` | **PASS** — 65 tests |
+| `pnpm --filter @workspace/circuit-studio test` | **PASS** — 110 tests |
+| `pnpm run typecheck` | **PASS** — workspace libraries, API, Studio, sandbox, and scripts |
+| API production build | **PASS** — `build.mjs` ran from a temporary copy with workspace dependencies linked; output stayed under `/tmp` and was removed |
+| Web production build | **PASS** — Vite output directed to `/tmp`; emitted a non-blocking warning that the minified JS chunk is 925.92 kB, above the 500 kB warning threshold |
+| `curl --fail --silent --show-error --max-time 10 http://localhost:80/api/healthz` | **PASS** — `{"status":"ok"}` |
+| Database migration/table check | **BLOCKED** — offline Drizzle CLI configuration validation failed before any database connection |
+
+No signed-in browser interaction or end-to-end UI test was performed. Build/test outputs were kept outside the workspace where applicable. The worktree was clean after verification and before creating this file.
+
+## Recommended next phase — workbench integration not started
+
+After the V2 table is verified in an isolated development database:
+
+1. Add an explicitly controlled signed-in client save/restore path to the V2 endpoints, keeping legacy drafts and history intact.
+2. Handle empty V2 records, stale revision conflicts, and quarantined local/server copies without silently converting or overwriting a legacy session.
+3. Keep V2 persistence integration separate from generation, drawing, placement, routing, and exports until each receives its own migration plan and tests.
+
+**Current acceptance boundary:** authenticated V2 API contracts and service behavior are implemented and tested. The development table is not confirmed, and the live workbench is not connected. No production/shared database was changed.
+
+---
+
+## Batch 4 — Phase 1C execution checkpoint
+
+**Checkpoint:** Authenticated V2 routes, revision checks, generated contracts, and API tests implemented.
+
+### Task status
+
+| Task | Status | Current finding |
+| --- | --- | --- |
+| 1C.1 Persistence/API baseline | **COMPLETED** | Current workspace inspected; focused package tests and workspace typecheck passed before edits. |
+| 1C.2 Safe migration verification | **BLOCKED** | Static schema/SQL checks pass. Live migration verification remains blocked because no isolated database was identified; no database command was run. |
+| 1C.3 Authenticated V2 API | **COMPLETED** | Separate Clerk-owned GET/PUT endpoints use the V2 persistence service and atomic revision checks. |
+| 1C.4 Authorization and failure tests | **COMPLETED** | Service and route tests cover ownership, validation, conflicts, concurrent writes, and safe storage failures. |
+| 1C.5 Generated contract and docs | **COMPLETED** | OpenAPI, generated Zod/React Query clients, lifecycle docs, and safe migration instructions are updated. |
+| 1C.6 Final regression | **IN PROGRESS** | API typecheck and 77 API tests pass; complete final workspace checks and builds next. |
+
+### Verified current-state notes
+
+- Git metadata exists on local `main`, ahead of `origin/main` by one import commit; the worktree was clean at inspection. No remote was contacted. At the baseline checkpoint, this handoff was the only file changed.
+- V2 document validation, the tagged envelope, V2 table, SQL file, and internal persistence service/repository were already present. The service previously performed last-write-wins upserts and did not store a concurrency revision.
+- Current database code uses Drizzle's PostgreSQL dialect and `drizzle-orm/node-postgres`; `NEON_DATABASE_URL` takes precedence over `DATABASE_URL`. `lib/db` exposes `push` and `push-force`, but no journaled migration runner registers the SQL file.
+- `drizzle-kit check` was run only with a dummy localhost URL. It failed before any connection because that command's `prepareCheckParams` expects `out`/`dialect`, then prints those as AWS Data API `database`/`secretArn`; the current config has no `out`, so the output misleadingly labels `postgresql` as `secretArn`. This command does not establish table presence or validate this project's schema push workflow.
+- The installed database driver is node-postgres, not AWS Data API. The external Neon connection is configured but has not been inspected or queried. There is no evidence that it is a disposable isolated test database. Live migration/table verification is therefore **BLOCKED / NOT RUN**; do not run `push`, `push-force`, or SQL against the configured URL in this batch.
+- The V2 schema now includes an integer `revision` with default 1. The existing SQL file includes the matching create definition and an idempotent `ADD COLUMN IF NOT EXISTS` for older rows. New static tests compare SQL columns, PostgreSQL types, nullability, defaults, and the composite ownership key against Drizzle and reject destructive/legacy-table changes.
+- The internal service now requires an `expectedRevision`. First saves use an insert-on-conflict-do-nothing; later saves use a single revision-qualified update that increments revision atomically. The service and repository no longer perform a last-write-wins upsert.
+- Separate `GET`/`PUT /circuit-documents/v2/sessions/{sessionId}` routes derive ownership from `getAuth(req).userId`, expose explicit empty/saved/loaded/conflict/error responses, and do not read legacy history. The public handler factory accepts injected auth/persistence only for isolated tests; the mounted production router uses Clerk and the real repository.
+- Generated OpenAPI contracts and React Query client now include V2 request/response types. The Orval config pins generated hooks to the installed TanStack Query v5 API.
+- `lib/circuit-document/DESIGN.md` documents API ownership, validation, revision behavior, migration process, typed failures, lifecycle, and the fact that the workbench remains disconnected.
+- The current Clerk pattern is `getAuth(req).userId`, with per-route `requireAuth` middleware. Existing history is `/circuit-builder/history`; V2 must use a separate route.
+- Canonical OpenAPI is `lib/api-spec/openapi.yaml`; `lib/api-spec` codegen uses Orval to regenerate `lib/api-zod/src/generated` and `lib/api-client-react/src/generated`.
+
+### Pre-edit verification
+
+| Command | Result |
+| --- | --- |
+| `pnpm --filter @workspace/circuit-document test` | **PASS** — 65 tests |
+| `pnpm --filter @workspace/api-server test` | **PASS** — 65 tests |
+| `pnpm --filter @workspace/circuit-studio test` | **PASS** — 110 tests |
+| `pnpm run typecheck` | **PASS** |
+| Drizzle offline check with dummy localhost URL | **BLOCKED** before connection by the command/config mismatch described above |
+| `pnpm --filter @workspace/db test` | **PASS** — 4 static schema/migration tests |
+| `pnpm --filter @workspace/api-server test` | **PASS** — 77 tests, including 8 V2 route-level cases |
+| `pnpm --filter @workspace/api-spec run codegen` | **PASS** — generated Zod and React Query contracts; library typecheck passed |
+| `pnpm --filter @workspace/api-server run typecheck` | **PASS** |
+
+### Next precise actions
+
+1. No local implementation or test action remains for Phase 1C.
+2. The only blocked item is live table verification: first confirm an isolated disposable development database, then run `pnpm --filter @workspace/db run push` and a read-only schema query.
+3. Keep the V2 client disconnected from the current workbench until a separate migration/integration phase is authorized.
+
+---
+
+## Batch 4 Phase 1C — continuation checkpoint
+
+**Checkpoint:** Local baseline inspected and focused regression suite passed before this continuation made any source changes.
+
+### Baseline and scope
+
+- The workspace is on local branch `main` at `fc285ac` (`Import from GitHub`), one commit ahead of its configured upstream. The worktree was clean at inspection. No remote was contacted or queried.
+- The V2 schema/validator, tagged persistence envelope, Drizzle table and standalone SQL, repository, revision-aware service, Clerk-authenticated API routes, OpenAPI operations, generated client/Zod contracts, static migration tests, and API lifecycle documentation were already present.
+- The V2 routes are mounted separately from `/circuit-builder/history`; no V2 client call was found in the live workbench.
+- The project continues to use PostgreSQL through Drizzle `node-postgres`. `drizzle.config.ts` selects `NEON_DATABASE_URL` before `DATABASE_URL`; the established schema command is `pnpm --filter @workspace/db run push`. No isolated disposable database has been identified, so neither `push` nor the standalone SQL migration was run.
+- The offline Drizzle `check` command was rerun with a dummy localhost URL and failed during CLI parameter validation, before connecting. It reported AWS Data API `database`/`secretArn` fields even though this workspace configures PostgreSQL `url`; this is not evidence of a migration result or table presence.
+- The additional user requirement is to keep every text editor available through AI loading, failure, and quota states, including the CircuitSpec editor. At baseline, the builder composer, working-note fields, BOM fields, and Tutor question were editable, but the CircuitSpec editor and pasted external-fix editor were disabled during AI repair/review states. Their text is not supposed to be replaced by AI responses.
+
+### Baseline checks
+
+| Command | Result |
+| --- | --- |
+| `pnpm --filter @workspace/circuit-document test` | **PASS** — 65 tests |
+| `pnpm --filter @workspace/api-server test` | **PASS** — 77 tests, including V2 authorization, validation, conflict, and storage-failure coverage |
+| `pnpm --filter @workspace/circuit-studio test` | **PASS** — 110 tests |
+| `pnpm --filter @workspace/db test` | **PASS** — 4 static schema/migration tests |
+| `pnpm run typecheck` | **PASS** — workspace libraries, API, Studio, sandbox, and scripts |
+| Offline Drizzle CLI `check` with dummy localhost configuration | **BLOCKED before connection** by its AWS Data API parameter validation |
+
+### Continuation task status
+
+| Task | Status | Next precise action |
+| --- | --- | --- |
+| 1C.1 Persistence/API baseline | **VERIFIED** | Preserve existing V2/legacy separation. |
+| 1C.2 Safe migration verification | **BLOCKED / NOT RUN** | Confirm an isolated disposable development database before applying the non-force schema push and verifying its table. |
+| 1C.3 Authenticated V2 API | **VERIFIED** | Keep the V2 client disconnected from the workbench. |
+| 1C.4 Authorization and failure tests | **VERIFIED** | No further local action. |
+| 1C.5 Generated contract and docs | **VERIFIED** | No further local action; generated files match the OpenAPI source. |
+| 1C.6 Final regression | **PASS** | Local tests, builds, typecheck, and diff check passed; live DB verification remains blocked separately. |
+
+### Continuation checkpoint — contracts refreshed and text editors protected
+
+- `pnpm --filter @workspace/api-spec run codegen` completed successfully with Orval 8.41.0, including `pnpm -w run typecheck:libs`. The generated API client/Zod files remained byte-for-byte unchanged, confirming that the checked-in outputs match the current OpenAPI source.
+- The Drizzle CLI behavior is now explained from its installed source: `drizzle-kit check` requires `out` and `dialect` (migration-folder settings), then incorrectly labels missing values as AWS Data API `database`/`secretArn` fields. Its failure is a CLI invocation/configuration mismatch, not a database connection or migration result.
+- The CircuitSpec and pasted external-fix JSON editors no longer become disabled during AI work. External-fix review now verifies that its submitted draft revision is still current before it can show review feedback or stage a proposal; edits made during review remain intact and the stale response is not applied.
+- The signed-in workbench was not visually/in-person previewed: this workspace has no configured workflow or registered app preview, and the capture browser cannot sign in. The CircuitSpec and external-fix textareas were checked in source to confirm they have no disabled state.
+
+### Final verification and handoff — 2026-11-22
+
+#### Final status
+
+| Phase item | Status | Evidence or limitation |
+| --- | --- | --- |
+| 1C.1 V2 model, validation, persistence envelope, and legacy separation | **VERIFIED** | Existing source and 65 circuit-document tests; V2 and legacy representations remain distinct. |
+| 1C.2 DB migration/table presence | **BLOCKED / NOT RUN** | Static SQL/Drizzle checks pass, but no isolated disposable database was identified. No live URL was queried and no SQL or schema push was applied. |
+| 1C.3 Authenticated V2 API and revision-aware persistence | **VERIFIED** | Existing GET/PUT routes derive ownership from Clerk and use separate V2 storage with optimistic revision checks. |
+| 1C.4 Authorization, validation, conflict, and failure tests | **PASS** | All 77 API server tests pass, including V2 route-level isolation and error coverage. |
+| 1C.5 OpenAPI, generated client/Zod, and docs | **PASS** | Orval codegen and library typecheck passed; generated files did not change. |
+| 1C.6 Local regression | **PASS** | Package tests, workspace typecheck, API build, Studio build, and `git diff --check` all passed. |
+| Text editor availability during AI states | **IMPLEMENTED** | CircuitSpec and external-fix JSON remain editable. A review response for an older external-fix draft is discarded if the user edits while it is pending. |
+
+#### Existing implementation versus this continuation
+
+- The V2 schema, validation, tagged storage envelope, Drizzle table/SQL, repository, service, authenticated routes, OpenAPI contract, generated client/Zod files, static DB checks, route tests, and `lib/circuit-document/DESIGN.md` documentation were already present in the local workspace.
+- This continuation did not change those API or database implementation files. It refreshed code generation to verify contract consistency, confirmed the live migration could not be safely run, and updated the handoff.
+- The only app behavior change in this continuation is the text-editor safeguard requested alongside the batch: CircuitSpec and pasted external-fix editors no longer disable during AI repair/review. Newer text is preserved and an outdated external-fix review cannot stage a proposal over it.
+- This did not connect V2 persistence to the workbench or change AI generation, schematic rendering, component placement, routing, or exports.
+
+#### Final commands and results
+
+| Command | Result |
+| --- | --- |
+| `pnpm --filter @workspace/circuit-document test` | **PASS** — 65 tests |
+| `pnpm --filter @workspace/api-server test` | **PASS** — 77 tests |
+| `pnpm --filter @workspace/circuit-studio test` | **PASS** — 110 tests |
+| `pnpm --filter @workspace/db test` | **PASS** — 4 static migration/schema tests |
+| `pnpm run typecheck` | **PASS** — workspace libraries, API, Studio, sandbox, and scripts |
+| `pnpm --filter @workspace/api-spec run codegen` | **PASS** — Orval generated outputs matched the checked-in files; library typecheck passed |
+| `pnpm --filter @workspace/api-server run build` | **PASS** |
+| `PORT=26043 BASE_PATH=/ pnpm --filter @workspace/circuit-studio run build` | **PASS** — non-blocking large-chunk warning |
+| `git diff --check` | **PASS** |
+
+#### Changed files
+
+- `artifacts/circuit-studio/src/App.tsx` — kept the CircuitSpec JSON editor enabled during AI repair/proposal states.
+- `artifacts/circuit-studio/src/components/circuit-builder-chat.tsx` — kept the external-fix JSON editor enabled during review and guarded against stale review responses.
+- `replit.md` — recorded the user’s standing text-editor and draft-preservation requirement.
+- `docs/IMPLEMENTATION_HANDOFF.md` — recorded the checkpoints, final evidence, and migration blocker.
+
+#### Safe next step
+
+The source work is complete. Before verifying the DB change, the user must identify or configure a disposable isolated development PostgreSQL database through the workspace’s environment/secrets flow. Only then run the existing non-force `pnpm --filter @workspace/db run push` and verify the V2 table and `(user_id, session_id)` primary key with a read-only schema query. Do not use the configured external Neon database or production data for this check.

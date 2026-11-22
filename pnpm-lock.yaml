@@ -254,6 +254,9 @@ importers:
       '@clerk/themes':
         specifier: ^2.4.57
         version: 2.4.57(react-dom@19.1.4(react@19.1.4))(react@19.1.4)
+      '@workspace/circuit-document':
+        specifier: workspace:*
+        version: link:../../lib/circuit-document
       react-markdown:
         specifier: ^10.1.0
         version: 10.1.0(@types/react@19.3.0)(react@19.1.4)

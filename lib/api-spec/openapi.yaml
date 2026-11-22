@@ -16,6 +16,8 @@ tags:
     description: Signed-in AI circuit education and review
   - name: account
     description: Per-account AI usage, memory, and key selection
+  - name: v2-circuit-documents
+    description: Staged V2 electrical circuit proposals
 paths:
   /healthz:
     get:
@@ -583,6 +585,61 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CircuitDocumentV2DraftError"
+  /circuit-documents/v2/generate:
+    post:
+      operationId: generateCircuitDocumentV2
+      tags: [v2-circuit-documents]
+      summary: Generate a staged V2 electrical circuit proposal
+      description: Converts a circuit description to V2 components and explicit pin-to-net states. The response has an empty drawing section and is not saved or applied. Structural validation does not establish electrical correctness, simulation, or safety.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CircuitDocumentV2GenerationInput"
+      responses:
+        "200":
+          description: Staged, structurally validated electrical proposal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CircuitDocumentV2ElectricalGenerationResult"
+        "400":
+          description: Invalid generation prompt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Authentication is required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "422":
+          description: The request is outside supported safe generation scope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "429":
+          description: Generation rate limit reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "502":
+          description: The model response was malformed or failed V2 validation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CircuitDocumentV2GenerationError"
+        "503":
+          description: Gemini or usage accounting is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
   /circuit-builder/history:
     get:
       operationId: listCircuitBuilderHistory
@@ -1773,6 +1830,100 @@ components:
       minLength: 1
       maxLength: 128
       pattern: ".*\\S.*"
+    CircuitDocumentV2GenerationInput:
+      type: object
+      properties:
+        prompt:
+          type: string
+          minLength: 8
+          maxLength: 3000
+      required: [prompt]
+      additionalProperties: false
+    CircuitDocumentV2GenerationDiagnostic:
+      type: object
+      properties:
+        category:
+          type: string
+          enum: [schema, electrical, drawing, drawing-warning, consistency-warning]
+        code:
+          type: string
+        severity:
+          type: string
+          enum: [error, warning]
+        path:
+          type: string
+        message:
+          type: string
+      required: [category, code, severity, path, message]
+      additionalProperties: false
+    CircuitDocumentV2ElectricalGenerationResult:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [proposed]
+        document:
+          $ref: "#/components/schemas/CircuitDocumentV2"
+        design:
+          type: object
+          properties:
+            summary:
+              type: string
+            assumptions:
+              type: array
+              items:
+                type: string
+            uncertainties:
+              type: array
+              items:
+                type: string
+            questions:
+              type: array
+              items:
+                type: string
+          required: [summary, assumptions, uncertainties, questions]
+          additionalProperties: false
+        validation:
+          type: object
+          properties:
+            scope:
+              type: string
+              enum: [document-structure-only]
+            isValid:
+              type: boolean
+              enum: [true]
+            diagnostics:
+              type: array
+              items:
+                $ref: "#/components/schemas/CircuitDocumentV2GenerationDiagnostic"
+          required: [scope, isValid, diagnostics]
+          additionalProperties: false
+      required: [status, document, design, validation]
+      additionalProperties: false
+    CircuitDocumentV2GenerationErrorDiagnostic:
+      type: object
+      properties:
+        code:
+          type: string
+        path:
+          type: string
+        message:
+          type: string
+      required: [code, path, message]
+      additionalProperties: false
+    CircuitDocumentV2GenerationError:
+      type: object
+      properties:
+        code:
+          type: string
+        error:
+          type: string
+        diagnostics:
+          type: array
+          items:
+            $ref: "#/components/schemas/CircuitDocumentV2GenerationErrorDiagnostic"
+      required: [code, error, diagnostics]
+      additionalProperties: false
     CircuitDocumentV2PinReference:
       type: object
       properties:

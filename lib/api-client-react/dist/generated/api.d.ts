@@ -1,5 +1,5 @@
 import type { DataTag, DefinedInitialDataOptions, DefinedUseQueryResult, QueryClient, QueryKey, UndefinedInitialDataOptions, UseMutationOptions, UseMutationResult, UseQueryOptions, UseQueryResult } from '@tanstack/react-query';
-import type { AiKeySelectionRequest, AiStatus, AiUsage, ApiError, CircuitBuildChatInput, CircuitBuildChatResponse, CircuitBuilderFeedbackInput, CircuitBuilderFeedbackResponse, CircuitBuilderHistoryDeletion, CircuitBuilderHistoryImportInput, CircuitBuilderHistoryImportResponse, CircuitBuilderHistorySession, CircuitBuilderHistorySyncInput, CircuitBuilderHistorySyncResponse, CircuitBuilderMemory, CircuitBuilderMemoryInput, CircuitBuilderRepairLessonInput, CircuitBuilderRepairLessonResult, CircuitDocumentV2DraftEmptyResponse, CircuitDocumentV2DraftError, CircuitDocumentV2DraftLoadedResponse, CircuitDocumentV2DraftSavedResponse, CircuitDocumentV2DraftWriteInput, CircuitDocumentV2SessionId, CircuitPrompt, CircuitProposalReview, CircuitProposalReviewInput, CircuitReviewRequest, CircuitReviewResponse, CircuitSpec, CircuitSymbolSearchResponse, ExternalCircuitFixReviewInput, ExternalCircuitFixReviewResponse, GetCircuitSymbolDataParams, HealthStatus, KicadSymbolData, SearchCircuitSymbolsParams, TutorRequest, TutorResponse } from './api.schemas';
+import type { AiKeySelectionRequest, AiStatus, AiUsage, ApiError, CircuitBuildChatInput, CircuitBuildChatResponse, CircuitBuilderFeedbackInput, CircuitBuilderFeedbackResponse, CircuitBuilderHistoryDeletion, CircuitBuilderHistoryImportInput, CircuitBuilderHistoryImportResponse, CircuitBuilderHistorySession, CircuitBuilderHistorySyncInput, CircuitBuilderHistorySyncResponse, CircuitBuilderMemory, CircuitBuilderMemoryInput, CircuitBuilderRepairLessonInput, CircuitBuilderRepairLessonResult, CircuitDocumentV2DraftEmptyResponse, CircuitDocumentV2DraftError, CircuitDocumentV2DraftLoadedResponse, CircuitDocumentV2DraftSavedResponse, CircuitDocumentV2DraftWriteInput, CircuitDocumentV2ElectricalGenerationResult, CircuitDocumentV2GenerationError, CircuitDocumentV2GenerationInput, CircuitDocumentV2SessionId, CircuitPrompt, CircuitProposalReview, CircuitProposalReviewInput, CircuitReviewRequest, CircuitReviewResponse, CircuitSpec, CircuitSymbolSearchResponse, ExternalCircuitFixReviewInput, ExternalCircuitFixReviewResponse, GetCircuitSymbolDataParams, HealthStatus, KicadSymbolData, SearchCircuitSymbolsParams, TutorRequest, TutorResponse } from './api.schemas';
 import { customFetch } from '../custom-fetch';
 import type { ErrorType, BodyType } from '../custom-fetch';
 type AwaitedInput<T> = PromiseLike<T> | T;
@@ -379,6 +379,30 @@ export declare const useSaveCircuitDocumentV2Draft: <TError = ErrorType<CircuitD
     mutation?: UseMutationOptions<Awaited<ReturnType<typeof saveCircuitDocumentV2Draft>>, TError, SaveCircuitDocumentV2DraftMutationVariables, TContext>;
     request?: SecondParameter<typeof customFetch>;
 }, queryClient?: QueryClient) => UseMutationResult<Awaited<ReturnType<typeof saveCircuitDocumentV2Draft>>, TError, SaveCircuitDocumentV2DraftMutationVariables, TContext>;
+export declare const getGenerateCircuitDocumentV2Url: () => string;
+/**
+ * Converts a circuit description to V2 components and explicit pin-to-net states. The response has an empty drawing section and is not saved or applied. Structural validation does not establish electrical correctness, simulation, or safety.
+ * @summary Generate a staged V2 electrical circuit proposal
+ */
+export declare const generateCircuitDocumentV2: (circuitDocumentV2GenerationInput: CircuitDocumentV2GenerationInput, options?: Parameters<typeof customFetch>[1]) => Promise<CircuitDocumentV2ElectricalGenerationResult>;
+export declare const getGenerateCircuitDocumentV2MutationKey: () => readonly ["generateCircuitDocumentV2"];
+export declare const getGenerateCircuitDocumentV2MutationOptions: <TError = ErrorType<ApiError | CircuitDocumentV2GenerationError>, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<Awaited<ReturnType<typeof generateCircuitDocumentV2>>, TError, GenerateCircuitDocumentV2MutationVariables, TContext>;
+    request?: SecondParameter<typeof customFetch>;
+}) => UseMutationOptions<Awaited<ReturnType<typeof generateCircuitDocumentV2>>, TError, GenerateCircuitDocumentV2MutationVariables, TContext>;
+export type GenerateCircuitDocumentV2MutationResult = NonNullable<Awaited<ReturnType<typeof generateCircuitDocumentV2>>>;
+export type GenerateCircuitDocumentV2MutationBody = BodyType<CircuitDocumentV2GenerationInput>;
+export type GenerateCircuitDocumentV2MutationError = ErrorType<ApiError | CircuitDocumentV2GenerationError>;
+export type GenerateCircuitDocumentV2MutationVariables = {
+    data: BodyType<CircuitDocumentV2GenerationInput>;
+};
+/**
+* @summary Generate a staged V2 electrical circuit proposal
+*/
+export declare const useGenerateCircuitDocumentV2: <TError = ErrorType<ApiError | CircuitDocumentV2GenerationError>, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<Awaited<ReturnType<typeof generateCircuitDocumentV2>>, TError, GenerateCircuitDocumentV2MutationVariables, TContext>;
+    request?: SecondParameter<typeof customFetch>;
+}, queryClient?: QueryClient) => UseMutationResult<Awaited<ReturnType<typeof generateCircuitDocumentV2>>, TError, GenerateCircuitDocumentV2MutationVariables, TContext>;
 export declare const getListCircuitBuilderHistoryUrl: () => string;
 /**
  * Returns the signed-in user's complete chat and build history.

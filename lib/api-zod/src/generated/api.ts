@@ -1895,6 +1895,199 @@ export const SaveCircuitDocumentV2DraftResponse = zod.object({
 
 
 /**
+ * Converts a circuit description to V2 components and explicit pin-to-net states. The response has an empty drawing section and is not saved or applied. Structural validation does not establish electrical correctness, simulation, or safety.
+ * @summary Generate a staged V2 electrical circuit proposal
+ */
+export const generateCircuitDocumentV2BodyPromptMin = 8;
+export const generateCircuitDocumentV2BodyPromptMax = 3000;
+
+
+
+export const GenerateCircuitDocumentV2Body = zod.object({
+  "prompt": zod.string().min(generateCircuitDocumentV2BodyPromptMin).max(generateCircuitDocumentV2BodyPromptMax)
+})
+
+
+
+
+
+
+
+
+export const generateCircuitDocumentV2ResponseDocumentElectricalComponentsItemPinsItemOccurrenceMin = 0;
+
+
+
+
+
+
+
+
+export const generateCircuitDocumentV2ResponseDocumentDrawingCanvasWidthExclusiveMin = 0;
+
+export const generateCircuitDocumentV2ResponseDocumentDrawingCanvasHeightExclusiveMin = 0;
+
+
+export const generateCircuitDocumentV2ResponseDocumentDrawingPlacementsItemPositionMin = 2;
+export const generateCircuitDocumentV2ResponseDocumentDrawingPlacementsItemPositionMax = 2;
+
+export const generateCircuitDocumentV2ResponseDocumentDrawingPlacementsItemLegacyGeometryFromMin = 2;
+export const generateCircuitDocumentV2ResponseDocumentDrawingPlacementsItemLegacyGeometryFromMax = 2;
+
+export const generateCircuitDocumentV2ResponseDocumentDrawingPlacementsItemLegacyGeometryToMin = 2;
+export const generateCircuitDocumentV2ResponseDocumentDrawingPlacementsItemLegacyGeometryToMax = 2;
+
+export const generateCircuitDocumentV2ResponseDocumentDrawingPlacementsItemLegacyGeometryAtMin = 2;
+export const generateCircuitDocumentV2ResponseDocumentDrawingPlacementsItemLegacyGeometryAtMax = 2;
+
+
+
+export const generateCircuitDocumentV2ResponseDocumentDrawingRoutesItemPointsItemMin = 2;
+export const generateCircuitDocumentV2ResponseDocumentDrawingRoutesItemPointsItemMax = 2;
+
+export const generateCircuitDocumentV2ResponseDocumentDrawingRoutesItemPointsMin = 2;
+
+
+export const generateCircuitDocumentV2ResponseDocumentDrawingJunctionsItemAtMin = 2;
+export const generateCircuitDocumentV2ResponseDocumentDrawingJunctionsItemAtMax = 2;
+
+
+
+export const generateCircuitDocumentV2ResponseDocumentDrawingCrossingsItemAtMin = 2;
+export const generateCircuitDocumentV2ResponseDocumentDrawingCrossingsItemAtMax = 2;
+
+
+
+export const generateCircuitDocumentV2ResponseDocumentDrawingAnnotationsItemOneAtMin = 2;
+export const generateCircuitDocumentV2ResponseDocumentDrawingAnnotationsItemOneAtMax = 2;
+
+
+
+
+export const GenerateCircuitDocumentV2Response = zod.object({
+  "status": zod.enum(['proposed']),
+  "document": zod.object({
+  "schemaVersion": zod.literal(2),
+  "id": zod.string().min(1),
+  "title": zod.string().optional(),
+  "electrical": zod.object({
+  "components": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "type": zod.string().min(1),
+  "reference": zod.string().optional(),
+  "value": zod.string().optional(),
+  "properties": zod.record(zod.string(), zod.unknown()),
+  "pins": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "name": zod.string().min(1),
+  "number": zod.string().optional(),
+  "unit": zod.number().int().min(1).optional(),
+  "bodyStyle": zod.number().int().min(1).optional(),
+  "occurrence": zod.number().int().min(generateCircuitDocumentV2ResponseDocumentElectricalComponentsItemPinsItemOccurrenceMin).optional(),
+  "electricalType": zod.string().optional()
+}))
+})),
+  "nets": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "name": zod.string().optional(),
+  "attributes": zod.record(zod.string(), zod.unknown()).optional(),
+  "members": zod.array(zod.object({
+  "componentId": zod.string().min(1),
+  "pinId": zod.string().min(1)
+}))
+})),
+  "noConnects": zod.array(zod.object({
+  "componentId": zod.string().min(1),
+  "pinId": zod.string().min(1)
+})),
+  "unassignedPins": zod.array(zod.object({
+  "componentId": zod.string().min(1),
+  "pinId": zod.string().min(1)
+}))
+}),
+  "drawing": zod.object({
+  "units": zod.enum(['px']),
+  "canvas": zod.object({
+  "width": zod.number().gt(generateCircuitDocumentV2ResponseDocumentDrawingCanvasWidthExclusiveMin).optional(),
+  "height": zod.number().gt(generateCircuitDocumentV2ResponseDocumentDrawingCanvasHeightExclusiveMin).optional()
+}),
+  "placements": zod.array(zod.object({
+  "componentId": zod.string().min(1),
+  "position": zod.array(zod.number()).min(generateCircuitDocumentV2ResponseDocumentDrawingPlacementsItemPositionMin).max(generateCircuitDocumentV2ResponseDocumentDrawingPlacementsItemPositionMax),
+  "rotation": zod.number(),
+  "flip": zod.boolean(),
+  "legacyGeometry": zod.object({
+  "from": zod.array(zod.number()).min(generateCircuitDocumentV2ResponseDocumentDrawingPlacementsItemLegacyGeometryFromMin).max(generateCircuitDocumentV2ResponseDocumentDrawingPlacementsItemLegacyGeometryFromMax).optional(),
+  "to": zod.array(zod.number()).min(generateCircuitDocumentV2ResponseDocumentDrawingPlacementsItemLegacyGeometryToMin).max(generateCircuitDocumentV2ResponseDocumentDrawingPlacementsItemLegacyGeometryToMax).optional(),
+  "at": zod.array(zod.number()).min(generateCircuitDocumentV2ResponseDocumentDrawingPlacementsItemLegacyGeometryAtMin).max(generateCircuitDocumentV2ResponseDocumentDrawingPlacementsItemLegacyGeometryAtMax).optional()
+}).optional(),
+  "properties": zod.record(zod.string(), zod.unknown())
+})),
+  "routes": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "netId": zod.string().min(1),
+  "points": zod.array(zod.array(zod.number()).min(generateCircuitDocumentV2ResponseDocumentDrawingRoutesItemPointsItemMin).max(generateCircuitDocumentV2ResponseDocumentDrawingRoutesItemPointsItemMax)).min(generateCircuitDocumentV2ResponseDocumentDrawingRoutesItemPointsMin),
+  "open": zod.boolean().optional(),
+  "properties": zod.record(zod.string(), zod.unknown())
+})),
+  "junctions": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "at": zod.array(zod.number()).min(generateCircuitDocumentV2ResponseDocumentDrawingJunctionsItemAtMin).max(generateCircuitDocumentV2ResponseDocumentDrawingJunctionsItemAtMax),
+  "routeIds": zod.array(zod.string().min(1)),
+  "properties": zod.record(zod.string(), zod.unknown())
+})),
+  "crossings": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "at": zod.array(zod.number()).min(generateCircuitDocumentV2ResponseDocumentDrawingCrossingsItemAtMin).max(generateCircuitDocumentV2ResponseDocumentDrawingCrossingsItemAtMax),
+  "orientation": zod.enum(['horizontal', 'vertical']).optional(),
+  "routeIds": zod.array(zod.string().min(1)),
+  "properties": zod.record(zod.string(), zod.unknown())
+})),
+  "annotations": zod.array(zod.union([zod.object({
+  "id": zod.string().min(1),
+  "type": zod.enum(['label']),
+  "at": zod.array(zod.number()).min(generateCircuitDocumentV2ResponseDocumentDrawingAnnotationsItemOneAtMin).max(generateCircuitDocumentV2ResponseDocumentDrawingAnnotationsItemOneAtMax),
+  "text": zod.string(),
+  "properties": zod.record(zod.string(), zod.unknown())
+}),zod.object({
+  "id": zod.string().min(1),
+  "type": zod.enum(['box']),
+  "x": zod.number(),
+  "y": zod.number(),
+  "w": zod.number(),
+  "h": zod.number(),
+  "properties": zod.record(zod.string(), zod.unknown())
+})]))
+}),
+  "legacyImport": zod.object({
+  "sourceFormat": zod.enum(['CircuitSpec']),
+  "groundSemantics": zod.enum(['global-ground']),
+  "terminalLabelSemantics": zod.enum(['local-labels-do-not-merge']),
+  "sourceMetadata": zod.record(zod.string(), zod.unknown())
+}).optional(),
+  "metadata": zod.record(zod.string(), zod.unknown()).optional()
+}),
+  "design": zod.object({
+  "summary": zod.string(),
+  "assumptions": zod.array(zod.string()),
+  "uncertainties": zod.array(zod.string()),
+  "questions": zod.array(zod.string())
+}),
+  "validation": zod.object({
+  "scope": zod.enum(['document-structure-only']),
+  "isValid": zod.literal(true),
+  "diagnostics": zod.array(zod.object({
+  "category": zod.enum(['schema', 'electrical', 'drawing', 'drawing-warning', 'consistency-warning']),
+  "code": zod.string(),
+  "severity": zod.enum(['error', 'warning']),
+  "path": zod.string(),
+  "message": zod.string()
+}))
+})
+})
+
+
+/**
  * Returns the signed-in user's complete chat and build history.
  * @summary List saved Circuit Studio conversations
  */

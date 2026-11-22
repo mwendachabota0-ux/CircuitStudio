@@ -9240,6 +9240,1004 @@ export declare const SaveCircuitDocumentV2DraftResponse: zod.ZodObject<{
     };
 }>;
 /**
+ * Converts a circuit description to V2 components and explicit pin-to-net states. The response has an empty drawing section and is not saved or applied. Structural validation does not establish electrical correctness, simulation, or safety.
+ * @summary Generate a staged V2 electrical circuit proposal
+ */
+export declare const generateCircuitDocumentV2BodyPromptMin = 8;
+export declare const generateCircuitDocumentV2BodyPromptMax = 3000;
+export declare const GenerateCircuitDocumentV2Body: zod.ZodObject<{
+    prompt: zod.ZodString;
+}, "strip", zod.ZodTypeAny, {
+    prompt: string;
+}, {
+    prompt: string;
+}>;
+export declare const generateCircuitDocumentV2ResponseDocumentElectricalComponentsItemPinsItemOccurrenceMin = 0;
+export declare const generateCircuitDocumentV2ResponseDocumentDrawingCanvasWidthExclusiveMin = 0;
+export declare const generateCircuitDocumentV2ResponseDocumentDrawingCanvasHeightExclusiveMin = 0;
+export declare const generateCircuitDocumentV2ResponseDocumentDrawingPlacementsItemPositionMin = 2;
+export declare const generateCircuitDocumentV2ResponseDocumentDrawingPlacementsItemPositionMax = 2;
+export declare const generateCircuitDocumentV2ResponseDocumentDrawingPlacementsItemLegacyGeometryFromMin = 2;
+export declare const generateCircuitDocumentV2ResponseDocumentDrawingPlacementsItemLegacyGeometryFromMax = 2;
+export declare const generateCircuitDocumentV2ResponseDocumentDrawingPlacementsItemLegacyGeometryToMin = 2;
+export declare const generateCircuitDocumentV2ResponseDocumentDrawingPlacementsItemLegacyGeometryToMax = 2;
+export declare const generateCircuitDocumentV2ResponseDocumentDrawingPlacementsItemLegacyGeometryAtMin = 2;
+export declare const generateCircuitDocumentV2ResponseDocumentDrawingPlacementsItemLegacyGeometryAtMax = 2;
+export declare const generateCircuitDocumentV2ResponseDocumentDrawingRoutesItemPointsItemMin = 2;
+export declare const generateCircuitDocumentV2ResponseDocumentDrawingRoutesItemPointsItemMax = 2;
+export declare const generateCircuitDocumentV2ResponseDocumentDrawingRoutesItemPointsMin = 2;
+export declare const generateCircuitDocumentV2ResponseDocumentDrawingJunctionsItemAtMin = 2;
+export declare const generateCircuitDocumentV2ResponseDocumentDrawingJunctionsItemAtMax = 2;
+export declare const generateCircuitDocumentV2ResponseDocumentDrawingCrossingsItemAtMin = 2;
+export declare const generateCircuitDocumentV2ResponseDocumentDrawingCrossingsItemAtMax = 2;
+export declare const generateCircuitDocumentV2ResponseDocumentDrawingAnnotationsItemOneAtMin = 2;
+export declare const generateCircuitDocumentV2ResponseDocumentDrawingAnnotationsItemOneAtMax = 2;
+export declare const GenerateCircuitDocumentV2Response: zod.ZodObject<{
+    status: zod.ZodEnum<["proposed"]>;
+    document: zod.ZodObject<{
+        schemaVersion: zod.ZodLiteral<2>;
+        id: zod.ZodString;
+        title: zod.ZodOptional<zod.ZodString>;
+        electrical: zod.ZodObject<{
+            components: zod.ZodArray<zod.ZodObject<{
+                id: zod.ZodString;
+                type: zod.ZodString;
+                reference: zod.ZodOptional<zod.ZodString>;
+                value: zod.ZodOptional<zod.ZodString>;
+                properties: zod.ZodRecord<zod.ZodString, zod.ZodUnknown>;
+                pins: zod.ZodArray<zod.ZodObject<{
+                    id: zod.ZodString;
+                    name: zod.ZodString;
+                    number: zod.ZodOptional<zod.ZodString>;
+                    unit: zod.ZodOptional<zod.ZodNumber>;
+                    bodyStyle: zod.ZodOptional<zod.ZodNumber>;
+                    occurrence: zod.ZodOptional<zod.ZodNumber>;
+                    electricalType: zod.ZodOptional<zod.ZodString>;
+                }, "strip", zod.ZodTypeAny, {
+                    id: string;
+                    name: string;
+                    number?: string | undefined;
+                    unit?: number | undefined;
+                    bodyStyle?: number | undefined;
+                    electricalType?: string | undefined;
+                    occurrence?: number | undefined;
+                }, {
+                    id: string;
+                    name: string;
+                    number?: string | undefined;
+                    unit?: number | undefined;
+                    bodyStyle?: number | undefined;
+                    electricalType?: string | undefined;
+                    occurrence?: number | undefined;
+                }>, "many">;
+            }, "strip", zod.ZodTypeAny, {
+                type: string;
+                id: string;
+                pins: {
+                    id: string;
+                    name: string;
+                    number?: string | undefined;
+                    unit?: number | undefined;
+                    bodyStyle?: number | undefined;
+                    electricalType?: string | undefined;
+                    occurrence?: number | undefined;
+                }[];
+                properties: Record<string, unknown>;
+                value?: string | undefined;
+                reference?: string | undefined;
+            }, {
+                type: string;
+                id: string;
+                pins: {
+                    id: string;
+                    name: string;
+                    number?: string | undefined;
+                    unit?: number | undefined;
+                    bodyStyle?: number | undefined;
+                    electricalType?: string | undefined;
+                    occurrence?: number | undefined;
+                }[];
+                properties: Record<string, unknown>;
+                value?: string | undefined;
+                reference?: string | undefined;
+            }>, "many">;
+            nets: zod.ZodArray<zod.ZodObject<{
+                id: zod.ZodString;
+                name: zod.ZodOptional<zod.ZodString>;
+                attributes: zod.ZodOptional<zod.ZodRecord<zod.ZodString, zod.ZodUnknown>>;
+                members: zod.ZodArray<zod.ZodObject<{
+                    componentId: zod.ZodString;
+                    pinId: zod.ZodString;
+                }, "strip", zod.ZodTypeAny, {
+                    componentId: string;
+                    pinId: string;
+                }, {
+                    componentId: string;
+                    pinId: string;
+                }>, "many">;
+            }, "strip", zod.ZodTypeAny, {
+                id: string;
+                members: {
+                    componentId: string;
+                    pinId: string;
+                }[];
+                name?: string | undefined;
+                attributes?: Record<string, unknown> | undefined;
+            }, {
+                id: string;
+                members: {
+                    componentId: string;
+                    pinId: string;
+                }[];
+                name?: string | undefined;
+                attributes?: Record<string, unknown> | undefined;
+            }>, "many">;
+            noConnects: zod.ZodArray<zod.ZodObject<{
+                componentId: zod.ZodString;
+                pinId: zod.ZodString;
+            }, "strip", zod.ZodTypeAny, {
+                componentId: string;
+                pinId: string;
+            }, {
+                componentId: string;
+                pinId: string;
+            }>, "many">;
+            unassignedPins: zod.ZodArray<zod.ZodObject<{
+                componentId: zod.ZodString;
+                pinId: zod.ZodString;
+            }, "strip", zod.ZodTypeAny, {
+                componentId: string;
+                pinId: string;
+            }, {
+                componentId: string;
+                pinId: string;
+            }>, "many">;
+        }, "strip", zod.ZodTypeAny, {
+            components: {
+                type: string;
+                id: string;
+                pins: {
+                    id: string;
+                    name: string;
+                    number?: string | undefined;
+                    unit?: number | undefined;
+                    bodyStyle?: number | undefined;
+                    electricalType?: string | undefined;
+                    occurrence?: number | undefined;
+                }[];
+                properties: Record<string, unknown>;
+                value?: string | undefined;
+                reference?: string | undefined;
+            }[];
+            nets: {
+                id: string;
+                members: {
+                    componentId: string;
+                    pinId: string;
+                }[];
+                name?: string | undefined;
+                attributes?: Record<string, unknown> | undefined;
+            }[];
+            noConnects: {
+                componentId: string;
+                pinId: string;
+            }[];
+            unassignedPins: {
+                componentId: string;
+                pinId: string;
+            }[];
+        }, {
+            components: {
+                type: string;
+                id: string;
+                pins: {
+                    id: string;
+                    name: string;
+                    number?: string | undefined;
+                    unit?: number | undefined;
+                    bodyStyle?: number | undefined;
+                    electricalType?: string | undefined;
+                    occurrence?: number | undefined;
+                }[];
+                properties: Record<string, unknown>;
+                value?: string | undefined;
+                reference?: string | undefined;
+            }[];
+            nets: {
+                id: string;
+                members: {
+                    componentId: string;
+                    pinId: string;
+                }[];
+                name?: string | undefined;
+                attributes?: Record<string, unknown> | undefined;
+            }[];
+            noConnects: {
+                componentId: string;
+                pinId: string;
+            }[];
+            unassignedPins: {
+                componentId: string;
+                pinId: string;
+            }[];
+        }>;
+        drawing: zod.ZodObject<{
+            units: zod.ZodEnum<["px"]>;
+            canvas: zod.ZodObject<{
+                width: zod.ZodOptional<zod.ZodNumber>;
+                height: zod.ZodOptional<zod.ZodNumber>;
+            }, "strip", zod.ZodTypeAny, {
+                width?: number | undefined;
+                height?: number | undefined;
+            }, {
+                width?: number | undefined;
+                height?: number | undefined;
+            }>;
+            placements: zod.ZodArray<zod.ZodObject<{
+                componentId: zod.ZodString;
+                position: zod.ZodArray<zod.ZodNumber, "many">;
+                rotation: zod.ZodNumber;
+                flip: zod.ZodBoolean;
+                legacyGeometry: zod.ZodOptional<zod.ZodObject<{
+                    from: zod.ZodOptional<zod.ZodArray<zod.ZodNumber, "many">>;
+                    to: zod.ZodOptional<zod.ZodArray<zod.ZodNumber, "many">>;
+                    at: zod.ZodOptional<zod.ZodArray<zod.ZodNumber, "many">>;
+                }, "strip", zod.ZodTypeAny, {
+                    at?: number[] | undefined;
+                    from?: number[] | undefined;
+                    to?: number[] | undefined;
+                }, {
+                    at?: number[] | undefined;
+                    from?: number[] | undefined;
+                    to?: number[] | undefined;
+                }>>;
+                properties: zod.ZodRecord<zod.ZodString, zod.ZodUnknown>;
+            }, "strip", zod.ZodTypeAny, {
+                rotation: number;
+                flip: boolean;
+                properties: Record<string, unknown>;
+                componentId: string;
+                position: number[];
+                legacyGeometry?: {
+                    at?: number[] | undefined;
+                    from?: number[] | undefined;
+                    to?: number[] | undefined;
+                } | undefined;
+            }, {
+                rotation: number;
+                flip: boolean;
+                properties: Record<string, unknown>;
+                componentId: string;
+                position: number[];
+                legacyGeometry?: {
+                    at?: number[] | undefined;
+                    from?: number[] | undefined;
+                    to?: number[] | undefined;
+                } | undefined;
+            }>, "many">;
+            routes: zod.ZodArray<zod.ZodObject<{
+                id: zod.ZodString;
+                netId: zod.ZodString;
+                points: zod.ZodArray<zod.ZodArray<zod.ZodNumber, "many">, "many">;
+                open: zod.ZodOptional<zod.ZodBoolean>;
+                properties: zod.ZodRecord<zod.ZodString, zod.ZodUnknown>;
+            }, "strip", zod.ZodTypeAny, {
+                id: string;
+                points: number[][];
+                properties: Record<string, unknown>;
+                netId: string;
+                open?: boolean | undefined;
+            }, {
+                id: string;
+                points: number[][];
+                properties: Record<string, unknown>;
+                netId: string;
+                open?: boolean | undefined;
+            }>, "many">;
+            junctions: zod.ZodArray<zod.ZodObject<{
+                id: zod.ZodString;
+                at: zod.ZodArray<zod.ZodNumber, "many">;
+                routeIds: zod.ZodArray<zod.ZodString, "many">;
+                properties: zod.ZodRecord<zod.ZodString, zod.ZodUnknown>;
+            }, "strip", zod.ZodTypeAny, {
+                at: number[];
+                id: string;
+                properties: Record<string, unknown>;
+                routeIds: string[];
+            }, {
+                at: number[];
+                id: string;
+                properties: Record<string, unknown>;
+                routeIds: string[];
+            }>, "many">;
+            crossings: zod.ZodArray<zod.ZodObject<{
+                id: zod.ZodString;
+                at: zod.ZodArray<zod.ZodNumber, "many">;
+                orientation: zod.ZodOptional<zod.ZodEnum<["horizontal", "vertical"]>>;
+                routeIds: zod.ZodArray<zod.ZodString, "many">;
+                properties: zod.ZodRecord<zod.ZodString, zod.ZodUnknown>;
+            }, "strip", zod.ZodTypeAny, {
+                at: number[];
+                id: string;
+                properties: Record<string, unknown>;
+                routeIds: string[];
+                orientation?: "horizontal" | "vertical" | undefined;
+            }, {
+                at: number[];
+                id: string;
+                properties: Record<string, unknown>;
+                routeIds: string[];
+                orientation?: "horizontal" | "vertical" | undefined;
+            }>, "many">;
+            annotations: zod.ZodArray<zod.ZodUnion<[zod.ZodObject<{
+                id: zod.ZodString;
+                type: zod.ZodEnum<["label"]>;
+                at: zod.ZodArray<zod.ZodNumber, "many">;
+                text: zod.ZodString;
+                properties: zod.ZodRecord<zod.ZodString, zod.ZodUnknown>;
+            }, "strip", zod.ZodTypeAny, {
+                type: "label";
+                at: number[];
+                id: string;
+                text: string;
+                properties: Record<string, unknown>;
+            }, {
+                type: "label";
+                at: number[];
+                id: string;
+                text: string;
+                properties: Record<string, unknown>;
+            }>, zod.ZodObject<{
+                id: zod.ZodString;
+                type: zod.ZodEnum<["box"]>;
+                x: zod.ZodNumber;
+                y: zod.ZodNumber;
+                w: zod.ZodNumber;
+                h: zod.ZodNumber;
+                properties: zod.ZodRecord<zod.ZodString, zod.ZodUnknown>;
+            }, "strip", zod.ZodTypeAny, {
+                type: "box";
+                id: string;
+                x: number;
+                y: number;
+                w: number;
+                h: number;
+                properties: Record<string, unknown>;
+            }, {
+                type: "box";
+                id: string;
+                x: number;
+                y: number;
+                w: number;
+                h: number;
+                properties: Record<string, unknown>;
+            }>]>, "many">;
+        }, "strip", zod.ZodTypeAny, {
+            units: "px";
+            canvas: {
+                width?: number | undefined;
+                height?: number | undefined;
+            };
+            placements: {
+                rotation: number;
+                flip: boolean;
+                properties: Record<string, unknown>;
+                componentId: string;
+                position: number[];
+                legacyGeometry?: {
+                    at?: number[] | undefined;
+                    from?: number[] | undefined;
+                    to?: number[] | undefined;
+                } | undefined;
+            }[];
+            routes: {
+                id: string;
+                points: number[][];
+                properties: Record<string, unknown>;
+                netId: string;
+                open?: boolean | undefined;
+            }[];
+            junctions: {
+                at: number[];
+                id: string;
+                properties: Record<string, unknown>;
+                routeIds: string[];
+            }[];
+            crossings: {
+                at: number[];
+                id: string;
+                properties: Record<string, unknown>;
+                routeIds: string[];
+                orientation?: "horizontal" | "vertical" | undefined;
+            }[];
+            annotations: ({
+                type: "label";
+                at: number[];
+                id: string;
+                text: string;
+                properties: Record<string, unknown>;
+            } | {
+                type: "box";
+                id: string;
+                x: number;
+                y: number;
+                w: number;
+                h: number;
+                properties: Record<string, unknown>;
+            })[];
+        }, {
+            units: "px";
+            canvas: {
+                width?: number | undefined;
+                height?: number | undefined;
+            };
+            placements: {
+                rotation: number;
+                flip: boolean;
+                properties: Record<string, unknown>;
+                componentId: string;
+                position: number[];
+                legacyGeometry?: {
+                    at?: number[] | undefined;
+                    from?: number[] | undefined;
+                    to?: number[] | undefined;
+                } | undefined;
+            }[];
+            routes: {
+                id: string;
+                points: number[][];
+                properties: Record<string, unknown>;
+                netId: string;
+                open?: boolean | undefined;
+            }[];
+            junctions: {
+                at: number[];
+                id: string;
+                properties: Record<string, unknown>;
+                routeIds: string[];
+            }[];
+            crossings: {
+                at: number[];
+                id: string;
+                properties: Record<string, unknown>;
+                routeIds: string[];
+                orientation?: "horizontal" | "vertical" | undefined;
+            }[];
+            annotations: ({
+                type: "label";
+                at: number[];
+                id: string;
+                text: string;
+                properties: Record<string, unknown>;
+            } | {
+                type: "box";
+                id: string;
+                x: number;
+                y: number;
+                w: number;
+                h: number;
+                properties: Record<string, unknown>;
+            })[];
+        }>;
+        legacyImport: zod.ZodOptional<zod.ZodObject<{
+            sourceFormat: zod.ZodEnum<["CircuitSpec"]>;
+            groundSemantics: zod.ZodEnum<["global-ground"]>;
+            terminalLabelSemantics: zod.ZodEnum<["local-labels-do-not-merge"]>;
+            sourceMetadata: zod.ZodRecord<zod.ZodString, zod.ZodUnknown>;
+        }, "strip", zod.ZodTypeAny, {
+            sourceFormat: "CircuitSpec";
+            groundSemantics: "global-ground";
+            terminalLabelSemantics: "local-labels-do-not-merge";
+            sourceMetadata: Record<string, unknown>;
+        }, {
+            sourceFormat: "CircuitSpec";
+            groundSemantics: "global-ground";
+            terminalLabelSemantics: "local-labels-do-not-merge";
+            sourceMetadata: Record<string, unknown>;
+        }>>;
+        metadata: zod.ZodOptional<zod.ZodRecord<zod.ZodString, zod.ZodUnknown>>;
+    }, "strip", zod.ZodTypeAny, {
+        id: string;
+        schemaVersion: 2;
+        electrical: {
+            components: {
+                type: string;
+                id: string;
+                pins: {
+                    id: string;
+                    name: string;
+                    number?: string | undefined;
+                    unit?: number | undefined;
+                    bodyStyle?: number | undefined;
+                    electricalType?: string | undefined;
+                    occurrence?: number | undefined;
+                }[];
+                properties: Record<string, unknown>;
+                value?: string | undefined;
+                reference?: string | undefined;
+            }[];
+            nets: {
+                id: string;
+                members: {
+                    componentId: string;
+                    pinId: string;
+                }[];
+                name?: string | undefined;
+                attributes?: Record<string, unknown> | undefined;
+            }[];
+            noConnects: {
+                componentId: string;
+                pinId: string;
+            }[];
+            unassignedPins: {
+                componentId: string;
+                pinId: string;
+            }[];
+        };
+        drawing: {
+            units: "px";
+            canvas: {
+                width?: number | undefined;
+                height?: number | undefined;
+            };
+            placements: {
+                rotation: number;
+                flip: boolean;
+                properties: Record<string, unknown>;
+                componentId: string;
+                position: number[];
+                legacyGeometry?: {
+                    at?: number[] | undefined;
+                    from?: number[] | undefined;
+                    to?: number[] | undefined;
+                } | undefined;
+            }[];
+            routes: {
+                id: string;
+                points: number[][];
+                properties: Record<string, unknown>;
+                netId: string;
+                open?: boolean | undefined;
+            }[];
+            junctions: {
+                at: number[];
+                id: string;
+                properties: Record<string, unknown>;
+                routeIds: string[];
+            }[];
+            crossings: {
+                at: number[];
+                id: string;
+                properties: Record<string, unknown>;
+                routeIds: string[];
+                orientation?: "horizontal" | "vertical" | undefined;
+            }[];
+            annotations: ({
+                type: "label";
+                at: number[];
+                id: string;
+                text: string;
+                properties: Record<string, unknown>;
+            } | {
+                type: "box";
+                id: string;
+                x: number;
+                y: number;
+                w: number;
+                h: number;
+                properties: Record<string, unknown>;
+            })[];
+        };
+        title?: string | undefined;
+        legacyImport?: {
+            sourceFormat: "CircuitSpec";
+            groundSemantics: "global-ground";
+            terminalLabelSemantics: "local-labels-do-not-merge";
+            sourceMetadata: Record<string, unknown>;
+        } | undefined;
+        metadata?: Record<string, unknown> | undefined;
+    }, {
+        id: string;
+        schemaVersion: 2;
+        electrical: {
+            components: {
+                type: string;
+                id: string;
+                pins: {
+                    id: string;
+                    name: string;
+                    number?: string | undefined;
+                    unit?: number | undefined;
+                    bodyStyle?: number | undefined;
+                    electricalType?: string | undefined;
+                    occurrence?: number | undefined;
+                }[];
+                properties: Record<string, unknown>;
+                value?: string | undefined;
+                reference?: string | undefined;
+            }[];
+            nets: {
+                id: string;
+                members: {
+                    componentId: string;
+                    pinId: string;
+                }[];
+                name?: string | undefined;
+                attributes?: Record<string, unknown> | undefined;
+            }[];
+            noConnects: {
+                componentId: string;
+                pinId: string;
+            }[];
+            unassignedPins: {
+                componentId: string;
+                pinId: string;
+            }[];
+        };
+        drawing: {
+            units: "px";
+            canvas: {
+                width?: number | undefined;
+                height?: number | undefined;
+            };
+            placements: {
+                rotation: number;
+                flip: boolean;
+                properties: Record<string, unknown>;
+                componentId: string;
+                position: number[];
+                legacyGeometry?: {
+                    at?: number[] | undefined;
+                    from?: number[] | undefined;
+                    to?: number[] | undefined;
+                } | undefined;
+            }[];
+            routes: {
+                id: string;
+                points: number[][];
+                properties: Record<string, unknown>;
+                netId: string;
+                open?: boolean | undefined;
+            }[];
+            junctions: {
+                at: number[];
+                id: string;
+                properties: Record<string, unknown>;
+                routeIds: string[];
+            }[];
+            crossings: {
+                at: number[];
+                id: string;
+                properties: Record<string, unknown>;
+                routeIds: string[];
+                orientation?: "horizontal" | "vertical" | undefined;
+            }[];
+            annotations: ({
+                type: "label";
+                at: number[];
+                id: string;
+                text: string;
+                properties: Record<string, unknown>;
+            } | {
+                type: "box";
+                id: string;
+                x: number;
+                y: number;
+                w: number;
+                h: number;
+                properties: Record<string, unknown>;
+            })[];
+        };
+        title?: string | undefined;
+        legacyImport?: {
+            sourceFormat: "CircuitSpec";
+            groundSemantics: "global-ground";
+            terminalLabelSemantics: "local-labels-do-not-merge";
+            sourceMetadata: Record<string, unknown>;
+        } | undefined;
+        metadata?: Record<string, unknown> | undefined;
+    }>;
+    design: zod.ZodObject<{
+        summary: zod.ZodString;
+        assumptions: zod.ZodArray<zod.ZodString, "many">;
+        uncertainties: zod.ZodArray<zod.ZodString, "many">;
+        questions: zod.ZodArray<zod.ZodString, "many">;
+    }, "strip", zod.ZodTypeAny, {
+        summary: string;
+        assumptions: string[];
+        uncertainties: string[];
+        questions: string[];
+    }, {
+        summary: string;
+        assumptions: string[];
+        uncertainties: string[];
+        questions: string[];
+    }>;
+    validation: zod.ZodObject<{
+        scope: zod.ZodEnum<["document-structure-only"]>;
+        isValid: zod.ZodLiteral<true>;
+        diagnostics: zod.ZodArray<zod.ZodObject<{
+            category: zod.ZodEnum<["schema", "electrical", "drawing", "drawing-warning", "consistency-warning"]>;
+            code: zod.ZodString;
+            severity: zod.ZodEnum<["error", "warning"]>;
+            path: zod.ZodString;
+            message: zod.ZodString;
+        }, "strip", zod.ZodTypeAny, {
+            code: string;
+            path: string;
+            message: string;
+            category: "electrical" | "drawing" | "schema" | "drawing-warning" | "consistency-warning";
+            severity: "error" | "warning";
+        }, {
+            code: string;
+            path: string;
+            message: string;
+            category: "electrical" | "drawing" | "schema" | "drawing-warning" | "consistency-warning";
+            severity: "error" | "warning";
+        }>, "many">;
+    }, "strip", zod.ZodTypeAny, {
+        scope: "document-structure-only";
+        isValid: true;
+        diagnostics: {
+            code: string;
+            path: string;
+            message: string;
+            category: "electrical" | "drawing" | "schema" | "drawing-warning" | "consistency-warning";
+            severity: "error" | "warning";
+        }[];
+    }, {
+        scope: "document-structure-only";
+        isValid: true;
+        diagnostics: {
+            code: string;
+            path: string;
+            message: string;
+            category: "electrical" | "drawing" | "schema" | "drawing-warning" | "consistency-warning";
+            severity: "error" | "warning";
+        }[];
+    }>;
+}, "strip", zod.ZodTypeAny, {
+    status: "proposed";
+    validation: {
+        scope: "document-structure-only";
+        isValid: true;
+        diagnostics: {
+            code: string;
+            path: string;
+            message: string;
+            category: "electrical" | "drawing" | "schema" | "drawing-warning" | "consistency-warning";
+            severity: "error" | "warning";
+        }[];
+    };
+    document: {
+        id: string;
+        schemaVersion: 2;
+        electrical: {
+            components: {
+                type: string;
+                id: string;
+                pins: {
+                    id: string;
+                    name: string;
+                    number?: string | undefined;
+                    unit?: number | undefined;
+                    bodyStyle?: number | undefined;
+                    electricalType?: string | undefined;
+                    occurrence?: number | undefined;
+                }[];
+                properties: Record<string, unknown>;
+                value?: string | undefined;
+                reference?: string | undefined;
+            }[];
+            nets: {
+                id: string;
+                members: {
+                    componentId: string;
+                    pinId: string;
+                }[];
+                name?: string | undefined;
+                attributes?: Record<string, unknown> | undefined;
+            }[];
+            noConnects: {
+                componentId: string;
+                pinId: string;
+            }[];
+            unassignedPins: {
+                componentId: string;
+                pinId: string;
+            }[];
+        };
+        drawing: {
+            units: "px";
+            canvas: {
+                width?: number | undefined;
+                height?: number | undefined;
+            };
+            placements: {
+                rotation: number;
+                flip: boolean;
+                properties: Record<string, unknown>;
+                componentId: string;
+                position: number[];
+                legacyGeometry?: {
+                    at?: number[] | undefined;
+                    from?: number[] | undefined;
+                    to?: number[] | undefined;
+                } | undefined;
+            }[];
+            routes: {
+                id: string;
+                points: number[][];
+                properties: Record<string, unknown>;
+                netId: string;
+                open?: boolean | undefined;
+            }[];
+            junctions: {
+                at: number[];
+                id: string;
+                properties: Record<string, unknown>;
+                routeIds: string[];
+            }[];
+            crossings: {
+                at: number[];
+                id: string;
+                properties: Record<string, unknown>;
+                routeIds: string[];
+                orientation?: "horizontal" | "vertical" | undefined;
+            }[];
+            annotations: ({
+                type: "label";
+                at: number[];
+                id: string;
+                text: string;
+                properties: Record<string, unknown>;
+            } | {
+                type: "box";
+                id: string;
+                x: number;
+                y: number;
+                w: number;
+                h: number;
+                properties: Record<string, unknown>;
+            })[];
+        };
+        title?: string | undefined;
+        legacyImport?: {
+            sourceFormat: "CircuitSpec";
+            groundSemantics: "global-ground";
+            terminalLabelSemantics: "local-labels-do-not-merge";
+            sourceMetadata: Record<string, unknown>;
+        } | undefined;
+        metadata?: Record<string, unknown> | undefined;
+    };
+    design: {
+        summary: string;
+        assumptions: string[];
+        uncertainties: string[];
+        questions: string[];
+    };
+}, {
+    status: "proposed";
+    validation: {
+        scope: "document-structure-only";
+        isValid: true;
+        diagnostics: {
+            code: string;
+            path: string;
+            message: string;
+            category: "electrical" | "drawing" | "schema" | "drawing-warning" | "consistency-warning";
+            severity: "error" | "warning";
+        }[];
+    };
+    document: {
+        id: string;
+        schemaVersion: 2;
+        electrical: {
+            components: {
+                type: string;
+                id: string;
+                pins: {
+                    id: string;
+                    name: string;
+                    number?: string | undefined;
+                    unit?: number | undefined;
+                    bodyStyle?: number | undefined;
+                    electricalType?: string | undefined;
+                    occurrence?: number | undefined;
+                }[];
+                properties: Record<string, unknown>;
+                value?: string | undefined;
+                reference?: string | undefined;
+            }[];
+            nets: {
+                id: string;
+                members: {
+                    componentId: string;
+                    pinId: string;
+                }[];
+                name?: string | undefined;
+                attributes?: Record<string, unknown> | undefined;
+            }[];
+            noConnects: {
+                componentId: string;
+                pinId: string;
+            }[];
+            unassignedPins: {
+                componentId: string;
+                pinId: string;
+            }[];
+        };
+        drawing: {
+            units: "px";
+            canvas: {
+                width?: number | undefined;
+                height?: number | undefined;
+            };
+            placements: {
+                rotation: number;
+                flip: boolean;
+                properties: Record<string, unknown>;
+                componentId: string;
+                position: number[];
+                legacyGeometry?: {
+                    at?: number[] | undefined;
+                    from?: number[] | undefined;
+                    to?: number[] | undefined;
+                } | undefined;
+            }[];
+            routes: {
+                id: string;
+                points: number[][];
+                properties: Record<string, unknown>;
+                netId: string;
+                open?: boolean | undefined;
+            }[];
+            junctions: {
+                at: number[];
+                id: string;
+                properties: Record<string, unknown>;
+                routeIds: string[];
+            }[];
+            crossings: {
+                at: number[];
+                id: string;
+                properties: Record<string, unknown>;
+                routeIds: string[];
+                orientation?: "horizontal" | "vertical" | undefined;
+            }[];
+            annotations: ({
+                type: "label";
+                at: number[];
+                id: string;
+                text: string;
+                properties: Record<string, unknown>;
+            } | {
+                type: "box";
+                id: string;
+                x: number;
+                y: number;
+                w: number;
+                h: number;
+                properties: Record<string, unknown>;
+            })[];
+        };
+        title?: string | undefined;
+        legacyImport?: {
+            sourceFormat: "CircuitSpec";
+            groundSemantics: "global-ground";
+            terminalLabelSemantics: "local-labels-do-not-merge";
+            sourceMetadata: Record<string, unknown>;
+        } | undefined;
+        metadata?: Record<string, unknown> | undefined;
+    };
+    design: {
+        summary: string;
+        assumptions: string[];
+        uncertainties: string[];
+        questions: string[];
+    };
+}>;
+/**
  * Returns the signed-in user's complete chat and build history.
  * @summary List saved Circuit Studio conversations
  */

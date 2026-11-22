@@ -618,12 +618,56 @@ export interface AiKeySelectionRequest {
  * @pattern .*\S.*
  */
 export type CircuitDocumentV2SessionId = string;
-export interface CircuitDocumentV2PinReference {
-    /** @minLength 1 */
-    componentId: string;
-    /** @minLength 1 */
-    pinId: string;
+export interface CircuitDocumentV2GenerationInput {
+    /**
+       * @minLength 8
+       * @maxLength 3000
+       */
+    prompt: string;
 }
+export type CircuitDocumentV2GenerationDiagnosticCategory = typeof CircuitDocumentV2GenerationDiagnosticCategory[keyof typeof CircuitDocumentV2GenerationDiagnosticCategory];
+export declare const CircuitDocumentV2GenerationDiagnosticCategory: {
+    readonly schema: "schema";
+    readonly electrical: "electrical";
+    readonly drawing: "drawing";
+    readonly 'drawing-warning': "drawing-warning";
+    readonly 'consistency-warning': "consistency-warning";
+};
+export type CircuitDocumentV2GenerationDiagnosticSeverity = typeof CircuitDocumentV2GenerationDiagnosticSeverity[keyof typeof CircuitDocumentV2GenerationDiagnosticSeverity];
+export declare const CircuitDocumentV2GenerationDiagnosticSeverity: {
+    readonly error: "error";
+    readonly warning: "warning";
+};
+export interface CircuitDocumentV2GenerationDiagnostic {
+    category: CircuitDocumentV2GenerationDiagnosticCategory;
+    code: string;
+    severity: CircuitDocumentV2GenerationDiagnosticSeverity;
+    path: string;
+    message: string;
+}
+export type CircuitDocumentV2ElectricalGenerationResultStatus = typeof CircuitDocumentV2ElectricalGenerationResultStatus[keyof typeof CircuitDocumentV2ElectricalGenerationResultStatus];
+export declare const CircuitDocumentV2ElectricalGenerationResultStatus: {
+    readonly proposed: "proposed";
+};
+export type CircuitDocumentV2ElectricalGenerationResultDesign = {
+    summary: string;
+    assumptions: string[];
+    uncertainties: string[];
+    questions: string[];
+};
+export type CircuitDocumentV2ElectricalGenerationResultValidationScope = typeof CircuitDocumentV2ElectricalGenerationResultValidationScope[keyof typeof CircuitDocumentV2ElectricalGenerationResultValidationScope];
+export declare const CircuitDocumentV2ElectricalGenerationResultValidationScope: {
+    readonly 'document-structure-only': "document-structure-only";
+};
+export type CircuitDocumentV2ElectricalGenerationResultValidation = {
+    scope: CircuitDocumentV2ElectricalGenerationResultValidationScope;
+    isValid: true;
+    diagnostics: CircuitDocumentV2GenerationDiagnostic[];
+};
+export type CircuitDocumentV2SchemaVersion = typeof CircuitDocumentV2SchemaVersion[keyof typeof CircuitDocumentV2SchemaVersion];
+export declare const CircuitDocumentV2SchemaVersion: {
+    readonly NUMBER_2: 2;
+};
 export interface CircuitDocumentV2PinDefinition {
     /** @minLength 1 */
     id: string;
@@ -651,6 +695,12 @@ export interface CircuitDocumentV2Component {
     properties: CircuitDocumentV2ComponentProperties;
     pins: CircuitDocumentV2PinDefinition[];
 }
+export interface CircuitDocumentV2PinReference {
+    /** @minLength 1 */
+    componentId: string;
+    /** @minLength 1 */
+    pinId: string;
+}
 export type CircuitDocumentV2NetAttributes = {
     [key: string]: unknown;
 };
@@ -661,6 +711,10 @@ export interface CircuitDocumentV2Net {
     attributes?: CircuitDocumentV2NetAttributes;
     members: CircuitDocumentV2PinReference[];
 }
+export type CircuitDocumentV2DrawingUnits = typeof CircuitDocumentV2DrawingUnits[keyof typeof CircuitDocumentV2DrawingUnits];
+export declare const CircuitDocumentV2DrawingUnits: {
+    readonly px: "px";
+};
 export type CircuitDocumentV2PlacementLegacyGeometry = {
     from?: CircuitPoint;
     to?: CircuitPoint;
@@ -740,19 +794,23 @@ export type CircuitDocumentV2Annotation = {
         [key: string]: unknown;
     };
 };
-export type CircuitDocumentV2SchemaVersion = typeof CircuitDocumentV2SchemaVersion[keyof typeof CircuitDocumentV2SchemaVersion];
-export declare const CircuitDocumentV2SchemaVersion: {
-    readonly NUMBER_2: 2;
+export type CircuitDocumentV2LegacyImportSourceFormat = typeof CircuitDocumentV2LegacyImportSourceFormat[keyof typeof CircuitDocumentV2LegacyImportSourceFormat];
+export declare const CircuitDocumentV2LegacyImportSourceFormat: {
+    readonly CircuitSpec: "CircuitSpec";
+};
+export type CircuitDocumentV2LegacyImportGroundSemantics = typeof CircuitDocumentV2LegacyImportGroundSemantics[keyof typeof CircuitDocumentV2LegacyImportGroundSemantics];
+export declare const CircuitDocumentV2LegacyImportGroundSemantics: {
+    readonly 'global-ground': "global-ground";
+};
+export type CircuitDocumentV2LegacyImportTerminalLabelSemantics = typeof CircuitDocumentV2LegacyImportTerminalLabelSemantics[keyof typeof CircuitDocumentV2LegacyImportTerminalLabelSemantics];
+export declare const CircuitDocumentV2LegacyImportTerminalLabelSemantics: {
+    readonly 'local-labels-do-not-merge': "local-labels-do-not-merge";
 };
 export type CircuitDocumentV2Electrical = {
     components: CircuitDocumentV2Component[];
     nets: CircuitDocumentV2Net[];
     noConnects: CircuitDocumentV2PinReference[];
     unassignedPins: CircuitDocumentV2PinReference[];
-};
-export type CircuitDocumentV2DrawingUnits = typeof CircuitDocumentV2DrawingUnits[keyof typeof CircuitDocumentV2DrawingUnits];
-export declare const CircuitDocumentV2DrawingUnits: {
-    readonly px: "px";
 };
 export type CircuitDocumentV2DrawingCanvas = {
     /** @exclusiveMinimum 0 */
@@ -768,18 +826,6 @@ export type CircuitDocumentV2Drawing = {
     junctions: CircuitDocumentV2Junction[];
     crossings: CircuitDocumentV2Crossing[];
     annotations: CircuitDocumentV2Annotation[];
-};
-export type CircuitDocumentV2LegacyImportSourceFormat = typeof CircuitDocumentV2LegacyImportSourceFormat[keyof typeof CircuitDocumentV2LegacyImportSourceFormat];
-export declare const CircuitDocumentV2LegacyImportSourceFormat: {
-    readonly CircuitSpec: "CircuitSpec";
-};
-export type CircuitDocumentV2LegacyImportGroundSemantics = typeof CircuitDocumentV2LegacyImportGroundSemantics[keyof typeof CircuitDocumentV2LegacyImportGroundSemantics];
-export declare const CircuitDocumentV2LegacyImportGroundSemantics: {
-    readonly 'global-ground': "global-ground";
-};
-export type CircuitDocumentV2LegacyImportTerminalLabelSemantics = typeof CircuitDocumentV2LegacyImportTerminalLabelSemantics[keyof typeof CircuitDocumentV2LegacyImportTerminalLabelSemantics];
-export declare const CircuitDocumentV2LegacyImportTerminalLabelSemantics: {
-    readonly 'local-labels-do-not-merge': "local-labels-do-not-merge";
 };
 export type CircuitDocumentV2LegacyImportSourceMetadata = {
     [key: string]: unknown;
@@ -802,6 +848,22 @@ export interface CircuitDocumentV2 {
     drawing: CircuitDocumentV2Drawing;
     legacyImport?: CircuitDocumentV2LegacyImport;
     metadata?: CircuitDocumentV2Metadata;
+}
+export interface CircuitDocumentV2ElectricalGenerationResult {
+    status: CircuitDocumentV2ElectricalGenerationResultStatus;
+    document: CircuitDocumentV2;
+    design: CircuitDocumentV2ElectricalGenerationResultDesign;
+    validation: CircuitDocumentV2ElectricalGenerationResultValidation;
+}
+export interface CircuitDocumentV2GenerationErrorDiagnostic {
+    code: string;
+    path: string;
+    message: string;
+}
+export interface CircuitDocumentV2GenerationError {
+    code: string;
+    error: string;
+    diagnostics: CircuitDocumentV2GenerationErrorDiagnostic[];
 }
 export type CircuitDocumentV2DraftEnvelopeFormat = typeof CircuitDocumentV2DraftEnvelopeFormat[keyof typeof CircuitDocumentV2DraftEnvelopeFormat];
 export declare const CircuitDocumentV2DraftEnvelopeFormat: {

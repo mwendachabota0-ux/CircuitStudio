@@ -25,6 +25,9 @@ An account-gated circuit workspace for turning plain-language electronics ideas 
 
 - `artifacts/circuit-studio/src/App.tsx` — public introduction, authenticated workbench, tutor, live review, and exports
 - `artifacts/circuit-studio/public/circuit-draw.js` — schematic renderer, structure checks, and EasyEDA sheet builder
+- `lib/circuit-geometry/src/index.ts` — shared component catalog, required schemas, pin coordinates, and AI compatibility guide
+- `docs/circuit-component-reference.md` — developer-facing component schemas, pin coordinates, and validation limits
+- `docs/kicad-symbol-library.md` — KiCad source, licensing, import flow, renderer coverage, and agent rules
 - `artifacts/api-server/src/routes/` — authenticated circuit generation, tutor, editor review, usage, and key selection
 - `artifacts/api-server/src/lib/circuitAi.ts` — Gemini key selection/fallback and usage tracking
 - `lib/api-spec/openapi.yaml` — source of truth for API contracts
@@ -41,14 +44,17 @@ An account-gated circuit workspace for turning plain-language electronics ideas 
 - Tutor edits are validated and previewed before a user explicitly applies them to the local draft.
 - Tutor images are type- and size-checked, sent directly for analysis, and never saved as files or database content.
 - Structure validation and AI feedback are not electrical safety or correctness checks.
+- Use KiCad's official symbol library as the broad symbol source. Keep a compact searchable index in the app and load full symbol definitions only when needed, with attribution and license terms retained.
+- Preserve imported symbol pin positions and drawing geometry in each draft so a schematic stays inspectable without requiring CAD software or circuit simulation.
+- Do not bulk-vendor the full upstream symbol repository. The compressed index is local; full version-pinned definitions are loaded on demand and failures must be explicit, never silently replaced with guessed symbols.
 
 ## Product
 
-Visitors can learn about Circuit Studio and create an account. Signed-in users can generate and refine CircuitSpec schematics, inspect immediate structural warnings, receive debounced educational reviews, ask a separate text/image tutor for explanations or proposed edits, and export SVG, PNG, JSON, or an EasyEDA build sheet.
+Circuit Studio helps makers and engineers draft a clear schematic before moving the design into full CAD tools such as EasyEDA or KiCad. It is for sketching and reviewing a draft, not a CAD replacement, free-placement editor, or circuit simulator. Keep source symbol pin geometry visible and avoid implying that a structural drawing check proves electrical correctness or safety.
 
 ## User preferences
 
-- In chat mode, natural build requests should switch to Build mode and prepare a proposal. Builder and working-note textareas must stay editable during every AI status, and responses must not overwrite text entered after a request starts.
+- In Chat mode, inferred circuit intent must stay in Chat and ask permission before preparing a schematic. A direct build/draw/create request, manually selecting Build, or explicitly accepting the permission question counts as approval. All text editors, including CircuitSpec JSON and pasted-fix JSON, must stay editable during every AI status; responses must not overwrite text entered after a request starts.
 
 ## Gotchas
 

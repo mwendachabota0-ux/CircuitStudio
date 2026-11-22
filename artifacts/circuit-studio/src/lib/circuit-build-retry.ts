@@ -3,18 +3,56 @@ import type {
   CircuitDesignBrief,
 } from '@workspace/api-client-react';
 
-export const MAX_AUTO_RETRIES = 2;
+export const MAX_AUTO_RETRIES = 3;
 
 export type BuildRetryKind = 'generation' | 'repair' | 'format';
 export type BuildRetryPolicy = { retryable: boolean; delayMs?: number };
-export type BuildValidation = { errors: string[]; warnings: string[] };
+export type BuildValidation = {
+  errors: string[];
+  warnings: string[];
+  topologyErrors?: string[];
+  topologyWarnings?: string[];
+};
 export type BuildProposalInspection = {
   validation: BuildValidation;
   canRepair: boolean;
 };
 
-export type BuildAttemptFailureKind = 'generation' | 'validation' | 'output';
+export function classifyProposalValidation(validation: BuildValidation): BuildValidation {
+  const requiresLayoutRepair = (warning: string) =>
+    warning.includes('is diagonal;') || warning.includes('has a zero-length segment');
+  const layoutFindings = validation.warnings.filter(requiresLayoutRepair);
+  return {
+    errors: [...validation.errors, ...layoutFindings.map((finding) => `Drawing-quality issue: ${finding}`)],
+    warnings: validation.warnings.filter((warning) => !requiresLayoutRepair(warning)),
+    ...(validation.topologyErrors
+      ? { topologyErrors: validation.topologyErrors }
+      : {}),
+    ...(validation.topologyWarnings
+      ? { topologyWarnings: validation.topologyWarnings }
+      : {}),
+  };
+}
+
+export type BuildAttemptFailureKind = 'generation' | 'validation' | 'output' | 'repair-blocked';
 export type CircuitBuildMode = CircuitBuildChatInput['mode'];
+export type RepairAttemptOutcome = 'reconstructed' | 'validated' | 'rejected' | 'exhausted';
+const MAX_HISTORY_CONTENT_LENGTH = 3_000;
+const MAX_HISTORY_ITEMS = 8;
+
+export type RepairAttemptDiagnostic = {
+  attempt: number;
+  outcome: RepairAttemptOutcome;
+  nonWireElementsModified: boolean;
+  metadataModified: boolean;
+  validationErrors: string[];
+  validationWarnings: string[];
+};
+
+type ProtectedCircuitChanges = {
+  nonWireElementsModified: boolean;
+  metadataModified: boolean;
+};
 
 export function getModeAfterFailedRequest(
   currentMode: CircuitBuildMode,
@@ -28,6 +66,9 @@ export class CircuitBuildAttemptError extends Error {
   readonly canRetryManually: boolean;
   readonly failureKind: BuildAttemptFailureKind;
   readonly validationFindings: string[];
+  readonly validationWarnings: string[];
+  readonly repairAttemptCount: number;
+  readonly repairDiagnostics: RepairAttemptDiagnostic[];
   readonly rejectedProposal: unknown;
   readonly cause: unknown;
 
@@ -37,6 +78,9 @@ export class CircuitBuildAttemptError extends Error {
     failureKind: BuildAttemptFailureKind;
     cause?: unknown;
     validationFindings?: string[];
+    validationWarnings?: string[];
+    repairAttemptCount?: number;
+    repairDiagnostics?: RepairAttemptDiagnostic[];
     rejectedProposal?: unknown;
   }) {
     super('Circuit build attempts did not produce a usable result.');
@@ -45,6 +89,9 @@ export class CircuitBuildAttemptError extends Error {
     this.canRetryManually = options.canRetryManually;
     this.failureKind = options.failureKind;
     this.validationFindings = options.validationFindings ?? [];
+    this.validationWarnings = options.validationWarnings ?? [];
+    this.repairAttemptCount = options.repairAttemptCount ?? 0;
+    this.repairDiagnostics = options.repairDiagnostics ?? [];
     this.rejectedProposal = options.rejectedProposal;
     this.cause = options.cause;
   }
@@ -89,7 +136,7 @@ export function getBuildRetryPolicy(error: unknown): BuildRetryPolicy {
 
   if (error && typeof error === 'object' && 'status' in error) {
     const status = Number((error as { status?: unknown }).status);
-    if (status === 429) return { retryable: delayMs !== undefined, delayMs };
+    if (status === 429) return { retryable: true, delayMs };
     if (status === 408 || status === 425 || (status >= 500 && status <= 599 && status !== 501 && status !== 505)) {
       return { retryable: true, delayMs };
     }
@@ -127,8 +174,18 @@ export function shouldClearSubmittedDraft(
 }
 
 export function buildRepairMessage(findings: string[]): string {
-  const preamble = 'The supplied current CircuitSpec is the last failing AI proposal, not the user’s workbench draft. Edit that proposal in place. Fix every validator finding below and return a complete corrected CircuitSpec:';
-  const footer = 'Preserve every non-wire element exactly, including all positions and orientations. Do not redesign the layout; only add, remove, reroute, or snap wires. Preserve the requested behavior.';
+  return buildFindingsMessage(
+    'The supplied current CircuitSpec is the last failing AI proposal, not the user’s workbench draft. Edit that proposal in place. Fix every validator finding below and return a complete corrected CircuitSpec:',
+    'Preserve every non-wire element exactly, including all positions and orientations. Do not redesign the layout; only add, remove, reroute, or snap wires. Preserve the requested behavior.',
+    findings,
+  );
+}
+
+function buildFindingsMessage(
+  preamble: string,
+  footer: string,
+  findings: string[],
+): string {
   const included: string[] = [];
   let length = preamble.length + footer.length + 2;
   for (const finding of findings) {
@@ -143,6 +200,38 @@ export function buildRepairMessage(findings: string[]): string {
   return `${preamble}\n${included.join('\n')}\n${footer}`.slice(0, 6_000);
 }
 
+export function buildWireRebuildMessage(findings: string[]): string {
+  return buildFindingsMessage(
+    'The supplied current CircuitSpec contains the correct circuit parts, but its wiring has failed validation. Start its wiring over: create a complete new set of connections from the current design brief and original user request. Treat all previous wires and wire-routing markers as discarded.',
+    'Preserve every component, value, label, ID, orientation, position, note, and canvas setting exactly. Do not add, remove, or redesign circuit parts. Rebuild only the wires and their routing markers. Fix every blocking finding below; structural checks do not prove electrical operation or safety.',
+    findings,
+  );
+}
+
+function compactHistoryContent(content: string): string {
+  if (content.length <= MAX_HISTORY_CONTENT_LENGTH) return content;
+
+  const marker = '\n[Earlier context shortened for retry.]\n';
+  const remainingLength = MAX_HISTORY_CONTENT_LENGTH - marker.length;
+  const leadingLength = Math.floor(remainingLength / 2);
+  const trailingLength = remainingLength - leadingLength;
+  return `${content.slice(0, leadingLength)}${marker}${content.slice(-trailingLength)}`;
+}
+
+export function normalizeCircuitBuildRequest(
+  request: CircuitBuildChatInput,
+): CircuitBuildChatInput {
+  if (!request.history) return request;
+
+  return {
+    ...request,
+    history: request.history.slice(-MAX_HISTORY_ITEMS).map(({ role, content }) => ({
+      role,
+      content: compactHistoryContent(content),
+    })),
+  };
+}
+
 export function buildRepairRequest(
   originalRequest: CircuitBuildChatInput,
   brief: CircuitDesignBrief,
@@ -154,7 +243,7 @@ export function buildRepairRequest(
     { role: 'user' as const, content: originalRequest.message },
   ].slice(-8);
 
-  return {
+  return normalizeCircuitBuildRequest({
     ...originalRequest,
     mode: 'build',
     responseFormatRetry: false,
@@ -162,7 +251,94 @@ export function buildRepairRequest(
     brief,
     history,
     message: buildRepairMessage(findings),
+  });
+}
+
+export function buildManualRetryRequest(
+  originalRequest: CircuitBuildChatInput,
+  brief: CircuitDesignBrief,
+  rejectedProposal: CircuitBuildChatInput['currentSpec'] | null,
+  findings: string[],
+): CircuitBuildChatInput {
+  const safeRequest = normalizeCircuitBuildRequest(originalRequest);
+  if (rejectedProposal && findings.length > 0) {
+    return buildRepairRequest(safeRequest, brief, findings, rejectedProposal);
+  }
+  return safeRequest;
+}
+
+function isWireRoutingElement(element: { type: string }): boolean {
+  return element.type === 'wire' ||
+    element.type === 'junction' ||
+    element.type === 'crossing';
+}
+
+export function buildWireRebuildRequest(
+  originalRequest: CircuitBuildChatInput,
+  brief: CircuitDesignBrief,
+  failingProposal: NonNullable<CircuitBuildChatInput['currentSpec']>,
+  findings: string[],
+): CircuitBuildChatInput {
+  const history = [
+    ...(originalRequest.history ?? []),
+    { role: 'user' as const, content: originalRequest.message },
+  ].slice(-8);
+  const currentSpec = {
+    ...failingProposal,
+    elements: failingProposal.elements.filter((element) =>
+      !isWireRoutingElement(element),
+    ),
   };
+
+  return normalizeCircuitBuildRequest({
+    ...originalRequest,
+    mode: 'build',
+    responseFormatRetry: false,
+    currentSpec,
+    brief,
+    history,
+    message: buildWireRebuildMessage(findings),
+  });
+}
+
+export function buildWholeCircuitRetryRequest(
+  originalRequest: CircuitBuildChatInput,
+  brief: CircuitDesignBrief,
+): CircuitBuildChatInput {
+  return normalizeCircuitBuildRequest({
+    ...originalRequest,
+    mode: 'build',
+    brief,
+    responseFormatRetry: false,
+  });
+}
+
+export type RetryRecoveryKind = 'rewire' | 'rebuild';
+
+function isWireRelatedFinding(finding: string): boolean {
+  return /(?:\bwire\b|\bwiring\b|\bendpoint\b|\bpin\b|not connected|must be connected|short(?:ed|ing)?|reroute|junction|crossing|feedback|collector|emitter|base|rail|net)/i.test(finding);
+}
+
+function indicatesCircuitCompositionFailure(finding: string): boolean {
+  return /unsupported CircuitDraw type|no pin model exists|missing required properties|the spec must be an object|has no "type"|needs exactly \d+ transistors|needs two timing capacitors|exact KiCad drawing and pin data have not been loaded|selected KiCad symbol unit and body style/i.test(finding);
+}
+
+export function getRetryRecoveryKind(
+  diagnostics: readonly RepairAttemptDiagnostic[],
+  validationFindings: readonly string[],
+  rejectedProposal: CircuitBuildChatInput['currentSpec'] | null,
+): RetryRecoveryKind | null {
+  if (
+    !rejectedProposal ||
+    validationFindings.length === 0 ||
+    !diagnostics.some((diagnostic) => diagnostic.outcome === 'exhausted')
+  ) return null;
+
+  if (validationFindings.some(indicatesCircuitCompositionFailure)) return 'rebuild';
+
+  const hasParts = rejectedProposal.elements.some((element) => element.type !== 'wire');
+  if (hasParts && validationFindings.every(isWireRelatedFinding)) return 'rewire';
+  return null;
 }
 
 function canonicalizeElement(value: unknown): unknown {
@@ -175,14 +351,196 @@ function canonicalizeElement(value: unknown): unknown {
   );
 }
 
-export function getNonWireElementSignature(
+function getNonWireElementsSignature(
   spec: NonNullable<CircuitBuildChatInput['currentSpec']>,
 ): string {
   const protectedElements = spec.elements
-    .filter((element) => element.type !== 'wire')
+    .filter((element) => !isWireRoutingElement(element))
     .map((element) => JSON.stringify(canonicalizeElement(element)))
     .sort();
   return JSON.stringify(protectedElements);
+}
+
+export function getNonWireElementSignature(
+  spec: NonNullable<CircuitBuildChatInput['currentSpec']>,
+): string {
+  return getNonWireElementsSignature(spec);
+}
+
+function getMetadataSignature(
+  spec: NonNullable<CircuitBuildChatInput['currentSpec']>,
+): string {
+  const { elements: _elements, ...metadata } = spec;
+  return JSON.stringify(canonicalizeElement(metadata));
+}
+
+export function getProtectedCircuitSignature(
+  spec: NonNullable<CircuitBuildChatInput['currentSpec']>,
+): string {
+  return JSON.stringify({
+    metadata: getMetadataSignature(spec),
+    nonWireElements: getNonWireElementsSignature(spec),
+  });
+}
+
+const layoutOnlyProperties = new Set([
+  'at',
+  'from',
+  'to',
+  'points',
+  'x',
+  'y',
+  'w',
+  'h',
+  'width',
+  'height',
+  'rotation',
+  'flip',
+  'labelAt',
+  'labelPos',
+  'labelNudge',
+  'labelAnchor',
+]);
+
+export function getLayoutInvariantSignature(
+  spec: NonNullable<CircuitBuildChatInput['currentSpec']>,
+): string {
+  const metadataSignature = getLayoutInvariantMetadataSignature(spec);
+  const elementsSignature = getLayoutInvariantElementsSignature(spec);
+  return JSON.stringify({
+    metadata: metadataSignature,
+    elements: elementsSignature,
+  });
+}
+
+function getLayoutInvariantMetadataSignature(
+  spec: NonNullable<CircuitBuildChatInput['currentSpec']>,
+): string {
+  const metadata = Object.fromEntries(
+    Object.entries(spec as Record<string, unknown>)
+      .filter(([key]) => key !== 'elements' && key !== 'width' && key !== 'height'),
+  );
+  return JSON.stringify(canonicalizeElement(metadata));
+}
+
+function getLayoutInvariantElementsSignature(
+  spec: NonNullable<CircuitBuildChatInput['currentSpec']>,
+): string {
+  const elements = spec.elements
+    .filter((element) => !isWireRoutingElement(element))
+    .map((element) =>
+      Object.fromEntries(
+        Object.entries(element as Record<string, unknown>)
+          .filter(([key]) => !layoutOnlyProperties.has(key)),
+      ),
+    )
+    .map((element) => JSON.stringify(canonicalizeElement(element)))
+    .sort();
+  return JSON.stringify(elements);
+}
+
+export function getLayoutInvariantChanges(
+  protectedSpec: NonNullable<CircuitBuildChatInput['currentSpec']>,
+  proposedSpec: NonNullable<CircuitBuildChatInput['currentSpec']>,
+): ProtectedCircuitChanges {
+  return {
+    metadataModified:
+      getLayoutInvariantMetadataSignature(protectedSpec) !==
+      getLayoutInvariantMetadataSignature(proposedSpec),
+    nonWireElementsModified:
+      getLayoutInvariantElementsSignature(protectedSpec) !==
+      getLayoutInvariantElementsSignature(proposedSpec),
+  };
+}
+
+export type CircuitNetlistSnapshot = {
+  parts: Array<{ designator: string; type: string; value: string }>;
+  nets: Array<{ name: string; pins: string[] }>;
+};
+
+export function getCircuitNetlistSignature(
+  netlist: CircuitNetlistSnapshot,
+): string {
+  const parts = netlist.parts
+    .map((part) => ({
+      designator: String(part.designator),
+      type: String(part.type),
+      value: String(part.value),
+    }))
+    .sort((left, right) =>
+      left.designator.localeCompare(right.designator) ||
+      left.type.localeCompare(right.type) ||
+      left.value.localeCompare(right.value),
+    );
+  const nets = netlist.nets
+    .map((net) => ({
+      name: /^N\d+$/i.test(net.name) ? '' : String(net.name),
+      pins: net.pins.map(String).sort(),
+    }))
+    .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
+  return JSON.stringify({ parts, nets });
+}
+
+export function getPinToNetSignature(netlist: CircuitNetlistSnapshot): string {
+  const nets = netlist.nets
+    .map((net) => ({
+      name: /^N\d+$/i.test(net.name) ? '' : String(net.name),
+      pins: net.pins.map(String).sort(),
+    }))
+    .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
+  return JSON.stringify(nets);
+}
+
+export function hasStablePinConnectivitySignature(
+  before: string | null,
+  after: string | null,
+): boolean {
+  return before !== null && before === after;
+}
+
+export function formatRepairAttemptSummary(attemptCount: number): string {
+  if (attemptCount <= 0) return 'Repair was blocked before any AI repair attempt.';
+  return `Repair stopped after ${attemptCount} AI repair attempt${attemptCount === 1 ? '' : 's'}.`;
+}
+
+export function getProtectedCircuitChanges(
+  protectedSpec: NonNullable<CircuitBuildChatInput['currentSpec']>,
+  proposedSpec: NonNullable<CircuitBuildChatInput['currentSpec']>,
+): ProtectedCircuitChanges {
+  return {
+    metadataModified: getMetadataSignature(protectedSpec) !== getMetadataSignature(proposedSpec),
+    nonWireElementsModified:
+      getNonWireElementsSignature(protectedSpec) !== getNonWireElementsSignature(proposedSpec),
+  };
+}
+
+function freezeSnapshot<T>(value: T): T {
+  const snapshot = structuredClone(value);
+  const freeze = (current: unknown): void => {
+    if (!current || typeof current !== 'object' || Object.isFrozen(current)) return;
+    Object.values(current as Record<string, unknown>).forEach(freeze);
+    Object.freeze(current);
+  };
+  freeze(snapshot);
+  return snapshot;
+}
+
+export function restoreProtectedNonWireElements(
+  protectedSpec: NonNullable<CircuitBuildChatInput['currentSpec']>,
+  proposedSpec: NonNullable<CircuitBuildChatInput['currentSpec']>,
+): NonNullable<CircuitBuildChatInput['currentSpec']> {
+  const { elements: protectedElements, ...protectedMetadata } = protectedSpec;
+  return {
+    ...structuredClone(protectedMetadata),
+    elements: [
+      ...protectedElements
+        .filter((element) => !isWireRoutingElement(element))
+        .map((element) => structuredClone(element)),
+      ...proposedSpec.elements
+        .filter(isWireRoutingElement)
+        .map((element) => structuredClone(element)),
+    ],
+  };
 }
 
 export function buildOutputRepairRequest(
@@ -193,12 +551,47 @@ export function buildOutputRepairRequest(
     { role: 'user' as const, content: originalRequest.message },
   ].slice(-8);
 
-  return {
+  return normalizeCircuitBuildRequest({
     ...originalRequest,
     responseFormatRetry: true,
     history,
     message: 'The previous attempt did not match Circuit Studio’s required response format. Answer the original latest request again using the included conversation, design brief, and current CircuitSpec. Return exactly one valid JSON object with the required fields. In Build mode, include a complete supported CircuitSpec when the request is clear enough. Do not add Markdown fences or extra fields.',
-  };
+  });
+}
+
+export function buildLayoutRepairRequest(
+  originalRequest: CircuitBuildChatInput,
+  brief: CircuitDesignBrief,
+  spec: NonNullable<CircuitBuildChatInput['currentSpec']>,
+  findings: string[],
+): CircuitBuildChatInput {
+  const history = [
+    ...(originalRequest.history ?? []),
+    { role: 'user' as const, content: originalRequest.message },
+  ].slice(-8);
+  const findingText = findings
+    .slice(0, 10)
+    .map((finding) => `- ${finding.slice(0, 400)}`)
+    .join('\n');
+
+  return normalizeCircuitBuildRequest({
+    ...originalRequest,
+    mode: 'build',
+    brief,
+    currentSpec: spec,
+    responseFormatRetry: false,
+    history,
+    message: `The user has requested a visual layout improvement for this proposed circuit. This is an explicitly authorized layout-only change: you may reposition and rotate existing symbols, adjust label placement, resize the sheet, and reroute existing wires.
+
+Keep the circuit's parts and electrical design unchanged. Preserve every component's type, ID, reference, value, symbolId, unit, bodyStyle, pin definitions, and all non-layout properties. Do not add or remove parts, change component values or switch state, or change which pins share a net. The final pin-to-pin netlist must remain exactly the same. You may reroute, split, or merge wires as needed to preserve those same connections.
+
+Improve visual hierarchy and whitespace; leave at least 20 px between distinct symbol bodies where possible, and avoid a single long row when a balanced arrangement fits better. Keep related parts grouped, use clear orthogonal routes, reserve label and pin-name space, and prevent labels, pins, symbols, and wires from overlapping. Resize the canvas when needed to keep the full drawing in view. Return a complete CircuitSpec, not an SVG.
+
+Readability findings:
+${findingText || '- Improve the overall arrangement and label clearance.'}
+
+Original user request: ${originalRequest.message.slice(0, 1200)}`,
+  });
 }
 
 export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TInspection extends BuildProposalInspection>(
@@ -208,23 +601,69 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
     getProposal: (response: TResponse) => TProposal | null | undefined;
     inspectProposal: (proposal: TProposal) => TInspection;
     prepareResponse?: (response: TResponse) => TResponse;
-    getProtectedElementsSignature?: (proposal: TProposal) => string;
+    initialProtectedSpec?: TProposal;
+    getProtectedCircuitSignature?: (proposal: TProposal) => string;
+    getProtectedCircuitChanges?: (protectedSpec: TProposal, proposal: TProposal) => ProtectedCircuitChanges;
+    getConnectivitySignature?: (proposal: TProposal) => string | null;
+    allowConnectivityChange?: boolean;
+    restoreProtectedSpec?: (response: TResponse, protectedSpec: TProposal) => TResponse;
     makeRepairRequest: (response: TResponse, findings: string[]) => TRequest;
     makeOutputRepairRequest?: (request: TRequest) => TRequest;
     onResponse?: (response: TResponse) => void;
     onRetry?: (attempt: number, kind: BuildRetryKind) => void;
     wait?: (attempt: number, providerDelayMs?: number) => Promise<void>;
   },
-): Promise<{ response: TResponse; proposalInspection: TInspection | null; request: TRequest }> {
+): Promise<{
+  response: TResponse;
+  proposalInspection: TInspection | null;
+  request: TRequest;
+  repairAttemptCount: number;
+  repairDiagnostics: RepairAttemptDiagnostic[];
+  repairLessonContext: {
+    rejectedProposal: TProposal;
+    validationFindings: string[];
+  } | null;
+}> {
   let retries = 0;
   let workingRequest = options.initialRequest;
   let outputRepairAttempted = false;
   let lastInvalidProposal: TProposal | null = null;
-  let protectedElementsSignature: string | undefined;
+  let lastInvalidFindings: string[] = [];
+  let lastInvalidWarnings: string[] = [];
+  let protectedSpec = options.initialProtectedSpec === undefined
+    ? undefined
+    : freezeSnapshot(options.initialProtectedSpec);
+  let protectedCircuitSignature = protectedSpec !== undefined && options.getProtectedCircuitSignature
+    ? options.getProtectedCircuitSignature(protectedSpec)
+    : undefined;
+  let protectedConnectivitySignature = protectedSpec !== undefined && options.getConnectivitySignature
+    ? options.getConnectivitySignature(protectedSpec)
+    : undefined;
+  let isRepairAttempt = protectedSpec !== undefined;
+  let repairAttemptCount = 0;
+  const repairDiagnostics: RepairAttemptDiagnostic[] = [];
+
+  if (
+    isRepairAttempt &&
+    options.getConnectivitySignature &&
+    !options.allowConnectivityChange &&
+    protectedConnectivitySignature === null
+  ) {
+    throw new CircuitBuildAttemptError({
+      retryCount: 0,
+      canRetryManually: true,
+      failureKind: 'repair-blocked',
+      cause: new Error('Intended connectivity cannot be established from this legacy geometry. The original proposal is preserved.'),
+      rejectedProposal: protectedSpec,
+      repairAttemptCount: 0,
+      repairDiagnostics,
+    });
+  }
 
   while (true) {
     let response: TResponse;
     try {
+      if (isRepairAttempt) repairAttemptCount += 1;
       response = await options.send(workingRequest);
     } catch (cause) {
       if (isInvalidModelOutput(cause)) {
@@ -245,7 +684,23 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
           canRetryManually: true,
           failureKind: 'output',
           cause,
+          validationFindings: lastInvalidFindings,
+          validationWarnings: lastInvalidWarnings,
           rejectedProposal: lastInvalidProposal ?? undefined,
+          repairAttemptCount,
+          repairDiagnostics: isRepairAttempt
+            ? [
+                ...repairDiagnostics,
+                {
+                  attempt: repairAttemptCount,
+                  outcome: 'rejected',
+                  nonWireElementsModified: false,
+                  metadataModified: false,
+                  validationErrors: [],
+                  validationWarnings: [],
+                },
+              ]
+            : repairDiagnostics,
         });
       }
 
@@ -258,61 +713,283 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
       }
       throw new CircuitBuildAttemptError({
         retryCount: retries,
-        canRetryManually: policy.retryable,
+        canRetryManually: true,
         failureKind: 'generation',
         cause,
+        validationFindings: lastInvalidFindings,
+        validationWarnings: lastInvalidWarnings,
         rejectedProposal: lastInvalidProposal ?? undefined,
+        repairAttemptCount,
+        repairDiagnostics: isRepairAttempt
+          ? [
+              ...repairDiagnostics,
+              {
+                attempt: repairAttemptCount,
+                outcome: 'rejected',
+                nonWireElementsModified: false,
+                metadataModified: false,
+                validationErrors: [],
+                validationWarnings: [],
+              },
+            ]
+          : repairDiagnostics,
       });
     }
 
-    response = options.prepareResponse?.(response) ?? response;
-    options.onResponse?.(response);
-    const proposal = options.getProposal(response);
+    let proposal = options.getProposal(response);
     if (proposal == null) {
-      return { response, proposalInspection: null, request: workingRequest };
+      if (isRepairAttempt) {
+        repairDiagnostics.push({
+          attempt: repairAttemptCount,
+          outcome: 'rejected',
+          nonWireElementsModified: false,
+          metadataModified: false,
+          validationErrors: [],
+          validationWarnings: [],
+        });
+      }
+      if (lastInvalidProposal !== null) {
+        throw new CircuitBuildAttemptError({
+          retryCount: retries,
+          canRetryManually: true,
+          failureKind: 'output',
+          cause: new Error('The repair response did not include a corrected CircuitSpec. The previous proposal is preserved.'),
+          validationFindings: lastInvalidFindings,
+          validationWarnings: lastInvalidWarnings,
+          repairAttemptCount,
+          repairDiagnostics,
+          rejectedProposal: lastInvalidProposal,
+        });
+      }
+      options.onResponse?.(response);
+      return {
+        response,
+        proposalInspection: null,
+        request: workingRequest,
+        repairAttemptCount,
+        repairDiagnostics,
+        repairLessonContext: null,
+      };
     }
 
-    if (
-      protectedElementsSignature !== undefined &&
-      options.getProtectedElementsSignature &&
-      options.getProtectedElementsSignature(proposal) !== protectedElementsSignature
-    ) {
-      const finding = 'The repair changed a non-wire element. Keep every component fixed and repair the wires only.';
+    const protectedChanges = protectedSpec !== undefined && options.getProtectedCircuitChanges
+      ? options.getProtectedCircuitChanges(protectedSpec, proposal)
+      : { nonWireElementsModified: false, metadataModified: false };
+    const signatureChanged = protectedCircuitSignature !== undefined &&
+      options.getProtectedCircuitSignature &&
+      options.getProtectedCircuitSignature(proposal) !== protectedCircuitSignature;
+    if (signatureChanged && !options.restoreProtectedSpec) {
+      const diagnostic = isRepairAttempt
+        ? {
+            attempt: repairAttemptCount,
+            outcome: 'rejected' as const,
+            ...protectedChanges,
+            validationErrors: [],
+            validationWarnings: [],
+          }
+        : undefined;
+      if (diagnostic) repairDiagnostics.push(diagnostic);
       throw new CircuitBuildAttemptError({
         retryCount: retries,
         canRetryManually: true,
         failureKind: 'validation',
-        validationFindings: [finding],
+        validationFindings: ['The protected CircuitSpec could not be reconstructed before validation.'],
         rejectedProposal: proposal,
+        repairAttemptCount,
+        repairDiagnostics,
+      });
+    }
+
+    if (protectedSpec !== undefined && options.restoreProtectedSpec) {
+      response = options.restoreProtectedSpec(response, protectedSpec);
+    }
+    response = options.prepareResponse?.(response) ?? response;
+    proposal = options.getProposal(response);
+    options.onResponse?.(response);
+    if (proposal == null) {
+      if (isRepairAttempt) {
+        repairDiagnostics.push({
+          attempt: repairAttemptCount,
+          outcome: 'rejected',
+          ...protectedChanges,
+          validationErrors: [],
+          validationWarnings: [],
+        });
+      }
+      if (lastInvalidProposal !== null) {
+        throw new CircuitBuildAttemptError({
+          retryCount: retries,
+          canRetryManually: true,
+          failureKind: 'output',
+          cause: new Error('The repair response did not include a corrected CircuitSpec. The previous proposal is preserved.'),
+          validationFindings: lastInvalidFindings,
+          validationWarnings: lastInvalidWarnings,
+          repairAttemptCount,
+          repairDiagnostics,
+          rejectedProposal: lastInvalidProposal,
+        });
+      }
+      return {
+        response,
+        proposalInspection: null,
+        request: workingRequest,
+        repairAttemptCount,
+        repairDiagnostics,
+        repairLessonContext: lastInvalidProposal === null
+          ? null
+          : {
+              rejectedProposal: lastInvalidProposal,
+              validationFindings: [...lastInvalidFindings],
+            },
+      };
+    }
+
+    if (protectedSpec === undefined) {
+      protectedSpec = freezeSnapshot(proposal);
+      protectedCircuitSignature = options.getProtectedCircuitSignature?.(protectedSpec);
+      protectedConnectivitySignature = options.getConnectivitySignature?.(protectedSpec);
+    }
+
+    if (
+      protectedCircuitSignature !== undefined &&
+      options.getProtectedCircuitSignature &&
+      options.getProtectedCircuitSignature(proposal) !== protectedCircuitSignature
+    ) {
+      const diagnostic = isRepairAttempt
+        ? {
+            attempt: repairAttemptCount,
+            outcome: 'rejected' as const,
+            ...protectedChanges,
+            validationErrors: [],
+            validationWarnings: [],
+          }
+        : undefined;
+      if (diagnostic) repairDiagnostics.push(diagnostic);
+      throw new CircuitBuildAttemptError({
+        retryCount: retries,
+        canRetryManually: true,
+        failureKind: 'validation',
+        validationFindings: ['The reconstructed CircuitSpec did not preserve its immutable baseline.'],
+        rejectedProposal: proposal,
+        repairAttemptCount,
+        repairDiagnostics,
       });
     }
 
     const proposalInspection = options.inspectProposal(proposal);
-    const findings = [
-      ...proposalInspection.validation.errors,
-      ...proposalInspection.validation.warnings,
-    ];
-    if (findings.length === 0) return { response, proposalInspection, request: workingRequest };
-    lastInvalidProposal = proposal;
-    if (protectedElementsSignature === undefined && options.getProtectedElementsSignature) {
-      protectedElementsSignature = options.getProtectedElementsSignature(proposal);
+    // Warnings are advisory layout notes. Only blocking validation errors
+    // should consume automatic repair attempts or prevent a proposal staging.
+    let findings = proposalInspection.validation.errors;
+    if (options.getConnectivitySignature && !options.allowConnectivityChange) {
+      const candidateConnectivitySignature = options.getConnectivitySignature(proposal);
+      if (
+        protectedConnectivitySignature === null &&
+        findings.length > 0
+      ) {
+        throw new CircuitBuildAttemptError({
+          retryCount: retries,
+          canRetryManually: true,
+          failureKind: 'repair-blocked',
+          cause: new Error('Intended connectivity cannot be established from this legacy geometry. The original proposal is preserved for review or regeneration.'),
+          validationFindings: findings,
+          validationWarnings: proposalInspection.validation.warnings,
+          repairAttemptCount,
+          repairDiagnostics,
+          rejectedProposal: proposal,
+        });
+      }
+
+      if (
+        protectedConnectivitySignature !== undefined &&
+        protectedConnectivitySignature !== null &&
+        (
+          candidateConnectivitySignature === null ||
+          candidateConnectivitySignature !== protectedConnectivitySignature
+        )
+      ) {
+        const integrityFinding = candidateConnectivitySignature === null
+          ? 'Repair candidate connectivity could not be established; route/layout repair must preserve the trusted original pin-to-net connections.'
+          : 'Repair candidate changed component-pin connectivity; route/layout repair must preserve the original pin-to-net connections.';
+        const diagnostic: RepairAttemptDiagnostic | undefined = isRepairAttempt
+          ? {
+              attempt: repairAttemptCount,
+              outcome: 'rejected',
+              nonWireElementsModified: protectedChanges.nonWireElementsModified,
+              metadataModified: protectedChanges.metadataModified,
+              validationErrors: [...findings, integrityFinding],
+              validationWarnings: proposalInspection.validation.warnings,
+            }
+          : undefined;
+        if (diagnostic) repairDiagnostics.push(diagnostic);
+        throw new CircuitBuildAttemptError({
+          retryCount: retries,
+          canRetryManually: true,
+          failureKind: 'repair-blocked',
+          cause: new Error(integrityFinding),
+          validationFindings: [...findings, integrityFinding],
+          validationWarnings: proposalInspection.validation.warnings,
+          repairAttemptCount,
+          repairDiagnostics,
+          rejectedProposal: lastInvalidProposal ?? protectedSpec ?? proposal,
+        });
+      }
+
     }
 
-    if (!proposalInspection.canRepair) {
-      throw new CircuitBuildAttemptError({
-        retryCount: retries,
-        canRetryManually: false,
-        failureKind: 'validation',
-        validationFindings: findings,
-        rejectedProposal: proposal,
-      });
+    lastInvalidFindings = findings;
+    lastInvalidWarnings = proposalInspection.validation.warnings;
+    const diagnostic: RepairAttemptDiagnostic | undefined = isRepairAttempt
+      ? {
+          attempt: repairAttemptCount,
+          outcome: 'reconstructed',
+          ...protectedChanges,
+          validationErrors: findings,
+          validationWarnings: proposalInspection.validation.warnings,
+        }
+      : undefined;
+    if (diagnostic) repairDiagnostics.push(diagnostic);
+
+    if (findings.length === 0) {
+      if (diagnostic) diagnostic.outcome = 'validated';
+      return {
+        response,
+        proposalInspection,
+        request: workingRequest,
+        repairAttemptCount,
+        repairDiagnostics,
+        repairLessonContext: lastInvalidProposal === null
+          ? null
+          : {
+              rejectedProposal: lastInvalidProposal,
+              validationFindings: [...lastInvalidFindings],
+            },
+      };
     }
-    if (retries >= MAX_AUTO_RETRIES) {
+    lastInvalidProposal = proposal;
+
+    if (!proposalInspection.canRepair) {
+      if (diagnostic) diagnostic.outcome = 'rejected';
       throw new CircuitBuildAttemptError({
         retryCount: retries,
         canRetryManually: true,
         failureKind: 'validation',
         validationFindings: findings,
+        validationWarnings: proposalInspection.validation.warnings,
+        repairAttemptCount,
+        repairDiagnostics,
+        rejectedProposal: proposal,
+      });
+    }
+    if (retries >= MAX_AUTO_RETRIES) {
+      if (diagnostic) diagnostic.outcome = 'exhausted';
+      throw new CircuitBuildAttemptError({
+        retryCount: retries,
+        canRetryManually: true,
+        failureKind: 'validation',
+        validationFindings: findings,
+        validationWarnings: proposalInspection.validation.warnings,
+        repairAttemptCount,
+        repairDiagnostics,
         rejectedProposal: proposal,
       });
     }
@@ -321,5 +998,6 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
     options.onRetry?.(retries, 'repair');
     await (options.wait ?? waitBeforeRetry)(retries);
     workingRequest = options.makeRepairRequest(response, findings);
+    isRepairAttempt = true;
   }
 }

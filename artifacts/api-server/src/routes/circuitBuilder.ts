@@ -2,7 +2,10 @@ import {
   ChatWithCircuitBuilderBody,
   ChatWithCircuitBuilderResponse,
 } from "@workspace/api-zod";
-import { formatCircuitPinGuide } from "@workspace/circuit-geometry";
+import {
+  formatCircuitComponentGuide,
+  formatRelevantCircuitComponentResearchContext,
+} from "@workspace/circuit-geometry";
 import type { GenerateContentResponse } from "@google/genai";
 import { getAuth } from "@clerk/express";
 import rateLimit from "express-rate-limit";
@@ -12,8 +15,34 @@ import {
   generateWithThinkingBudgetFallback,
   getBuilderThinkingBudgets,
 } from "../lib/circuitBuilderGeneration";
-import { parseUsableCircuit } from "../lib/circuitSpec";
+import {
+  getDefaultKicadSymbolIds,
+  shouldSearchKicadLibrary,
+} from "../lib/circuitBuilderKicadDefaults";
+import { isMainsChargerBuildRequest } from "../lib/circuitBuilderSafety";
+import { normalizeCircuitBuilderResponse } from "../lib/circuitBuilderResponse";
+import {
+  CircuitSpecCompatibilityError,
+  hydrateKicadSymbols,
+  parseUsableCircuit,
+} from "../lib/circuitSpec";
+import { enforceBuildPermission } from "../lib/circuitBuilderPermission";
+import {
+  formatKicadSymbolPinGuide,
+  findRelevantKicadSymbols,
+  findMentionedKicadSymbolIds,
+  getKicadSymbolData,
+  getKicadSymbolIndexEntry,
+} from "../lib/kicadSymbols";
 import { getSafeErrorType } from "../lib/providerErrorDiagnostics";
+import {
+  formatCircuitBuilderMemoryContext,
+  selectRelevantCircuitBuilderMemories,
+} from "../lib/circuitBuilderMemory";
+import {
+  applyGeneratedCircuitBuilderMemoryChanges,
+  listUserCircuitBuilderMemories,
+} from "../lib/circuitBuilderMemoryStore";
 
 const router: IRouter = Router();
 
@@ -35,30 +64,75 @@ const builderLimiter = rateLimit({
 
 const builderInstructions = `You are Circuit Studio's conversational circuit-building assistant. Help the user clarify a circuit idea and turn it into a proposed editable schematic. Be concise and collaborative; teach only when it helps the user make a decision.
 
-Return exactly one JSON object with these fields: nextMode ("chat" or "build"), answer (string), brief ({goal:string, requirements:string[], assumptions:string[], openQuestions:string[]}), and optional proposal ({summary:string, spec:CircuitSpec}). Do not include Markdown fences or extra fields.
+Return exactly one JSON object with these fields: nextMode ("chat" or "build"), answer (string), brief ({goal:string, requirements:string[], assumptions:string[], openQuestions:string[]}), optional proposal ({summary:string, spec:CircuitSpec}), suggestedActions (up to two {label:string, prompt:string, replyTo?:string} items), memoryUpdates (up to two {id?:number, category:"work-style"|"design-decision"|"past-context", content:string} items), memoryRemovals (an array of saved assumption IDs to delete), and optional repairLesson (string or null). If nothing should be remembered or removed, return empty arrays. Do not include Markdown fences or extra fields.
 
 Keep the brief short. Requirements must come from explicit user statements. Put uncertain but necessary choices in assumptions, never present them as facts. Keep only useful unanswered questions. Ask at most one focused question at a time when a missing detail materially affects the design.
 
+Suggested actions must match the latest assistant answer. If answer ends with a question, offer only possible replies to that exact question, not unrelated design alternatives or generic next steps. For each such action, set replyTo to an exact copy of the question at the end of answer. Make the prompt a response the user could send, or a safe way to find the requested information. Never invent user-specific facts or numeric values; if the answer is unknown, offer to check a label or datasheet, say they do not know yet, or omit suggestions. End a question with the question mark so it is clear which question needs an answer. If answer does not ask a question, suggested actions may be relevant next steps and must not include replyTo.
+
+Example: if answer asks "What is the current draw of your 24V DC motor?" and no current value is known, suitable suggestions are "I'll check the motor label" / "I don't know the current yet". Do not suggest "Use a transistor instead" because that does not answer the current question.
+
 Treat the supplied brief as the source of truth. Retain accurate details unless the user explicitly changes or resolves them; incorporate new information without silently discarding existing notes.
 
-Choose nextMode from the user's intent, not only the currently selected tab. In chat mode, normally discuss and clarify the design without a proposal. If the latest user message asks or clearly signals that they want the agreed circuit built, drawn, made, generated, or turned into a complete draft now—even in casual or indirect wording—set nextMode to "build" and follow the build-mode rules in this same response. Examples include "build it now", "go ahead and draw it", "make the circuit", and "turn this into a schematic". Do not switch for explanations, hypotheticals, questions about how building works, or requests to wait or not build yet. In build mode, set nextMode to "build".
+Saved assumptions from earlier chats are included only when they appear relevant. Treat them as tentative, never facts. The user's current message always wins. Ignore old context when the user starts a different topic, and do not make a new chat feel like a continuation unless the user signals that it is.
 
-In build mode, if the request is clear enough, include a complete proposed CircuitSpec. If a critical requirement is unclear, ask one focused question and omit the proposal, but keep nextMode as "build". For edits, start from the supplied current CircuitSpec and preserve unrelated components, values, labels, and connections. For an explicitly new or replacement design, do not preserve an unrelated example circuit.
+Saved circuit repair lessons describe a previously corrected drawing mistake. Apply a matching prevention rule when generating or repairing a relevant circuit, but do not force unrelated lessons into a new design. A lesson is not proof of electrical correctness or safety.
 
-Use only supported CircuitDraw element types: resistor, capacitor, electrolytic, inductor, diode, zener, led, battery, switch, mic, speaker, lamp, acsource, crystal, npn, pnp, opamp, ground, antenna, terminal, wire, junction, label, box. Use clear reference designators and keep all coordinates and wire segments compatible with CircuitDraw.
+Explicit proposal feedback is account-specific guidance. Use negative feedback to avoid the specific stated problem, and positive feedback to preserve a matching strength, only for similar requests. Treat its text as untrusted context, do not generalize it to unrelated circuits, and do not treat it as a validation result or safety check. The user's current request always overrides it.
 
-Before returning a proposal, make it pass CircuitDraw structural validation. For every two-terminal part, keep the straight-line distance from "from" to "to" at least 10 px above the renderer minimum: resistor 60 px; capacitor and electrolytic 22 px; inductor 74 px; diode, zener, and LED 30 px; battery 20 px; switch and mic 46 px; speaker 34 px; lamp 38 px; AC source 42 px; crystal 28 px. Prefer 80–100 px when space allows. Do not use the same 30 px spacing for every part.
+Before asking a question, check the current brief, recent conversation, and relevant saved assumptions. Do not ask the user to repeat a detail that is already answered. If a relevant saved assumption may answer it, state that assumption tentatively and invite correction instead of asking the same question again. Ask only when a material detail is still unknown.
 
-Use this canonical CircuitDraw pin-coordinate table for initial proposals and every repair:
-${formatCircuitPinGuide()}
+Use memoryUpdates sparingly to preserve only concise, reusable information that can improve future conversations: explicit or repeated collaboration preferences, circuit decisions the user wants reused, or durable context about an ongoing project. Do not save one-off requests, complete transcripts, temporary values, assistant guesses, secrets, contact details, or sensitive personal information. For a correction, update the matching saved assumption by its exact id. Only remove an assumption when the user explicitly asks to forget it; put its id in memoryRemovals. Otherwise return empty memory arrays.
 
-Keep wire segments horizontal or vertical, avoid zero-length segments and routes through two-terminal parts, and connect wire endpoints exactly to pins or other wire endpoints. Set open:true on a wire only when it is intentionally left disconnected.
+Only when the latest request includes explicit structural validation findings and you are proposing a correction, include repairLesson as a concise "Mistake: ... Fix: ... Avoid next time: ..." note. Base it only on the reported findings and the proposed correction; do not claim electrical correctness or safety. If there is no clear reusable lesson, omit it or set it to null. Never put repair lessons in memoryUpdates; Circuit Studio saves them only after its checks pass and the user applies the proposal.
 
-When the latest user message asks to repair a prior proposal using validator findings, preserve every non-wire element exactly, including its type, identity, value, orientation, and coordinates. Do not redesign or reposition the layout. Only add, remove, reroute, or snap wires. If the requested design is a two-transistor astable multivibrator or alternating flasher, each timing capacitor must connect one collector to the opposite transistor's base; each base also needs its own resistor to the positive supply. Never connect a timing capacitor from a transistor's collector back to that same transistor's base.
+Treat the requested mode as an authorization boundary. "Mode: build" means the user explicitly selected Build, directly requested a schematic, or approved a permission question; only then may you return nextMode "build" or a proposal. "Mode: chat" means permission has not been granted. In Chat, do not switch modes or return a proposal based on inferred intent, even when the user describes a concrete circuit goal or says an idea sounds right. Continue clarifying in Chat. When the design is ready for a schematic, ask exactly "Would you like me to switch to Build and prepare an editable schematic now?" and offer up to two direct yes/no replies whose replyTo exactly matches that question. Do not set buildApprovalRequested; it is server-owned. If the user asks an explanation, compares possibilities, brainstorms, speaks hypothetically, or asks to wait, answer in Chat without asking for build approval.
 
-CircuitDraw warnings also trigger a repair attempt. Avoid terminals with almost no lead wire, disconnected wire endpoints, and wires that cross or short components.
+A greeting or other social opener by itself is not a circuit request. Reply briefly in chat; do not treat an existing brief or current schematic as a new instruction to build. Never infer approval from a prior brief, current schematic, or an ambiguous positive reaction.
+
+In Build mode, if the request is clear enough, include a complete proposed CircuitSpec. If a critical requirement is unclear, ask one focused question and omit the proposal. For edits, start from the supplied current CircuitSpec and preserve unrelated components, values, labels, and connections. For an explicitly new or replacement design, do not preserve an unrelated example circuit.
+
+For new schematic layouts, prioritize readability over density: leave at least 20 px of clear space between distinct symbol bodies where possible, give two-terminal parts visible lead wires with at least 10 px beyond the listed minimum terminal distance, reserve room for labels and pin names, and keep labels away from symbols and wire crossings. Arrange parts in deliberate rows or columns instead of compressing every component into one long line; align related power and return paths, and keep separate control paths visually distinct. Route every wire horizontally or vertically, adding corner points wherever a route turns. Increase the canvas dimensions when needed to keep the whole drawing inside a clear margin. Do not overlap symbol bodies, pins, labels, or wires. For motor-driver diagrams, show the fuse and motor in the power path, the flyback diode clearly across the motor, and the MOSFET return and gate-control wiring separately. These are drawing-layout instructions, not proof of electrical correctness. When asked only to repair wiring or respond to validator findings, follow the preservation rules below instead of changing component positions. Move a component only when the user explicitly asks for a layout change.
+
+Use only the component types, required properties, pin locations, and minimum lengths in this actual CircuitDraw reference:
+${formatCircuitComponentGuide()}
+
+Safety and component support:
+- Do not generate a schematic proposal for a phone/device charger or AC/DC supply wired directly to household mains, high-voltage AC, or a switch-mode mains primary. Explain that this is hazardous and safety-critical, and offer a low-voltage-only follow-up that uses a certified, isolated commercial adapter as an external source. Never claim a generated drawing is safe, certified, or ready to connect to mains.
+- For unsupported symbols or missing verified IC/connector pinouts, explain the exact limitation without inventing symbols, pins, ratings, or part numbers. Suggest up to two concrete next prompts when a safe alternative exists. Suggested actions must be short, specific, and compatible with the user's goal; never suggest a way to recreate a rejected hazardous design.
+- If the user requests an IC but has not supplied a verified pinout, ask for the exact part and pinout before proposing that block. Generic pin blocks are drawing aids, not validation of the IC's actual pin mapping.
+- The built-in Circuit Studio component library is the first-choice source for generic circuit elements. Match each requested function to that library before considering KiCad. Use a built-in symbol when it represents the requested function; do not replace it with KiCad merely because a catalog equivalent exists.
+- Consult the official KiCad library only when the requested function is missing from the Studio library, or when an exact named part needs a pinout or symbol that the generic Studio element does not provide. For a KiCad fallback, use type "kicad" with the exact symbolId and a valid unit/bodyStyle from its supplied definition. Use only listed pin numbers, names, and offsets; never invent a KiCad ID or pinout. The server attaches exact source drawings and pin geometry after generation. Do not return symbolData yourself. A library symbol is not confirmation of a physical part choice, rating, electrical correctness, or safety.
+- Requests may include relevant Studio-library matches first, followed by KiCad fallback results only when the request may need a symbol that Studio does not provide. In Chat, consult Studio matches before fallback results when explaining component options. In Build, use a KiCad candidate only when the Studio library lacks a suitable symbol or exact part; only place listed symbols that have an exact loaded pin guide, using only that guide's pin data. Descriptions and keywords identify symbol purpose, not electrical ratings or verified circuit suitability. If a KiCad symbol is marked needs_review, say its purpose is unverified and do not present it as a fact; prefer a catalog reference or ask for an authoritative part source.
+
+Use clear reference designators and unique wire IDs (W1, W2, ...). Connect every required pin exactly to a wire endpoint or another pin: all pins on supported discrete parts are required; a relay needs both coil pins, COM, and at least one of NC/NO, while the unused contact may remain open. Unused IC, connector, and KiCad symbol pins may remain unconnected. Keep wire segments horizontal or vertical, avoid zero-length segments and routes through two-terminal parts, and connect wire endpoints exactly to pins or other wire endpoints. Set open:true on a wire only when it is intentionally left disconnected. If a requested component has no supported equivalent, state the limitation instead of inventing a type or pin model.
+
+When the user asks to repair a current workbench draft or a prior proposal using validator findings, preserve every non-wire element exactly, including its type, identity, value, orientation, and coordinates. Do not redesign or reposition the layout. Only add, remove, reroute, or snap wires. If the requested design is a two-transistor astable multivibrator or alternating flasher, each base must be separate from its collector and emitter, each base must have its own resistor to the positive supply, and each timing capacitor must connect one collector to the opposite transistor's base. Never connect a capacitor from a transistor's collector back to that same transistor's base.
+
+Only blocking validation errors trigger automatic repair attempts. Warnings are advisory layout notes and should not be treated as proof of a wiring fault. Avoid disconnected wire endpoints and wires that pass through or short component symbols. CircuitDraw does not perform general electrical validation or simulation.
 
 Never invent an exact manufacturer part number, footprint, rating, or user requirement. Clearly state assumptions and unknowns. A structurally renderable proposal is not proof of electrical correctness, safety, compliance, or fitness to build.`;
+
+function selectedKicadSymbolIds(messages: string[]): string[] {
+  const ids = new Set<string>();
+  const pattern = /exact KiCad symbol ID:\s*([^\s,;]+)/gi;
+  for (const message of messages) {
+    for (const match of message.matchAll(pattern)) {
+      const id = match[1]?.replace(/[.!?]+$/, "");
+      if (id && /^[^:\s]+:[^:\s]+$/.test(id)) ids.add(id);
+    }
+  }
+  return [...ids].slice(-8);
+}
+
+function withoutKicadGeometry<T extends { elements: Array<Record<string, unknown>> }>(
+  spec: T,
+): T {
+  return {
+    ...spec,
+    elements: spec.elements.map(({ symbolData: _symbolData, ...element }) => element),
+  } as T;
+}
 
 function buildContinuationContents(
   originalContents: string,
@@ -116,6 +190,179 @@ router.post(
 
     const history = parsed.data.history ?? [];
     const brief = parsed.data.brief ?? emptyBrief;
+    if (isMainsChargerBuildRequest(parsed.data.message)) {
+      res.json({
+        nextMode: "chat",
+        answer: "A phone charger wired directly to household mains is a hazardous, safety-critical design. Circuit Studio will not generate mains-side or switch-mode charger circuitry. A safer route is to use a certified, isolated commercial 5 V adapter as a sealed power source, then work only on a low-voltage output-side schematic. That drawing is still educational and is not a complete or certified charger.",
+        brief,
+        suggestedActions: [
+          {
+            label: "Draft the low-voltage output side",
+            prompt: "Create an educational schematic for only the low-voltage 5 V output side, powered by an external certified isolated adapter. Do not include any input power-conversion circuitry. Ask whether the output connector should be USB-A or USB-C before choosing connector pins.",
+          },
+          {
+            label: "Explain the adapter approach",
+            prompt: "Explain at a high level how a certified isolated 5 V adapter changes the scope of a phone-charger project, and what the low-voltage output schematic still needs to specify.",
+          },
+        ],
+      });
+      return;
+    }
+    let existingMemories: Awaited<
+      ReturnType<typeof listUserCircuitBuilderMemories>
+    > = [];
+    try {
+      existingMemories = await listUserCircuitBuilderMemories(userId!);
+    } catch (error) {
+      req.log.warn(
+        { errorType: getSafeErrorType(error) },
+        "Saved Circuit Studio assumptions could not be loaded",
+      );
+    }
+    const relevantMemories = selectRelevantCircuitBuilderMemories(
+      existingMemories,
+      [
+        parsed.data.message,
+        brief.goal,
+        ...brief.requirements,
+        ...brief.assumptions,
+      ].join(" "),
+    );
+    const savedMemoryContext = formatCircuitBuilderMemoryContext(
+      relevantMemories,
+    );
+    let kicadDefinitions = "";
+    let studioComponentResearchContext = "";
+    try {
+      currentSpec = await hydrateKicadSymbols(currentSpec);
+      const buildContext = [
+        parsed.data.message,
+        brief.goal,
+        ...brief.requirements,
+        ...brief.assumptions,
+        ...history.map((message) => message.content),
+      ].join(" ");
+      studioComponentResearchContext =
+        formatRelevantCircuitComponentResearchContext([
+          buildContext,
+          JSON.stringify(currentSpec.elements.map((element) => element.type)),
+        ]);
+      const explicitIds = selectedKicadSymbolIds([
+        ...history.map((message) => message.content),
+        parsed.data.message,
+      ]);
+      const defaultIds = parsed.data.mode === "build"
+        ? getDefaultKicadSymbolIds(buildContext)
+        : [];
+      const hasExistingKicadSymbol = currentSpec.elements.some(
+        (element) => element.type === "kicad",
+      );
+      const searchKicadFallback = shouldSearchKicadLibrary({
+        context: buildContext,
+        hasStudioMatch: Boolean(studioComponentResearchContext),
+        hasExplicitKicadId: explicitIds.length > 0,
+        hasExistingKicadSymbol,
+      });
+      const relevantKicadSymbols = searchKicadFallback
+        ? await findRelevantKicadSymbols([
+            parsed.data.message,
+            brief.goal,
+            brief.requirements.join(" "),
+            brief.assumptions.join(" "),
+            ...history
+              .filter((message) => message.role === "user")
+              .slice(-3)
+              .map((message) => message.content),
+          ])
+        : [];
+      const mentionedIds = searchKicadFallback
+        ? await findMentionedKicadSymbolIds(buildContext)
+        : [];
+      const requiredIds = new Set([
+        ...explicitIds,
+        ...mentionedIds,
+        ...currentSpec.elements.flatMap((element) =>
+          element.type === "kicad" && typeof element.symbolId === "string"
+            ? [element.symbolId]
+            : []
+        ),
+        ...defaultIds,
+      ]);
+      const optionalCandidateIds = parsed.data.mode === "build"
+        ? relevantKicadSymbols
+          .map((entry) => entry.id)
+          .filter((id) => !requiredIds.has(id))
+          .slice(0, 10)
+        : [];
+      const optionalCandidateIdSet = new Set(optionalCandidateIds);
+      const ids = new Set([...requiredIds, ...optionalCandidateIds]);
+      const loadedDefinitions = await Promise.all([...ids].map(async (id) => {
+        try {
+          const entry = await getKicadSymbolIndexEntry(id);
+          if (!entry) {
+            throw new CircuitSpecCompatibilityError(
+              `KiCad symbol ${id} is not in the installed symbol catalog.`,
+            );
+          }
+          const symbolData = await getKicadSymbolData(id);
+          return {
+            id,
+            guide: formatKicadSymbolPinGuide(entry, symbolData),
+          };
+        } catch (error) {
+          if (!optionalCandidateIdSet.has(id)) throw error;
+          req.log.info(
+            { symbolId: id, errorType: getSafeErrorType(error) },
+            "A relevant KiCad candidate could not be loaded",
+          );
+          return null;
+        }
+      }));
+      const definitions = loadedDefinitions.filter(
+        (definition): definition is NonNullable<typeof definition> =>
+          definition !== null,
+      );
+      if (definitions.length) {
+        kicadDefinitions = `Verified KiCad library symbol pin guides (pin offsets are relative to each symbol's at origin, in screen coordinates):\n${definitions.map(({ guide }) => guide).join("\n\n")}`;
+      }
+      const symbolsWithPinGuides = new Set(definitions.map(({ id }) => id));
+      const catalogEntries = parsed.data.mode === "build"
+        ? relevantKicadSymbols.filter((entry) => symbolsWithPinGuides.has(entry.id))
+        : relevantKicadSymbols;
+      if (catalogEntries.length) {
+        const catalogMatches = catalogEntries
+          .slice(0, 12)
+          .map((entry) => {
+            const details = [
+              entry.shortDescription || entry.description,
+              entry.longDescription,
+              entry.keywords ? `keywords: ${entry.keywords}` : "",
+              entry.pinCount === null ? "" : `indexed pins: ${entry.pinCount}`,
+              entry.researchStatus === "needs_review"
+                ? "NEEDS REVIEW: this purpose is unverified; do not state it as fact"
+                : "KiCad catalog reference; not electrical validation",
+            ].filter(Boolean).join("; ");
+            return `- ${entry.id} — ${details}`;
+          });
+        kicadDefinitions = [
+          `KiCad fallback results searched across the complete official catalog. Use them only when the Studio library lacks a suitable symbol or the user requests an exact part. In Build mode, only place listed symbols that also have a verified pin guide below:\n${catalogMatches.join("\n")}`,
+          kicadDefinitions,
+        ].filter(Boolean).join("\n\n");
+      }
+    } catch (error) {
+      if (error instanceof CircuitSpecCompatibilityError) {
+        res.status(400).json({ error: error.message });
+        return;
+      }
+      req.log.warn(
+        { reason: error instanceof Error ? error.name : "unknown" },
+        "KiCad symbol definitions could not be loaded",
+      );
+      res.status(503).json({
+        error: "The selected KiCad symbol definitions are temporarily unavailable. Try again when the symbol catalog is reachable.",
+      });
+      return;
+    }
     const conversation = history
       .map((message) => `${message.role === "assistant" ? "Assistant" : "User"}: ${message.content}`)
       .join("\n");
@@ -123,7 +370,12 @@ router.post(
       `Mode: ${parsed.data.mode}`,
       `Current design brief:\n${JSON.stringify(brief)}`,
       conversation ? `Recent conversation:\n${conversation}` : "",
-      `Current CircuitSpec:\n${JSON.stringify(currentSpec)}`,
+      studioComponentResearchContext
+        ? `First-choice built-in Studio library matches:\n${studioComponentResearchContext}`
+        : "",
+      kicadDefinitions,
+      `Current CircuitSpec:\n${JSON.stringify(withoutKicadGeometry(currentSpec))}`,
+      savedMemoryContext,
       `Latest user message:\n${parsed.data.message.trim()}`,
     ]
       .filter(Boolean)
@@ -159,6 +411,12 @@ router.post(
               onKeyUsed: (usedKeyNumber) => {
                 keyNumber = usedKeyNumber;
                 lastUsedKeyNumber = usedKeyNumber;
+              },
+              onKeyFallback: (failedKeyNumber, nextKeyNumber) => {
+                req.log.info(
+                  { failedKeyNumber, nextKeyNumber },
+                  "Gemini key failed; trying the next configured key",
+                );
               },
             },
             (client) =>
@@ -198,16 +456,41 @@ router.post(
       failureStage = "parse_json";
       const decoded = JSON.parse(text);
       failureStage = "validate_response_schema";
-      const result = ChatWithCircuitBuilderResponse.parse(decoded);
-      result.nextMode ??= result.proposal ? "build" : parsed.data.mode;
-      if (parsed.data.mode === "build") result.nextMode = "build";
+      const validatedResult = ChatWithCircuitBuilderResponse.parse(
+        normalizeCircuitBuilderResponse(decoded, brief),
+      );
+      validatedResult.nextMode ??= validatedResult.proposal ? "build" : parsed.data.mode;
+      const result = enforceBuildPermission(
+        validatedResult,
+        parsed.data.mode,
+        history,
+        parsed.data.message,
+      );
 
       if (result.proposal) {
         failureStage = "validate_circuit_spec";
-        result.proposal.spec = parseUsableCircuit(result.proposal.spec);
+        result.proposal.spec = await hydrateKicadSymbols(
+          parseUsableCircuit(result.proposal.spec),
+        );
       }
       if (result.nextMode !== "build") {
         delete result.proposal;
+      }
+
+      try {
+        await applyGeneratedCircuitBuilderMemoryChanges(
+          userId!,
+          existingMemories,
+          (result.memoryUpdates ?? []).filter(
+            (memory) => memory.category !== "design-feedback",
+          ),
+          result.memoryRemovals ?? [],
+        );
+      } catch (error) {
+        req.log.warn(
+          { errorType: getSafeErrorType(error) },
+          "Saved Circuit Studio assumptions could not be updated",
+        );
       }
 
       res.json(result);
@@ -239,6 +522,18 @@ router.post(
           reason: "invalid_or_unusable_model_output",
           failureStage,
           errorType: getSafeErrorType(error),
+          validationIssuePaths: error && typeof error === "object" &&
+            Array.isArray((error as { issues?: unknown }).issues)
+            ? (error as { issues: Array<{ path?: unknown; code?: unknown }> }).issues
+              .slice(0, 8)
+              .map((issue) => ({
+                path: Array.isArray(issue.path)
+                  ? issue.path.filter((part): part is string | number =>
+                    typeof part === "string" || typeof part === "number")
+                  : [],
+                code: typeof issue.code === "string" ? issue.code : "unknown",
+              }))
+            : undefined,
           outputLength,
           finishReason,
           generationAttempts,
@@ -248,7 +543,9 @@ router.post(
       res.setHeader("X-Circuit-AI-Output-Invalid", "true");
       res.setHeader("X-Circuit-AI-Retryable", "true");
       res.status(502).json({
-        error: "The assistant response did not match Circuit Studio's required format.",
+        error: error instanceof CircuitSpecCompatibilityError
+          ? error.message
+          : "The assistant response did not match Circuit Studio's required format.",
       });
     }
   },

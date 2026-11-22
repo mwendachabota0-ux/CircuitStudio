@@ -255,3 +255,38 @@ are explicit drawing annotations. It does not repair manual routes or add a UI,
 API, database integration, or electrical simulation. See
 `docs/CIRCUIT_LAYOUT_ENGINE_DESIGN.md` and the Batch 9 checkpoint in
 `docs/IMPLEMENTATION_HANDOFF.md` for its limits and verification.
+
+## Phase 3B placement and routing composition
+
+`prepareCircuitDocumentDrawing` in `drawing-preparation.ts` is the pure
+orchestration entry point. It accepts a V2 document, optional existing layout
+hints and routing options, and the required
+`circuit-drawing-preparation/1` algorithm version. It validates the input,
+calls `layoutCircuitDocument` in protected `place-unplaced` mode, passes the
+resulting document to `routeCircuitDocument`, and validates the routed result.
+It reuses both engines; it does not introduce a second placement or routing
+algorithm.
+
+The operation changes only `drawing`. It preserves the complete electrical
+model, all pre-existing placements and lock fields, and existing routes,
+junctions, crossings, annotations, canvas settings, and metadata. The router
+skips nets with any existing route; this pipeline does not extend or repair
+manual routes. If a manual route remains incomplete or a routing result is
+incomplete, the pipeline returns `partial` with diagnostics rather than
+overwriting drawing data. Invalid input, blocked placement, and blocked routing
+have separate result statuses; `complete` means the structure is valid, all
+eligible unrouted multi-pin nets were routed, and no residual consistency
+warnings remain.
+
+The result carries stage statuses, placement metrics, routed/skipped/blocked
+net IDs and counts, and a stable deduplicated set of stage and final-validation
+diagnostics. It is deterministic for the same document and options and does
+not mutate the input. This is a library operation only: it is not called by the
+live workbench, and a complete drawing is not a claim of electrical
+correctness, simulation, or safety.
+
+Known router limits still apply. Bounded A* may return an incomplete result for
+dense layouts, and the existing single-transistor fixture's control net can be
+blocked by `route-collinear-overlap`; the pipeline reports that result without
+changing the router or existing manual routes. V2 preview/workbench integration
+is the next separately scoped dependency.

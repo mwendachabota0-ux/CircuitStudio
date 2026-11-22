@@ -491,7 +491,7 @@ The deterministic placement core is now implemented in Phase 2B-2. Any routing o
 
 ## Batch 10 — Phase 3B layout/routing preparation pipeline
 
-**Status:** Completed. `prepareCircuitDocumentDrawing` composes the existing placement and routing engines as a pure library operation.
+**Status:** Completed and rechecked against the locally attached Phase 3B specification. `prepareCircuitDocumentDrawing` composes the existing placement and routing engines as a pure library operation; the engine implementation was already present, so this recheck did not rewrite either engine.
 
 ### Implemented behavior
 
@@ -507,6 +507,7 @@ The deterministic placement core is now implemented in Phase 2B-2. Any routing o
 - `lib/circuit-document/src/index.ts` — public pipeline exports.
 - `lib/circuit-document/test/drawing-preparation.test.mjs` — focused pipeline integration tests.
 - `lib/circuit-document/dist/` — generated declaration files and maps for the public API.
+- `lib/circuit-document/DESIGN.md` — Phase 3B orchestration, preservation contract, statuses, limits, and next dependency.
 - `docs/CIRCUIT_LAYOUT_ENGINE_DESIGN.md` — Phase 3B integration contract and limits.
 - `docs/IMPLEMENTATION_HANDOFF.md` — this completion checkpoint.
 - Workspace typechecking refreshed tracked incremental build metadata.
@@ -518,7 +519,10 @@ The deterministic placement core is now implemented in Phase 2B-2. Any routing o
 | `node --experimental-strip-types --test lib/circuit-document/test/drawing-preparation.test.mjs` | **PASS** — 7 pipeline tests |
 | `pnpm --filter @workspace/circuit-document test` | **PASS** — 105 tests |
 | `pnpm run typecheck` | **PASS** — all configured workspace typechecks |
+| `pnpm --filter @workspace/circuit-document exec tsc -p tsconfig.json --noEmit` | **PASS** — rechecked the package type contract |
 | `git diff --check` | **PASS** |
+
+Current focused recheck: `node --experimental-strip-types --test lib/circuit-document/test/drawing-preparation.test.mjs` passed all 7 pipeline tests. No GitHub, remote repository, package registry, or external file was accessed.
 
 ### Limitations and next dependency
 

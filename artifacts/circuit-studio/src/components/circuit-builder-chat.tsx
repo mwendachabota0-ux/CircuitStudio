@@ -1,34 +1,180 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   getChatWithCircuitBuilderMutationKey,
   getGetAiUsageQueryKey,
+  getListCircuitBuilderHistoryQueryKey,
+  getListDeletedCircuitBuilderHistoryQueryKey,
+  getListCircuitBuilderMemoriesQueryKey,
   useChatWithCircuitBuilder,
   useGetAiUsage,
+  useListCircuitBuilderHistory,
+  useListDeletedCircuitBuilderHistory,
+  useLearnFromCircuitBuilderHistory,
+  useDeleteCircuitBuilderHistory,
+  useReviewCircuitProposal,
+  useReviewExternalCircuitFix,
+  useSaveCircuitBuilderFeedback,
+  useSaveCircuitBuilderRepairLesson,
+  useSyncCircuitBuilderHistory,
 } from '@workspace/api-client-react';
 import type {
+  CircuitBuilderHistorySession as ApiBuilderHistoryEntry,
+  CircuitBuilderFeedbackInput,
+  CircuitBuilderHistoryExcerpt,
+  CircuitBuilderSuggestedAction,
+  CircuitProposalReview,
   CircuitBuildChatInput,
   CircuitBuildChatMessage,
+  CircuitBuilderRepairLessonInput,
   CircuitDesignBrief,
+  CircuitSpec,
+  CircuitSymbolSearchItem,
 } from '@workspace/api-client-react';
+import type { CircuitComponentLibraryEntry } from '@workspace/circuit-geometry';
+import {
+  buildManualRetryRequest,
+  buildLayoutRepairRequest,
+  buildOutputRepairRequest,
+  buildRepairRequest,
+  buildWireRebuildRequest,
+  buildWholeCircuitRetryRequest,
+  CircuitBuildAttemptError,
+  classifyProposalValidation,
+  getProtectedCircuitChanges,
+  getProtectedCircuitSignature,
+  getLayoutInvariantChanges,
+  getLayoutInvariantSignature,
+  getCircuitNetlistSignature,
+  getPinToNetSignature,
+  hasStablePinConnectivitySignature,
+  formatRepairAttemptSummary,
+  getModeAfterFailedRequest,
+  getRetryRecoveryKind,
+  MAX_AUTO_RETRIES,
+  normalizeCircuitBuildRequest,
+  restoreProtectedNonWireElements,
+  runCircuitBuildAttempts,
+  type BuildRetryKind,
+  type RepairAttemptDiagnostic,
+} from '../lib/circuit-build-retry';
+import { getLocalBuilderModeIntent } from '../lib/circuit-build-intent';
+import {
+  isExplicitBuildApproval,
+  isExplicitBuildRequest,
+} from '../lib/circuit-build-authorization';
+import {
+  getContextualSuggestedActions,
+  getFinalAssistantQuestion,
+} from '../lib/suggested-action-context';
+import {
+  buildExternalCircuitFixPrompt,
+  getExternalCircuitFixContextKey,
+  inspectExternalCircuitFixCandidate,
+  partitionExternalCircuitFixFindings,
+  shouldShowExternalCircuitFixPaste,
+  type ExternalCircuitFixContext,
+} from '../lib/circuit-external-fix';
+import { parseCircuitSpecJson } from '../lib/circuit-spec-editor.ts';
 import {
   Check,
   CheckCircle2,
-  LoaderCircle,
+  Copy,
+  Brain,
+  Maximize2,
+  History,
+  Library,
   MessageCircle,
   Plus,
-  Send,
   Sparkles,
   Trash2,
   Wrench,
   X,
 } from 'lucide-react';
 import './circuit-builder-chat.css';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  createBuilderHistorySession,
+  filterDeletedBuilderHistorySessions,
+  getBuilderHistoryPreview,
+  getBuilderHistoryTitle,
+  upsertBuilderHistorySession,
+  getBuilderHistoryMemoryExcerpts,
+  getBuilderHistorySyncCandidates,
+  mergeBuilderHistorySessions,
+  type BuilderHistorySession,
+} from '../lib/circuit-builder-history';
+import { ComponentLibraryDialog } from './component-library-dialog';
+import CircuitBuilderComposer, {
+  type CircuitBuilderComposerHandle,
+} from './circuit-builder-composer';
+import { CircuitBuilderFeedback } from './circuit-builder-feedback';
+import {
+  CircuitBuilderMemoryDialog,
+  type CircuitBuilderMemoryImportStatus,
+} from './circuit-builder-memory-dialog';
 
 type ChatMode = 'chat' | 'build';
-type ThreadMessage = CircuitBuildChatMessage & { id: string; createdAt: number };
+type ThreadMessage = CircuitBuildChatMessage & {
+  id: string;
+  createdAt: number;
+  suggestedActions?: CircuitBuilderSuggestedAction[];
+  buildApprovalRequest?: boolean;
+};
 type SavedState = { brief: CircuitDesignBrief; aiBrief: CircuitDesignBrief; messages: ThreadMessage[] };
-type ValidationReport = { errors: string[]; warnings: string[] };
+type BuilderHistoryEntry = BuilderHistorySession<SavedState, CircuitBuildChatInput['currentSpec']>;
+type ValidationReport = {
+  errors: string[];
+  warnings: string[];
+  topologyErrors?: string[];
+  topologyWarnings?: string[];
+};
+type ProposalQualityReviewState =
+  | { kind: 'idle' | 'loading' | 'unavailable' | 'skipped' }
+  | { kind: 'ready'; review: CircuitProposalReview };
+type LayoutRepairOutcome =
+  | {
+      kind: 'success';
+      proposal: { summary: string; spec: NonNullable<CircuitBuildChatInput['currentSpec']> };
+      inspection: ReturnType<typeof inspectProposal>;
+    }
+  | { kind: 'failure'; message: string };
+type ProposalFeedbackReason = Exclude<
+  CircuitBuilderFeedbackInput['reason'],
+  'overall'
+>;
+type RetryFeedback = {
+  message: string;
+  canRetryManually: boolean;
+  validationFindings?: string[];
+  validationWarnings?: string[];
+};
+type RejectedSpecCopyState = 'idle' | 'copied' | 'error';
+type ExternalCircuitFixFeedback =
+  | { kind: 'local-rejected'; reasons: string[] }
+  | { kind: 'review'; approved: boolean; summary: string; concerns: string[] }
+  | { kind: 'error'; message: string };
+type RepairLessonEvidence = {
+  beforeSpec: CircuitSpec;
+  findings: string[];
+  context?: string;
+};
+type ProposalRepairLesson = RepairLessonEvidence & {
+  afterSpec: CircuitSpec;
+  content: string | null;
+};
+type RepairLessonNotice = {
+  kind: 'saving' | 'saved' | 'known' | 'none' | 'error';
+  message: string;
+};
 
 const emptyBrief = (): CircuitDesignBrief => ({
   goal: '',
@@ -50,6 +196,18 @@ const isStringList = (value: unknown): value is string[] =>
 const noteLines = (value: string): string[] =>
   value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).slice(0, 12).map((line) => line.slice(0, 300));
 
+function isSameRepairDraft(before: CircuitSpec, after: CircuitSpec): boolean {
+  if (before.title !== after.title) return false;
+  const afterParts = new Set(
+    after.elements
+      .filter((element) => element.type !== 'wire')
+      .map((element) => `${element.type}:${element.id}`),
+  );
+  return before.elements
+    .filter((element) => element.type !== 'wire')
+    .some((element) => afterParts.has(`${element.type}:${element.id}`));
+}
+
 function normalizeBrief(value: Partial<CircuitDesignBrief> | undefined): CircuitDesignBrief {
   return {
     goal: typeof value?.goal === 'string' ? value.goal.slice(0, 1000) : '',
@@ -57,6 +215,112 @@ function normalizeBrief(value: Partial<CircuitDesignBrief> | undefined): Circuit
     assumptions: isStringList(value?.assumptions) ? value.assumptions.slice(0, 12).map((item) => item.slice(0, 300)) : [],
     openQuestions: isStringList(value?.openQuestions) ? value.openQuestions.slice(0, 12).map((item) => item.slice(0, 300)) : [],
   };
+}
+
+function inspectProposal(spec: CircuitBuildChatInput['currentSpec']): {
+  svg: string;
+  validation: ValidationReport;
+  canRepair: boolean;
+} {
+  if (!window.CircuitDraw) {
+    return {
+      svg: '',
+      validation: { errors: ['The schematic preview library is not ready.'], warnings: [] },
+      canRepair: false,
+    };
+  }
+  try {
+    const validation = classifyProposalValidation(window.CircuitDraw.validate(spec));
+    if (validation.errors.length) return { svg: '', validation, canRepair: true };
+    const svg = window.CircuitDraw.render(spec);
+    if (!svg) {
+      return {
+        svg: '',
+        validation: { errors: ['The schematic renderer did not produce a preview.'], warnings: validation.warnings },
+        canRepair: true,
+      };
+    }
+    return { svg, validation, canRepair: true };
+  } catch (error) {
+    return {
+      svg: '',
+      validation: {
+        errors: [error instanceof Error ? error.message : 'This proposal could not be rendered.'],
+        warnings: [],
+      },
+      canRepair: true,
+    };
+  }
+}
+
+function getConnectivitySignature(spec: CircuitSpec, allowStructuralErrors = false): string | null {
+  if (!window.CircuitDraw) return null;
+  try {
+    const netlist = window.CircuitDraw.netlist(spec, allowStructuralErrors);
+    return netlist.parts.length
+      ? getPinToNetSignature(netlist)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function inspectLayoutProposal(spec: CircuitSpec): {
+  svg: string;
+  validation: ValidationReport;
+  canRepair: boolean;
+} {
+  const inspection = inspectProposal(spec);
+  if (!inspection.svg || !window.CircuitDraw) return inspection;
+
+  const layoutFindings = window.CircuitDraw.layoutWarnings(spec)
+    .map((finding) => `Drawing-quality issue: ${finding}`);
+  return layoutFindings.length
+    ? {
+        ...inspection,
+        validation: {
+          ...inspection.validation,
+          errors: [...inspection.validation.errors, ...layoutFindings],
+        },
+      }
+    : inspection;
+}
+
+function withLayoutWarnings(
+  review: CircuitProposalReview,
+  spec: CircuitSpec,
+): CircuitProposalReview {
+  const deterministicWarnings = window.CircuitDraw?.layoutWarnings(spec) ?? [];
+  return {
+    ...review,
+    readabilityWarnings: [...new Set([
+      ...review.readabilityWarnings,
+      ...deterministicWarnings,
+    ])].slice(0, 5),
+  };
+}
+
+function renderRejectedProposalPreview(
+  spec: CircuitBuildChatInput['currentSpec'] | null | undefined,
+): string {
+  if (!spec || !window.CircuitDraw) return '';
+  try {
+    return window.CircuitDraw.render(spec, { allowStructuralErrors: true });
+  } catch {
+    return '';
+  }
+}
+
+function formatValidationFailure(repairAttemptCount: number): string {
+  return formatRepairAttemptSummary(repairAttemptCount);
+}
+
+function asCircuitSpec(value: unknown): CircuitBuildChatInput['currentSpec'] | null {
+  if (!value || typeof value !== 'object') return null;
+  const candidate = value as CircuitBuildChatInput['currentSpec'];
+  return typeof candidate.title === 'string' && Array.isArray(candidate.elements)
+    ? candidate
+    : null;
 }
 
 function mergeBriefPreservingManualEdits(
@@ -85,86 +349,890 @@ function mergeBriefPreservingManualEdits(
   };
 }
 
-function readSavedState(key: string): SavedState {
-  const fallback = { brief: emptyBrief(), aiBrief: emptyBrief(), messages: [initialMessage] };
-  try {
-    const raw = window.localStorage.getItem(key);
-    if (!raw) return fallback;
-    const parsed = JSON.parse(raw) as Partial<SavedState>;
-    const messages = Array.isArray(parsed.messages)
+function normalizeSavedState(value: unknown): SavedState {
+  const parsed = value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Partial<SavedState>
+    : {};
+  const messages = Array.isArray(parsed.messages)
       ? parsed.messages.filter((message): message is ThreadMessage =>
           !!message &&
           (message.role === 'user' || message.role === 'assistant') &&
           typeof message.content === 'string' &&
           typeof message.id === 'string' &&
           typeof message.createdAt === 'number',
-        ).slice(-60)
+          ).slice(-60).map((message) => {
+            const actions = Array.isArray(message.suggestedActions)
+              ? message.suggestedActions.filter(isSuggestedAction).slice(0, 2)
+              : [];
+            return {
+              ...message,
+              ...(message.buildApprovalRequest === true
+                ? { buildApprovalRequest: true }
+                : { buildApprovalRequest: undefined }),
+              ...(actions.length ? { suggestedActions: actions } : { suggestedActions: undefined }),
+            };
+          })
       : [];
-    const brief = normalizeBrief(parsed.brief);
-    // Older saved sessions did not record the AI's last draft separately.
-    // Treat their existing notes as user-owned so migration never overwrites them.
-    const aiBrief = parsed.aiBrief ? normalizeBrief(parsed.aiBrief) : emptyBrief();
-    return {
-      brief,
-      aiBrief,
-      messages: messages.length ? messages : [initialMessage],
-    };
+  const brief = normalizeBrief(parsed.brief);
+  // Older saved sessions did not record the AI's last draft separately.
+  // Treat their existing notes as user-owned so migration never overwrites them.
+  const aiBrief = parsed.aiBrief ? normalizeBrief(parsed.aiBrief) : emptyBrief();
+  return {
+    brief,
+    aiBrief,
+    messages: messages.length ? messages : [initialMessage],
+  };
+}
+
+function readSavedState(key: string): SavedState {
+  const fallback = normalizeSavedState(null);
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? normalizeSavedState(JSON.parse(raw)) : fallback;
   } catch {
     return fallback;
   }
 }
 
-function localModeIntent(text: string): ChatMode | null {
-  const normalized = text.toLowerCase().replace(/[.!?]/g, '').trim();
-  if (/^(please )?(turn|switch|change|go)( me )?( to )?(the )?build( mode)?$/.test(normalized)
-    || normalized === 'build mode' || normalized === 'switch to build') return 'build';
-  if (/^(please )?(turn|switch|change|go)( me )?( to )?(the )?chat( mode)?$/.test(normalized)
-    || normalized === 'chat mode' || normalized === 'switch to chat') return 'chat';
-  return null;
+function isCircuitSpec(value: unknown): value is CircuitBuildChatInput['currentSpec'] {
+  return !!value &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    typeof (value as { title?: unknown }).title === 'string' &&
+    Array.isArray((value as { elements?: unknown }).elements);
 }
 
-function newMessage(role: CircuitBuildChatMessage['role'], content: string): ThreadMessage {
-  return { id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`, role, content, createdAt: Date.now() };
+function isHistoryTimestamp(value: unknown): value is number {
+  return typeof value === 'number' &&
+    Number.isFinite(value) &&
+    Math.abs(value) <= 8_640_000_000_000_000;
+}
+
+function createHistoryId(): string {
+  return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function readBuilderHistorySessions(key: string): BuilderHistoryEntry[] {
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.flatMap((value): BuilderHistoryEntry[] => {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) return [];
+      const entry = value as Partial<BuilderHistoryEntry>;
+      if (
+        typeof entry.id !== 'string' ||
+        !entry.id ||
+        !isCircuitSpec(entry.currentSpec) ||
+        !isHistoryTimestamp(entry.createdAt) ||
+        !isHistoryTimestamp(entry.updatedAt) ||
+        (entry.mode !== 'chat' && entry.mode !== 'build')
+      ) return [];
+      const saved = normalizeSavedState(entry.saved);
+      return [{
+        id: entry.id,
+        title: getBuilderHistoryTitle(saved.messages),
+        createdAt: entry.createdAt as number,
+        updatedAt: entry.updatedAt as number,
+        mode: entry.mode,
+        saved,
+        currentSpec: entry.currentSpec,
+      }];
+    }).sort((left, right) => right.updatedAt - left.updatedAt);
+  } catch {
+    return [];
+  }
+}
+
+function readBuilderHistoryBootstrap(storageKey: string, currentSpec: CircuitBuildChatInput['currentSpec']) {
+  const historyKey = `${storageKey}:history-v1`;
+  const sessions = readBuilderHistorySessions(historyKey);
+  const hasStoredHistory = sessions.length > 0;
+  const legacySaved = readSavedState(storageKey);
+  const hasLegacyConversation = legacySaved.messages.some((message) => message.id !== 'welcome') ||
+    !!legacySaved.brief.goal ||
+    !!legacySaved.brief.requirements.length ||
+    !!legacySaved.brief.assumptions.length ||
+    !!legacySaved.brief.openQuestions.length;
+  const availableSessions = hasStoredHistory
+    ? sessions
+    : [createBuilderHistorySession({
+        id: createHistoryId(),
+        saved: legacySaved,
+        currentSpec,
+        mode: 'chat',
+      })];
+  let activeId: string | null = null;
+  try {
+    activeId = window.localStorage.getItem(`${storageKey}:active-session-v1`);
+  } catch {
+    // A fresh workbench can still be used if storage is blocked.
+  }
+  const active = availableSessions.find((session) => session.id === activeId) ?? availableSessions[0];
+  return {
+    sessions: availableSessions,
+    active,
+    hasStoredHistory,
+    hasLegacyConversation,
+    restoreSpec: hasStoredHistory ? active.currentSpec : null,
+  };
+}
+
+function normalizeAccountHistorySession(value: ApiBuilderHistoryEntry): BuilderHistoryEntry | null {
+  if (
+    typeof value.id !== 'string' ||
+    !value.id ||
+    !isCircuitSpec(value.currentSpec) ||
+    !isHistoryTimestamp(value.createdAt) ||
+    !isHistoryTimestamp(value.updatedAt) ||
+    (value.mode !== 'chat' && value.mode !== 'build')
+  ) return null;
+
+  const saved = normalizeSavedState(value.saved);
+  return {
+    id: value.id,
+    title: getBuilderHistoryTitle(saved.messages),
+    createdAt: value.createdAt,
+    updatedAt: value.updatedAt,
+    mode: value.mode,
+    saved,
+    currentSpec: value.currentSpec,
+  };
+}
+
+function formatHistoryTime(timestamp: number): string {
+  const elapsed = Math.max(0, Date.now() - timestamp);
+  if (elapsed < 60_000) return 'Just now';
+  if (elapsed < 60 * 60_000) return `${Math.floor(elapsed / 60_000)}m ago`;
+  if (elapsed < 24 * 60 * 60_000) return `${Math.floor(elapsed / (60 * 60_000))}h ago`;
+  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(timestamp);
+}
+
+function newMessage(
+  role: CircuitBuildChatMessage['role'],
+  content: string,
+  suggestedActions?: CircuitBuilderSuggestedAction[],
+  options?: { buildApprovalRequest?: boolean },
+): ThreadMessage {
+  return {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    role,
+    content,
+    createdAt: Date.now(),
+    ...(suggestedActions?.length ? { suggestedActions: suggestedActions.slice(0, 2) } : {}),
+    ...(options?.buildApprovalRequest ? { buildApprovalRequest: true } : {}),
+  };
+}
+
+function isSuggestedAction(value: unknown): value is CircuitBuilderSuggestedAction {
+  if (!value || typeof value !== 'object') return false;
+  const action = value as Record<string, unknown>;
+  return typeof action.label === 'string' &&
+    typeof action.prompt === 'string' &&
+    (action.replyTo === undefined || typeof action.replyTo === 'string');
 }
 
 export type CircuitBuilderChatProps = {
   userId: string;
   currentSpec: CircuitBuildChatInput['currentSpec'];
-  onApplySpec: (spec: CircuitBuildChatInput['currentSpec']) => void;
+  validationFindings: string[];
+  canRepairCurrentDraft: boolean;
+  hasUnappliedJsonEdits: boolean;
+  jsonRepairRequest: JsonRepairRequest | null;
+  schematicFeedbackHost: HTMLElement | null;
+  onJsonRepairRequestHandled: (id: number) => void;
+  onProposalStateChange: (hasProposal: boolean) => void;
+  onApplySpec: (
+    spec: CircuitBuildChatInput['currentSpec'],
+    source?: 'proposal' | 'history',
+  ) => void;
   onTaskComplete: (mode: 'chat' | 'build') => void;
+};
+
+export type JsonRepairRequest = {
+  id: number;
+  rawJson: string;
+  parseError: string;
+  baseSpec: CircuitBuildChatInput['currentSpec'];
+  validationFindings?: string[];
 };
 
 export function CircuitBuilderChat({
   userId,
   currentSpec,
+  validationFindings,
+  canRepairCurrentDraft,
+  hasUnappliedJsonEdits,
+  jsonRepairRequest,
+  schematicFeedbackHost,
+  onJsonRepairRequestHandled,
+  onProposalStateChange,
   onApplySpec,
   onTaskComplete,
 }: CircuitBuilderChatProps) {
   const storageKey = `circuit-studio-builder-chat-v1:${userId}`;
+  const historyStorageKey = `${storageKey}:history-v1`;
+  const activeSessionStorageKey = `${storageKey}:active-session-v1`;
   const queryClient = useQueryClient();
+  const historyQuery = useListCircuitBuilderHistory({
+    query: {
+      queryKey: [...getListCircuitBuilderHistoryQueryKey(), userId],
+      retry: 1,
+      refetchOnMount: 'always',
+    },
+  });
+  const historyDeletionsQuery = useListDeletedCircuitBuilderHistory({
+    query: {
+      queryKey: [...getListDeletedCircuitBuilderHistoryQueryKey(), userId],
+      retry: 1,
+      refetchOnMount: 'always',
+    },
+  });
+  const historySyncMutation = useSyncCircuitBuilderHistory();
+  const historyDeleteMutation = useDeleteCircuitBuilderHistory();
   const chatMutation = useChatWithCircuitBuilder({
     mutation: { mutationKey: getChatWithCircuitBuilderMutationKey() },
   });
+  const externalFixReviewMutation = useReviewExternalCircuitFix();
+  const proposalReviewMutation = useReviewCircuitProposal();
+  const feedbackMutation = useSaveCircuitBuilderFeedback();
+  const repairLessonMutation = useSaveCircuitBuilderRepairLesson();
+  const historyImportMutation = useLearnFromCircuitBuilderHistory();
   const usageQuery = useGetAiUsage({
     query: { queryKey: getGetAiUsageQueryKey(), retry: 1 },
   });
-  const [saved, setSaved] = useState<SavedState>(() => readSavedState(storageKey));
-  const [mode, setMode] = useState<ChatMode>('chat');
-  const [draft, setDraft] = useState('');
+  const [historyBootstrap] = useState(() => readBuilderHistoryBootstrap(storageKey, currentSpec));
+  const [sessions, setSessions] = useState<BuilderHistoryEntry[]>(historyBootstrap.sessions);
+  const [activeSessionId, setActiveSessionId] = useState(historyBootstrap.active.id);
+  const [saved, setSaved] = useState<SavedState>(historyBootstrap.active.saved);
+  const [mode, setMode] = useState<ChatMode>(historyBootstrap.active.mode);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyDeleteTarget, setHistoryDeleteTarget] = useState<BuilderHistoryEntry | null>(null);
+  const [historyDeleteError, setHistoryDeleteError] = useState('');
+  const [memoryOpen, setMemoryOpen] = useState(false);
+  const [historySaveError, setHistorySaveError] = useState('');
+  const [historyHydrated, setHistoryHydrated] = useState(false);
+  const [historyImportStatus, setHistoryImportStatus] =
+    useState<CircuitBuilderMemoryImportStatus>({ kind: 'idle' });
+  const [clearChatOpen, setClearChatOpen] = useState(false);
   const [proposal, setProposal] = useState<{ summary: string; spec: CircuitBuildChatInput['currentSpec'] } | null>(null);
+  const [appliedProposalFeedback, setAppliedProposalFeedback] = useState<{
+    id: number;
+    circuitTitle: string;
+    requestSummary: string;
+    specSignature: string;
+  } | null>(null);
+  const appliedProposalFeedbackIdRef = useRef(0);
   const [proposalSvg, setProposalSvg] = useState('');
   const [proposalValidation, setProposalValidation] = useState<ValidationReport | null>(null);
+  const [proposalQualityReview, setProposalQualityReview] =
+    useState<ProposalQualityReviewState>({ kind: 'idle' });
+  const [layoutRepairNotice, setLayoutRepairNotice] = useState('');
   const [proposalError, setProposalError] = useState('');
+  const [proposalRepairLesson, setProposalRepairLesson] =
+    useState<ProposalRepairLesson | null>(null);
+  const [repairLessonNotice, setRepairLessonNotice] =
+    useState<RepairLessonNotice | null>(null);
+  const [dismissedRepairNoticeKey, setDismissedRepairNoticeKey] =
+    useState<string | null>(null);
+  const [rejectedProposalSpec, setRejectedProposalSpec] = useState<CircuitBuildChatInput['currentSpec'] | null>(null);
+  const [rejectedProposalSvg, setRejectedProposalSvg] = useState('');
+  const [rejectedPreviewOpen, setRejectedPreviewOpen] = useState(false);
+  const [rejectedSpecCopyState, setRejectedSpecCopyState] = useState<RejectedSpecCopyState>('idle');
+  const [externalFixCopiedContextKey, setExternalFixCopiedContextKey] = useState<string | null>(null);
+  const [externalFixCopyState, setExternalFixCopyState] = useState<RejectedSpecCopyState>('idle');
+  const [externalFixDraft, setExternalFixDraft] = useState('');
+  const [externalFixFeedback, setExternalFixFeedback] = useState<ExternalCircuitFixFeedback | null>(null);
+  const [componentLibraryOpen, setComponentLibraryOpen] = useState(false);
   const [briefEditing, setBriefEditing] = useState(false);
   const [briefGoalDraft, setBriefGoalDraft] = useState('');
   const [briefRequirementsDraft, setBriefRequirementsDraft] = useState('');
   const [briefAssumptionsDraft, setBriefAssumptionsDraft] = useState('');
   const [briefOpenQuestionsDraft, setBriefOpenQuestionsDraft] = useState('');
   const [lastRequest, setLastRequest] = useState<CircuitBuildChatInput | null>(null);
-  const threadEndRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [lastProtectedElementsBaseSpec, setLastProtectedElementsBaseSpec] =
+    useState<NonNullable<CircuitBuildChatInput['currentSpec']> | null>(null);
+  const [requestCycleActive, setRequestCycleActive] = useState(false);
+  const [retryAttempt, setRetryAttempt] = useState(0);
+  const [retryKind, setRetryKind] = useState<BuildRetryKind | null>(null);
+  const [retryFeedback, setRetryFeedback] = useState<RetryFeedback | null>(null);
+  const [repairDiagnostics, setRepairDiagnostics] = useState<RepairAttemptDiagnostic[]>([]);
+  const composerRef = useRef<CircuitBuilderComposerHandle>(null);
+  const externalFixContextKeyRef = useRef('');
+  const externalFixCopiedContextKeyRef = useRef<string | null>(null);
+  const handledJsonRepairRequestRef = useRef<number | null>(null);
+  const observedWorkbenchRepairRef = useRef<{
+    sessionId: string;
+    spec: CircuitSpec;
+    findings: string[];
+  } | null>(null);
+  const applyingProposalSpecRef = useRef<string | null>(null);
+  const proposalReviewRunIdRef = useRef(0);
+  const pendingRestoreRef = useRef<{
+    sessionId: string;
+    specSignature: string;
+    spec: CircuitBuildChatInput['currentSpec'];
+  } | null>(
+    historyBootstrap.restoreSpec
+      ? {
+          sessionId: historyBootstrap.active.id,
+          specSignature: JSON.stringify(historyBootstrap.restoreSpec),
+          spec: historyBootstrap.restoreSpec,
+        }
+      : null,
+  );
+  const historyImportAttemptedForUser = useRef<string | null>(null);
+  const historyBootstrapCompleteRef = useRef(false);
+  const lastHistorySaveSignatureRef = useRef('');
+  const activeSession = sessions.find((session) => session.id === activeSessionId) ?? historyBootstrap.active;
+  const historyForMemory = useMemo(() => {
+    const currentSession = createBuilderHistorySession({
+      id: activeSessionId,
+      saved,
+      currentSpec,
+      mode,
+      now: Date.now(),
+      createdAt: activeSession.createdAt,
+    });
+    return getBuilderHistoryMemoryExcerpts(
+      upsertBuilderHistorySession(sessions, currentSession),
+    );
+  }, [activeSession.createdAt, activeSessionId, currentSpec, mode, saved, sessions]);
+  const syncHistorySessions = useCallback(async (historySessions: readonly BuilderHistoryEntry[]) => {
+    for (let offset = 0; offset < historySessions.length; offset += 5) {
+      await historySyncMutation.mutateAsync({
+        data: { sessions: historySessions.slice(offset, offset + 5) },
+      });
+    }
+  }, [historySyncMutation.mutateAsync]);
+  const saveRepairLesson = useCallback(async (draft: ProposalRepairLesson) => {
+    setRepairLessonNotice({ kind: 'saving', message: 'Saving what went wrong, how it was fixed, and how to avoid it next time…' });
+    const useEvidence = !draft.content?.trim();
+    const data: CircuitBuilderRepairLessonInput = useEvidence
+      ? {
+          kind: 'learn',
+          beforeSpec: draft.beforeSpec,
+          afterSpec: draft.afterSpec,
+          findings: draft.findings.slice(0, 12).map((finding) => finding.slice(0, 700)),
+          ...(draft.context ? { context: draft.context.slice(0, 1600) } : {}),
+        }
+      : { kind: 'save', content: draft.content!.trim().slice(0, 300) };
+
+    try {
+      const result = await repairLessonMutation.mutateAsync({ data });
+      await queryClient.invalidateQueries({
+        queryKey: getListCircuitBuilderMemoriesQueryKey(),
+      });
+      if (useEvidence) {
+        void queryClient.invalidateQueries({ queryKey: getGetAiUsageQueryKey() });
+      }
+      setRepairLessonNotice(
+        result.lesson
+          ? {
+              kind: result.saved ? 'saved' : 'known',
+              message: result.saved
+                ? 'Saved a repair lesson. I’ll use it when a similar circuit issue comes up.'
+                : 'This repair lesson is already saved.',
+            }
+          : {
+              kind: 'none',
+              message: 'Circuit applied. This correction did not produce a reusable lesson.',
+            },
+      );
+    } catch (error) {
+      setRepairLessonNotice({
+        kind: 'error',
+        message: `Circuit applied, but its repair lesson could not be saved${error instanceof Error ? `: ${error.message}` : '.'}`,
+      });
+    }
+  }, [queryClient, repairLessonMutation.mutateAsync]);
+
+  const clearProposalQualityReview = () => {
+    proposalReviewRunIdRef.current += 1;
+    setProposalQualityReview({ kind: 'idle' });
+    setLayoutRepairNotice('');
+  };
+
+  const runLayoutRepair = useCallback(async (
+    spec: NonNullable<CircuitBuildChatInput['currentSpec']>,
+    originalRequest: CircuitBuildChatInput,
+    brief: CircuitDesignBrief,
+    findings: string[],
+  ): Promise<LayoutRepairOutcome> => {
+    if (!window.CircuitDraw) {
+      return {
+        kind: 'failure',
+        message: 'The layout repair service is unavailable; the original proposal was kept.',
+      };
+    }
+    const layoutRequest = buildLayoutRepairRequest(
+      originalRequest,
+      brief,
+      spec,
+      findings,
+    );
+    let latestBrief = brief;
+    setRetryAttempt(0);
+    setRetryKind(null);
+    chatMutation.reset();
+
+    try {
+      const result = await runCircuitBuildAttempts({
+        initialRequest: layoutRequest,
+        initialProtectedSpec: spec,
+        getConnectivitySignature: (candidate) =>
+          getConnectivitySignature(candidate as CircuitSpec),
+        send: (workingRequest) => chatMutation.mutateAsync({ data: workingRequest }),
+        getProposal: (response) => response.proposal?.spec ?? null,
+        inspectProposal: inspectLayoutProposal,
+        prepareResponse: (response) => {
+          if (!response.proposal?.spec || !window.CircuitDraw) return response;
+          const beforeConnectivity = getConnectivitySignature(response.proposal.spec, true);
+          const autoFixed = window.CircuitDraw.autoFix(response.proposal.spec);
+          const afterConnectivity = getConnectivitySignature(autoFixed.spec, true);
+          if (
+            autoFixed.changes.length &&
+            !hasStablePinConnectivitySignature(beforeConnectivity, afterConnectivity)
+          ) return response;
+          return autoFixed.changes.length
+            ? { ...response, proposal: { ...response.proposal, spec: autoFixed.spec } }
+            : response;
+        },
+        getProtectedCircuitSignature: (candidate) =>
+          getLayoutInvariantSignature(candidate as NonNullable<CircuitBuildChatInput['currentSpec']>),
+        getProtectedCircuitChanges: (baseline, candidate) =>
+          getLayoutInvariantChanges(
+            baseline as NonNullable<CircuitBuildChatInput['currentSpec']>,
+            candidate as NonNullable<CircuitBuildChatInput['currentSpec']>,
+          ),
+        makeRepairRequest: (response, validationFindings) => buildLayoutRepairRequest(
+          originalRequest,
+          latestBrief,
+          response.proposal?.spec ?? spec,
+          validationFindings,
+        ),
+        makeOutputRepairRequest: buildOutputRepairRequest,
+        onResponse: (response) => {
+          latestBrief = response.brief ?? latestBrief;
+        },
+        onRetry: (attempt, kind) => {
+          setRetryAttempt(attempt);
+          setRetryKind(kind);
+        },
+      });
+      void queryClient.invalidateQueries({ queryKey: getGetAiUsageQueryKey() });
+
+      const candidate = result.response.proposal;
+      const candidateSpec = candidate?.spec;
+      const inspection = result.proposalInspection;
+      if (!candidateSpec || !inspection || inspection.validation.errors.length || !inspection.svg) {
+        return {
+          kind: 'failure',
+          message: 'The layout attempt did not pass pin and wire checks; the original proposal was kept.',
+        };
+      }
+
+      if (
+        getLayoutInvariantSignature(spec) !== getLayoutInvariantSignature(candidateSpec)
+      ) {
+        return {
+          kind: 'failure',
+          message: 'The layout attempt changed a component or its details; the original proposal was kept.',
+        };
+      }
+
+      try {
+        const beforeNetlist = getCircuitNetlistSignature(window.CircuitDraw.netlist(spec));
+        const afterNetlist = getCircuitNetlistSignature(window.CircuitDraw.netlist(candidateSpec));
+        if (beforeNetlist !== afterNetlist) {
+          return {
+            kind: 'failure',
+            message: 'The layout attempt changed pin-to-pin connectivity; the original proposal was kept.',
+          };
+        }
+      } catch {
+        return {
+          kind: 'failure',
+          message: 'Studio could not verify the pin-to-pin connections after reflow; the original proposal was kept.',
+        };
+      }
+
+      return {
+        kind: 'success',
+        proposal: {
+          summary: candidate.summary,
+          spec: candidateSpec,
+        },
+        inspection,
+      };
+    } catch (error) {
+      const remainingLayoutFindings = error instanceof CircuitBuildAttemptError
+        ? error.validationFindings.filter((finding) => finding.includes('Visual layout issue')).length
+        : 0;
+      return {
+        kind: 'failure',
+        message: remainingLayoutFindings
+          ? `Studio could not clear ${remainingLayoutFindings} visual layout issue${remainingLayoutFindings === 1 ? '' : 's'} without changing the circuit; the original proposal was kept.`
+          : 'The layout attempt could not be completed; the original proposal was kept.',
+      };
+    }
+  }, [chatMutation.mutateAsync, queryClient]);
+
+  const runProposalQualityReview = useCallback(async (
+    spec: CircuitSpec,
+    originalRequest: string,
+    brief: CircuitDesignBrief,
+    options?: {
+      automaticLayoutRepair?: boolean;
+      buildRequest?: CircuitBuildChatInput;
+    },
+  ) => {
+    const runId = ++proposalReviewRunIdRef.current;
+    setProposalQualityReview({ kind: 'loading' });
+    setLayoutRepairNotice('');
+    let firstReview: CircuitProposalReview | null = null;
+    try {
+      firstReview = await proposalReviewMutation.mutateAsync({
+        data: {
+          spec,
+          originalRequest: originalRequest.slice(0, 6000) || 'Review this staged circuit proposal.',
+          brief,
+        },
+      });
+      void queryClient.invalidateQueries({ queryKey: getGetAiUsageQueryKey() });
+    } catch {
+      // Local text and wire collision checks can still trigger a safe layout pass.
+    }
+    if (proposalReviewRunIdRef.current !== runId) return;
+
+    const deterministicWarnings = window.CircuitDraw?.layoutWarnings(spec) ?? [];
+    const initialReview = firstReview
+      ? withLayoutWarnings(firstReview, spec)
+      : deterministicWarnings.length
+        ? {
+            intentConcerns: [],
+            readabilityWarnings: deterministicWarnings.slice(0, 5),
+            unknowns: [],
+          }
+        : null;
+
+    if (
+      options?.automaticLayoutRepair &&
+      options.buildRequest &&
+      initialReview?.readabilityWarnings.length
+    ) {
+      setLayoutRepairNotice(
+        'Studio found readability issues and is trying a layout-only repair. The original will stay unless its parts and connections match.',
+      );
+      const outcome = await runLayoutRepair(
+        spec,
+        options.buildRequest,
+        brief,
+        initialReview.readabilityWarnings,
+      );
+      if (proposalReviewRunIdRef.current !== runId) return;
+      if (outcome.kind === 'failure') {
+        setLayoutRepairNotice(outcome.message);
+        setProposalQualityReview({
+          kind: 'ready',
+          review: {
+            ...initialReview,
+            readabilityWarnings: [
+              ...initialReview.readabilityWarnings.slice(0, 4),
+              outcome.message,
+            ],
+          },
+        });
+        return;
+      }
+
+      setProposal(outcome.proposal);
+      setProposalSvg(outcome.inspection.svg);
+      setProposalValidation(outcome.inspection.validation);
+      setProposalError('');
+      setLayoutRepairNotice(
+        'Layout updated after Studio confirmed the same parts and pin-to-pin connections.',
+      );
+
+      let finalReview: CircuitProposalReview | null = null;
+      try {
+        finalReview = await proposalReviewMutation.mutateAsync({
+          data: {
+            spec: outcome.proposal.spec,
+            originalRequest: originalRequest.slice(0, 6000) || 'Review this staged circuit proposal.',
+            brief,
+          },
+        });
+        void queryClient.invalidateQueries({ queryKey: getGetAiUsageQueryKey() });
+      } catch {
+        // Keep the verified layout and report the local checks below.
+      }
+      if (proposalReviewRunIdRef.current !== runId) return;
+
+      const nextReview = finalReview
+        ? withLayoutWarnings(finalReview, outcome.proposal.spec)
+        : {
+            ...initialReview,
+            readabilityWarnings: window.CircuitDraw?.layoutWarnings(outcome.proposal.spec).slice(0, 5) ?? [],
+          };
+      setProposalQualityReview({ kind: 'ready', review: nextReview });
+      if (!finalReview) {
+        setLayoutRepairNotice(
+          'Layout updated and connections verified; the second AI readability review was unavailable.',
+        );
+      }
+      return;
+    }
+
+    if (initialReview) {
+      setProposalQualityReview({ kind: 'ready', review: initialReview });
+    } else {
+      setProposalQualityReview({ kind: 'unavailable' });
+    }
+  }, [proposalReviewMutation.mutateAsync, queryClient, runLayoutRepair]);
+
+  const retryProposalLayout = () => {
+    const spec = proposal?.spec ? asCircuitSpec(proposal.spec) : null;
+    if (!spec || !lastRequest) return;
+    const brief = saved.brief;
+    const buildRequest = normalizeCircuitBuildRequest({
+      ...lastRequest,
+      mode: 'build',
+      currentSpec: spec,
+      brief,
+    });
+    void runProposalQualityReview(
+      spec,
+      buildRequest.message,
+      brief,
+      { automaticLayoutRepair: true, buildRequest },
+    );
+  };
+
+  const saveProposalFeedback = async (input: CircuitBuilderFeedbackInput) => {
+    const result = await feedbackMutation.mutateAsync({ data: input });
+    if (!result.saved) {
+      throw new Error('Feedback could not be saved. Please try again.');
+    }
+    await queryClient.invalidateQueries({
+      queryKey: getListCircuitBuilderMemoriesQueryKey(),
+    });
+  };
 
   useEffect(() => {
+    if (hasUnappliedJsonEdits) return;
+    const current = currentSpec as CircuitSpec | null;
+    if (!current) {
+      observedWorkbenchRepairRef.current = null;
+      return;
+    }
+
+    const findings = validationFindings
+      .slice(0, 12)
+      .map((finding) => finding.slice(0, 700));
+    const previous = observedWorkbenchRepairRef.current;
+    const currentSignature = JSON.stringify(current);
+    if (
+      previous?.sessionId === activeSessionId &&
+      previous.findings.length > 0 &&
+      findings.length === 0 &&
+      JSON.stringify(previous.spec) !== currentSignature
+    ) {
+      if (applyingProposalSpecRef.current === currentSignature) {
+        applyingProposalSpecRef.current = null;
+      } else if (isSameRepairDraft(previous.spec, current)) {
+        void saveRepairLesson({
+          content: null,
+          beforeSpec: previous.spec,
+          afterSpec: current,
+          findings: previous.findings,
+          context: 'The user manually corrected this workbench draft after CircuitDraw reported the listed issues.',
+        });
+      }
+    }
+
+    observedWorkbenchRepairRef.current = findings.length
+      ? { sessionId: activeSessionId, spec: current, findings }
+      : null;
+  }, [
+    activeSessionId,
+    currentSpec,
+    hasUnappliedJsonEdits,
+    saveRepairLesson,
+    validationFindings,
+  ]);
+
+  const runHistoryImport = useCallback(async () => {
+    if (!historyForMemory.length) return;
+    setHistoryImportStatus({ kind: 'loading' });
+    try {
+      const result = await historyImportMutation.mutateAsync({
+        data: { conversations: historyForMemory },
+      });
+      const savedResult = {
+        learnedCount: result.learnedCount,
+        conversationCount: historyForMemory.length,
+      };
+      try {
+        window.localStorage.setItem(
+          `circuit-studio-history-memory-import-v1:${userId}`,
+          JSON.stringify(savedResult),
+        );
+      } catch {
+        // Assumptions are saved to the account; this marker only avoids re-importing in this browser.
+      }
+      setHistoryImportStatus({ kind: 'done', ...savedResult });
+      void queryClient.invalidateQueries({
+        queryKey: getListCircuitBuilderMemoriesQueryKey(),
+      });
+    } catch {
+      setHistoryImportStatus({ kind: 'error' });
+    }
+  }, [historyForMemory, historyImportMutation.mutateAsync, queryClient, userId]);
+
+  useEffect(() => {
+    if (historyBootstrapCompleteRef.current) return;
+
+    if (historyQuery.isError) {
+      setHistoryHydrated(true);
+      setHistorySaveError('Could not load account history. Existing conversations remain available on this device.');
+      return;
+    }
+    if (historyDeletionsQuery.isError) {
+      setHistoryHydrated(true);
+      setHistorySaveError('Could not check deleted account history. Existing conversations remain available on this device.');
+      return;
+    }
+    if (!historyQuery.isSuccess || !historyDeletionsQuery.isSuccess) return;
+
+    const deletedSessionIds = new Set(
+      (historyDeletionsQuery.data ?? []).map((deletion) => deletion.sessionId),
+    );
+    const accountSessions = (historyQuery.data ?? [])
+      .map(normalizeAccountHistorySession)
+      .filter((session): session is BuilderHistoryEntry =>
+        !!session && !deletedSessionIds.has(session.id),
+      );
+    const hasLocalHistory = historyBootstrap.hasStoredHistory ||
+      historyBootstrap.hasLegacyConversation ||
+      sessions.some((session) => session.saved.messages.some((message) => message.id !== 'welcome'));
+    const localSessions = hasLocalHistory
+      ? filterDeletedBuilderHistorySessions(sessions, deletedSessionIds)
+      : [];
+    const mergedSessions = mergeBuilderHistorySessions(localSessions, accountSessions);
+    const fallbackSession = deletedSessionIds.has(historyBootstrap.active.id)
+      ? createBuilderHistorySession({
+          id: createHistoryId(),
+          saved: { brief: emptyBrief(), aiBrief: emptyBrief(), messages: [initialMessage] },
+          currentSpec,
+          mode: 'chat',
+        })
+      : historyBootstrap.active;
+    const availableSessions = mergedSessions.length ? mergedSessions : [fallbackSession];
+    const localActiveId = hasLocalHistory ? activeSessionId : '';
+    const restoredSession = availableSessions.find((session) => session.id === localActiveId) ??
+      availableSessions[0];
+
+    historyBootstrapCompleteRef.current = true;
+    setHistoryHydrated(true);
+    setHistorySaveError('');
+    setSessions(availableSessions);
+    setActiveSessionId(restoredSession.id);
+    setSaved(restoredSession.saved);
+    setMode(restoredSession.mode);
+    if (accountSessions.length) historyImportAttemptedForUser.current = userId;
+
+    try {
+      window.localStorage.setItem(activeSessionStorageKey, restoredSession.id);
+    } catch {
+      // The account copy is still available if browser storage is blocked.
+    }
+
+    if (JSON.stringify(currentSpec) !== JSON.stringify(restoredSession.currentSpec)) {
+      pendingRestoreRef.current = {
+        sessionId: restoredSession.id,
+        specSignature: JSON.stringify(restoredSession.currentSpec),
+        spec: restoredSession.currentSpec,
+      };
+      onApplySpec(restoredSession.currentSpec, 'history');
+    }
+
+    const sessionsToSync = getBuilderHistorySyncCandidates(localSessions, accountSessions);
+    if (sessionsToSync.length) {
+      void syncHistorySessions(sessionsToSync)
+        .then(() => setHistorySaveError(''))
+        .catch(() => {
+          setHistorySaveError('Could not sync conversation history to your account. This device still has its local copy.');
+        });
+    }
+  }, [
+    activeSessionId,
+    activeSessionStorageKey,
+    currentSpec,
+    historyBootstrap,
+    historyQuery.data,
+    historyQuery.isError,
+    historyQuery.isSuccess,
+    historyDeletionsQuery.data,
+    historyDeletionsQuery.isError,
+    historyDeletionsQuery.isSuccess,
+    onApplySpec,
+    sessions,
+    syncHistorySessions,
+    userId,
+  ]);
+
+  useEffect(() => {
+    if (
+      !historyBootstrapCompleteRef.current ||
+      !historyForMemory.length ||
+      historyImportAttemptedForUser.current === userId
+    ) {
+      return;
+    }
+    historyImportAttemptedForUser.current = userId;
+
+    let previousResult: string | null = null;
+    try {
+      previousResult = window.localStorage.getItem(
+        `circuit-studio-history-memory-import-v1:${userId}`,
+      );
+    } catch {
+      // Continue with the one-time scan if browser storage is unavailable.
+    }
+
+    if (previousResult) {
+      try {
+        const parsed: unknown = JSON.parse(previousResult);
+        const record = parsed && typeof parsed === 'object'
+          ? parsed as Record<string, unknown>
+          : {};
+        setHistoryImportStatus({
+          kind: 'done',
+          ...(typeof record.learnedCount === 'number'
+            ? { learnedCount: record.learnedCount }
+            : {}),
+          ...(typeof record.conversationCount === 'number'
+            ? { conversationCount: record.conversationCount }
+            : {}),
+        });
+      } catch {
+        setHistoryImportStatus({ kind: 'done' });
+      }
+      return;
+    }
+
+    void runHistoryImport();
+  }, [historyForMemory.length, runHistoryImport, userId]);
+
+  useEffect(() => {
+    onProposalStateChange(!!proposal);
+  }, [proposal, onProposalStateChange]);
+
+  useLayoutEffect(() => {
     try {
       window.localStorage.setItem(storageKey, JSON.stringify(saved));
     } catch {
@@ -173,102 +1241,730 @@ export function CircuitBuilderChat({
   }, [saved, storageKey]);
 
   useEffect(() => {
-    threadEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [saved.messages, chatMutation.isPending]);
+    const restore = pendingRestoreRef.current;
+    if (!restore || restore.sessionId !== activeSessionId) return;
+    if (JSON.stringify(currentSpec) !== restore.specSignature) onApplySpec(restore.spec);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!activeSessionId) return;
+    const restore = pendingRestoreRef.current;
+    if (restore?.sessionId === activeSessionId) {
+      if (JSON.stringify(currentSpec) !== restore.specSignature) return;
+      pendingRestoreRef.current = null;
+    }
+
+    const existing = sessions.find((session) => session.id === activeSessionId);
+    const nextSession = createBuilderHistorySession({
+      id: activeSessionId,
+      saved,
+      currentSpec,
+      mode,
+      now: Date.now(),
+      createdAt: existing?.createdAt,
+    });
+    const sessionChanged = !existing ||
+      existing.title !== nextSession.title ||
+      existing.mode !== nextSession.mode ||
+      JSON.stringify(existing.saved) !== JSON.stringify(nextSession.saved) ||
+      JSON.stringify(existing.currentSpec) !== JSON.stringify(nextSession.currentSpec);
+    const nextSessions = sessionChanged
+      ? upsertBuilderHistorySession(sessions, nextSession)
+      : sessions;
+    if (sessionChanged) setSessions(nextSessions);
+
+    try {
+      window.localStorage.setItem(historyStorageKey, JSON.stringify(nextSessions));
+      window.localStorage.setItem(activeSessionStorageKey, activeSessionId);
+      setHistorySaveError('');
+    } catch {
+      setHistorySaveError('This browser could not save a local copy. Account sync may still be available.');
+    }
+
+  }, [activeSessionId, saved, currentSpec, mode, sessions, historyStorageKey, activeSessionStorageKey]);
+
+  useEffect(() => {
+    if (
+      !historyHydrated ||
+      !historyBootstrapCompleteRef.current ||
+      !historyQuery.isSuccess
+    ) return;
+
+    const restore = pendingRestoreRef.current;
+    if (
+      restore?.sessionId === activeSession.id &&
+      JSON.stringify(currentSpec) !== restore.specSignature
+    ) return;
+
+    const signature = JSON.stringify(activeSession);
+    if (lastHistorySaveSignatureRef.current === signature) return;
+    lastHistorySaveSignatureRef.current = signature;
+
+    void syncHistorySessions([activeSession])
+      .then(() => setHistorySaveError(''))
+      .catch(() => {
+        lastHistorySaveSignatureRef.current = '';
+        setHistorySaveError('Could not sync conversation history to your account. This device still has its local copy.');
+      });
+  }, [
+    activeSession,
+    currentSpec,
+    historyHydrated,
+    historyQuery.isSuccess,
+    syncHistorySessions,
+  ]);
 
   const visibleMessages = saved.messages;
-  const remaining = usageQuery.data?.tokensRemaining;
-  const allowanceBlocked = usageQuery.data ? !usageQuery.data.canUseAi || remaining === 0 : false;
-  const canSend = draft.trim().length > 0 && !chatMutation.isPending && !allowanceBlocked && !proposal && !briefEditing;
+  const aiUnavailable = usageQuery.data ? !usageQuery.data.canUseAi : false;
+  const currentSpecSignature = useMemo(
+    () => JSON.stringify(currentSpec ?? null),
+    [currentSpec],
+  );
+  const repairNoticeKey = validationFindings.join('\u0000');
+
+  useEffect(() => {
+    if (!canRepairCurrentDraft || validationFindings.length === 0) {
+      setDismissedRepairNoticeKey(null);
+    }
+  }, [canRepairCurrentDraft, validationFindings.length]);
 
   const localProposalState = useMemo(() => {
     if (!proposal) return null;
     return proposalValidation;
   }, [proposal, proposalValidation]);
 
+  const externalFixContext = useMemo<ExternalCircuitFixContext | null>(() => {
+    if (!rejectedProposalSpec || !retryFeedback) return null;
+    const { reportedProblems, advisoryWarnings } = partitionExternalCircuitFixFindings(
+      retryFeedback.validationFindings ?? [],
+      retryFeedback.validationWarnings ?? [],
+      retryFeedback.message,
+    );
+    return {
+      rejectedSpec: rejectedProposalSpec as CircuitSpec,
+      reportedProblems,
+      advisoryWarnings,
+      originalRequest: lastRequest?.message ?? '',
+      designBrief: saved.brief,
+      history: saved.messages.slice(-8).map(({ role, content }) => ({
+        role,
+        content: content.slice(0, 3000),
+      })),
+    };
+  }, [rejectedProposalSpec, retryFeedback, lastRequest, saved.brief, saved.messages]);
+  const externalFixContextKey = externalFixContext
+    ? getExternalCircuitFixContextKey(externalFixContext)
+    : '';
+  const showExternalFixPaste = shouldShowExternalCircuitFixPaste(
+    externalFixCopiedContextKey,
+    externalFixContextKey,
+  );
+  externalFixContextKeyRef.current = externalFixContextKey;
+  externalFixCopiedContextKeyRef.current = externalFixCopiedContextKey;
+
+  useEffect(() => {
+    setExternalFixCopiedContextKey(null);
+    setExternalFixCopyState('idle');
+    setExternalFixDraft('');
+    setExternalFixFeedback(null);
+  }, [externalFixContextKey]);
+
+  useEffect(() => {
+    if (!rejectedProposalSpec) setRejectedPreviewOpen(false);
+  }, [rejectedProposalSpec]);
+
   const addMessage = (message: ThreadMessage) => {
     setSaved((current) => ({ ...current, messages: [...current.messages, message].slice(-60) }));
   };
 
-  const runRequest = async (request: CircuitBuildChatInput) => {
-    setLastRequest(request);
+  const copyRejectedSpec = async () => {
+    if (!rejectedProposalSpec) return;
     try {
-      const response = await chatMutation.mutateAsync({ data: request });
-      const nextBrief = response.brief ?? emptyBrief();
-      setSaved((current) => ({
-        brief: mergeBriefPreservingManualEdits(current.aiBrief, current.brief, nextBrief),
-        aiBrief: nextBrief,
-        messages: [...current.messages, newMessage('assistant', response.answer)].slice(-60),
-      }));
-      if (request.mode === 'build' && response.proposal) {
-        setProposal(response.proposal);
-        setProposalError('');
-        if (!window.CircuitDraw) {
-          setProposalSvg('');
-          setProposalValidation({ errors: ['The schematic preview library is not ready.'], warnings: [] });
-        } else {
-          try {
-            const validation = window.CircuitDraw.validate(response.proposal.spec);
-            setProposalValidation(validation);
-            setProposalSvg(validation.errors.length ? '' : window.CircuitDraw.render(response.proposal.spec));
-          } catch (error) {
-            setProposalValidation({
-              errors: [error instanceof Error ? error.message : 'This proposal could not be rendered.'],
-              warnings: [],
-            });
-            setProposalSvg('');
-          }
-        }
-      }
-      await queryClient.invalidateQueries({ queryKey: getGetAiUsageQueryKey() });
-      onTaskComplete(request.mode);
+      await navigator.clipboard.writeText(JSON.stringify(rejectedProposalSpec, null, 2));
+      setRejectedSpecCopyState('copied');
     } catch {
-      // The mutation's error state is rendered below; keep the user's message and retry context.
+      setRejectedSpecCopyState('error');
     }
   };
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const content = draft.trim();
-    if (!content || chatMutation.isPending || allowanceBlocked || briefEditing) return;
-    const intent = localModeIntent(content);
-    if (proposal && !intent) return;
-    setDraft('');
-    addMessage(newMessage('user', content));
-    if (intent) {
-      setMode(intent);
+  const copyExternalCircuitFixPrompt = async () => {
+    if (!externalFixContext || !externalFixContextKey) return;
+    try {
+      await navigator.clipboard.writeText(buildExternalCircuitFixPrompt(externalFixContext));
+      setExternalFixDraft('');
+      setExternalFixFeedback(null);
+      externalFixReviewMutation.reset();
+      setExternalFixCopiedContextKey(externalFixContextKey);
+      setExternalFixCopyState('copied');
+    } catch {
+      setExternalFixCopiedContextKey(null);
+      setExternalFixCopyState('error');
+    }
+  };
+
+  const submitExternalCircuitFix = async () => {
+    if (
+      !externalFixContext ||
+      !showExternalFixPaste ||
+      proposal ||
+      requestCycleActive ||
+      externalFixReviewMutation.isPending
+    ) return;
+
+    const submittedContextKey = externalFixContextKey;
+    setExternalFixFeedback(null);
+    const parsed = parseCircuitSpecJson(externalFixDraft);
+    if (!parsed.ok) {
+      setExternalFixFeedback({ kind: 'local-rejected', reasons: [parsed.error] });
+      return;
+    }
+    if (!window.CircuitDraw) {
+      setExternalFixFeedback({
+        kind: 'local-rejected',
+        reasons: ['The schematic validator is not ready. Reload the page and try again.'],
+      });
+      return;
+    }
+
+    let validation: ValidationReport;
+    let svg: string;
+    try {
+      validation = window.CircuitDraw.validate(parsed.spec);
+      const localCheck = inspectExternalCircuitFixCandidate(
+        externalFixContext.rejectedSpec,
+        parsed.spec,
+        validation,
+      );
+      if (!localCheck.accepted) {
+        setExternalFixFeedback({ kind: 'local-rejected', reasons: localCheck.reasons });
+        return;
+      }
+      svg = window.CircuitDraw.render(parsed.spec);
+      if (!svg) throw new Error('The schematic renderer did not produce a preview.');
+    } catch (error) {
+      setExternalFixFeedback({
+        kind: 'local-rejected',
+        reasons: [error instanceof Error ? error.message : 'The pasted CircuitSpec could not be checked.'],
+      });
+      return;
+    }
+
+    if (
+      externalFixContextKeyRef.current !== submittedContextKey ||
+      externalFixCopiedContextKeyRef.current !== submittedContextKey
+    ) {
+      setExternalFixFeedback({
+        kind: 'error',
+        message: 'The rejected proposal changed. Copy its prompt again before submitting a fix.',
+      });
+      return;
+    }
+
+    try {
+      const result = await externalFixReviewMutation.mutateAsync({
+        data: {
+          rejectedSpec: externalFixContext.rejectedSpec,
+          candidateSpec: parsed.spec,
+          reportedProblems: externalFixContext.reportedProblems.slice(0, 30).map((item) => item.slice(0, 1000)),
+          advisoryWarnings: externalFixContext.advisoryWarnings.slice(0, 30).map((item) => item.slice(0, 1000)),
+          originalRequest: externalFixContext.originalRequest.slice(0, 6000),
+          designBrief: externalFixContext.designBrief,
+          history: externalFixContext.history,
+        },
+      });
+      void queryClient.invalidateQueries({ queryKey: getGetAiUsageQueryKey() });
+      if (
+        externalFixContextKeyRef.current !== submittedContextKey ||
+        externalFixCopiedContextKeyRef.current !== submittedContextKey
+      ) return;
+
+      setExternalFixFeedback({
+        kind: 'review',
+        approved: result.approved,
+        summary: result.summary,
+        concerns: result.concerns,
+      });
+      if (!result.approved) return;
+
+      setProposal({
+        summary: `External fix reviewed by Studio AI: ${result.summary}`.slice(0, 500),
+        spec: parsed.spec,
+      });
+      setProposalSvg(svg);
+      setProposalValidation(validation);
+      setProposalError('Studio AI review is not an electrical simulation or safety check.');
+      if (validation.errors.length) {
+        setProposalQualityReview({ kind: 'skipped' });
+      } else {
+        void runProposalQualityReview(
+          parsed.spec,
+          externalFixContext.originalRequest || externalFixContext.designBrief.goal,
+          externalFixContext.designBrief,
+        );
+      }
+    } catch (error) {
+      if (
+        externalFixContextKeyRef.current !== submittedContextKey ||
+        externalFixCopiedContextKeyRef.current !== submittedContextKey
+      ) return;
+      setExternalFixFeedback({
+        kind: 'error',
+        message: error instanceof Error
+          ? error.message
+          : 'Studio AI could not review this fix. Your pasted text is still here; try again shortly.',
+      });
+    }
+  };
+
+  const runRequest = async (
+    request: CircuitBuildChatInput,
+    draftRevisionAtStart: number,
+    protectedElementsBaseSpec?: NonNullable<CircuitBuildChatInput['currentSpec']>,
+    preserveRejectedProposal = false,
+    rememberForRetry = true,
+    repairLessonSeed?: RepairLessonEvidence,
+    preservedRejectedProposalOverride?: CircuitBuildChatInput['currentSpec'],
+    allowConnectivityChange = false,
+  ) => {
+    const safeRequest = normalizeCircuitBuildRequest(request);
+    if (rememberForRetry) setLastRequest(safeRequest);
+    if (preserveRejectedProposal && preservedRejectedProposalOverride) {
+      setRejectedProposalSpec(preservedRejectedProposalOverride);
+      setRejectedProposalSvg(renderRejectedProposalPreview(preservedRejectedProposalOverride));
+    }
+    setLastProtectedElementsBaseSpec(protectedElementsBaseSpec ?? null);
+    setRetryFeedback(null);
+    setRepairDiagnostics([]);
+    setProposalRepairLesson(null);
+    setRepairLessonNotice(null);
+    clearProposalQualityReview();
+    if (!preserveRejectedProposal) {
+      setRejectedProposalSpec(null);
+      setRejectedProposalSvg('');
+    }
+    setRejectedSpecCopyState('idle');
+    setRetryAttempt(0);
+    setRetryKind(null);
+    setRequestCycleActive(true);
+    chatMutation.reset();
+    let latestBrief = safeRequest.brief ?? emptyBrief();
+    try {
+      const {
+        response,
+        proposalInspection,
+        request: completedRequest,
+        repairDiagnostics: completedRepairDiagnostics,
+        repairLessonContext,
+      } = await runCircuitBuildAttempts({
+        initialRequest: safeRequest,
+        allowConnectivityChange,
+        send: (workingRequest) => chatMutation.mutateAsync({ data: workingRequest }),
+        getProposal: (result) => result.proposal?.spec ?? null,
+        inspectProposal,
+        prepareResponse: (result) => {
+          if (!result.proposal?.spec || !window.CircuitDraw) return result;
+          const beforeConnectivity = getConnectivitySignature(result.proposal.spec, true);
+          const autoFixed = window.CircuitDraw.autoFix(result.proposal.spec);
+          const afterConnectivity = getConnectivitySignature(autoFixed.spec, true);
+          if (
+            autoFixed.changes.length &&
+            !hasStablePinConnectivitySignature(beforeConnectivity, afterConnectivity)
+          ) return result;
+          return autoFixed.changes.length
+            ? { ...result, proposal: { ...result.proposal, spec: autoFixed.spec } }
+            : result;
+        },
+        getConnectivitySignature: (candidate) =>
+          getConnectivitySignature(candidate as CircuitSpec),
+        initialProtectedSpec: protectedElementsBaseSpec ?? undefined,
+        getProtectedCircuitSignature: (spec) =>
+          getProtectedCircuitSignature(spec as NonNullable<CircuitBuildChatInput['currentSpec']>),
+        getProtectedCircuitChanges: (baseline, candidate) =>
+          getProtectedCircuitChanges(
+            baseline as NonNullable<CircuitBuildChatInput['currentSpec']>,
+            candidate as NonNullable<CircuitBuildChatInput['currentSpec']>,
+          ),
+        restoreProtectedSpec: (result, baseline) => {
+          if (!result.proposal?.spec) return result;
+          return {
+            ...result,
+            proposal: {
+              ...result.proposal,
+              spec: restoreProtectedNonWireElements(
+                baseline as NonNullable<CircuitBuildChatInput['currentSpec']>,
+                result.proposal.spec,
+              ),
+            },
+          };
+        },
+        makeRepairRequest: (result, findings) => buildRepairRequest(
+          safeRequest,
+          latestBrief,
+          findings,
+          result.proposal?.spec ?? request.currentSpec,
+        ),
+        makeOutputRepairRequest: buildOutputRepairRequest,
+        onResponse: (result) => {
+          latestBrief = result.brief ?? latestBrief;
+        },
+        onRetry: (attempt, kind) => {
+          setRetryAttempt(attempt);
+          setRetryKind(kind);
+        },
+      });
+        const nextMode = response.nextMode ?? completedRequest.mode;
+        const nextBrief = response.brief ?? latestBrief;
+        latestBrief = nextBrief;
+
+        setMode(nextMode);
+        setSaved((current) => ({
+          brief: mergeBriefPreservingManualEdits(current.aiBrief, current.brief, nextBrief),
+          aiBrief: nextBrief,
+          messages: [
+            ...current.messages,
+            newMessage(
+              'assistant',
+              response.answer,
+              response.suggestedActions,
+              { buildApprovalRequest: response.buildApprovalRequested },
+            ),
+          ].slice(-60),
+        }));
+        setRejectedProposalSpec(null);
+        setRejectedProposalSvg('');
+        setRepairDiagnostics(completedRepairDiagnostics);
+        if (nextMode === 'build' && response.proposal && proposalInspection) {
+          setProposal(response.proposal);
+          setProposalError('');
+          setProposalValidation(proposalInspection.validation);
+          setProposalSvg(proposalInspection.svg);
+          if (proposalInspection.validation.errors.length) {
+            setProposalQualityReview({ kind: 'skipped' });
+          } else {
+            void runProposalQualityReview(
+              response.proposal.spec,
+              safeRequest.message,
+              nextBrief,
+              { automaticLayoutRepair: true, buildRequest: safeRequest },
+            );
+          }
+          const automaticSeed = repairLessonContext
+            ? {
+                beforeSpec: asCircuitSpec(repairLessonContext.rejectedProposal),
+                findings: repairLessonContext.validationFindings,
+                context: safeRequest.message,
+              }
+            : null;
+          const lessonSeed = repairLessonSeed ?? (
+            automaticSeed?.beforeSpec
+              ? {
+                  beforeSpec: automaticSeed.beforeSpec,
+                  findings: automaticSeed.findings,
+                  context: automaticSeed.context,
+                }
+              : null
+          );
+          setProposalRepairLesson(
+            lessonSeed && lessonSeed.findings.length
+              ? {
+                  ...lessonSeed,
+                  afterSpec: response.proposal.spec,
+                  content: response.repairLesson?.trim() || null,
+                  context: (lessonSeed.context ?? safeRequest.message).slice(0, 1600),
+                }
+              : null,
+          );
+        } else {
+          setProposalRepairLesson(null);
+        }
+        void queryClient.invalidateQueries({ queryKey: getGetAiUsageQueryKey() });
+        void queryClient.invalidateQueries({ queryKey: getListCircuitBuilderMemoriesQueryKey() });
+        onTaskComplete(nextMode);
+    } catch (error) {
       setSaved((current) => ({
         ...current,
-        messages: [...current.messages, newMessage('assistant', intent === 'build'
-          ? 'Build mode is on. I will prepare a draft for review; your working schematic stays unchanged until you apply it.'
-          : 'Chat mode is on. We can clarify the idea without changing the schematic.')].slice(-60),
+        brief: mergeBriefPreservingManualEdits(current.aiBrief, current.brief, latestBrief),
+        aiBrief: latestBrief,
+      }));
+      setMode((currentMode) => getModeAfterFailedRequest(currentMode, safeRequest.mode));
+      if (error instanceof CircuitBuildAttemptError) {
+        const rejectedSpec = asCircuitSpec(error.rejectedProposal) ??
+          (preserveRejectedProposal
+            ? asCircuitSpec(preservedRejectedProposalOverride) ?? rejectedProposalSpec
+            : null);
+        setRejectedProposalSpec(rejectedSpec);
+        setRejectedProposalSvg(renderRejectedProposalPreview(rejectedSpec));
+        setRepairDiagnostics(error.repairDiagnostics);
+        const validationFindings = error.validationFindings.length
+          ? error.validationFindings
+          : preserveRejectedProposal ? retryFeedback?.validationFindings ?? [] : [];
+        const validationWarnings = error.validationWarnings.length
+          ? error.validationWarnings
+          : preserveRejectedProposal ? retryFeedback?.validationWarnings ?? [] : [];
+        const causeMessage = error.cause instanceof Error
+          ? error.cause.message
+          : 'The request did not go through. Your message is still here.';
+        let message: string;
+        if (error.failureKind === 'repair-blocked') {
+          message = `${formatRepairAttemptSummary(error.repairAttemptCount)} ${causeMessage}`;
+        } else if (error.failureKind === 'validation') {
+          message = error.validationFindings.length
+            ? formatValidationFailure(error.repairAttemptCount)
+            : 'The proposal could not be checked. Your message is still here.';
+        } else if (error.failureKind === 'output') {
+          const compatibilityMessage = error.cause instanceof Error
+            ? error.cause.message
+            : '';
+          message = /unsupported circuit element type:|element is missing required properties:/i.test(compatibilityMessage)
+            ? `${compatibilityMessage} Your message and notes are unchanged; you can retry or choose a supported component.`
+            : 'The assistant response still did not match Circuit Studio’s required format. Your message and notes are unchanged; you can retry or simplify the request.';
+        } else {
+          message = error.retryCount > 0
+            ? `The request failed after ${error.retryCount} automatic retr${error.retryCount === 1 ? 'y' : 'ies'}. ${causeMessage}`
+            : causeMessage;
+        }
+        if (preserveRejectedProposal && rejectedSpec && error.failureKind !== 'validation') {
+          message = `${message} The previous proposal is preserved below for another repair attempt.`;
+        }
+        setRetryFeedback({
+          message,
+          canRetryManually: error.canRetryManually,
+          ...(validationFindings.length ? { validationFindings } : {}),
+          ...(validationWarnings.length ? { validationWarnings } : {}),
+        });
+      } else {
+        setRepairDiagnostics([]);
+        if (!preserveRejectedProposal) {
+          setRejectedProposalSpec(null);
+          setRejectedProposalSvg('');
+        }
+        setRetryFeedback({
+          message: `${error instanceof Error ? error.message : 'The request did not go through. Your message is still here.'}${preserveRejectedProposal ? ' The previous proposal remains available for another repair attempt.' : ''}`,
+          canRetryManually: true,
+          ...(preserveRejectedProposal && retryFeedback?.validationFindings?.length
+            ? { validationFindings: retryFeedback.validationFindings }
+            : {}),
+          ...(preserveRejectedProposal && retryFeedback?.validationWarnings?.length
+            ? { validationWarnings: retryFeedback.validationWarnings }
+            : {}),
+        });
+      }
+    } finally {
+      composerRef.current?.clearDraftIfUnchanged(draftRevisionAtStart, safeRequest.message);
+      setRequestCycleActive(false);
+      setRetryAttempt(0);
+      setRetryKind(null);
+    }
+  };
+
+  const handleSubmitMessage = async (content: string, draftRevisionAtStart: number) => {
+    const normalizedContent = content.trim();
+    if (!normalizedContent || chatMutation.isPending || requestCycleActive || briefEditing || hasUnappliedJsonEdits) return;
+    const intent = getLocalBuilderModeIntent(normalizedContent);
+    if (proposal && intent !== 'chat') return;
+    if (intent === 'chat') {
+      const userMessage = newMessage('user', normalizedContent);
+      const assistantMessage = newMessage('assistant', 'Chat mode is on. We can clarify the idea without changing the schematic.');
+      composerRef.current?.clearDraftIfUnchanged(draftRevisionAtStart, normalizedContent);
+      setMode('chat');
+      setSaved((current) => ({
+        ...current,
+        messages: [...current.messages, userMessage, assistantMessage].slice(-60),
       }));
       return;
     }
 
-    const history = [...saved.messages, { role: 'user' as const, content }]
+    const lastMessage = saved.messages.at(-1);
+    const approvalIsPending =
+      lastMessage?.role === 'assistant' && lastMessage.buildApprovalRequest === true;
+    const buildIsAuthorized =
+      mode === 'build' ||
+      intent === 'build' ||
+      isExplicitBuildRequest(normalizedContent) ||
+      isExplicitBuildApproval(normalizedContent, approvalIsPending);
+    const requestMode: ChatMode = buildIsAuthorized ? 'build' : mode;
+    // Direct build requests and explicit approvals may enter Build mode. An
+    // inferred request stays in Chat until the user approves the question.
+    setMode(requestMode);
+    const userMessage = newMessage('user', normalizedContent);
+    setSaved((current) => ({
+      ...current,
+      messages: [...current.messages, userMessage].slice(-60),
+    }));
+    const history = saved.messages
       .slice(-8)
       .map(({ role, content: messageContent }) => ({ role, content: messageContent }));
     await runRequest({
-      message: content,
-      mode,
+      message: normalizedContent,
+      mode: requestMode,
       currentSpec,
       history,
       brief: saved.brief,
-    });
-  };
-
-  const handleComposerKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault();
-      event.currentTarget.form?.requestSubmit();
-    }
+    }, draftRevisionAtStart);
   };
 
   const retryRequest = async () => {
-    if (!lastRequest || chatMutation.isPending || allowanceBlocked) return;
-    await runRequest(lastRequest);
+    if (!lastRequest || chatMutation.isPending || requestCycleActive) return;
+    const findings = retryFeedback?.validationFindings ?? [];
+    const continuingRejectedProposal = !!rejectedProposalSpec && findings.length > 0;
+    const request = buildManualRetryRequest(
+      lastRequest,
+      saved.brief,
+      rejectedProposalSpec,
+      findings,
+    );
+    await runRequest(
+      request,
+      composerRef.current?.getDraftRevision() ?? 0,
+      lastProtectedElementsBaseSpec ?? (continuingRejectedProposal ? rejectedProposalSpec : undefined) ?? undefined,
+      continuingRejectedProposal,
+      false,
+    );
   };
+
+  const runRecoveryRetry = async () => {
+    if (!lastRequest || chatMutation.isPending || requestCycleActive) return;
+    const findings = retryFeedback?.validationFindings ?? [];
+    const rejectedSpec = asCircuitSpec(rejectedProposalSpec);
+    const recoveryKind = getRetryRecoveryKind(
+      repairDiagnostics,
+      findings,
+      rejectedProposalSpec,
+    );
+    if (!rejectedSpec || !recoveryKind) return;
+
+    const repairLessonSeed = rejectedSpec && findings.length
+      ? {
+          beforeSpec: rejectedSpec,
+          findings,
+          context: (() => {
+            const attemptedRepairs = repairDiagnostics.reduce(
+              (maximum, diagnostic) => Math.max(maximum, diagnostic.attempt),
+              0,
+            );
+            return recoveryKind === 'rewire'
+              ? `After ${attemptedRepairs} automatic repair attempts, the circuit wiring was rebuilt while preserving its components.`
+              : `A new circuit proposal was created after ${attemptedRepairs} automatic repair attempts could not resolve component or specification errors.`;
+          })(),
+        }
+      : undefined;
+    const request = recoveryKind === 'rewire'
+      ? buildWireRebuildRequest(lastRequest, saved.brief, rejectedSpec, findings)
+      : buildWholeCircuitRetryRequest(lastRequest, saved.brief);
+    const protectedBaseline = recoveryKind === 'rewire'
+      ? asCircuitSpec(request.currentSpec)
+      : null;
+
+    await runRequest(
+      request,
+      composerRef.current?.getDraftRevision() ?? 0,
+      protectedBaseline ?? undefined,
+      recoveryKind === 'rewire',
+      true,
+      repairLessonSeed,
+      undefined,
+      recoveryKind === 'rewire',
+    );
+  };
+
+  const repairCurrentDraft = () => {
+    if (
+      !canRepairCurrentDraft ||
+      !validationFindings.length ||
+      !currentSpec ||
+      hasUnappliedJsonEdits ||
+      proposal ||
+      chatMutation.isPending ||
+      requestCycleActive ||
+      briefEditing
+    ) return;
+
+    const message = [
+      'Repair the current workbench draft using the CircuitDraw validation findings below.',
+      'Preserve every existing component, value, label, orientation, and position exactly. Repair the wiring only, unless a finding explicitly requires otherwise.',
+      'Return a complete corrected proposal and do not claim that structural validation proves electrical correctness or safety.',
+      '',
+      'Validator findings:',
+      ...validationFindings.map((finding) => `- ${finding}`),
+    ].join('\n');
+    const history = saved.messages
+      .slice(-8)
+      .map(({ role, content }) => ({ role, content }));
+    const userMessage = newMessage('user', message);
+    setMode('build');
+    setSaved((current) => ({
+      ...current,
+      messages: [...current.messages, userMessage].slice(-60),
+    }));
+    void runRequest({
+      message,
+      mode: 'build',
+      currentSpec,
+      history,
+      brief: saved.brief,
+    }, composerRef.current?.getDraftRevision() ?? 0, currentSpec);
+  };
+
+  useEffect(() => {
+    const request = jsonRepairRequest;
+    if (
+      !request ||
+      handledJsonRepairRequestRef.current === request.id ||
+      proposal ||
+      chatMutation.isPending ||
+      requestCycleActive
+    ) return;
+
+    handledJsonRepairRequestRef.current = request.id;
+    const validationContext = request.validationFindings?.length
+      ? `CircuitDraw found these structural issues:\n${request.validationFindings.map((finding) => `- ${finding}`).join('\n')}`
+      : `JSON parse or shape issue: ${request.parseError}`;
+    const messagePrefix = [
+      'The user edited the CircuitSpec JSON directly and clicked Apply edit for help.',
+      'Use the raw edit to understand the intended changes. Preserve clear intent, repair the CircuitSpec when possible, and do not discard the requested changes just because the JSON is malformed.',
+      'If the intended circuit behavior cannot be inferred without guessing, ask one focused clarification instead of inventing behavior.',
+      'Return a complete corrected CircuitSpec as a staged proposal. Do not claim that drawing validation proves electrical correctness or safety.',
+      '',
+      validationContext.slice(0, 1200),
+      '',
+      'User-edited CircuitSpec JSON:',
+      '```json',
+    ].join('\n');
+    const closingFence = '\n```';
+    const rawJsonBudget = Math.max(0, 5900 - messagePrefix.length - closingFence.length);
+    const rawJsonContext = request.rawJson.length <= rawJsonBudget
+      ? request.rawJson
+      : `${request.rawJson.slice(0, Math.max(0, rawJsonBudget - 54))}\n[Remaining JSON omitted to fit the builder request.]`;
+    const message = `${messagePrefix}\n${rawJsonContext}${closingFence}`;
+    const history = saved.messages
+      .slice(-8)
+      .map(({ role, content }) => ({ role, content }));
+    const userMessage = newMessage('user', message);
+    setMode('build');
+    setSaved((current) => ({
+      ...current,
+      messages: [...current.messages, userMessage].slice(-60),
+    }));
+
+    void runRequest({
+      message,
+      mode: 'build',
+      currentSpec: request.baseSpec,
+      history,
+      brief: saved.brief,
+    }, composerRef.current?.getDraftRevision() ?? 0).finally(() => {
+      onJsonRepairRequestHandled(request.id);
+    });
+  }, [
+    jsonRepairRequest,
+    proposal,
+    chatMutation.isPending,
+    requestCycleActive,
+    saved,
+    currentSpec,
+    runRequest,
+    onJsonRepairRequestHandled,
+  ]);
 
   const editBrief = () => {
     setBriefGoalDraft(saved.brief.goal);
@@ -291,91 +1987,715 @@ export function CircuitBuilderChat({
     setBriefEditing(false);
   };
 
-  const clearConversation = () => {
-    setSaved({ brief: emptyBrief(), aiBrief: emptyBrief(), messages: [initialMessage] });
+  const clearTransientConversationState = () => {
+    chatMutation.reset();
     setLastRequest(null);
+    setLastProtectedElementsBaseSpec(null);
+    setProposal(null);
+    setProposalSvg('');
+    setProposalValidation(null);
+    setProposalError('');
+    setRejectedProposalSpec(null);
+    setRejectedProposalSvg('');
+    setRejectedSpecCopyState('idle');
+    setExternalFixCopiedContextKey(null);
+    setExternalFixCopyState('idle');
+    setExternalFixDraft('');
+    setExternalFixFeedback(null);
+    externalFixReviewMutation.reset();
+    setRetryFeedback(null);
+    setRepairDiagnostics([]);
+    setRetryAttempt(0);
+    setRetryKind(null);
+    setBriefEditing(false);
+    composerRef.current?.setDraft('');
+  };
+
+  const clearCurrentConversation = () => {
+    if (chatMutation.isPending || requestCycleActive) return;
+    setSaved({ brief: emptyBrief(), aiBrief: emptyBrief(), messages: [initialMessage] });
+    setMode('chat');
+    clearTransientConversationState();
+    setHistoryOpen(false);
+    setClearChatOpen(false);
+  };
+
+  const startNewConversation = () => {
+    if (chatMutation.isPending || requestCycleActive) return;
+    const now = Date.now();
+    const currentSession = createBuilderHistorySession({
+      id: activeSessionId,
+      saved,
+      currentSpec,
+      mode,
+      now,
+      createdAt: activeSession.createdAt,
+    });
+    const nextSession = createBuilderHistorySession({
+      id: createHistoryId(),
+      saved: { brief: emptyBrief(), aiBrief: emptyBrief(), messages: [initialMessage] },
+      currentSpec,
+      mode: 'chat',
+      now,
+    });
+    setSessions((current) => upsertBuilderHistorySession(
+      upsertBuilderHistorySession(current, currentSession),
+      nextSession,
+    ));
+    setActiveSessionId(nextSession.id);
+    setSaved(nextSession.saved);
+    setMode('chat');
+    clearTransientConversationState();
+    setHistoryOpen(false);
+  };
+
+  const openHistorySession = (session: BuilderHistoryEntry) => {
+    if (
+      session.id === activeSessionId ||
+      chatMutation.isPending ||
+      requestCycleActive
+    ) {
+      setHistoryOpen(false);
+      return;
+    }
+    const now = Date.now();
+    const currentSession = createBuilderHistorySession({
+      id: activeSessionId,
+      saved,
+      currentSpec,
+      mode,
+      now,
+      createdAt: activeSession.createdAt,
+    });
+    setSessions((current) => upsertBuilderHistorySession(current, currentSession));
+    pendingRestoreRef.current = {
+      sessionId: session.id,
+      specSignature: JSON.stringify(session.currentSpec),
+      spec: session.currentSpec,
+    };
+    setActiveSessionId(session.id);
+    setSaved(session.saved);
+    setMode(session.mode);
+    onApplySpec(session.currentSpec, 'history');
+    clearTransientConversationState();
+    setHistoryOpen(false);
+  };
+
+  const deleteHistorySession = async () => {
+    const target = historyDeleteTarget;
+    if (
+      !target ||
+      historyDeleteMutation.isPending ||
+      historySyncMutation.isPending ||
+      chatMutation.isPending ||
+      requestCycleActive
+    ) return;
+
+    setHistoryDeleteError('');
+    try {
+      await historyDeleteMutation.mutateAsync({ sessionId: target.id });
+      const nextSessions = sessions.filter((session) => session.id !== target.id);
+
+      if (target.id === activeSessionId) {
+        const nextSession = createBuilderHistorySession({
+          id: createHistoryId(),
+          saved: { brief: emptyBrief(), aiBrief: emptyBrief(), messages: [initialMessage] },
+          currentSpec,
+          mode: 'chat',
+        });
+        nextSessions.unshift(nextSession);
+        pendingRestoreRef.current = null;
+        setActiveSessionId(nextSession.id);
+        setSaved(nextSession.saved);
+        setMode('chat');
+        clearTransientConversationState();
+      }
+
+      setSessions(nextSessions);
+      setHistoryDeleteTarget(null);
+      void queryClient.invalidateQueries({
+        queryKey: [...getListCircuitBuilderHistoryQueryKey(), userId],
+      });
+      void queryClient.invalidateQueries({
+        queryKey: [...getListDeletedCircuitBuilderHistoryQueryKey(), userId],
+      });
+    } catch {
+      setHistoryDeleteError('This conversation could not be deleted. It is still saved; please try again.');
+    }
+  };
+
+  const prepareComponentPrompt = (
+    entry: CircuitComponentLibraryEntry | CircuitSymbolSearchItem,
+  ) => {
+    setMode('build');
+    if ('id' in entry) {
+      const description = [
+        entry.shortDescription || entry.description,
+        entry.longDescription,
+        entry.keywords ? `Search terms: ${entry.keywords}` : '',
+        entry.researchStatus === 'needs_review'
+          ? 'Description status: needs review; purpose is unverified.'
+          : '',
+      ].filter(Boolean).join(' ');
+      composerRef.current?.setDraft(
+        `Use this exact KiCad symbol ID: ${entry.id}. Add ${entry.name} to my current schematic using its real library pin names and positions.${description ? ` Symbol details: ${description}.` : ''}`,
+      );
+      return;
+    }
+    composerRef.current?.setDraft(
+      entry.category === 'Drawing'
+        ? `Add a ${entry.displayName} (${entry.type}) drawing annotation to my current schematic. Do not treat it as an electrical component.`
+        : `Use a ${entry.displayName} (${entry.type}) in my current design. Reference: ${entry.shortDescription} ${entry.longDescription} Use its supported pin model and ask me for any missing ratings or verified pinout before assuming them.`,
+    );
+  };
+
+  const prepareSuggestedAction = (
+    action: CircuitBuilderSuggestedAction,
+    isReplyToQuestion: boolean,
+  ) => {
+    if (!isReplyToQuestion && isExplicitBuildRequest(action.prompt)) setMode('build');
+    composerRef.current?.setDraft(action.prompt);
+  };
+
+  const discardProposal = () => {
+    setProposal(null);
+    setProposalSvg('');
+    setProposalValidation(null);
+    clearProposalQualityReview();
+  };
+
+  const reviseProposalFromFeedback = async (
+    reason: ProposalFeedbackReason,
+    details: string,
+  ) => {
+    const currentProposal = proposal;
+    const revisionSpec = currentProposal?.spec ?? currentSpec;
+    if (!revisionSpec || chatMutation.isPending || requestCycleActive) return;
+    const reasonText: Record<ProposalFeedbackReason, string> = {
+      'incorrect-wiring': 'the wiring was incorrect',
+      'wrong-parts-or-values': 'the parts or values were wrong',
+      'poor-readability': 'the schematic was hard to read',
+      'missed-request': 'the proposal did not match the request',
+      other: 'another issue needed correction',
+    };
+    const goal = saved.brief.goal.trim() ||
+      lastRequest?.message.trim() ||
+      revisionSpec.title;
+    const userDetail = details.trim()
+      ? ` My detail: ${details.trim().slice(0, 500)}`
+      : '';
+    const revisionPrompt = [
+      `Please revise the "${revisionSpec.title}" circuit based on my feedback: ${reasonText[reason]}.${userDetail}`,
+      `Keep the original goal: "${goal.slice(0, 600)}".`,
+      'Address the specific issue, improve the schematic readability where needed, and do not invent missing ratings or values.',
+      'Return a new staged proposal for me to review; do not apply it to the workbench.',
+    ].join(' ').slice(0, 3000);
+    const history = saved.messages
+      .slice(-8)
+      .map(({ role, content }) => ({ role, content }));
+    const request: CircuitBuildChatInput = {
+      message: revisionPrompt,
+      mode: 'build',
+      currentSpec: revisionSpec,
+      history,
+      brief: saved.brief,
+    };
+    setRejectedProposalSpec(revisionSpec);
+    setRejectedProposalSvg(renderRejectedProposalPreview(revisionSpec));
+    setMode('build');
+    setSaved((current) => ({
+      ...current,
+      messages: [...current.messages, newMessage('user', revisionPrompt)].slice(-60),
+    }));
+    if (currentProposal) discardProposal();
+    await runRequest(
+      request,
+      composerRef.current?.getDraftRevision() ?? 0,
+      undefined,
+      true,
+      true,
+      undefined,
+      revisionSpec,
+    );
   };
 
   const applyProposal = () => {
-    if (!proposal || !proposalSvg || !proposalValidation || proposalValidation.errors.length) return;
+    if (
+      !proposal ||
+      !proposalSvg ||
+      !proposalValidation ||
+      proposalValidation.errors.length ||
+      proposalQualityReview.kind === 'loading'
+    ) return;
+    setAppliedProposalFeedback({
+      id: ++appliedProposalFeedbackIdRef.current,
+      circuitTitle: proposal.spec.title,
+      requestSummary: saved.brief.goal || lastRequest?.message || '',
+      specSignature: JSON.stringify(proposal.spec),
+    });
     onApplySpec(proposal.spec);
     setProposal(null);
     setProposalSvg('');
     setProposalValidation(null);
+    clearProposalQualityReview();
+    setRetryFeedback(null);
+    setRejectedProposalSpec(null);
+    setRejectedProposalSvg('');
+    setExternalFixCopiedContextKey(null);
+    setExternalFixCopyState('idle');
+    setExternalFixDraft('');
+    setExternalFixFeedback(null);
   };
 
-  const errorMessage = chatMutation.error instanceof Error
-    ? chatMutation.error.message
-    : 'The request did not go through. Your message is still here.';
+  const errorMessage = retryFeedback?.message ?? (
+    chatMutation.error instanceof Error
+      ? chatMutation.error.message
+      : 'The request did not go through. Your message is still here.'
+  );
+  const retryRecoveryKind = getRetryRecoveryKind(
+    repairDiagnostics,
+    retryFeedback?.validationFindings ?? [],
+    rejectedProposalSpec,
+  );
+  const proposalTopologyErrors = proposalValidation?.topologyErrors ?? [];
+  const proposalTopologyWarnings = proposalValidation?.topologyWarnings ?? [];
+  const proposalStructuralErrors = proposalValidation?.errors.filter(
+    (finding) => !proposalTopologyErrors.includes(finding),
+  ) ?? [];
+  const proposalLayoutWarnings = proposalValidation?.warnings.filter(
+    (warning) => !proposalTopologyWarnings.includes(warning),
+  ) ?? [];
   const hasBrief = Boolean(saved.brief.goal || saved.brief.requirements.length || saved.brief.assumptions.length || saved.brief.openQuestions.length);
+  const retryHistorySync = () => {
+    if (!historyQuery.isSuccess || !historyDeletionsQuery.isSuccess) {
+      void historyQuery.refetch();
+      void historyDeletionsQuery.refetch();
+      return;
+    }
+
+    void syncHistorySessions(sessions)
+      .then(() => setHistorySaveError(''))
+      .catch(() => {
+        setHistorySaveError('Could not sync conversation history to your account. This device still has its local copy.');
+      });
+  };
 
   return (
     <section className="builder-chat" aria-label="Conversational circuit builder" data-testid="panel-circuit-builder-chat">
       <header className="builder-chat__header">
         <div className="builder-chat__identity">
           <div>
-            <p className="builder-chat__eyebrow">Circuit Studio / collaborator</p>
             <h2>Build through conversation</h2>
+            <p className="builder-chat__session-title" title={activeSession.title}>{activeSession.title}</p>
           </div>
         </div>
         <div className="builder-chat__header-tools">
-          <span className="builder-chat__usage" data-testid="status-builder-allowance">
-            {usageQuery.isPending
-              ? <><span className="builder-chat__skeleton" aria-hidden="true" /> Checking allowance</>
-              : usageQuery.isError
-                ? <button className="builder-chat__text-link" type="button" onClick={() => usageQuery.refetch()} data-testid="button-retry-usage">Usage unavailable · retry</button>
-                : <><span className={`builder-chat__availability${allowanceBlocked ? ' is-blocked' : ''}`} />{allowanceBlocked ? 'AI allowance unavailable' : `${remaining?.toLocaleString() ?? '—'} tokens available`}</>}
-          </span>
-          <button className="builder-chat__icon-link" type="button" onClick={clearConversation} aria-label="Clear conversation and brief" title="Clear conversation" data-testid="button-clear-builder-chat">
+          <button
+            className="builder-chat__icon-link"
+            type="button"
+            onClick={startNewConversation}
+            disabled={!historyHydrated || chatMutation.isPending || requestCycleActive}
+            aria-label="Start a new conversation"
+            title="Start a new conversation"
+            data-testid="button-new-builder-conversation"
+          >
+            <Plus aria-hidden="true" />
+          </button>
+          <button
+            className={`builder-chat__icon-link${historyOpen ? ' is-active' : ''}`}
+            type="button"
+            onClick={() => setHistoryOpen((open) => !open)}
+            disabled={!historyHydrated || chatMutation.isPending || requestCycleActive}
+            aria-expanded={historyOpen}
+            aria-controls="builder-conversation-history"
+            aria-label={`Recent conversations, ${sessions.length} saved`}
+            title="Recent conversations"
+            data-testid="button-builder-history"
+          >
+            <History aria-hidden="true" />
+          </button>
+          <button
+            className={`builder-chat__icon-link${memoryOpen ? ' is-active' : ''}`}
+            type="button"
+            onClick={() => setMemoryOpen(true)}
+            disabled={!historyHydrated}
+            aria-expanded={memoryOpen}
+            aria-label="Review saved assumptions"
+            title="What I remember"
+            data-testid="button-builder-memory"
+          >
+            <Brain aria-hidden="true" />
+          </button>
+          <button
+            className="builder-chat__icon-link"
+            type="button"
+            onClick={() => setComponentLibraryOpen(true)}
+            aria-label="Open component library"
+            title="Browse component library"
+            data-testid="button-open-component-library"
+          >
+            <Library aria-hidden="true" />
+          </button>
+          <button
+            className="builder-chat__icon-link"
+            type="button"
+            onClick={() => setClearChatOpen(true)}
+            disabled={!historyHydrated || chatMutation.isPending || requestCycleActive}
+            aria-label="Clear current chat"
+            title="Clear current chat"
+            data-testid="button-clear-builder-chat"
+          >
             <Trash2 aria-hidden="true" />
           </button>
         </div>
       </header>
 
+      <CircuitBuilderMemoryDialog
+        open={memoryOpen}
+        onOpenChange={setMemoryOpen}
+        historyImportStatus={historyImportStatus}
+        onRetryHistoryImport={() => void runHistoryImport()}
+      />
+
+      {historyOpen && (
+        <section
+          className="builder-chat__history"
+          id="builder-conversation-history"
+          aria-label="Recent conversations"
+          data-testid="panel-builder-history"
+        >
+          <div className="builder-chat__history-heading">
+            <div>
+              <strong>Recent chats</strong>
+              <span>{sessions.length} saved</span>
+            </div>
+            <button type="button" className="builder-chat__text-link" onClick={() => setHistoryOpen(false)}>Close</button>
+          </div>
+          {historySaveError && (
+            <p className="builder-chat__history-error" role="status">
+              {historySaveError}{' '}
+              <button className="builder-chat__text-link" type="button" onClick={retryHistorySync} data-testid="button-retry-history-sync">
+                Retry sync
+              </button>
+            </p>
+          )}
+          <div className="builder-chat__history-list" role="list">
+            {sessions.map((session) => (
+              <div className="builder-chat__history-row" key={session.id} role="listitem">
+                <button
+                  type="button"
+                  className={`builder-chat__history-item${session.id === activeSessionId ? ' is-current' : ''}`}
+                  onClick={() => openHistorySession(session)}
+                  disabled={!historyHydrated || historyDeleteMutation.isPending || chatMutation.isPending || requestCycleActive}
+                  aria-current={session.id === activeSessionId ? 'page' : undefined}
+                  data-testid={`button-builder-history-${session.id}`}
+                >
+                  <span className="builder-chat__history-item-top">
+                    <strong>{session.title}</strong><time dateTime={new Date(session.updatedAt).toISOString()}>{formatHistoryTime(session.updatedAt)}</time>
+                  </span>
+                  <span className="builder-chat__history-preview">{getBuilderHistoryPreview(session.saved.messages)}</span>
+                </button>
+                <button
+                  type="button"
+                  className="builder-chat__history-delete"
+                  onClick={() => {
+                    setHistoryDeleteError('');
+                    setHistoryDeleteTarget(session);
+                  }}
+                  disabled={!historyHydrated || historyDeleteMutation.isPending || historySyncMutation.isPending || chatMutation.isPending || requestCycleActive}
+                  aria-label={`Delete conversation: ${session.title}`}
+                  title="Delete conversation"
+                  data-testid={`button-delete-builder-history-${session.id}`}
+                >
+                  <Trash2 aria-hidden="true" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {historySaveError && !historyOpen && (
+        <p className="builder-chat__history-error" role="status">
+          {historySaveError}{' '}
+          <button className="builder-chat__text-link" type="button" onClick={retryHistorySync} data-testid="button-retry-history-sync">
+            Retry sync
+          </button>
+        </p>
+      )}
+
       <div className="builder-chat__mode-row">
         <div className="builder-chat__mode-tabs" role="tablist" aria-label="Conversation mode" data-testid="group-builder-modes">
-          <button type="button" role="tab" aria-selected={mode === 'chat'} className={mode === 'chat' ? 'is-active' : ''} onClick={() => setMode('chat')} data-testid="button-builder-mode-chat">
+          <button type="button" role="tab" aria-selected={mode === 'chat'} className={mode === 'chat' ? 'is-active' : ''} onClick={() => setMode('chat')} disabled={!historyHydrated} data-testid="button-builder-mode-chat">
             <MessageCircle aria-hidden="true" /> Chat
           </button>
-          <button type="button" role="tab" aria-selected={mode === 'build'} className={mode === 'build' ? 'is-active' : ''} onClick={() => setMode('build')} data-testid="button-builder-mode-build">
+          <button type="button" role="tab" aria-selected={mode === 'build'} className={mode === 'build' ? 'is-active' : ''} onClick={() => setMode('build')} disabled={!historyHydrated} data-testid="button-builder-mode-build">
             <Wrench aria-hidden="true" /> Build
           </button>
         </div>
-        <p data-testid="status-builder-mode">{mode === 'chat' ? 'Clarify the idea, no edits proposed' : 'Shape an editable draft for review'}</p>
+        <p className="builder-chat__sr-only" role="status" aria-live="polite" data-testid="status-builder-mode">{mode === 'chat' ? 'Clarify the idea, no edits proposed' : 'Shape an editable draft for review'}</p>
       </div>
+      {canRepairCurrentDraft &&
+        validationFindings.length > 0 &&
+        dismissedRepairNoticeKey !== repairNoticeKey && (
+        <div className="builder-chat__repair-notice" data-testid="panel-repair-current-draft">
+          <div>
+            <strong>{validationFindings.length} structural issue{validationFindings.length === 1 ? '' : 's'} found</strong>
+            <p>Studio will check the fix. Your drawing changes only when you apply it.</p>
+          </div>
+          <div className="builder-chat__repair-notice-actions">
+            <button
+              type="button"
+              className="builder-chat__repair-action"
+              onClick={repairCurrentDraft}
+              disabled={aiUnavailable || chatMutation.isPending || requestCycleActive || briefEditing || !!proposal}
+              title={proposal ? 'Apply or discard the staged proposal first.' : undefined}
+              data-testid="button-repair-current-draft"
+            >
+              <Wrench aria-hidden="true" />
+              {requestCycleActive ? 'Repairing…' : 'Repair draft with AI'}
+            </button>
+            <button
+              type="button"
+              className="builder-chat__repair-dismiss"
+              onClick={() => setDismissedRepairNoticeKey(repairNoticeKey)}
+              aria-label="Close structural issue banner"
+              title="Close"
+              data-testid="button-dismiss-repair-notice"
+            >
+              <X aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="builder-chat__body">
         <div className="builder-chat__conversation">
           <div className="builder-chat__thread" role="log" aria-live="polite" aria-label="Conversation" data-testid="list-builder-messages">
-            {visibleMessages.map((message, index) => (
+            {visibleMessages.map((message, index) => {
+              const assistantQuestion = message.role === 'assistant'
+                ? getFinalAssistantQuestion(message.content)
+                : null;
+              const suggestedActions = message.role === 'assistant'
+                ? getContextualSuggestedActions(
+                    message.content,
+                    Array.isArray(message.suggestedActions)
+                      ? message.suggestedActions.filter(isSuggestedAction)
+                      : [],
+                  ).slice(0, 2)
+                : [];
+              return (
               <article className={`builder-chat__message is-${message.role}`} key={message.id} data-testid={`message-builder-${message.role}-${index}`}>
                 <span className="builder-chat__message-label">{message.role === 'assistant' ? 'Studio' : 'You'}</span>
                 <p>{message.content}</p>
+                {suggestedActions.length > 0 && (
+                  <div className="builder-chat__suggested-actions" data-testid={`list-builder-suggested-actions-${index}`}>
+                    <span>{assistantQuestion ? 'Possible replies' : 'Suggested next steps'} · review before sending</span>
+                    <div>
+                      {suggestedActions.map((action, actionIndex) => (
+                        <button
+                          key={`${message.id}-action-${actionIndex}`}
+                          type="button"
+                          onClick={() => prepareSuggestedAction(action, !!assistantQuestion)}
+                          data-testid={`button-builder-suggested-action-${index}-${actionIndex}`}
+                        >
+                          {action.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </article>
-            ))}
-            {chatMutation.isPending && (
+              );
+            })}
+            {(chatMutation.isPending || requestCycleActive) && (
               <div className="builder-chat__thinking" role="status" data-testid="status-builder-loading">
                 <span className="builder-chat__thinking-mark"><Sparkles aria-hidden="true" /></span>
                 <span><i /><i /><i /></span>
-                <small>{mode === 'build' ? 'Working through a draft' : 'Thinking it through'}</small>
+                <small>{retryAttempt > 0
+                  ? retryKind === 'format'
+                    ? `Fixing response format · retry ${retryAttempt} of ${MAX_AUTO_RETRIES}`
+                    : retryKind === 'repair'
+                    ? `Repairing proposal · retry ${retryAttempt} of ${MAX_AUTO_RETRIES}`
+                    : `Automatic retry ${retryAttempt} of ${MAX_AUTO_RETRIES}`
+                  : mode === 'build' ? 'Working through a draft' : 'Thinking it through'}</small>
               </div>
             )}
-            <div ref={threadEndRef} />
           </div>
-          {chatMutation.isError && (
-            <div className="builder-chat__error" role="alert" data-testid="status-builder-error">
-              <span>{errorMessage}</span>
-              <button type="button" className="builder-chat__text-link" onClick={retryRequest} disabled={!lastRequest || allowanceBlocked} data-testid="button-retry-builder-chat">Retry</button>
-            </div>
+          {retryFeedback && !requestCycleActive && (
+            <>
+              <div className="builder-chat__error" role="alert" data-testid="status-builder-error">
+                <span>{errorMessage}</span>
+                <div className="builder-chat__retry-actions">
+                  {retryFeedback.canRetryManually && (
+                    <button type="button" className="builder-chat__text-link" onClick={retryRequest} disabled={!lastRequest || hasUnappliedJsonEdits} data-testid="button-retry-builder-chat">
+                      {rejectedProposalSpec && retryFeedback.validationFindings?.length ? 'Continue repair' : 'Retry'}
+                    </button>
+                  )}
+                  {retryRecoveryKind && (
+                    <button
+                      type="button"
+                      className="builder-chat__fresh-retry"
+                      onClick={() => void runRecoveryRetry()}
+                      disabled={!lastRequest || hasUnappliedJsonEdits}
+                      data-testid={`button-${retryRecoveryKind}-circuit`}
+                    >
+                      {retryRecoveryKind === 'rewire' ? 'Rewire circuit' : 'Rebuild circuit'}
+                    </button>
+                  )}
+                </div>
+              </div>
+              {!!retryFeedback.validationFindings?.length && (
+                <details className="builder-chat__validation-findings" data-testid="list-builder-validation-findings">
+                  <summary>
+                    <strong>{retryFeedback.validationFindings.length} blocking validation error{retryFeedback.validationFindings.length === 1 ? '' : 's'}</strong>
+                  </summary>
+                  <ol>{retryFeedback.validationFindings.map((finding, index) => <li key={`failure-${index}`}>{finding}</li>)}</ol>
+                </details>
+              )}
+              {!!retryFeedback.validationWarnings?.length && (
+                <details className="builder-chat__validation-findings is-warning" data-testid="list-builder-validation-warnings">
+                  <summary>
+                    <strong>{retryFeedback.validationWarnings.length} advisory warning{retryFeedback.validationWarnings.length === 1 ? '' : 's'} (not blocking)</strong>
+                  </summary>
+                  <ol>{retryFeedback.validationWarnings.map((warning, index) => <li key={`warning-${index}`}>{warning}</li>)}</ol>
+                </details>
+              )}
+              {rejectedProposalSpec && (
+                <section
+                  className="builder-chat__rejected-preview"
+                  aria-label="Schematic needing repair"
+                  data-testid="preview-rejected-proposal"
+                >
+                  <div className="builder-chat__rejected-preview-head">
+                    <span className="builder-chat__repair-badge">Needs repair</span>
+                    {!!rejectedProposalSvg && (
+                      <button
+                        type="button"
+                        className="builder-chat__rejected-preview-toggle"
+                        aria-haspopup="dialog"
+                        aria-controls="dialog-rejected-proposal-preview"
+                        onClick={() => setRejectedPreviewOpen(true)}
+                        data-testid="button-toggle-rejected-preview"
+                      >
+                        <Maximize2 aria-hidden="true" />
+                        Expand preview
+                      </button>
+                    )}
+                    <span className="builder-chat__rejected-preview-title">{rejectedProposalSpec.title}</span>
+                  </div>
+                  {rejectedProposalSvg
+                    ? <div
+                        className="builder-chat__preview builder-chat__rejected-preview-canvas"
+                      >
+                        <div className="builder-chat__svg" dangerouslySetInnerHTML={{ __html: rejectedProposalSvg }} />
+                      </div>
+                    : <p className="builder-chat__rejected-preview-empty">This schematic could not be rendered yet.</p>}
+                  <p className="builder-chat__rejected-preview-note">Preview only · not applied</p>
+                </section>
+              )}
+              {rejectedProposalSpec && (
+                <details className="builder-chat__rejected" data-testid="details-rejected-proposal">
+                  <summary>Inspect rejected CircuitSpec (read-only; not applied)</summary>
+                  <div className="builder-chat__rejected-copy-row">
+                    <button
+                      type="button"
+                      className="builder-chat__text-link builder-chat__rejected-copy"
+                      onClick={copyRejectedSpec}
+                      data-testid="button-copy-rejected-spec"
+                    >
+                      {rejectedSpecCopyState === 'copied' ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
+                      {rejectedSpecCopyState === 'copied' ? 'Copied' : 'Copy CircuitSpec'}
+                    </button>
+                    {rejectedSpecCopyState === 'error' && (
+                      <span className="builder-chat__rejected-copy-error" role="status">
+                        Clipboard access failed.
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      className="builder-chat__text-link builder-chat__rejected-copy builder-chat__external-fix-copy"
+                      onClick={copyExternalCircuitFixPrompt}
+                      disabled={!externalFixContext || externalFixReviewMutation.isPending}
+                      data-testid="button-copy-rejected-spec-ai-prompt"
+                    >
+                      {externalFixCopyState === 'copied' ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
+                      {externalFixCopyState === 'copied' ? 'Prompt copied' : 'Copy CircuitSpec + AI prompt'}
+                    </button>
+                    {externalFixCopyState === 'error' && (
+                      <span className="builder-chat__rejected-copy-error" role="status">
+                        Clipboard access failed. Allow clipboard access and try again.
+                      </span>
+                    )}
+                  </div>
+                  <pre>{JSON.stringify(rejectedProposalSpec, null, 2)}</pre>
+                </details>
+              )}
+              {showExternalFixPaste && externalFixContext && (
+                <section
+                  className="builder-chat__external-fix"
+                  aria-label="Paste an external CircuitSpec fix"
+                  data-testid="panel-external-circuit-fix"
+                >
+                  <h3>Paste the external fix here</h3>
+                  <p>Paste the corrected circuit here.</p>
+                  <label htmlFor="external-circuit-fix-json">Corrected circuit JSON</label>
+                  <textarea
+                    id="external-circuit-fix-json"
+                    value={externalFixDraft}
+                    onChange={(event) => setExternalFixDraft(event.target.value)}
+                    disabled={externalFixReviewMutation.isPending}
+                    spellCheck={false}
+                    rows={8}
+                    data-testid="input-external-circuit-fix"
+                  />
+                  <button
+                    type="button"
+                    className="builder-chat__external-fix-submit"
+                    onClick={submitExternalCircuitFix}
+                    disabled={!externalFixDraft.trim() || externalFixReviewMutation.isPending || !!proposal}
+                    data-testid="button-submit-external-circuit-fix"
+                  >
+                    {externalFixReviewMutation.isPending ? 'Reviewing fix…' : 'Submit fix for review'}
+                  </button>
+                  {externalFixFeedback?.kind === 'local-rejected' && (
+                    <div className="builder-chat__external-fix-feedback is-error" role="alert" data-testid="status-external-circuit-fix-local-error">
+                      <strong>This fix needs changes before Studio AI review.</strong>
+                      <ul>{externalFixFeedback.reasons.map((reason, index) => <li key={`external-local-${index}`}>{reason}</li>)}</ul>
+                    </div>
+                  )}
+                  {externalFixFeedback?.kind === 'error' && (
+                    <p className="builder-chat__external-fix-feedback is-error" role="alert" data-testid="status-external-circuit-fix-error">
+                      {externalFixFeedback.message}
+                    </p>
+                  )}
+                  {externalFixFeedback?.kind === 'review' && (
+                    <div
+                      className={`builder-chat__external-fix-feedback ${externalFixFeedback.approved ? 'is-approved' : 'is-error'}`}
+                      role={externalFixFeedback.approved ? 'status' : 'alert'}
+                      data-testid="status-external-circuit-fix-review"
+                    >
+                      <strong>{externalFixFeedback.approved ? 'Fix approved.' : 'Fix needs changes.'}</strong>
+                      <p>{externalFixFeedback.summary}</p>
+                      {!!externalFixFeedback.concerns.length && (
+                        <ul>{externalFixFeedback.concerns.map((concern, index) => <li key={`external-concern-${index}`}>{concern}</li>)}</ul>
+                      )}
+                      {externalFixFeedback.approved && <p>Ready to review. Not applied yet.</p>}
+                    </div>
+                  )}
+                  <p className="builder-chat__external-fix-note">Not an electrical or safety check. Your drawing changes only when you apply the fix.</p>
+                </section>
+              )}
+            </>
           )}
-          {allowanceBlocked && (
-            <div className="builder-chat__allowance" role="status" data-testid="status-builder-quota">
-              <span><strong>AI allowance is unavailable.</strong> You can keep your brief and conversation here, but sending is paused.</span>
+          {aiUnavailable && (
+            <div className="builder-chat__unavailable" role="status" data-testid="status-builder-ai-unavailable">
+              <span><strong>Gemini is not configured.</strong> Your message and brief remain editable; AI requests may fail until a key is configured.</span>
             </div>
           )}
           {usageQuery.isError && (
             <div className="builder-chat__usage-error" role="status" data-testid="status-builder-usage-error">
-              Allowance could not be checked. <button className="builder-chat__text-link" type="button" onClick={() => usageQuery.refetch()} data-testid="button-retry-usage-inline">Try again</button>
+              AI availability could not be checked. <button className="builder-chat__text-link" type="button" onClick={() => usageQuery.refetch()} data-testid="button-retry-usage-inline">Try again</button>
             </div>
           )}
 
@@ -386,7 +2706,7 @@ export function CircuitBuilderChat({
                   <p className="builder-chat__eyebrow">Staged proposal · review before applying</p>
                   <h3>{proposal.summary}</h3>
                 </div>
-                <button type="button" className="builder-chat__icon-link" aria-label="Discard proposal" onClick={() => { setProposal(null); setProposalSvg(''); setProposalValidation(null); }} data-testid="button-discard-proposal">
+                <button type="button" className="builder-chat__icon-link" aria-label="Discard proposal" onClick={discardProposal} data-testid="button-discard-proposal">
                   <X aria-hidden="true" />
                 </button>
               </div>
@@ -396,46 +2716,124 @@ export function CircuitBuilderChat({
                   : <div className="builder-chat__preview-empty" data-testid="status-builder-preview-error">Preview unavailable until the proposal is valid.</div>}
               </div>
               <div className={`builder-chat__validation${proposalValidation?.errors.length ? ' has-errors' : proposalValidation?.warnings.length ? ' has-warnings' : ' is-valid'}`} data-testid="status-builder-validation">
-                {proposalValidation?.errors.length
-                  ? <strong>{proposalValidation.errors.length} issue{proposalValidation.errors.length === 1 ? '' : 's'} need attention</strong>
-                  : proposalValidation?.warnings.length
-                    ? <strong>Preview checked · {proposalValidation.warnings.length} warning{proposalValidation.warnings.length === 1 ? '' : 's'}</strong>
-                    : <><CheckCircle2 aria-hidden="true" /><strong>Preview checked · no structural issues</strong></>}
-                {!!proposalValidation?.errors.length && <ul>{proposalValidation.errors.map((item, index) => <li className="is-error" key={`e-${index}`}>{item}</li>)}</ul>}
-                {!!proposalValidation?.warnings.length && <ul>{proposalValidation.warnings.map((item, index) => <li key={`w-${index}`}>{item}</li>)}</ul>}
+                {proposalStructuralErrors.length > 0 && (
+                  <div className="builder-chat__validation-group is-error">
+                    <strong>Blocking pin or wire findings</strong>
+                    <ul>{proposalStructuralErrors.map((item, index) => <li className="is-error" key={`structural-${index}`}>{item}</li>)}</ul>
+                  </div>
+                )}
+                {proposalTopologyErrors.length > 0 && (
+                  <div className="builder-chat__validation-group is-error">
+                    <strong>Blocking circuit connection findings</strong>
+                    <ul>{proposalTopologyErrors.map((item, index) => <li className="is-error" key={`topology-error-${index}`}>{item}</li>)}</ul>
+                  </div>
+                )}
+                {!proposalStructuralErrors.length && !proposalTopologyErrors.length && (
+                  <div className="builder-chat__validation-group">
+                    <CheckCircle2 aria-hidden="true" />
+                    <strong>Pin and wire structure passed; no tested direct short was detected.</strong>
+                  </div>
+                )}
+                {proposalTopologyWarnings.length > 0 && (
+                  <div className="builder-chat__validation-group is-topology">
+                    <strong>Circuit connection warnings</strong>
+                    <ul>{proposalTopologyWarnings.map((item, index) => <li key={`topology-warning-${index}`}>{item}</li>)}</ul>
+                  </div>
+                )}
+                {proposalLayoutWarnings.length > 0 && (
+                  <div className="builder-chat__validation-group">
+                    <strong>Drawing and layout warnings</strong>
+                    <ul>{proposalLayoutWarnings.map((item, index) => <li key={`layout-warning-${index}`}>{item}</li>)}</ul>
+                  </div>
+                )}
                 {proposalError && <p>{proposalError}</p>}
+                <p className="builder-chat__validation-disclaimer">These checks cover pin and wire structure plus a few obvious faults. They do not simulate the circuit or prove electrical correctness or safety.</p>
+              </div>
+              <div className="builder-chat__quality-review" data-testid="panel-proposal-quality-review">
+                <strong>Intent and readability review</strong>
+                {proposalQualityReview.kind === 'loading' && (
+                  <p role="status">{layoutRepairNotice || 'Studio is checking how well the draft matches your request and whether it is readable…'}</p>
+                )}
+                {layoutRepairNotice && proposalQualityReview.kind !== 'loading' && (
+                  <p className="builder-chat__quality-review-note" role="status">{layoutRepairNotice}</p>
+                )}
+                {proposalQualityReview.kind === 'skipped' && (
+                  <p>AI review was skipped because blocking connection findings need attention first.</p>
+                )}
+                {proposalQualityReview.kind === 'unavailable' && (
+                  <p>AI review was unavailable. Check request fit and readability yourself; the separate pin and wire checks still apply.</p>
+                )}
+                {proposalQualityReview.kind === 'ready' && (
+                  <>
+                    {proposalQualityReview.review.intentConcerns.length > 0 && (
+                      <div className="builder-chat__quality-review-group">
+                        <strong>Possible request mismatches</strong>
+                        <ul>{proposalQualityReview.review.intentConcerns.map((item, index) => <li key={`intent-${index}`}>{item}</li>)}</ul>
+                      </div>
+                    )}
+                    {proposalQualityReview.review.readabilityWarnings.length > 0 && (
+                      <div className="builder-chat__quality-review-group is-layout">
+                        <strong>Readability warnings</strong>
+                        <ul>{proposalQualityReview.review.readabilityWarnings.map((item, index) => <li key={`readability-${index}`}>{item}</li>)}</ul>
+                        <button
+                          type="button"
+                          className="builder-chat__text-link is-muted"
+                          onClick={retryProposalLayout}
+                          disabled={chatMutation.isPending || requestCycleActive}
+                          data-testid="button-improve-proposal-layout"
+                        >
+                          Try layout improvement again
+                        </button>
+                      </div>
+                    )}
+                    {proposalQualityReview.review.unknowns.length > 0 && (
+                      <div className="builder-chat__quality-review-group">
+                        <strong>Unknowns to confirm</strong>
+                        <ul>{proposalQualityReview.review.unknowns.map((item, index) => <li key={`unknown-${index}`}>{item}</li>)}</ul>
+                      </div>
+                    )}
+                    {!proposalQualityReview.review.intentConcerns.length &&
+                      !proposalQualityReview.review.readabilityWarnings.length &&
+                      !proposalQualityReview.review.unknowns.length && (
+                        <p>No specific request-fit or readability concerns were flagged.</p>
+                      )}
+                    <p className="builder-chat__quality-review-note">AI notes are advisory, not an electrical rules check or safety review.</p>
+                  </>
+                )}
+                {proposalQualityReview.kind === 'idle' && (
+                  <p>Review not started.</p>
+                )}
               </div>
               <div className="builder-chat__proposal-actions">
-                <button type="button" className="builder-chat__text-link is-muted" onClick={() => { setProposal(null); setProposalSvg(''); setProposalValidation(null); }} data-testid="button-discard-proposal-link">Discard</button>
-                <button type="button" className="builder-chat__apply" disabled={!proposalSvg || !!proposalValidation?.errors.length} onClick={applyProposal} data-testid="button-apply-proposal">
-                  <Check aria-hidden="true" /> Apply to workbench
+                <button type="button" className="builder-chat__text-link is-muted" onClick={discardProposal} data-testid="button-discard-proposal-link">Discard</button>
+                <button
+                  type="button"
+                  className="builder-chat__apply"
+                  disabled={!proposalSvg || !!proposalValidation?.errors.length || proposalQualityReview.kind === 'loading'}
+                  onClick={applyProposal}
+                  data-testid="button-apply-proposal"
+                >
+                  <Check aria-hidden="true" /> {proposalQualityReview.kind === 'loading' ? 'Reviewing…' : 'Apply to workbench'}
                 </button>
               </div>
-              <p className="builder-chat__proposal-note">Applying sends this spec to your workbench. Nothing changes before you choose.</p>
+              <p className="builder-chat__proposal-note">Applying sends this spec to your workbench; nothing changes before you choose. Structural and AI checks do not prove circuit behavior, component ratings, or safety.</p>
             </section>
           )}
 
-          <form className="builder-chat__composer" onSubmit={handleSubmit} data-testid="form-builder-message">
-            <label className="builder-chat__sr-only" htmlFor="builder-chat-input">Message the circuit builder</label>
-            <textarea
-              id="builder-chat-input"
-              ref={textareaRef}
-              value={draft}
-              onChange={(event) => setDraft(event.target.value.slice(0, 3000))}
-              onKeyDown={handleComposerKeyDown}
-              placeholder={mode === 'chat' ? 'Describe what you are trying to make…' : 'What should we add or change?'}
-              rows={2}
-              maxLength={3000}
-              data-testid="input-builder-message"
-            />
-            <div className="builder-chat__composer-foot">
-              <span>{chatMutation.isPending ? 'You can draft a follow-up while the AI works' : briefEditing ? 'Save or cancel your notes before sending' : proposal ? 'Apply or discard the staged proposal before sending another request' : mode === 'chat' ? 'Enter to send · Shift + Enter for a new line' : 'A proposal is staged for your review, never applied automatically'}</span>
-              <button type="submit" disabled={!canSend} aria-label="Send message" data-testid="button-send-builder-message">
-                {chatMutation.isPending ? <LoaderCircle className="is-spinning" aria-hidden="true" /> : <Send aria-hidden="true" />}
-                <span>{chatMutation.isPending ? 'Thinking' : 'Send'}</span>
-              </button>
-            </div>
-          </form>
+          <CircuitBuilderComposer
+            key="circuit-builder-composer"
+            ref={composerRef}
+            mode={mode}
+            isWorking={chatMutation.isPending || requestCycleActive || externalFixReviewMutation.isPending}
+            briefEditing={briefEditing}
+            hasProposal={!!proposal}
+            hasUnappliedJsonEdits={hasUnappliedJsonEdits}
+            activeKeyNumber={usageQuery.data?.activeKeyNumber}
+            retryAttempt={retryAttempt}
+            retryKind={retryKind}
+            isHistoryLoading={!historyHydrated}
+            onSubmitMessage={handleSubmitMessage}
+          />
         </div>
 
         <aside className="builder-chat__brief" aria-label="Design brief" data-testid="panel-builder-brief">
@@ -445,39 +2843,156 @@ export function CircuitBuilderChat({
               ? <button className="builder-chat__text-link" type="button" onClick={() => setBriefEditing(false)} data-testid="button-cancel-edit-brief">Cancel</button>
               : <button className="builder-chat__text-link" type="button" onClick={editBrief} data-testid="button-edit-brief">{hasBrief ? 'Edit' : 'Add notes'}</button>}
           </div>
-          <p className="builder-chat__brief-help">This is the circuit’s running brief: its goal, requirements, assumptions, and unanswered questions. The AI uses it to stay on track; saved edits are preserved while it adds new details.</p>
-          {briefEditing ? (
-            <div className="builder-chat__brief-editor">
-              <label htmlFor="builder-brief-goal">Goal</label>
-              <textarea id="builder-brief-goal" value={briefGoalDraft} maxLength={1000} rows={3} onChange={(event) => setBriefGoalDraft(event.target.value)} data-testid="input-builder-brief-goal" placeholder="What should the circuit do?" />
-              <label htmlFor="builder-brief-requirements">Requirements <span>one per line</span></label>
-              <textarea id="builder-brief-requirements" value={briefRequirementsDraft} maxLength={3600} rows={3} onChange={(event) => setBriefRequirementsDraft(event.target.value)} data-testid="input-builder-brief-requirements" placeholder="Supply, parts, constraints…" />
-              <label htmlFor="builder-brief-assumptions">Assumptions <span>one per line</span></label>
-              <textarea id="builder-brief-assumptions" value={briefAssumptionsDraft} maxLength={3600} rows={3} onChange={(event) => setBriefAssumptionsDraft(event.target.value)} data-testid="input-builder-brief-assumptions" placeholder="Choices the AI is treating as tentative…" />
-              <label htmlFor="builder-brief-open-questions">Open questions <span>one per line</span></label>
-              <textarea id="builder-brief-open-questions" value={briefOpenQuestionsDraft} maxLength={3600} rows={3} onChange={(event) => setBriefOpenQuestionsDraft(event.target.value)} data-testid="input-builder-brief-open-questions" placeholder="Details still to decide…" />
-              <button className="builder-chat__brief-save" type="button" onClick={saveBrief} data-testid="button-save-brief">Save notes</button>
-            </div>
-          ) : hasBrief ? (
-            <div className="builder-chat__brief-content" data-testid="status-builder-brief">
-              {saved.brief.goal && <div className="builder-chat__brief-block"><span>Goal</span><p>{saved.brief.goal}</p></div>}
-              {saved.brief.requirements.length > 0 && <BriefList title="Requirements" items={saved.brief.requirements} />}
-              {saved.brief.assumptions.length > 0 && <BriefList title="Assumptions" items={saved.brief.assumptions} />}
-              {saved.brief.openQuestions.length > 0 && <BriefList title="Open questions" items={saved.brief.openQuestions} />}
-            </div>
-          ) : (
-            <div className="builder-chat__brief-empty" data-testid="status-builder-brief-empty">
-              <Plus aria-hidden="true" />
-              <p>The AI uses these notes to keep important details in view. Add your own, or let the conversation fill them in.</p>
-              <button type="button" className="builder-chat__text-link" onClick={editBrief} data-testid="button-add-brief">Add a starting note</button>
-            </div>
-          )}
+          <div className="builder-chat__brief-scroll" data-testid="scroll-builder-brief">
+            <p className="builder-chat__brief-help">This is the circuit’s running brief: its goal, requirements, assumptions, and unanswered questions. The AI uses it to stay on track; saved edits are preserved while it adds new details.</p>
+            {briefEditing ? (
+              <div className="builder-chat__brief-editor">
+                <label htmlFor="builder-brief-goal">Goal</label>
+                <textarea id="builder-brief-goal" value={briefGoalDraft} maxLength={1000} rows={3} onChange={(event) => setBriefGoalDraft(event.target.value)} data-testid="input-builder-brief-goal" placeholder="What should the circuit do?" />
+                <label htmlFor="builder-brief-requirements">Requirements <span>one per line</span></label>
+                <textarea id="builder-brief-requirements" value={briefRequirementsDraft} maxLength={3600} rows={3} onChange={(event) => setBriefRequirementsDraft(event.target.value)} data-testid="input-builder-brief-requirements" placeholder="Supply, parts, constraints…" />
+                <label htmlFor="builder-brief-assumptions">Assumptions <span>one per line</span></label>
+                <textarea id="builder-brief-assumptions" value={briefAssumptionsDraft} maxLength={3600} rows={3} onChange={(event) => setBriefAssumptionsDraft(event.target.value)} data-testid="input-builder-brief-assumptions" placeholder="Choices the AI is treating as tentative…" />
+                <label htmlFor="builder-brief-open-questions">Open questions <span>one per line</span></label>
+                <textarea id="builder-brief-open-questions" value={briefOpenQuestionsDraft} maxLength={3600} rows={3} onChange={(event) => setBriefOpenQuestionsDraft(event.target.value)} data-testid="input-builder-brief-open-questions" placeholder="Details still to decide…" />
+                <button className="builder-chat__brief-save" type="button" onClick={saveBrief} data-testid="button-save-brief">Save notes</button>
+              </div>
+            ) : hasBrief ? (
+              <div className="builder-chat__brief-content" data-testid="status-builder-brief">
+                {saved.brief.goal && <div className="builder-chat__brief-block"><span>Goal</span><p>{saved.brief.goal}</p></div>}
+                {saved.brief.requirements.length > 0 && <BriefList title="Requirements" items={saved.brief.requirements} />}
+                {saved.brief.assumptions.length > 0 && <BriefList title="Assumptions" items={saved.brief.assumptions} />}
+                {saved.brief.openQuestions.length > 0 && <BriefList title="Open questions" items={saved.brief.openQuestions} />}
+              </div>
+            ) : (
+              <div className="builder-chat__brief-empty" data-testid="status-builder-brief-empty">
+                <button type="button" className="builder-chat__text-link" onClick={editBrief} data-testid="button-add-brief">Add a starting note</button>
+              </div>
+            )}
+          </div>
           <div className="builder-chat__brief-footer">
-            <span className="builder-chat__brief-led" />
-            <p>Saved in this browser for your account</p>
+            <p>{!historyHydrated
+              ? 'Loading your account history…'
+              : historySaveError
+                ? 'Only this device is up to date until sync succeeds.'
+                : historySyncMutation.isPending
+                  ? 'Saving to your account…'
+                  : 'Available on any device you sign in to'}</p>
           </div>
         </aside>
       </div>
+      <ComponentLibraryDialog
+        open={componentLibraryOpen}
+        onOpenChange={setComponentLibraryOpen}
+        onSelect={prepareComponentPrompt}
+      />
+      <Dialog
+        open={!!historyDeleteTarget}
+        onOpenChange={(open) => {
+          if (!open && !historyDeleteMutation.isPending) {
+            setHistoryDeleteTarget(null);
+            setHistoryDeleteError('');
+          }
+        }}
+      >
+        <DialogContent className="builder-chat__clear-dialog">
+          <DialogHeader>
+            <DialogTitle className="builder-chat__clear-title">Delete saved conversation?</DialogTitle>
+            <DialogDescription className="builder-chat__clear-description">
+              {historySyncMutation.isPending && 'Wait for the account sync to finish. '}
+              {historyDeleteTarget?.id === activeSessionId
+                ? 'Deletes this chat and its notes. Your schematic stays unchanged.'
+                : 'Deletes this chat and its notes. Your current work stays unchanged.'}
+            </DialogDescription>
+          </DialogHeader>
+          {historyDeleteError && <p className="builder-chat__history-error" role="alert" data-testid="status-delete-builder-history-error">{historyDeleteError}</p>}
+          <DialogFooter className="builder-chat__clear-footer">
+            <button
+              type="button"
+              className="builder-chat__clear-cancel"
+              onClick={() => { setHistoryDeleteTarget(null); setHistoryDeleteError(''); }}
+              disabled={historyDeleteMutation.isPending}
+              data-testid="button-cancel-delete-builder-history"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="builder-chat__clear-confirm"
+              onClick={() => void deleteHistorySession()}
+              disabled={historyDeleteMutation.isPending || historySyncMutation.isPending || chatMutation.isPending || requestCycleActive}
+              data-testid="button-confirm-delete-builder-history"
+            >
+              {historyDeleteMutation.isPending ? 'Deleting…' : 'Delete conversation'}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {rejectedProposalSpec && (
+        <Dialog open={rejectedPreviewOpen} onOpenChange={setRejectedPreviewOpen}>
+          <DialogContent
+            id="dialog-rejected-proposal-preview"
+            className="easyeda-sheet-dialog"
+            data-testid="dialog-rejected-proposal-preview"
+          >
+            <DialogHeader className="easyeda-sheet-header">
+              <DialogTitle className="easyeda-sheet-title">{rejectedProposalSpec.title}</DialogTitle>
+              <DialogDescription className="easyeda-sheet-description">
+                Failed checks. Preview only; not applied.
+              </DialogDescription>
+            </DialogHeader>
+            <div
+              className="easyeda-sheet-body builder-chat__rejected-preview-modal-body"
+              role="region"
+              aria-label="Rejected schematic preview"
+              tabIndex={0}
+            >
+              {rejectedProposalSvg
+                ? <div className="builder-chat__svg" dangerouslySetInnerHTML={{ __html: rejectedProposalSvg }} />
+                : <p className="builder-chat__rejected-preview-empty">This schematic could not be rendered yet.</p>}
+            </div>
+            <div className="easyeda-sheet-footer builder-chat__rejected-preview-modal-footer">
+              <span>Needs repair · preview only</span>
+              <button type="button" className="quiet-button" onClick={() => setRejectedPreviewOpen(false)}>
+                Close preview
+              </button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+      <Dialog open={clearChatOpen} onOpenChange={setClearChatOpen}>
+        <DialogContent className="builder-chat__clear-dialog">
+          <DialogHeader>
+            <DialogTitle className="builder-chat__clear-title">Clear this chat?</DialogTitle>
+            <DialogDescription className="builder-chat__clear-description">
+              Deletes chat messages and notes. Your schematic stays unchanged.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="builder-chat__clear-footer">
+            <button type="button" className="builder-chat__clear-cancel" onClick={() => setClearChatOpen(false)} data-testid="button-cancel-clear-builder-chat">
+              Cancel
+            </button>
+            <button type="button" className="builder-chat__clear-confirm" onClick={clearCurrentConversation} data-testid="button-confirm-clear-builder-chat">
+              Clear chat
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {appliedProposalFeedback &&
+        schematicFeedbackHost &&
+        currentSpecSignature === appliedProposalFeedback.specSignature &&
+        createPortal(
+          <CircuitBuilderFeedback
+            circuitTitle={appliedProposalFeedback.circuitTitle}
+            requestSummary={appliedProposalFeedback.requestSummary}
+            onSave={saveProposalFeedback}
+            onRevise={(reason, details) => {
+              void reviseProposalFromFeedback(reason, details);
+            }}
+          />,
+          schematicFeedbackHost,
+          String(appliedProposalFeedback.id),
+        )}
     </section>
   );
 }

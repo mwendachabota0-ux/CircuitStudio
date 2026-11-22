@@ -1,5 +1,6 @@
 import { GenerateCircuitResponse } from "@workspace/api-zod";
 import { getCircuitElementSchemaError } from "@workspace/circuit-geometry";
+import { getKicadSymbolData } from "./kicadSymbols";
 
 export class CircuitSpecCompatibilityError extends Error {
   constructor(message: string) {
@@ -18,4 +19,43 @@ export function parseUsableCircuit(value: unknown) {
     if (schemaError) throw new CircuitSpecCompatibilityError(schemaError);
   }
   return circuit;
+}
+
+export async function hydrateKicadSymbols<T extends { elements: Array<Record<string, unknown>> }>(
+  circuit: T,
+): Promise<T> {
+  const elements = await Promise.all(circuit.elements.map(async (element) => {
+    if (element.type !== "kicad") return element;
+    const symbolId = typeof element.symbolId === "string" ? element.symbolId : "";
+    const symbolData = await getKicadSymbolData(symbolId);
+    const requestedUnit = typeof element.unit === "number" &&
+      Number.isInteger(element.unit)
+      ? element.unit
+      : undefined;
+    const requestedBodyStyle = typeof element.bodyStyle === "number" &&
+      Number.isInteger(element.bodyStyle)
+      ? element.bodyStyle
+      : undefined;
+    const unitData = symbolData.units.find((unit) =>
+      (requestedUnit === undefined || unit.unit === requestedUnit) &&
+      (requestedBodyStyle === undefined || unit.bodyStyle === requestedBodyStyle)
+    ) ?? symbolData.units.find((unit) =>
+      requestedUnit === undefined || unit.unit === requestedUnit
+    ) ?? symbolData.units[0];
+
+    if (!unitData) {
+      throw new CircuitSpecCompatibilityError(
+        `KiCad symbol ${symbolId} does not have a usable drawing unit.`,
+      );
+    }
+
+    return {
+      ...element,
+      unit: unitData.unit,
+      bodyStyle: unitData.bodyStyle,
+      symbolData,
+    };
+  }));
+
+  return { ...circuit, elements } as T;
 }

@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { CircuitBuildChatResponseNextMode } from './circuitBuildChatResponseNextMode';
+import type { CircuitBuilderMemorySuggestion } from './circuitBuilderMemorySuggestion';
+import type { CircuitBuilderSuggestedAction } from './circuitBuilderSuggestedAction';
 import type { CircuitBuildProposal } from './circuitBuildProposal';
 import type { CircuitDesignBrief } from './circuitDesignBrief';
 export interface CircuitBuildChatResponse {
@@ -17,5 +19,22 @@ export interface CircuitBuildChatResponse {
     answer: string;
     brief: CircuitDesignBrief;
     proposal?: CircuitBuildProposal;
+    /** @maxItems 2 */
+    suggestedActions?: CircuitBuilderSuggestedAction[];
+    /** @maxItems 2 */
+    memoryUpdates?: CircuitBuilderMemorySuggestion[];
+    /**
+       * @maxItems 10
+       * @items.minimum 1
+       */
+    memoryRemovals?: number[];
+    /**
+       * Optional reusable lesson from a repair; save only after the corrected proposal passes checks and the user applies it.
+       * @maxLength 300
+       * @nullable
+       */
+    repairLesson?: string | null;
+    /** Server-set marker that the assistant asked permission before creating a schematic. */
+    buildApprovalRequested?: boolean;
 }
 //# sourceMappingURL=circuitBuildChatResponse.d.ts.map

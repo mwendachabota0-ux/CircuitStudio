@@ -36,6 +36,9 @@ they do not add pins. Optional drawing fields are not electrical models.
 
 - The shared component catalog, `CircuitGeometry.getCircuitPins`, and the
   CircuitDraw renderer are the source of supported types and pin positions.
+- `kicad` elements use an exact `symbolId` and the server-imported
+  `symbolData`. See [the KiCad symbol library guide](kicad-symbol-library.md)
+  for source, licensing, hydration, and renderer behavior.
 - Exact wire endpoints and component overlaps are structurally validated.
   Unconnected component pins are reported as warnings; disconnected wire ends
   and wires passing through a two-terminal symbol are blocking errors.
@@ -49,4 +52,5 @@ they do not add pins. Optional drawing fields are not electrical models.
 
 Unsupported types must be reported rather than silently substituted or assigned
 imaginary pins. In particular, generic `ic`, `potentiometer`, and `mosfet`
-symbols are not in the supported library.
+parts use only the explicit drawing schemas listed above; they do not inherit
+manufacturer-specific pinouts or electrical behavior.

@@ -8,13 +8,14 @@
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --experimental-strip-types --test src/lib/*.test.mjs"
+    "test": "node --experimental-strip-types --test src/lib/*.test.mjs src/routes/*.test.mjs"
   },
   "dependencies": {
     "@clerk/express": "^2.1.91",
     "@clerk/shared": "^4.46.0",
     "@google/genai": "^3.6.0",
     "@workspace/api-zod": "workspace:*",
+    "@workspace/circuit-document": "workspace:*",
     "@workspace/circuit-geometry": "workspace:*",
     "@workspace/db": "workspace:*",
     "cookie-parser": "^1.4.7",

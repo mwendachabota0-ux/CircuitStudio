@@ -53,8 +53,10 @@ test("V2 lab is disabled by default and sync cannot bypass database readiness", 
 });
 
 test("V2 lab access requires the same signed-in user context", () => {
+  const defaults = resolveCircuitDocumentV2FeatureFlags(undefined, undefined);
   const flags = resolveCircuitDocumentV2FeatureFlags("true", undefined);
   assert.equal(flags.labEnabled, true);
+  assert.equal(canAccessCircuitDocumentV2Lab(defaults.labEnabled, true, "user-a"), false);
   assert.equal(canAccessCircuitDocumentV2Lab(flags.labEnabled, false, "user-a"), false);
   assert.equal(canAccessCircuitDocumentV2Lab(flags.labEnabled, true, null), false);
   assert.equal(canAccessCircuitDocumentV2Lab(flags.labEnabled, true, "user-a"), true);
@@ -111,6 +113,41 @@ test("V2 restore never imports a legacy-only draft automatically", () => {
   assert.equal(
     storage.getItem(getCircuitDocumentV2DraftStorageKey("user-a")),
     null,
+  );
+});
+
+test("saving a V2 copy leaves the legacy workbench key unchanged", async () => {
+  const storage = new MemoryStorage();
+  const legacy = readLegacyFixture("series-led.json");
+  const legacyKey = "circuit-studio-draft-v1:user-a";
+  const legacyValue = JSON.stringify(legacy);
+  storage.setItem(legacyKey, legacyValue);
+  const created = createCircuitDocumentV2Copy(
+    legacy,
+    legacyCircuitTools,
+    () => "separate-session",
+  );
+  assert.equal(created.status, "created");
+  if (created.status !== "created") return;
+
+  const saved = await saveCircuitDocumentV2LocalFirst({
+    storage,
+    userId: "user-a",
+    document: created.document,
+    sessionId: created.sessionId,
+    serverSyncEnabled: false,
+    expectedRevision: 0,
+  });
+
+  assert.equal(saved.status, "local-only");
+  assert.equal(storage.getItem(legacyKey), legacyValue);
+  assert.equal(
+    loadCircuitDocumentV2LocalDraft(storage, "user-a").status,
+    "v2",
+  );
+  assert.notEqual(
+    getCircuitDocumentV2DraftStorageKey("user-a"),
+    legacyKey,
   );
 });
 

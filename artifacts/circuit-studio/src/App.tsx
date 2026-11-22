@@ -28,6 +28,9 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import exampleCircuit from './exampleCircuit.json';
 import { areCircuitSpecsEqual, parseCircuitSpecJson } from './lib/circuit-spec-editor';
+import CircuitDocumentV2Lab from './components/circuit-document-v2-lab';
+import { resolveCircuitDocumentV2FeatureFlags } from './lib/circuit-document-v2-lab';
+import type { LegacyCircuitSpec } from '@workspace/circuit-document';
 import {
   buildBomCsv,
   buildBomRows,
@@ -74,6 +77,8 @@ declare global {
   interface ImportMetaEnv {
     readonly VITE_CLERK_PUBLISHABLE_KEY: string;
     readonly VITE_CLERK_PROXY_URL: string;
+    readonly VITE_ENABLE_CIRCUIT_DOCUMENT_V2_LAB?: string;
+    readonly VITE_ENABLE_CIRCUIT_DOCUMENT_V2_SERVER_SYNC?: string;
   }
 }
 
@@ -81,6 +86,10 @@ window.CircuitGeometry = CircuitGeometry;
 
 const queryClient = new QueryClient();
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
+const circuitDocumentV2FeatureFlags = resolveCircuitDocumentV2FeatureFlags(
+  import.meta.env.VITE_ENABLE_CIRCUIT_DOCUMENT_V2_LAB,
+  import.meta.env.VITE_ENABLE_CIRCUIT_DOCUMENT_V2_SERVER_SYNC,
+);
 const clerkPubKey = publishableKeyFromHost(
   window.location.hostname,
   import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
@@ -307,6 +316,64 @@ function TutorGate() {
   if (!isLoaded) return <AuthLoading />;
   if (!isSignedIn || !userId) return <Redirect to="/" />;
   return <Tutor key={userId} userId={userId} />;
+}
+
+function CircuitDocumentV2LabGate() {
+  const { isLoaded, isSignedIn, userId } = useAuth();
+  const [, setLocation] = useLocation();
+  const [circuitDrawReady, setCircuitDrawReady] = useState(
+    () => !!window.CircuitDraw,
+  );
+  const currentLegacySpec = useMemo(
+    () => userId
+      ? readDraft(userId) as unknown as LegacyCircuitSpec
+      : null,
+    [userId],
+  );
+
+  useEffect(() => {
+    if (
+      !circuitDocumentV2FeatureFlags.labEnabled ||
+      !isLoaded ||
+      !isSignedIn ||
+      !userId
+    ) return;
+    if (window.CircuitDraw) {
+      setCircuitDrawReady(true);
+      return;
+    }
+    const existing = document.querySelector<HTMLScriptElement>(
+      'script[data-circuit-draw]',
+    );
+    const script = existing || document.createElement('script');
+    const done = () => setCircuitDrawReady(!!window.CircuitDraw);
+    script.addEventListener('load', done);
+    script.addEventListener('error', done);
+    if (!existing) {
+      script.src = `${import.meta.env.BASE_URL}circuit-draw.js`;
+      script.dataset.circuitDraw = 'true';
+      document.body.appendChild(script);
+    }
+    return () => {
+      script.removeEventListener('load', done);
+      script.removeEventListener('error', done);
+    };
+  }, [isLoaded, isSignedIn, userId]);
+
+  if (!circuitDocumentV2FeatureFlags.labEnabled) return <NotFound />;
+  if (!isLoaded) return <AuthLoading />;
+  if (!isSignedIn || !userId) return <Redirect to="/" />;
+  return (
+    <CircuitDocumentV2Lab
+      key={userId}
+      userId={userId}
+      isSignedIn={isSignedIn}
+      currentLegacySpec={currentLegacySpec}
+      circuitDrawReady={circuitDrawReady}
+      featureFlags={circuitDocumentV2FeatureFlags}
+      onBack={() => setLocation('/studio')}
+    />
+  );
 }
 
 function sendDesktopNotification(title: string, body: string) {
@@ -992,7 +1059,7 @@ function Studio({ userId }: { userId: string }) {
     <main className="studio-shell">
       <header className="topbar">
         <Link href="/studio" className="brand" data-testid="link-studio-home"><span className="brand-mark"><CircuitBoard aria-hidden="true" /></span><span>Circuit Studio</span></Link>
-        <div className="top-user"><span data-testid="text-account-name">{user?.firstName || 'Your workbench'}</span><Link href="/studio/tutor" className="tutor-nav-link" data-testid="link-open-tutor"><MessageCircle /> Tutor</Link><button data-testid="button-sign-out" onClick={() => signOut({ redirectUrl: basePath || '/' })}>Sign out</button><AiStatusControls /></div>
+        <div className="top-user"><span data-testid="text-account-name">{user?.firstName || 'Your workbench'}</span>{circuitDocumentV2FeatureFlags.labEnabled && <Link href="/studio/v2-drafts" className="tutor-nav-link" data-testid="link-open-v2-draft-lab"><BookOpenCheck /> V2 Draft Lab</Link>}<Link href="/studio/tutor" className="tutor-nav-link" data-testid="link-open-tutor"><MessageCircle /> Tutor</Link><button data-testid="button-sign-out" onClick={() => signOut({ redirectUrl: basePath || '/' })}>Sign out</button><AiStatusControls /></div>
       </header>
       <div className="workspace">
         <div className="page-heading">
@@ -1565,6 +1632,7 @@ function ClerkProviderWithRoutes() {
           <Route path="/" component={HomeRedirect} />
           <Route path="/studio" component={StudioGate} />
           <Route path="/studio/tutor" component={TutorGate} />
+          <Route path="/studio/v2-drafts" component={CircuitDocumentV2LabGate} />
           <Route path="/sign-in/*?" component={SignInPage} />
           <Route path="/sign-up/*?" component={SignUpPage} />
           <Route component={NotFound} />

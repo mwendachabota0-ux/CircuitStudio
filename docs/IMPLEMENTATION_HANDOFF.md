@@ -17,10 +17,12 @@
 | --- | --- | --- |
 | Phase 0: retry and topology safeguards | **VERIFIED** | Implemented and covered by current regression tests. |
 | Phase 1A: V2 circuit document model | **VERIFIED** | Shared model, validation, legacy adapters, fixtures, and round-trip tests exist. |
-| Phase 1B: V2 persistence foundation | **VERIFIED** | Versioned local/server persistence code and a separate database table definition exist; these are not connected to the live workbench. |
+| Phase 1B: V2 persistence foundation | **VERIFIED** | Versioned, user-scoped local/server persistence and a separate database table definition underpin the isolated V2 Lab; they remain separate from ordinary legacy workbench storage. |
 | Development database migration/table | **BLOCKED / NOT RUN** | Static schema/SQL checks pass, but no isolated database was identified and table presence remains unverified. |
 | Authenticated V2 document API | **IMPLEMENTED** | Separate Clerk-authenticated read/write endpoints use atomic storage revisions and generated contracts. |
-| Live workbench V2 integration | **NOT STARTED** | Generation, editing, history, drawing, and exports still use legacy `CircuitSpec`. |
+| Isolated V2 Draft Lab | **IMPLEMENTED** | Opt-in authenticated route supports trusted copy creation, read-only summary/preview, and separate local save/restore. |
+| Optional V2 server sync | **IMPLEMENTED / BLOCKED BY DATABASE VERIFICATION** | Existing authenticated GET/PUT API is integrated behind a second opt-in flag; runtime readiness remains hard-disabled. |
+| Ordinary workbench V2 integration | **NOT STARTED** | Normal generation, editing, history, drawing, and exports still use legacy `CircuitSpec`. |
 | Deterministic placement, automatic routing, V2 generation/rendering | **NOT STARTED** | No such implementation was found. |
 
 ### Phase 0 — verified
@@ -267,3 +269,61 @@ After the V2 table is verified in an isolated development database:
 #### Safe next step
 
 The source work is complete. Before verifying the DB change, the user must identify or configure a disposable isolated development PostgreSQL database through the workspace’s environment/secrets flow. Only then run the existing non-force `pnpm --filter @workspace/db run push` and verify the V2 table and `(user_id, session_id)` primary key with a read-only schema query. Do not use the configured external Neon database or production data for this check.
+
+---
+
+## Batch 5 — Phase 1D final checkpoint
+
+**Checkpoint:** Added an isolated, read-only V2 Draft Lab while preserving the ordinary CircuitSpec workbench. Server synchronization remains disabled because the development database and V2 table are not verified.
+
+### Reconciled starting point
+
+- The local checkout was inspected in place. No GitHub, remote repository, or external project files were accessed.
+- Phase 1A/1B/1C model, validation, persistence, API, generated client, and static database tests were already present. The local V2 Lab helper and read-only page had also been started, but the page was not routed into the app and its validation diagnostics were a stub.
+- The configured Drizzle workflow still exposes schema-push scripts, while `lib/db/migrations/0001_circuit_studio_v2_drafts.sql` has no Drizzle journal/registration metadata. No migration metadata was invented.
+- No isolated disposable development database could be established from the local files without using the configured external connection. The development table is still unverified; this batch ran no database query, migration, or schema push.
+
+### Phase 1D result
+
+| Area | Status | Evidence or limitation |
+| --- | --- | --- |
+| Feature gating and access | **IMPLEMENTED** | `VITE_ENABLE_CIRCUIT_DOCUMENT_V2_LAB` is off unless explicitly set to `true`; the route and workbench entry require Clerk sign-in. |
+| Trusted legacy copy | **IMPLEMENTED** | Explicit import uses the existing CircuitDraw membership report. Untrusted imports show diagnostics and do not save; V2 receives a new document ID and separate session ID. |
+| V2 local save/restore | **IMPLEMENTED** | Validated envelopes use the existing separate user-scoped V2 key. Missing V2 data never imports the legacy key; invalid stored data remains quarantined. |
+| Read-only V2 summary and preview | **IMPLEMENTED** | Shows electrical membership, pin states, drawing counts, validation diagnostics, and only a safe, clearly labelled legacy-compatible projection. |
+| Local/server reconciliation | **IMPLEMENTED** | Equal copies resolve; divergent copies present explicit choices. A stale write is followed by a read-only server refresh and conflict state; no automatic write retry occurs. |
+| Authenticated server sync | **IMPLEMENTED / BLOCKED BY DATABASE VERIFICATION** | Existing Clerk-owned GET/PUT operations are used with the current revision contract. `VITE_ENABLE_CIRCUIT_DOCUMENT_V2_SERVER_SYNC` is a second opt-in, and the code-level database-ready value remains `false`. |
+| Ordinary legacy workbench | **PRESERVED** | The normal Build flow, CircuitSpec draft/history keys, proposals, renderer, and exports remain on the legacy path. |
+| Database readiness | **BLOCKED / NOT RUN** | Outcome: `server-sync-blocked-by-database-verification`. The SQL file is still unregistered; live table presence is not known. |
+
+### V2 Lab lifecycle and boundaries
+
+- Entry route: `/studio/v2-drafts`; a V2 Draft Lab link appears in the signed-in workbench only when the lab flag is enabled. Direct access while disabled resolves to the not-found page; unauthenticated users follow the existing signed-in gate.
+- The lab reads the current account's legacy CircuitSpec as a source only for the explicit “Create V2 copy” action. No background or history-triggered import is performed, and the source object/key is not written by V2 save operations.
+- Local save and restore use the existing V2 persistence adapter and validation. The V2 session ID is independent of the legacy workbench session. Unsupported/corrupt values are retained for recovery.
+- Server GET only runs when both sync flags permit it and a V2 session ID exists. PUT is local-first and sends only the tagged V2 envelope plus `expectedRevision`; user ownership comes from Clerk, never a browser-supplied user ID. Failed remote saves leave the local draft intact.
+- When a stale revision is returned, the lab refreshes the server copy once for display. It does not retry the failed PUT. The user must explicitly choose whether to keep local or use server; a failed chosen save does not delete the other copy.
+- Cross-device discovery is not implemented: server reads require a previously known V2 session ID. There is no V2 editing, native V2 renderer, V2 export, generation, automatic layout, routing, simulation, or migration of legacy history.
+
+### Exact changed files
+
+- `artifacts/circuit-studio/src/App.tsx` — feature-flagged route/link, authenticated gate, current legacy draft context, and CircuitDraw loader for the standalone route.
+- `artifacts/circuit-studio/src/components/circuit-document-v2-lab.tsx` — real V2 validation diagnostics, sign-in defense, clearer sync readiness, and stale-revision refresh/conflict handling.
+- `artifacts/circuit-studio/src/lib/circuit-document-v2-lab.test.ts` — lab-default/auth, separate legacy storage, and existing local-first sync safeguards.
+- `lib/circuit-document/DESIGN.md` — Phase 1D route, storage, reconciliation, sync gate, and remaining limits.
+- `docs/IMPLEMENTATION_HANDOFF.md` — this checkpoint and final verification evidence.
+
+### Final verification — 2026-11-22
+
+| Command | Result |
+| --- | --- |
+| `pnpm --filter @workspace/circuit-document test` | **PASS** — 65 tests |
+| `pnpm --filter @workspace/api-server test` | **PASS** — 77 tests |
+| `pnpm --filter @workspace/circuit-studio test` | **PASS** — 122 tests |
+| `pnpm --filter @workspace/db test` | **PASS** — 4 static schema/migration tests |
+| `pnpm run typecheck` | **PASS** — workspace libraries, API, Studio, sandbox, and scripts |
+| `pnpm --filter @workspace/api-server run build` | **PASS** — server bundle built; esbuild reports a 3.2 MB main bundle |
+| `PORT=26043 BASE_PATH=/ pnpm --filter @workspace/circuit-studio run build` | **PASS** — Vite build completed; main JS chunk is 1,039.28 kB, above the 500 kB advisory threshold |
+| `git diff --check` | **PASS** |
+
+No signed-in browser or end-to-end UI verification was performed. The code is covered by unit/service tests and typechecked; do not claim a signed-in visual test. The configured Circuit Studio preview workflow stopped during restart after the test/build batch. Two restart attempts timed out before new workflow output; an earlier log showed missing paths/dependencies during rebuild, although those files and workspace links are present in the current checkout. No further restart was attempted. The required builds and source checks passed independently. If preview is needed, restart the existing managed workflow from the workspace; do not create a duplicate workflow.

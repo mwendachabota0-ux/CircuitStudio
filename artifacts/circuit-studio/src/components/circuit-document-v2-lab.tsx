@@ -13,6 +13,7 @@ import {
   useLoadCircuitDocumentV2Draft,
   useSaveCircuitDocumentV2Draft,
 } from "@workspace/api-client-react";
+import { validateCircuitDocumentV2 } from "@workspace/circuit-document";
 import type {
   CircuitDocumentV2,
   CircuitDocumentV2Draft,
@@ -57,6 +58,7 @@ type SyncState =
 
 type Props = {
   userId: string;
+  isSignedIn: boolean;
   currentLegacySpec: LegacyCircuitSpec | null;
   circuitDrawReady: boolean;
   featureFlags: CircuitDocumentV2FeatureFlags;
@@ -113,17 +115,19 @@ function formatPin(reference: { componentId: string; pinId: string }) {
 }
 
 function diagnosticsFor(document: CircuitDocumentV2): CircuitDocumentDiagnostic[] {
-  const validation = window.CircuitGeometry
-    ? undefined
-    : undefined;
-  void validation;
-  // Persistence validation already guarantees the schema/electrical/drawing
-  // invariants. Import warnings are shown separately on initial conversion.
-  return [];
+  const validation = validateCircuitDocumentV2(document);
+  return [
+    ...validation.schemaErrors,
+    ...validation.electricalErrors,
+    ...validation.drawingErrors,
+    ...validation.drawingWarnings,
+    ...validation.consistencyWarnings,
+  ];
 }
 
 export default function CircuitDocumentV2Lab({
   userId,
+  isSignedIn,
   currentLegacySpec,
   circuitDrawReady,
   featureFlags,
@@ -216,6 +220,14 @@ export default function CircuitDocumentV2Lab({
     if (reconciliation.status === "resolved") {
       setSyncState({
         kind: "identical",
+        serverDraft,
+        revision: response.revision,
+      });
+      return;
+    }
+    if (reconciliation.status === "empty") {
+      setSyncState({
+        kind: "server-only",
         serverDraft,
         revision: response.revision,
       });
@@ -314,10 +326,51 @@ export default function CircuitDocumentV2Lab({
       });
       setStatusMessage("Saved locally and synced to the V2 server.");
     } else if (result.status === "revision-conflict") {
-      setSyncState({ kind: "unavailable", message: result.message });
-      setStatusMessage(
-        "Saved locally. The server has a newer revision; reload it before choosing which copy to keep.",
-      );
+      const refreshed = await serverQuery.refetch();
+      if (!refreshed.isError && refreshed.data?.status === "loaded") {
+        const serverDraft = refreshed.data.draft as CircuitDocumentV2Draft;
+        const reconciliation = reconcileCircuitDraftCopies(
+          result.draft,
+          serverDraft,
+        );
+        if (reconciliation.status === "resolved") {
+          setSyncState({
+            kind: "identical",
+            serverDraft,
+            revision: refreshed.data.revision,
+          });
+          setStatusMessage(
+            "Saved locally. The latest server copy already matches; no second write was needed.",
+          );
+        } else {
+          setSyncState({
+            kind: "conflict",
+            localValue: result.draft,
+            serverDraft,
+            revision: refreshed.data.revision,
+            message:
+              reconciliation.status === "quarantined"
+                ? reconciliation.message
+                : "The saved local and latest server copies differ.",
+          });
+          setStatusMessage(
+            "Saved locally. The server changed before this save; both copies are preserved. Choose which copy to keep.",
+          );
+        }
+      } else if (!refreshed.isError && refreshed.data?.status === "empty") {
+        setSyncState({ kind: "local-only" });
+        setStatusMessage(
+          "Saved locally. The server session is empty; no remote overwrite was attempted.",
+        );
+      } else {
+        setSyncState({
+          kind: "unavailable",
+          message: `${result.message} Check the server before trying again.`,
+        });
+        setStatusMessage(
+          "Saved locally. The server revision could not be checked; no retry was attempted.",
+        );
+      }
     } else if (result.status === "server-unavailable") {
       setSyncState({ kind: "unavailable", message: result.message });
       setStatusMessage("Saved locally; server sync unavailable.");
@@ -441,7 +494,7 @@ export default function CircuitDocumentV2Lab({
   if (
     !canAccessCircuitDocumentV2Lab(
       featureFlags.labEnabled,
-      true,
+      isSignedIn,
       userId,
     )
   ) {
@@ -488,7 +541,9 @@ export default function CircuitDocumentV2Lab({
               <div>
                 <strong>Local only</strong>
                 <p>
-                  Server sync is disabled until the development database and V2 table are verified.
+                  {featureFlags.serverSyncBlockedByDatabase
+                    ? "Server sync was requested but remains blocked until the development database and V2 table are verified. No V2 API write is attempted."
+                    : "Server sync is off by default. This V2 copy stays in this signed-in account's browser storage; the legacy workbench is unchanged."}
                 </p>
               </div>
             </>
@@ -738,7 +793,7 @@ export default function CircuitDocumentV2Lab({
               <h2>Validation diagnostics</h2>
               {diagnostics.length > 0
                 ? <DiagnosticList diagnostics={diagnostics} />
-                : <p className="v2-valid-note"><CheckCircle2 aria-hidden="true" /> No schema, electrical, or drawing errors.</p>}
+                : <p className="v2-valid-note"><CheckCircle2 aria-hidden="true" /> No schema, electrical, drawing, or consistency issues.</p>}
             </section>
           </>
         )}

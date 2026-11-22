@@ -74,7 +74,9 @@ the API route derives that ID from Clerk auth rather than request data. This
 table does not add a stale `current_spec` sidecar, so a v2 draft cannot be
 replaced by an unrelated legacy spec. The existing
 `/circuit-builder/history` route and its history contract remain legacy-only;
-the workbench is not yet integrated with the separate V2 API.
+the ordinary workbench is not integrated with the separate V2 API. The isolated
+Phase 1D V2 Draft Lab is a separate authenticated client and never writes to
+legacy history.
 
 Browser v2 drafts use a new user-scoped localStorage key and explicit envelope.
 Existing CircuitSpec draft and history keys are neither migrated nor rewritten.
@@ -82,9 +84,11 @@ The v2 local adapter leaves malformed or unsupported stored text untouched.
 The shared reconciliation helper compares local and server copies by
 representation and complete document: identical copies resolve safely;
 divergent copies are quarantined rather than chosen by write order. The current
-workbench does not automatically sync v2 drafts yet. If a caller supplies both
-legacy and v2 copies, the v2 representation is identified as authoritative,
-but restoration waits for conflict handling.
+workbench does not automatically sync v2 drafts. The isolated Draft Lab can
+optionally use the V2 API only when its separate sync opt-in and the database
+verification gate both allow it. If a caller supplies both legacy and v2
+copies, the v2 representation is identified as authoritative, but restoration
+waits for conflict handling.
 
 There is no bulk migration of existing sessions. Missing v2 records continue to
 mean the legacy session is authoritative; records are created only by an
@@ -105,13 +109,12 @@ legacy history table's `saved_state` and `current_spec`, scoped by Clerk
 updates those rows. If no v2 record exists for a session, the existing history
 record remains the source of truth; there is no read-triggered import.
 
-The live workbench continues to save and restore its unwrapped legacy
-`CircuitSpec` at `circuit-studio-draft-v1:<userId>`. The v2 browser adapter uses
-the separate `circuit-studio-document-v2-v1:<userId>` key, validates its tagged
-envelope, and does not rewrite or delete the legacy key. The current workbench
-does not yet select or synchronize v2 drafts; that integration is intentionally
-deferred so this persistence phase cannot change the active renderer or draft
-format.
+The ordinary workbench continues to save and restore its unwrapped legacy
+`CircuitSpec` at `circuit-studio-draft-v1:<userId>`. The V2 Draft Lab uses the
+separate `circuit-studio-document-v2-v1:<userId>` key, validates its tagged
+envelope, and does not rewrite or delete the legacy key. Opening the Lab does
+not import a legacy draft; import requires an explicit user action and a trusted
+CircuitDraw membership report.
 
 ## Phase 1C authenticated V2 document API
 
@@ -180,6 +183,40 @@ database is confirmed, run the non-force `push` command above and verify the
 resulting `circuit_studio_v2_drafts` columns and composite primary key with a
 read-only schema query.
 
-The generated OpenAPI Zod request contracts and React Query client are updated,
-but neither the production Circuit Studio workbench nor generation, rendering,
-placement, routing, or exports call these routes in this phase.
+The generated OpenAPI Zod request contracts and React Query client are used by
+the separate Lab's optional GET/PUT calls. The Lab defaults to local-only;
+ordinary workbench generation, rendering, placement, routing, and exports do
+not call these routes.
+
+## Phase 1D isolated V2 Draft Lab
+
+The signed-in workbench exposes `/studio/v2-drafts` only when
+`VITE_ENABLE_CIRCUIT_DOCUMENT_V2_LAB=true`. The same authenticated Clerk user
+context gates direct route access. This route is an isolated, read-only
+workspace: legacy import is explicit, uses the trusted CircuitDraw membership
+report, and assigns a new V2 document ID and independent V2 session ID. It
+shows electrical membership, no-connect/unassigned pins, drawing counts, model
+diagnostics, and a preview only when `projectCircuitDocumentToLegacy` proves
+the projection lossless. That preview uses CircuitDraw and is labelled as
+legacy-compatible, not a native V2 renderer.
+
+The Lab restores only the signed-in user's V2 envelope. Local writes go through
+the existing validator and V2 key; a missing V2 record never triggers an
+automatic legacy import. Corrupt or unsupported local values stay quarantined.
+If local and server drafts differ, the Lab keeps both and requires an explicit
+choice. A stale server revision triggers one GET to learn the current server
+copy, followed by a conflict choice; it never retries the failed PUT
+automatically.
+
+Optional server access requires both
+`VITE_ENABLE_CIRCUIT_DOCUMENT_V2_SERVER_SYNC=true` and verified database
+readiness. The code-level readiness remains false until an isolated development
+database has been checked for the V2 table. Therefore the current built-in
+configuration cannot perform V2 server writes, even if the sync flag is set.
+The SQL reference is still not registered as a Drizzle journaled migration,
+and no database query or schema push was performed for Phase 1D.
+
+This phase does not add cross-device V2 session discovery, document editing,
+generation, native rendering, export, layout, routing, or migration of legacy
+history. The ordinary workbench continues to use CircuitSpec for all existing
+generation, editing, history, drawing, and export behavior.

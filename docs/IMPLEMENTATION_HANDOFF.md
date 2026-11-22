@@ -355,33 +355,45 @@ No signed-in browser or end-to-end UI verification was performed. The code is co
 
 ---
 
-## Batch 7 — Phase 2B-1 working checkpoint
+## Batch 7 — Phase 2B-1 final checkpoint
 
-**Status:** Baseline inspection and tests are complete; implementation is in progress. No source edits have been made yet.
+**Status:** The shared geometry resolver and placement-lock contract are implemented and tested. Automatic component placement, wire routing, and all other Phase 2C+ behavior remain unimplemented.
 
-### Verified starting point
+### Local starting point and boundaries
 
-- The Phase 2A design and the preceding handoff checkpoint were read before editing. The design recommends a shared geometry authority and an optional `userPinned` placement field; it explicitly defers automatic placement and routing.
-- No shared component-geometry resolver, normalized placement-lock helper, or `userPinned` schema field exists in the current source.
-- `lib/circuit-geometry/src/index.ts` provides `getCircuitPins`, including built-in pin offsets and selected KiCad unit/body-style pin data. KiCad world transform math is also duplicated in `artifacts/circuit-studio/public/circuit-draw.js` (`transformKicadPoint` and `kicadTransform`).
-- V2 `worldPinPoints` in `lib/circuit-document/src/validation.ts` reconstructs geometry separately from the model and aligns pins by array index. `CircuitDraw.pinsOf` calls the shared `getCircuitPins`.
-- The renderer keeps local `TWO_BODY_BOUNDS`, `MULTI_BODY_BOUNDS`, `kicadBodyBounds`, and `componentBodyBounds`; it also tracks estimated text boxes separately in `layoutWarnings`.
-- The browser already assigns `window.CircuitGeometry` before loading `public/circuit-draw.js`; the renderer factory receives that shared module. A new browser bridge/build system is not needed.
-- Legacy projection currently merges component properties before placement properties; geometry-affecting duplicate values therefore can override canonical component symbol data. Placement-lock data also has no legacy representation.
-- `lib/circuit-geometry/package.json` has no test script. Existing geometry/renderer regression tests live in Circuit Document and Circuit Studio package test suites.
-- The Phase 2B-1 attachment named in the request was not present anywhere under the local workspace when checked. Work is proceeding only from this workspace and the verified Phase 2A design plus the task requirements recorded here; no remote source was accessed.
+- The Phase 2A design and prior implementation handoff were inspected before changes. The named Phase 2B-1 attachment was not present in the local workspace; no GitHub, remote repository, downloads, or synchronization were used. Work followed the local Phase 2A design and existing implementation.
+- Existing resolver, V2 placement-policy, and renderer-delegation work was retained and extended; nothing was reverted. Existing validators were not modified.
+- The shared geometry contract is in `lib/circuit-geometry/src/resolver.ts`, exported from `lib/circuit-geometry/src/index.ts`. It exposes pin identities/anchors, body bounds, text bounds, effective transforms, and explicit unsupported results for geometry that cannot be trusted.
+- `lib/circuit-document/src/geometry.ts` adapts V2 component/placement data. Component geometry remains authoritative over compatibility properties; placement-owned label settings reach the resolver without shadowing component endpoints or symbol definitions. Text bounds cover built-in symbols, internal glyphs, IC/connector pin names, and KiCad labels/numbers; terminal labels conservatively cover wire-dependent positions.
+- The resolver's `transform` metadata describes the transform the renderer actually uses: endpoint angle for two-terminal parts, selected unit/body style plus rotation/mirror for KiCad, and only supported built-in mirroring. Bounds and text measurements are conservative estimates, not electrical validation or visual approval.
+- `CircuitDocumentV2Schema` retains backward-compatible optional `userPinned`. `resolvePlacementMobility` protects existing placements in `place-unplaced`, treats missing lock state as protected in `preserve-pinned`, allows `userPinned: false` there, and lets explicit `reflow` move unpinned existing placements. Explicit pins/fixed positions take precedence. `getPlacementRouteImpact` deterministically reports affected nets/routes and unrouted multi-pin nets without changing any document data.
+- Legacy CircuitSpec projection warns for either explicit lock value because CircuitSpec cannot preserve the distinction. No automatic placement, route generation/editing, UI, API/database integration, validator changes, or new dependency was added.
 
-### Baseline tests before source changes
+### Changed files
+
+- `lib/circuit-geometry/src/resolver.ts` — shared body/text/pin geometry and accurate transform metadata; corrected unframed transistor artwork bounds and renderer-aligned labels.
+- `lib/circuit-geometry/src/index.ts` — public resolver input contract now accepts the label and symbol geometry used by rendering.
+- `lib/circuit-geometry/tsconfig.json` — allows source `.ts` imports for declaration-only composite builds.
+- `lib/circuit-geometry/test/resolver.test.mjs` — text, terminal, pin-label, KiCad transform, bounds, and unsupported-result coverage.
+- `lib/circuit-geometry/dist/` and `lib/circuit-document/dist/` — refreshed declaration outputs for the shared public types and geometry/placement-policy modules.
+- `lib/circuit-document/src/geometry.ts` — placement-owned text settings adapted without overriding authoritative geometry.
+- `lib/circuit-document/src/legacy.ts` — explicit true/false lock-state projection warnings.
+- `lib/circuit-document/test/geometry.test.mjs`, `placement-policy.test.mjs`, and `projection.test.mjs` — adapter authority, lock modes, route-impact immutability, and projection warnings.
+- `lib/circuit-document/DESIGN.md` and `docs/CIRCUIT_LAYOUT_ENGINE_DESIGN.md` — Phase 2B-1 contract, status, limits, and out-of-scope boundaries.
+- Tracked TypeScript build-info files were refreshed by the successful workspace typecheck.
+- `docs/IMPLEMENTATION_HANDOFF.md` — this verified checkpoint and continuation guidance.
+
+### Final verification
 
 | Command | Result |
 | --- | --- |
-| `pnpm --filter @workspace/circuit-document test` | **PASS** — 65 tests |
+| `pnpm --filter @workspace/circuit-geometry test` | **PASS** — 9 tests |
+| `pnpm --filter @workspace/circuit-document test` | **PASS** — 78 tests |
 | `pnpm --filter @workspace/circuit-studio test` | **PASS** — 122 tests |
+| `pnpm run typecheck:libs` | **PASS** — composite library declarations |
+| `pnpm run typecheck` | **PASS** — libraries, API server, Circuit Studio, mockup sandbox, and scripts |
+| `git diff --check` | **PASS** |
 
-### Remaining work
+### Safe continuation
 
-1. Finish the existing transform, body-bound, text-bound, and placement semantics audit from local source.
-2. Implement a shared, deterministic component-geometry resolver and route the renderer and V2 consistency checks through its authoritative pin transform.
-3. Add `userPinned` with omitted-as-protected semantics, pure placement-mode/mobility and route-impact policy helpers, and explicit legacy projection diagnostics.
-4. Add transformed geometry/lock fixtures and tests; update the Phase 2A design and `lib/circuit-document/DESIGN.md`.
-5. Run package tests, workspace typecheck/builds, and diff checks; replace this checkpoint with final results and the Phase 2B-2 handoff.
+The next placement feature is Phase 2C's isolated pure placement core, but it requires a separate authorization/specification. Do not implement placement or routing as part of this batch. If the missing local Phase 2B-1 attachment is later supplied, compare it against this implementation before expanding scope. No signed-in UI or workflow restart was needed for this library/documentation-only change.

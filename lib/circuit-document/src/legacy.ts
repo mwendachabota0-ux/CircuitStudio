@@ -859,12 +859,12 @@ export function projectCircuitDocumentToLegacy(
   }
   const document = parsed.data;
   document.drawing.placements.forEach((placement, index) => {
-    if (placement.userPinned === true) {
+    if (placement.userPinned !== undefined) {
       diagnostics.push(diagnostic(
         "projection-placement-lock-not-preserved",
         "warning",
         `drawing.placements.${index}.userPinned`,
-        "Legacy CircuitSpec cannot preserve this user-pinned placement lock.",
+        "Legacy CircuitSpec cannot preserve this explicit placement-lock state.",
       ));
     }
   });

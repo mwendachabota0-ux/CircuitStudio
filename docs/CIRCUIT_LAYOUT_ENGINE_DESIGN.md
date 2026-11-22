@@ -439,3 +439,38 @@ A candidate placement is eligible to apply only when:
 - `artifacts/circuit-studio/src/lib/circuit-document-v2-lab.test.ts` — isolated V2 lab access, local persistence, and guarded sync tests.
 
 No source files, test files, dependencies, database state, or remote repositories were changed or accessed for this design assignment.
+
+## Phase 2B-1 implementation record
+
+Phase 2A remains a design-only checkpoint. The following records the later
+Phase 2B-1 implementation without changing the original Phase 2A scope:
+
+- `@workspace/circuit-geometry` now exposes a shared resolver for stable pin
+  identities and transformed anchors, component body bounds, and text bounds.
+  It reuses the canonical pin resolver and existing renderer geometry rather
+  than adding a second placement engine. Unsupported KiCad source geometry
+  returns an explicit unsupported result.
+- The V2 geometry adapter takes symbol/pin geometry from the component and its
+  explicit placement transforms. It passes placement-owned label settings
+  through the resolver, but rejects conflicting compatibility geometry rather
+  than allowing arbitrary placement properties to shadow the component.
+- The renderer-aligned bounds cover the supported built-in symbol families,
+  two-terminal endpoint orientation, KiCad transforms and text/pin labels,
+  embedded symbol text, and IC/connector pin names. Terminal-label bounds are
+  conservative because final side selection depends on connected wire
+  direction. Text measurements follow CircuitDraw's character-width and
+  baseline conventions; they are still estimates of rendered glyph extents.
+- The optional placement `userPinned` field remains backward compatible.
+  Mobility decisions are pure: existing placements stay protected in
+  `place-unplaced`; `preserve-pinned` treats an absent legacy flag as
+  protected, while explicit `false` opts out; `reflow` is the explicit
+  authorization to move existing unpinned placements. Request-level pins and
+  fixed positions take precedence.
+- Route impact is deterministic and report-only: it lists moved components,
+  affected nets/routes, unrouted multi-pin nets, and whether rerouting would be
+  required. It does not move a component or edit routes, junctions, or
+  crossings. Legacy projection warns when either explicit `userPinned` state
+  would be lost.
+- No automatic placement, graph ordering, wire routing, UI, API/database
+  integration, or validator behavior was added or changed. The Phase 2C
+  placement core remains a separate future scope.

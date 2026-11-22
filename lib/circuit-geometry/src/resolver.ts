@@ -70,6 +70,8 @@ export type CircuitGeometryResolution =
         origin?: CircuitPoint;
         rotation: number;
         flipX: boolean;
+        unit?: number;
+        bodyStyle?: number;
       };
     }
   | {
@@ -285,14 +287,16 @@ function builtInBodyBounds(
     MULTI_BODY_BOUNDS[type];
   if (type === 'ground') local = [-12, 0, 12, 20];
   if (type === 'antenna') {
-    const height = typeof element.height === 'number' && Number.isFinite(element.height)
+    const height = typeof element.height === 'number' &&
+      Number.isFinite(element.height) &&
+      element.height !== 0
       ? element.height
       : 55;
     local = [-12, Math.min(-height, 0), 12, Math.max(-height, 0)];
   }
   if (type === 'terminal') local = [-4, -4, 4, 4];
   if ((type === 'npn' || type === 'pnp') && element.circle === false) {
-    local = [-25, -30, 25, 30];
+    local = [-25, -44, 25, 44];
   }
 
   if (local) {
@@ -410,8 +414,18 @@ function kicadBodyBounds(
     }
     if (graphic.type === 'arc') {
       const circle = circumcircleBounds(sourcePoints);
-      if (circle) points.push(...boundsCorners(circle));
-      else points.push(...sourcePoints);
+      if (circle) {
+        points.push(...boundsCorners(circle));
+      } else if (sourcePoints.length >= 3) {
+        const [start, middle, end] = sourcePoints;
+        const control: CircuitPoint = [
+          2 * middle[0] - (start[0] + end[0]) / 2,
+          2 * middle[1] - (start[1] + end[1]) / 2,
+        ];
+        points.push(start, middle, end, control);
+      } else {
+        points.push(...sourcePoints);
+      }
       continue;
     }
     // Bézier control points contain the curve in their convex hull. Polyline
@@ -483,13 +497,22 @@ function kicadTextBounds(
     const length = Math.hypot(dx, dy) || 1;
     const ux = dx / length;
     const uy = dy / length;
+    const textAnchor: 'start' | 'middle' | 'end' = ux > 0.25
+      ? 'start'
+      : ux < -0.25
+        ? 'end'
+        : 'middle';
     if (pin.showNumber && pin.number) {
       textPins.push({
         pin,
         role: 'pin-number',
         text: pin.number,
         point: [worldPoint[0] - ux * 8, worldPoint[1] - uy * 8],
-        anchor: 'middle',
+        anchor: textAnchor === 'start'
+          ? 'end'
+          : textAnchor === 'end'
+            ? 'start'
+            : 'middle',
         size: 8,
       });
     }
@@ -499,8 +522,8 @@ function kicadTextBounds(
         role: 'pin-name',
         text: pin.name,
         point: [worldBodyPoint[0] + ux * 5, worldBodyPoint[1] + uy * 5],
-        anchor: ux < -0.15 ? 'end' : 'start',
-        size: 8,
+        anchor: textAnchor,
+        size: 9,
       });
     }
   }
@@ -520,6 +543,60 @@ function componentTextBounds(
   bodyBounds: CircuitGeometryBounds,
   type: string,
 ): CircuitGeometryTextBound[] | null {
+  const result: CircuitGeometryTextBound[] = builtInEmbeddedTextBounds(element, type);
+  if (type === 'ic' || type === 'connector') {
+    const at = isPoint(element.at) ? element.at : null;
+    if (!at || !Array.isArray(element.pins)) return null;
+    const leftCount = element.pins.filter(
+      (pin) => isRecord(pin) && pin.side === 'left',
+    ).length;
+    const rightCount = element.pins.filter(
+      (pin) => isRecord(pin) && pin.side === 'right',
+    ).length;
+    const height = Math.max(48, Math.max(leftCount, rightCount) * 24 + 16);
+    if (typeof element.value === 'string' && element.value) {
+      result.push({
+        role: 'value',
+        text: element.value,
+        bounds: rectangleForText(element.value, [at[0], at[1] + 4], 'middle', 11, true),
+        confidence: 'render-aligned',
+      });
+    }
+    if (typeof element.label === 'string' && element.label) {
+      result.push({
+        role: 'reference',
+        text: element.label,
+        bounds: rectangleForText(
+          element.label,
+          [at[0], at[1] + height / 2 + 17],
+          'middle',
+          11,
+          true,
+        ),
+        confidence: 'render-aligned',
+      });
+    }
+    const anchors = getCircuitPins(element);
+    element.pins.forEach((pin, index) => {
+      if (!isRecord(pin) || typeof pin.name !== 'string' || !isPoint(anchors[index]?.point)) return;
+      const side = pin.side === 'left' ? 'left' : pin.side === 'right' ? 'right' : null;
+      if (!side) return;
+      const anchor = anchors[index].point;
+      result.push({
+        role: 'pin-name',
+        text: pin.name,
+        bounds: rectangleForText(
+          pin.name,
+          [anchor[0] + (side === 'left' ? 16 : -16), anchor[1] + 3],
+          side === 'left' ? 'end' : 'start',
+          9,
+        ),
+        confidence: 'render-aligned',
+      });
+    });
+    return result;
+  }
+
   const lines = [
     ...(typeof element.label === 'string' && element.label
       ? [{ role: 'reference' as const, text: element.label, size: 14, bold: true }]
@@ -528,67 +605,305 @@ function componentTextBounds(
       ? [{ role: 'value' as const, text: element.value, size: 12, bold: false }]
       : []),
   ];
-  if (lines.length === 0) return [];
-  if (element.labelAt !== undefined && !isPoint(element.labelAt)) return null;
+  if (lines.length === 0) return result;
+  const labelAt = isPoint(element.labelAt) ? element.labelAt : null;
+  if (element.labelAt !== undefined && !labelAt) return null;
+  const labelAnchor = element.labelAnchor === 'middle' || element.labelAnchor === 'end'
+    ? element.labelAnchor
+    : 'start';
+  if (labelAt) {
+    lines.forEach((line, index) => {
+      result.push({
+        role: line.role,
+        text: line.text,
+        bounds: rectangleForText(
+          line.text,
+          [labelAt[0], labelAt[1] + index * 16],
+          labelAnchor,
+          line.size,
+          line.bold,
+        ),
+        confidence: 'render-aligned',
+      });
+    });
+    return result;
+  }
+
   const nudge = element.labelNudge === undefined
     ? [0, 0] as CircuitPoint
     : isPoint(element.labelNudge)
       ? element.labelNudge
       : null;
   if (!nudge) return null;
-  const anchor = element.labelAnchor === 'middle' || element.labelAnchor === 'end'
-    ? element.labelAnchor
-    : 'start';
-  let position = typeof element.labelPos === 'string' ? element.labelPos : 'above';
-  if (!['above', 'below', 'left', 'right'].includes(position)) position = 'above';
-  if (
-    position === 'above' &&
-    Object.hasOwn(TWO_TERMINAL_BODY_BOUNDS, type) &&
-    isPoint(element.from) &&
-    isPoint(element.to) &&
-    Math.abs(element.to[1] - element.from[1]) > Math.abs(element.to[0] - element.from[0])
-  ) {
-    position = 'right';
+  const allowedPositions = new Set(['above', 'below', 'left', 'right']);
+  if (element.labelPos !== undefined && !allowedPositions.has(String(element.labelPos))) return null;
+
+  const at = isPoint(element.at) ? element.at : null;
+  if ((type === 'npn' || type === 'pnp') && at) {
+    const anchor: 'start' | 'end' = element.flip === true ? 'start' : 'end';
+    lines.forEach((line, index) => {
+      result.push({
+        role: line.role,
+        text: line.text,
+        bounds: rectangleForText(
+          line.text,
+          [
+            at[0] + 10 * (element.flip === true ? -1 : 1) + nudge[0],
+            at[1] + 62 + index * 16 + nudge[1],
+          ],
+          anchor,
+          line.size,
+          line.bold,
+        ),
+        confidence: 'render-aligned',
+      });
+    });
+    return result;
   }
 
-  const center: CircuitPoint = [
-    (bodyBounds.x0 + bodyBounds.x1) / 2,
-    (bodyBounds.y0 + bodyBounds.y1) / 2,
-  ];
-  const labelPoint: CircuitPoint = isPoint(element.labelAt)
-    ? element.labelAt
-    : position === 'above'
-      ? [center[0], bodyBounds.y0 - 8]
-      : position === 'below'
-        ? [center[0], bodyBounds.y1 + 20]
-        : position === 'left'
-          ? [bodyBounds.x0 - 8, center[1] + 4]
-          : [bodyBounds.x1 + 8, center[1] + 4];
-  const labelAnchor = isPoint(element.labelAt)
-    ? anchor
-    : position === 'left'
-      ? 'end'
-      : position === 'right'
-        ? 'start'
-        : 'middle';
+  const labelLayout = componentLabelLayout(element, type, bodyBounds);
+  if (!labelLayout) return null;
+  if (labelLayout.terminalAlternatives) {
+    lines.forEach((line, index) => {
+      const candidates = labelLayout.terminalAlternatives!.map((alternative) =>
+        placeLabelLine(
+          line,
+          index,
+          lines.length,
+          alternative.point,
+          alternative.position,
+          alternative.distance,
+          nudge,
+        ),
+      );
+      const bounds = candidates.reduce<CircuitGeometryBounds | null>(
+        (current, candidate) => current ? unionBounds(current, candidate) : candidate,
+        null,
+      );
+      if (bounds) {
+        result.push({
+          role: line.role,
+          text: line.text,
+          bounds,
+          confidence: 'conservative-estimate',
+        });
+      }
+    });
+    return result;
+  }
 
-  return lines.map((line, index) => ({
-    role: line.role,
-    text: line.text,
-    bounds: rectangleForText(
-      line.text,
-      [
-        labelPoint[0] + nudge[0],
-        labelPoint[1] + nudge[1] + (isPoint(element.labelAt) ? index * 16 : index * 16),
+  lines.forEach((line, index) => {
+    result.push({
+      role: line.role,
+      text: line.text,
+      bounds: placeLabelLine(
+        line,
+        index,
+        lines.length,
+        labelLayout.point,
+        labelLayout.position,
+        labelLayout.distance,
+        nudge,
+      ),
+      confidence: 'render-aligned',
+    });
+  });
+  return result;
+}
+
+type ComponentLabelLayout = {
+  point: CircuitPoint;
+  position: 'above' | 'below' | 'left' | 'right';
+  distance: number;
+  terminalAlternatives?: Array<{
+    point: CircuitPoint;
+    position: 'above' | 'below' | 'left' | 'right';
+    distance: number;
+  }>;
+};
+
+function componentLabelLayout(
+  element: GeometryElement,
+  type: string,
+  bodyBounds: CircuitGeometryBounds,
+): ComponentLabelLayout | null {
+  const explicit = element.labelPos as ComponentLabelLayout['position'] | undefined;
+  if (Object.hasOwn(TWO_TERMINAL_BODY_BOUNDS, type)) {
+    if (!isPoint(element.from) || !isPoint(element.to)) return null;
+    const dx = element.to[0] - element.from[0];
+    const dy = element.to[1] - element.from[1];
+    const bounds = TWO_TERMINAL_BODY_BOUNDS[type];
+    return {
+      point: [
+        (element.from[0] + element.to[0]) / 2,
+        (element.from[1] + element.to[1]) / 2,
       ],
-      labelAnchor,
-      line.size,
-      line.bold,
-    ),
-    confidence: isPoint(element.labelAt)
-      ? 'render-aligned'
-      : 'conservative-estimate',
-  }));
+      position: explicit ?? (Math.abs(dx) >= Math.abs(dy) ? 'above' : 'right'),
+      distance: Math.max(Math.abs(bounds[1]), Math.abs(bounds[3])) + 8,
+    };
+  }
+  if (!isPoint(element.at)) return null;
+  const [x, y] = element.at;
+  switch (type) {
+    case 'opamp':
+    case 'comparator':
+      return { point: [x - 5, y - 40], position: explicit ?? 'above', distance: 6 };
+    case 'potentiometer':
+      return { point: [x, y - 10], position: explicit ?? 'above', distance: 18 };
+    case 'nmos':
+    case 'pmos':
+    case 'mosfet':
+    case 'njfet':
+    case 'pjfet':
+      return { point: [x, y + 48], position: explicit ?? 'below', distance: 8 };
+    case 'regulator':
+      return { point: [x, y - 22], position: explicit ?? 'above', distance: 5 };
+    case 'transformer':
+      return { point: [x, y + 52], position: explicit ?? 'below', distance: 8 };
+    case 'relay':
+      return { point: [x, y - 32], position: explicit ?? 'above', distance: 7 };
+    case 'bridge':
+      return { point: [x, y - 34], position: explicit ?? 'above', distance: 7 };
+    case 'opto':
+      return { point: [x, y - 34], position: explicit ?? 'above', distance: 8 };
+    case 'kicad':
+      return { point: [x, y], position: explicit ?? 'above', distance: 8 };
+    case 'ground':
+      return { point: [x, y + 20], position: explicit ?? 'below', distance: 4 };
+    case 'antenna': {
+      const height = typeof element.height === 'number' && Number.isFinite(element.height) && element.height
+        ? element.height
+        : 55;
+      return { point: [x, y - height], position: explicit ?? 'above', distance: 8 };
+    }
+    case 'terminal': {
+      const point: CircuitPoint = [x, y];
+      if (explicit) {
+        return {
+          point,
+          position: explicit,
+          distance: 10,
+          terminalAlternatives: [
+            { point, position: explicit, distance: 4 },
+            { point, position: explicit, distance: 10 },
+          ],
+        };
+      }
+      return {
+        point,
+        position: 'right',
+        distance: 10,
+        terminalAlternatives: [
+          { point, position: 'right', distance: 10 },
+          { point, position: 'left', distance: 10 },
+          { point, position: 'above', distance: 10 },
+          { point, position: 'below', distance: 4 },
+        ],
+      };
+    }
+    default:
+      return {
+        point: [(bodyBounds.x0 + bodyBounds.x1) / 2, bodyBounds.y0],
+        position: explicit ?? 'above',
+        distance: 8,
+      };
+  }
+}
+
+function placeLabelLine(
+  line: { text: string; size: number; bold: boolean },
+  index: number,
+  count: number,
+  point: CircuitPoint,
+  position: 'above' | 'below' | 'left' | 'right',
+  distance: number,
+  nudge: CircuitPoint,
+): CircuitGeometryBounds {
+  let x = point[0];
+  let y = point[1];
+  let anchor: 'start' | 'middle' | 'end' = 'middle';
+  if (position === 'above') {
+    y = point[1] - distance - (count - 1 - index) * 16;
+  } else if (position === 'below') {
+    y = point[1] + distance + 12 + index * 16;
+  } else {
+    y = point[1] + (index - (count - 1) / 2) * 16 + 4;
+    if (position === 'left') {
+      x = point[0] - distance;
+      anchor = 'end';
+    } else {
+      x = point[0] + distance;
+      anchor = 'start';
+    }
+  }
+  return rectangleForText(
+    line.text,
+    [x + nudge[0], y + nudge[1]],
+    anchor,
+    line.size,
+    line.bold,
+  );
+}
+
+function builtInEmbeddedTextBounds(
+  element: GeometryElement,
+  type: string,
+): CircuitGeometryTextBound[] {
+  const makeBound = (
+    text: string,
+    point: CircuitPoint,
+    anchor: 'start' | 'middle' | 'end',
+    size: number,
+    bold = false,
+  ): CircuitGeometryTextBound => ({
+    role: 'symbol-text',
+    text,
+    bounds: rectangleForText(text, point, anchor, size, bold),
+    confidence: 'render-aligned',
+  });
+  if (Object.hasOwn(TWO_TERMINAL_BODY_BOUNDS, type)) {
+    const from = isPoint(element.from) ? element.from : null;
+    const to = isPoint(element.to) ? element.to : null;
+    if (!from || !to) return [];
+    const dx = to[0] - from[0];
+    const dy = to[1] - from[1];
+    const length = Math.hypot(dx, dy);
+    const angle = Math.atan2(dy, dx);
+    const center = length / 2;
+    const textByType: Record<string, Array<{
+      offset: CircuitPoint;
+      text: string;
+      anchor: 'start' | 'middle' | 'end';
+      size: number;
+    }>> = {
+      electrolytic: [{ offset: [center - 16, -9], text: '+', anchor: 'middle', size: 13 }],
+      battery: [{ offset: [center - 15, -10], text: '+', anchor: 'middle', size: 13 }],
+      mic: [{ offset: [center, 4], text: 'MIC', anchor: 'middle', size: 11 }],
+      motor: [{ offset: [center, 4], text: 'M', anchor: 'middle', size: 15 }],
+      thermistor: [{ offset: [center + 23, -13], text: 'T', anchor: 'start', size: 9 }],
+    };
+    return (textByType[type] ?? []).map(({ offset, text, anchor, size }) =>
+      makeBound(text, [
+        from[0] + offset[0] * Math.cos(angle) - offset[1] * Math.sin(angle),
+        from[1] + offset[0] * Math.sin(angle) + offset[1] * Math.cos(angle),
+      ], anchor, size),
+    );
+  }
+
+  if (!isPoint(element.at)) return [];
+  const pins = getCircuitPins(element);
+  if (type === 'opamp' || type === 'comparator') {
+    const inv = pins.find((pin) => pin.name === 'INV');
+    const noninv = pins.find((pin) => pin.name === 'NONINV');
+    return [
+      ...(inv ? [makeBound('−', [inv.point[0] + 7, inv.point[1] + 4], 'start', 14)] : []),
+      ...(noninv ? [makeBound('+', [noninv.point[0] + 7, noninv.point[1] + 4], 'start', 14)] : []),
+    ];
+  }
+  if (type === 'regulator') {
+    return [makeBound('REG', [element.at[0], element.at[1] + 4], 'middle', 10, true)];
+  }
+  return [];
 }
 
 /**
@@ -669,6 +984,28 @@ export function resolveCircuitComponentGeometry(
   }
   textBounds.push(...labels);
 
+  const twoTerminal = isPoint(element.from) && isPoint(element.to) &&
+    Object.hasOwn(TWO_TERMINAL_BODY_BOUNDS, type);
+  const rotation = type === 'kicad'
+    ? typeof element.rotation === 'number' && Number.isFinite(element.rotation)
+      ? element.rotation
+      : 0
+    : twoTerminal
+      ? Math.atan2(
+          (element.to as CircuitPoint)[1] - (element.from as CircuitPoint)[1],
+          (element.to as CircuitPoint)[0] - (element.from as CircuitPoint)[0],
+        ) * 180 / Math.PI
+      : 0;
+  const usesHorizontalFlip = type === 'kicad' ||
+    type === 'npn' ||
+    type === 'pnp' ||
+    ['nmos', 'pmos', 'mosfet', 'njfet', 'pjfet'].includes(type);
+  const unitNumber = type === 'kicad' && Number.isInteger(element.unit)
+    ? element.unit as number
+    : undefined;
+  const bodyStyle = type === 'kicad' && Number.isInteger(element.bodyStyle)
+    ? element.bodyStyle as number
+    : undefined;
   return {
     status: 'resolved',
     source,
@@ -676,11 +1013,15 @@ export function resolveCircuitComponentGeometry(
     bodyBounds,
     textBounds,
     transform: {
-      ...(isPoint(element.at) ? { origin: copyPoint(element.at) } : {}),
-      rotation: typeof element.rotation === 'number' && Number.isFinite(element.rotation)
-        ? element.rotation
-        : 0,
-      flipX: element.flip === true,
+      ...(twoTerminal
+        ? { origin: copyPoint(element.from as CircuitPoint) }
+        : isPoint(element.at)
+          ? { origin: copyPoint(element.at) }
+          : {}),
+      rotation,
+      flipX: usesHorizontalFlip && element.flip === true,
+      ...(unitNumber !== undefined ? { unit: unitNumber } : {}),
+      ...(bodyStyle !== undefined ? { bodyStyle } : {}),
     },
   };
 }

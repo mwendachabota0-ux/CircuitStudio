@@ -220,3 +220,34 @@ This phase does not add cross-device V2 session discovery, document editing,
 generation, native rendering, export, layout, routing, or migration of legacy
 history. The ordinary workbench continues to use CircuitSpec for all existing
 generation, editing, history, drawing, and export behavior.
+
+## Phase 2B-1 shared geometry and placement-lock contract
+
+`@workspace/circuit-geometry` exposes one resolver for stable pin identities
+and coordinates, body bounds, text bounds, and the effective transform.
+CircuitDraw and the V2 geometry adapter share the same pin and KiCad transform
+functions. Unsupported source geometry is explicit; it is not treated as an
+empty obstacle.
+
+For V2, component properties remain authoritative for symbol and pin geometry.
+Placement rotation/flip and legacy endpoint geometry are adapted explicitly;
+conflicting copies in `placement.properties` are rejected. Placement-owned
+label settings remain supported and are passed to the shared text resolver.
+Built-in body/text bounds follow CircuitDraw's supported symbols and text
+layout. Terminal label bounds conservatively cover possible wire-dependent
+label sides, and text glyph extents remain measured estimates.
+
+The optional `placement.userPinned` flag is backward compatible. Pure
+`resolvePlacementMobility` decisions protect existing placements in
+`place-unplaced`, protect unmarked legacy placements in `preserve-pinned`,
+allow explicitly unpinned placements in that mode, and require `reflow` to
+move existing unpinned placements. Explicit user pins, request pins, and fixed
+positions remain protected. `getPlacementRouteImpact` only reports the nets,
+routes, and unrouted multi-pin nets affected by proposed movement; it never
+changes a placement or route. Legacy CircuitSpec projection warns when either
+explicit lock value would be lost.
+
+This contract does not perform automatic placement or routing and adds no UI,
+API, database integration, or electrical-validator changes. See
+`docs/CIRCUIT_LAYOUT_ENGINE_DESIGN.md` and the Batch 7 checkpoint in
+`docs/IMPLEMENTATION_HANDOFF.md` for exact source boundaries and tests.

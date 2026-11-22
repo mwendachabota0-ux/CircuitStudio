@@ -6,11 +6,20 @@ export type CircuitPin = {
 };
 export type CircuitElementGeometry = {
     type?: unknown;
+    label?: unknown;
+    value?: unknown;
     from?: unknown;
     to?: unknown;
     at?: unknown;
     flip?: unknown;
     swap?: unknown;
+    circle?: unknown;
+    height?: unknown;
+    pins?: unknown;
+    labelAt?: unknown;
+    labelPos?: unknown;
+    labelNudge?: unknown;
+    labelAnchor?: unknown;
     symbolId?: unknown;
     unit?: unknown;
     bodyStyle?: unknown;
@@ -612,9 +621,16 @@ export declare const CIRCUIT_COMPONENT_LIBRARY: CircuitComponentLibraryEntry[];
 export declare function getCircuitComponentReference(type: unknown): (typeof CIRCUIT_COMPONENT_REFERENCE)[number] | undefined;
 export declare function getCircuitElementSchemaError(element: unknown): string | null;
 export declare function isSupportedCircuitElementType(value: unknown): value is SupportedCircuitElementType;
+/**
+ * Applies the Circuit Studio KiCad transform in renderer order: horizontal
+ * mirror, rotation, then translation. Kept unrounded so callers that render
+ * vector artwork do not lose precision; pin anchors are rounded separately for
+ * compatibility with the existing catalog contract.
+ */
+export declare function transformKicadPoint(point: CircuitPoint, origin: CircuitPoint, rotationDegrees?: number, flipX?: boolean): CircuitPoint;
 export declare function getCircuitPins(element: CircuitElementGeometry): CircuitPin[];
 export declare function formatCircuitPinGuide(): string;
+export { CIRCUIT_GEOMETRY_COMPATIBILITY_PROPERTY_KEYS, getCircuitPinIdentities, resolveCircuitComponentGeometry, type CircuitGeometryBounds, type CircuitGeometryPinIdentity, type CircuitGeometryResolution, type CircuitGeometryTextBound, type ResolvedCircuitPin, } from './resolver.ts';
 export declare function formatCircuitComponentGuide(): string;
 export declare function formatRelevantCircuitComponentResearchContext(queryTexts: string[], requestedLimit?: number): string;
-export {};
 //# sourceMappingURL=index.d.ts.map

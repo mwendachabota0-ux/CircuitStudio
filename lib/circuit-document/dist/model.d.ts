@@ -228,6 +228,7 @@ export declare const CircuitDocumentV2Schema: z.ZodObject<{
             position: z.ZodTuple<[z.ZodNumber, z.ZodNumber], null>;
             rotation: z.ZodNumber;
             flip: z.ZodBoolean;
+            userPinned: z.ZodOptional<z.ZodBoolean>;
             legacyGeometry: z.ZodOptional<z.ZodObject<{
                 from: z.ZodOptional<z.ZodTuple<[z.ZodNumber, z.ZodNumber], null>>;
                 to: z.ZodOptional<z.ZodTuple<[z.ZodNumber, z.ZodNumber], null>>;
@@ -243,22 +244,24 @@ export declare const CircuitDocumentV2Schema: z.ZodObject<{
             }>>;
             properties: z.ZodRecord<z.ZodString, z.ZodUnknown>;
         }, "strict", z.ZodTypeAny, {
-            properties: Record<string, unknown>;
             componentId: string;
+            properties: Record<string, unknown>;
             position: [number, number];
             rotation: number;
             flip: boolean;
+            userPinned?: boolean | undefined;
             legacyGeometry?: {
                 at?: [number, number] | undefined;
                 from?: [number, number] | undefined;
                 to?: [number, number] | undefined;
             } | undefined;
         }, {
-            properties: Record<string, unknown>;
             componentId: string;
+            properties: Record<string, unknown>;
             position: [number, number];
             rotation: number;
             flip: boolean;
+            userPinned?: boolean | undefined;
             legacyGeometry?: {
                 at?: [number, number] | undefined;
                 from?: [number, number] | undefined;
@@ -326,14 +329,14 @@ export declare const CircuitDocumentV2Schema: z.ZodObject<{
             text: z.ZodString;
             properties: z.ZodRecord<z.ZodString, z.ZodUnknown>;
         }, "strict", z.ZodTypeAny, {
-            at: [number, number];
             type: "label";
+            at: [number, number];
             id: string;
             properties: Record<string, unknown>;
             text: string;
         }, {
-            at: [number, number];
             type: "label";
+            at: [number, number];
             id: string;
             properties: Record<string, unknown>;
             text: string;
@@ -369,11 +372,12 @@ export declare const CircuitDocumentV2Schema: z.ZodObject<{
             height?: number | undefined;
         };
         placements: {
-            properties: Record<string, unknown>;
             componentId: string;
+            properties: Record<string, unknown>;
             position: [number, number];
             rotation: number;
             flip: boolean;
+            userPinned?: boolean | undefined;
             legacyGeometry?: {
                 at?: [number, number] | undefined;
                 from?: [number, number] | undefined;
@@ -401,8 +405,8 @@ export declare const CircuitDocumentV2Schema: z.ZodObject<{
             orientation?: "horizontal" | "vertical" | undefined;
         }[];
         annotations: ({
-            at: [number, number];
             type: "label";
+            at: [number, number];
             id: string;
             properties: Record<string, unknown>;
             text: string;
@@ -422,11 +426,12 @@ export declare const CircuitDocumentV2Schema: z.ZodObject<{
             height?: number | undefined;
         };
         placements: {
-            properties: Record<string, unknown>;
             componentId: string;
+            properties: Record<string, unknown>;
             position: [number, number];
             rotation: number;
             flip: boolean;
+            userPinned?: boolean | undefined;
             legacyGeometry?: {
                 at?: [number, number] | undefined;
                 from?: [number, number] | undefined;
@@ -454,8 +459,8 @@ export declare const CircuitDocumentV2Schema: z.ZodObject<{
             orientation?: "horizontal" | "vertical" | undefined;
         }[];
         annotations: ({
-            at: [number, number];
             type: "label";
+            at: [number, number];
             id: string;
             properties: Record<string, unknown>;
             text: string;
@@ -487,8 +492,8 @@ export declare const CircuitDocumentV2Schema: z.ZodObject<{
     }>>;
     metadata: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
 }, "strict", z.ZodTypeAny, {
-    schemaVersion: 2;
     id: string;
+    schemaVersion: 2;
     electrical: {
         components: {
             type: CircuitDocumentComponentType;
@@ -531,11 +536,12 @@ export declare const CircuitDocumentV2Schema: z.ZodObject<{
             height?: number | undefined;
         };
         placements: {
-            properties: Record<string, unknown>;
             componentId: string;
+            properties: Record<string, unknown>;
             position: [number, number];
             rotation: number;
             flip: boolean;
+            userPinned?: boolean | undefined;
             legacyGeometry?: {
                 at?: [number, number] | undefined;
                 from?: [number, number] | undefined;
@@ -563,8 +569,8 @@ export declare const CircuitDocumentV2Schema: z.ZodObject<{
             orientation?: "horizontal" | "vertical" | undefined;
         }[];
         annotations: ({
-            at: [number, number];
             type: "label";
+            at: [number, number];
             id: string;
             properties: Record<string, unknown>;
             text: string;
@@ -587,8 +593,8 @@ export declare const CircuitDocumentV2Schema: z.ZodObject<{
     } | undefined;
     metadata?: Record<string, unknown> | undefined;
 }, {
-    schemaVersion: 2;
     id: string;
+    schemaVersion: 2;
     electrical: {
         components: {
             type: CircuitDocumentComponentType;
@@ -631,11 +637,12 @@ export declare const CircuitDocumentV2Schema: z.ZodObject<{
             height?: number | undefined;
         };
         placements: {
-            properties: Record<string, unknown>;
             componentId: string;
+            properties: Record<string, unknown>;
             position: [number, number];
             rotation: number;
             flip: boolean;
+            userPinned?: boolean | undefined;
             legacyGeometry?: {
                 at?: [number, number] | undefined;
                 from?: [number, number] | undefined;
@@ -663,8 +670,8 @@ export declare const CircuitDocumentV2Schema: z.ZodObject<{
             orientation?: "horizontal" | "vertical" | undefined;
         }[];
         annotations: ({
-            at: [number, number];
             type: "label";
+            at: [number, number];
             id: string;
             properties: Record<string, unknown>;
             text: string;

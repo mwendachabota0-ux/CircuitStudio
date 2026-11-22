@@ -74,8 +74,14 @@ export function createCircuitGeometryElement(
   placement: CircuitPlacementV2,
 ): CircuitElementGeometry {
   const properties = component.properties;
+  const placementTextProperties = Object.fromEntries(
+    ['labelAt', 'labelPos', 'labelNudge', 'labelAnchor']
+      .filter((key) => hasOwn(placement.properties, key))
+      .map((key) => [key, placement.properties[key]]),
+  );
   return {
     ...properties,
+    ...placementTextProperties,
     type: component.type,
     from: placement.legacyGeometry?.from ?? properties.from,
     to: placement.legacyGeometry?.to ?? properties.to,

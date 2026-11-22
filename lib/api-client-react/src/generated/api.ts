@@ -10,9 +10,14 @@ import {
   useQuery
 } from '@tanstack/react-query';
 import type {
+  DataTag,
+  DefinedInitialDataOptions,
+  DefinedUseQueryResult,
   MutationFunction,
+  QueryClient,
   QueryFunction,
   QueryKey,
+  UndefinedInitialDataOptions,
   UseMutationOptions,
   UseMutationResult,
   UseQueryOptions,
@@ -26,11 +31,37 @@ import type {
   ApiError,
   CircuitBuildChatInput,
   CircuitBuildChatResponse,
+  CircuitBuilderFeedbackInput,
+  CircuitBuilderFeedbackResponse,
+  CircuitBuilderHistoryDeletion,
+  CircuitBuilderHistoryImportInput,
+  CircuitBuilderHistoryImportResponse,
+  CircuitBuilderHistorySession,
+  CircuitBuilderHistorySyncInput,
+  CircuitBuilderHistorySyncResponse,
+  CircuitBuilderMemory,
+  CircuitBuilderMemoryInput,
+  CircuitBuilderRepairLessonInput,
+  CircuitBuilderRepairLessonResult,
+  CircuitDocumentV2DraftEmptyResponse,
+  CircuitDocumentV2DraftError,
+  CircuitDocumentV2DraftLoadedResponse,
+  CircuitDocumentV2DraftSavedResponse,
+  CircuitDocumentV2DraftWriteInput,
+  CircuitDocumentV2SessionId,
   CircuitPrompt,
+  CircuitProposalReview,
+  CircuitProposalReviewInput,
   CircuitReviewRequest,
   CircuitReviewResponse,
   CircuitSpec,
+  CircuitSymbolSearchResponse,
+  ExternalCircuitFixReviewInput,
+  ExternalCircuitFixReviewResponse,
+  GetCircuitSymbolDataParams,
   HealthStatus,
+  KicadSymbolData,
+  SearchCircuitSymbolsParams,
   TutorRequest,
   TutorResponse
 } from './api.schemas';
@@ -96,7 +127,7 @@ export const getHealthCheckQueryKey = () => {
     }
 
 
-export const getHealthCheckQueryOptions = <TData = Awaited<ReturnType<typeof healthCheck>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getHealthCheckQueryOptions = <TData = Awaited<ReturnType<typeof healthCheck>>, TError = ErrorType<unknown>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -111,25 +142,49 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData> & { queryKey: QueryKey }
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type HealthCheckQueryResult = NonNullable<Awaited<ReturnType<typeof healthCheck>>>
 export type HealthCheckQueryError = ErrorType<unknown>
 
 
+export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, TError = ErrorType<unknown>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof healthCheck>>,
+          TError,
+          Awaited<ReturnType<typeof healthCheck>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof healthCheck>>,
+          TError,
+          Awaited<ReturnType<typeof healthCheck>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
  * @summary Health check
  */
 
 export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getHealthCheckQueryOptions(options)
 
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   return withQueryKey(query, queryOptions.queryKey);
 }
@@ -220,14 +275,230 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
  */
 export const useGenerateCircuit = <TError = ErrorType<ApiError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateCircuit>>, TError,GenerateCircuitMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
+ , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof generateCircuit>>,
         TError,
         GenerateCircuitMutationVariables,
         TContext
       > => {
-      return useMutation(getGenerateCircuitMutationOptions(options));
+      return useMutation(getGenerateCircuitMutationOptions(options), queryClient);
     }
+
+export const getSearchCircuitSymbolsUrl = (params?: SearchCircuitSymbolsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/circuits/library/search?${stringifiedParams}` : `/api/circuits/library/search`
+}
+
+/**
+ * @summary Search the KiCad schematic symbol library
+ */
+export const searchCircuitSymbols = async (params?: SearchCircuitSymbolsParams, options?: Parameters<typeof customFetch>[1]): Promise<CircuitSymbolSearchResponse> => {
+
+  return customFetch<CircuitSymbolSearchResponse>(getSearchCircuitSymbolsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getSearchCircuitSymbolsQueryKey = (params?: SearchCircuitSymbolsParams,) => {
+    return [
+    `/api/circuits/library/search`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getSearchCircuitSymbolsQueryOptions = <TData = Awaited<ReturnType<typeof searchCircuitSymbols>>, TError = ErrorType<ApiError>>(params?: SearchCircuitSymbolsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchCircuitSymbols>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getSearchCircuitSymbolsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof searchCircuitSymbols>>> = ({ signal }) => searchCircuitSymbols(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof searchCircuitSymbols>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type SearchCircuitSymbolsQueryResult = NonNullable<Awaited<ReturnType<typeof searchCircuitSymbols>>>
+export type SearchCircuitSymbolsQueryError = ErrorType<ApiError>
+
+
+export function useSearchCircuitSymbols<TData = Awaited<ReturnType<typeof searchCircuitSymbols>>, TError = ErrorType<ApiError>>(
+ params: undefined |  SearchCircuitSymbolsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchCircuitSymbols>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof searchCircuitSymbols>>,
+          TError,
+          Awaited<ReturnType<typeof searchCircuitSymbols>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useSearchCircuitSymbols<TData = Awaited<ReturnType<typeof searchCircuitSymbols>>, TError = ErrorType<ApiError>>(
+ params?: SearchCircuitSymbolsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchCircuitSymbols>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof searchCircuitSymbols>>,
+          TError,
+          Awaited<ReturnType<typeof searchCircuitSymbols>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useSearchCircuitSymbols<TData = Awaited<ReturnType<typeof searchCircuitSymbols>>, TError = ErrorType<ApiError>>(
+ params?: SearchCircuitSymbolsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchCircuitSymbols>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Search the KiCad schematic symbol library
+ */
+
+export function useSearchCircuitSymbols<TData = Awaited<ReturnType<typeof searchCircuitSymbols>>, TError = ErrorType<ApiError>>(
+ params?: SearchCircuitSymbolsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchCircuitSymbols>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getSearchCircuitSymbolsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetCircuitSymbolDataUrl = (params: GetCircuitSymbolDataParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/circuits/library/symbol-data?${stringifiedParams}` : `/api/circuits/library/symbol-data`
+}
+
+/**
+ * @summary Get source geometry for a KiCad symbol preview
+ */
+export const getCircuitSymbolData = async (params: GetCircuitSymbolDataParams, options?: Parameters<typeof customFetch>[1]): Promise<KicadSymbolData> => {
+
+  return customFetch<KicadSymbolData>(getGetCircuitSymbolDataUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCircuitSymbolDataQueryKey = (params?: GetCircuitSymbolDataParams,) => {
+    return [
+    `/api/circuits/library/symbol-data`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetCircuitSymbolDataQueryOptions = <TData = Awaited<ReturnType<typeof getCircuitSymbolData>>, TError = ErrorType<ApiError>>(params: GetCircuitSymbolDataParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCircuitSymbolData>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCircuitSymbolDataQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCircuitSymbolData>>> = ({ signal }) => getCircuitSymbolData(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCircuitSymbolData>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetCircuitSymbolDataQueryResult = NonNullable<Awaited<ReturnType<typeof getCircuitSymbolData>>>
+export type GetCircuitSymbolDataQueryError = ErrorType<ApiError>
+
+
+export function useGetCircuitSymbolData<TData = Awaited<ReturnType<typeof getCircuitSymbolData>>, TError = ErrorType<ApiError>>(
+ params: GetCircuitSymbolDataParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCircuitSymbolData>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCircuitSymbolData>>,
+          TError,
+          Awaited<ReturnType<typeof getCircuitSymbolData>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetCircuitSymbolData<TData = Awaited<ReturnType<typeof getCircuitSymbolData>>, TError = ErrorType<ApiError>>(
+ params: GetCircuitSymbolDataParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCircuitSymbolData>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCircuitSymbolData>>,
+          TError,
+          Awaited<ReturnType<typeof getCircuitSymbolData>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetCircuitSymbolData<TData = Awaited<ReturnType<typeof getCircuitSymbolData>>, TError = ErrorType<ApiError>>(
+ params: GetCircuitSymbolDataParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCircuitSymbolData>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get source geometry for a KiCad symbol preview
+ */
+
+export function useGetCircuitSymbolData<TData = Awaited<ReturnType<typeof getCircuitSymbolData>>, TError = ErrorType<ApiError>>(
+ params: GetCircuitSymbolDataParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCircuitSymbolData>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetCircuitSymbolDataQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getAskCircuitTutorUrl = () => {
 
@@ -309,13 +580,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
  */
 export const useAskCircuitTutor = <TError = ErrorType<ApiError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askCircuitTutor>>, TError,AskCircuitTutorMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
+ , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof askCircuitTutor>>,
         TError,
         AskCircuitTutorMutationVariables,
         TContext
       > => {
-      return useMutation(getAskCircuitTutorMutationOptions(options));
+      return useMutation(getAskCircuitTutorMutationOptions(options), queryClient);
     }
 
 export const getChatWithCircuitBuilderUrl = () => {
@@ -398,13 +669,1267 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
  */
 export const useChatWithCircuitBuilder = <TError = ErrorType<ApiError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof chatWithCircuitBuilder>>, TError,ChatWithCircuitBuilderMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
+ , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof chatWithCircuitBuilder>>,
         TError,
         ChatWithCircuitBuilderMutationVariables,
         TContext
       > => {
-      return useMutation(getChatWithCircuitBuilderMutationOptions(options));
+      return useMutation(getChatWithCircuitBuilderMutationOptions(options), queryClient);
+    }
+
+export const getReviewExternalCircuitFixUrl = () => {
+
+
+
+
+  return `/api/circuits/external-fix/review`
+}
+
+/**
+ * Checks a candidate CircuitSpec against a rejected proposal and its reported problems. The response is an AI review, not proof of electrical correctness or safety.
+ * @summary Review a user-pasted correction to a rejected circuit
+ */
+export const reviewExternalCircuitFix = async (externalCircuitFixReviewInput: ExternalCircuitFixReviewInput, options?: Parameters<typeof customFetch>[1]): Promise<ExternalCircuitFixReviewResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ExternalCircuitFixReviewResponse>(getReviewExternalCircuitFixUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(externalCircuitFixReviewInput)
+  }
+);}
+
+
+
+
+
+export const getReviewExternalCircuitFixMutationKey = () => ['reviewExternalCircuitFix'] as const;
+
+export const getReviewExternalCircuitFixMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewExternalCircuitFix>>, TError,ReviewExternalCircuitFixMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewExternalCircuitFix>>, TError,ReviewExternalCircuitFixMutationVariables, TContext> => {
+
+const mutationKey = getReviewExternalCircuitFixMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewExternalCircuitFix>>, ReviewExternalCircuitFixMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  reviewExternalCircuitFix(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewExternalCircuitFixMutationResult = NonNullable<Awaited<ReturnType<typeof reviewExternalCircuitFix>>>
+    export type ReviewExternalCircuitFixMutationBody = BodyType<ExternalCircuitFixReviewInput>
+    export type ReviewExternalCircuitFixMutationError = ErrorType<ApiError>
+    export type ReviewExternalCircuitFixMutationVariables = {data: BodyType<ExternalCircuitFixReviewInput>}
+
+    /**
+ * @summary Review a user-pasted correction to a rejected circuit
+ */
+export const useReviewExternalCircuitFix = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewExternalCircuitFix>>, TError,ReviewExternalCircuitFixMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof reviewExternalCircuitFix>>,
+        TError,
+        ReviewExternalCircuitFixMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReviewExternalCircuitFixMutationOptions(options), queryClient);
+    }
+
+export const getListCircuitBuilderMemoriesUrl = () => {
+
+
+
+
+  return `/api/circuit-builder/memories`
+}
+
+/**
+ * @summary List saved Circuit Studio assumptions
+ */
+export const listCircuitBuilderMemories = async ( options?: Parameters<typeof customFetch>[1]): Promise<CircuitBuilderMemory[]> => {
+
+  return customFetch<CircuitBuilderMemory[]>(getListCircuitBuilderMemoriesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCircuitBuilderMemoriesQueryKey = () => {
+    return [
+    `/api/circuit-builder/memories`
+    ] as const;
+    }
+
+
+export const getListCircuitBuilderMemoriesQueryOptions = <TData = Awaited<ReturnType<typeof listCircuitBuilderMemories>>, TError = ErrorType<ApiError>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCircuitBuilderMemories>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCircuitBuilderMemoriesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCircuitBuilderMemories>>> = ({ signal }) => listCircuitBuilderMemories({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCircuitBuilderMemories>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListCircuitBuilderMemoriesQueryResult = NonNullable<Awaited<ReturnType<typeof listCircuitBuilderMemories>>>
+export type ListCircuitBuilderMemoriesQueryError = ErrorType<ApiError>
+
+
+export function useListCircuitBuilderMemories<TData = Awaited<ReturnType<typeof listCircuitBuilderMemories>>, TError = ErrorType<ApiError>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCircuitBuilderMemories>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCircuitBuilderMemories>>,
+          TError,
+          Awaited<ReturnType<typeof listCircuitBuilderMemories>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCircuitBuilderMemories<TData = Awaited<ReturnType<typeof listCircuitBuilderMemories>>, TError = ErrorType<ApiError>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCircuitBuilderMemories>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCircuitBuilderMemories>>,
+          TError,
+          Awaited<ReturnType<typeof listCircuitBuilderMemories>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCircuitBuilderMemories<TData = Awaited<ReturnType<typeof listCircuitBuilderMemories>>, TError = ErrorType<ApiError>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCircuitBuilderMemories>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary List saved Circuit Studio assumptions
+ */
+
+export function useListCircuitBuilderMemories<TData = Awaited<ReturnType<typeof listCircuitBuilderMemories>>, TError = ErrorType<ApiError>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCircuitBuilderMemories>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListCircuitBuilderMemoriesQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getClearCircuitBuilderMemoriesUrl = () => {
+
+
+
+
+  return `/api/circuit-builder/memories`
+}
+
+/**
+ * @summary Delete all saved Circuit Studio assumptions
+ */
+export const clearCircuitBuilderMemories = async ( options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getClearCircuitBuilderMemoriesUrl(),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getClearCircuitBuilderMemoriesMutationKey = () => ['clearCircuitBuilderMemories'] as const;
+
+export const getClearCircuitBuilderMemoriesMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clearCircuitBuilderMemories>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof clearCircuitBuilderMemories>>, TError,void, TContext> => {
+
+const mutationKey = getClearCircuitBuilderMemoriesMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof clearCircuitBuilderMemories>>, void> = () => {
+
+
+          return  clearCircuitBuilderMemories(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ClearCircuitBuilderMemoriesMutationResult = NonNullable<Awaited<ReturnType<typeof clearCircuitBuilderMemories>>>
+
+    export type ClearCircuitBuilderMemoriesMutationError = ErrorType<ApiError>
+
+
+    /**
+ * @summary Delete all saved Circuit Studio assumptions
+ */
+export const useClearCircuitBuilderMemories = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clearCircuitBuilderMemories>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof clearCircuitBuilderMemories>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getClearCircuitBuilderMemoriesMutationOptions(options), queryClient);
+    }
+
+export const getLearnFromCircuitBuilderHistoryUrl = () => {
+
+
+
+
+  return `/api/circuit-builder/memories/import`
+}
+
+/**
+ * Analyzes short summaries of recent local conversations and stores only reusable assumptions, not transcripts.
+ * @summary Learn reusable assumptions from saved chats
+ */
+export const learnFromCircuitBuilderHistory = async (circuitBuilderHistoryImportInput: CircuitBuilderHistoryImportInput, options?: Parameters<typeof customFetch>[1]): Promise<CircuitBuilderHistoryImportResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CircuitBuilderHistoryImportResponse>(getLearnFromCircuitBuilderHistoryUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(circuitBuilderHistoryImportInput)
+  }
+);}
+
+
+
+
+
+export const getLearnFromCircuitBuilderHistoryMutationKey = () => ['learnFromCircuitBuilderHistory'] as const;
+
+export const getLearnFromCircuitBuilderHistoryMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof learnFromCircuitBuilderHistory>>, TError,LearnFromCircuitBuilderHistoryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof learnFromCircuitBuilderHistory>>, TError,LearnFromCircuitBuilderHistoryMutationVariables, TContext> => {
+
+const mutationKey = getLearnFromCircuitBuilderHistoryMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof learnFromCircuitBuilderHistory>>, LearnFromCircuitBuilderHistoryMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  learnFromCircuitBuilderHistory(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LearnFromCircuitBuilderHistoryMutationResult = NonNullable<Awaited<ReturnType<typeof learnFromCircuitBuilderHistory>>>
+    export type LearnFromCircuitBuilderHistoryMutationBody = BodyType<CircuitBuilderHistoryImportInput>
+    export type LearnFromCircuitBuilderHistoryMutationError = ErrorType<ApiError>
+    export type LearnFromCircuitBuilderHistoryMutationVariables = {data: BodyType<CircuitBuilderHistoryImportInput>}
+
+    /**
+ * @summary Learn reusable assumptions from saved chats
+ */
+export const useLearnFromCircuitBuilderHistory = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof learnFromCircuitBuilderHistory>>, TError,LearnFromCircuitBuilderHistoryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof learnFromCircuitBuilderHistory>>,
+        TError,
+        LearnFromCircuitBuilderHistoryMutationVariables,
+        TContext
+      > => {
+      return useMutation(getLearnFromCircuitBuilderHistoryMutationOptions(options), queryClient);
+    }
+
+export const getSaveCircuitBuilderRepairLessonUrl = () => {
+
+
+
+
+  return `/api/circuit-builder/memories/repair-lessons`
+}
+
+/**
+ * Stores a repair lesson after a corrected proposal passes checks and the user applies it, or learns from a manual correction after it passes checks.
+ * @summary Save a lesson from a corrected circuit
+ */
+export const saveCircuitBuilderRepairLesson = async (circuitBuilderRepairLessonInput: CircuitBuilderRepairLessonInput, options?: Parameters<typeof customFetch>[1]): Promise<CircuitBuilderRepairLessonResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CircuitBuilderRepairLessonResult>(getSaveCircuitBuilderRepairLessonUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(circuitBuilderRepairLessonInput)
+  }
+);}
+
+
+
+
+
+export const getSaveCircuitBuilderRepairLessonMutationKey = () => ['saveCircuitBuilderRepairLesson'] as const;
+
+export const getSaveCircuitBuilderRepairLessonMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveCircuitBuilderRepairLesson>>, TError,SaveCircuitBuilderRepairLessonMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveCircuitBuilderRepairLesson>>, TError,SaveCircuitBuilderRepairLessonMutationVariables, TContext> => {
+
+const mutationKey = getSaveCircuitBuilderRepairLessonMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveCircuitBuilderRepairLesson>>, SaveCircuitBuilderRepairLessonMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  saveCircuitBuilderRepairLesson(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveCircuitBuilderRepairLessonMutationResult = NonNullable<Awaited<ReturnType<typeof saveCircuitBuilderRepairLesson>>>
+    export type SaveCircuitBuilderRepairLessonMutationBody = BodyType<CircuitBuilderRepairLessonInput>
+    export type SaveCircuitBuilderRepairLessonMutationError = ErrorType<ApiError>
+    export type SaveCircuitBuilderRepairLessonMutationVariables = {data: BodyType<CircuitBuilderRepairLessonInput>}
+
+    /**
+ * @summary Save a lesson from a corrected circuit
+ */
+export const useSaveCircuitBuilderRepairLesson = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveCircuitBuilderRepairLesson>>, TError,SaveCircuitBuilderRepairLessonMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof saveCircuitBuilderRepairLesson>>,
+        TError,
+        SaveCircuitBuilderRepairLessonMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveCircuitBuilderRepairLessonMutationOptions(options), queryClient);
+    }
+
+export const getSaveCircuitBuilderFeedbackUrl = () => {
+
+
+
+
+  return `/api/circuit-builder/memories/feedback`
+}
+
+/**
+ * Saves concise, account-owned feedback that can guide future similar circuit requests. The user can edit or remove it with saved memories.
+ * @summary Save feedback on a Circuit Studio proposal
+ */
+export const saveCircuitBuilderFeedback = async (circuitBuilderFeedbackInput: CircuitBuilderFeedbackInput, options?: Parameters<typeof customFetch>[1]): Promise<CircuitBuilderFeedbackResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CircuitBuilderFeedbackResponse>(getSaveCircuitBuilderFeedbackUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(circuitBuilderFeedbackInput)
+  }
+);}
+
+
+
+
+
+export const getSaveCircuitBuilderFeedbackMutationKey = () => ['saveCircuitBuilderFeedback'] as const;
+
+export const getSaveCircuitBuilderFeedbackMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveCircuitBuilderFeedback>>, TError,SaveCircuitBuilderFeedbackMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveCircuitBuilderFeedback>>, TError,SaveCircuitBuilderFeedbackMutationVariables, TContext> => {
+
+const mutationKey = getSaveCircuitBuilderFeedbackMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveCircuitBuilderFeedback>>, SaveCircuitBuilderFeedbackMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  saveCircuitBuilderFeedback(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveCircuitBuilderFeedbackMutationResult = NonNullable<Awaited<ReturnType<typeof saveCircuitBuilderFeedback>>>
+    export type SaveCircuitBuilderFeedbackMutationBody = BodyType<CircuitBuilderFeedbackInput>
+    export type SaveCircuitBuilderFeedbackMutationError = ErrorType<ApiError>
+    export type SaveCircuitBuilderFeedbackMutationVariables = {data: BodyType<CircuitBuilderFeedbackInput>}
+
+    /**
+ * @summary Save feedback on a Circuit Studio proposal
+ */
+export const useSaveCircuitBuilderFeedback = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveCircuitBuilderFeedback>>, TError,SaveCircuitBuilderFeedbackMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof saveCircuitBuilderFeedback>>,
+        TError,
+        SaveCircuitBuilderFeedbackMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveCircuitBuilderFeedbackMutationOptions(options), queryClient);
+    }
+
+export const getLoadCircuitDocumentV2DraftUrl = (sessionId: CircuitDocumentV2SessionId,) => {
+
+
+
+
+  return `/api/circuit-documents/v2/sessions/${sessionId}`
+}
+
+/**
+ * Reads only the V2 draft owned by the authenticated user and session. An empty result does not read or import legacy history.
+ * @summary Load a signed-in user's V2 circuit document
+ */
+export const loadCircuitDocumentV2Draft = async (sessionId: CircuitDocumentV2SessionId, options?: Parameters<typeof customFetch>[1]): Promise<CircuitDocumentV2DraftLoadedResponse | CircuitDocumentV2DraftEmptyResponse> => {
+
+  return customFetch<CircuitDocumentV2DraftLoadedResponse | CircuitDocumentV2DraftEmptyResponse>(getLoadCircuitDocumentV2DraftUrl(sessionId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getLoadCircuitDocumentV2DraftQueryKey = (sessionId: CircuitDocumentV2SessionId,) => {
+    return [
+    `/api/circuit-documents/v2/sessions/${sessionId}`
+    ] as const;
+    }
+
+
+export const getLoadCircuitDocumentV2DraftQueryOptions = <TData = Awaited<ReturnType<typeof loadCircuitDocumentV2Draft>>, TError = ErrorType<CircuitDocumentV2DraftError>>(sessionId: CircuitDocumentV2SessionId, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadCircuitDocumentV2Draft>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getLoadCircuitDocumentV2DraftQueryKey(sessionId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof loadCircuitDocumentV2Draft>>> = ({ signal }) => loadCircuitDocumentV2Draft(sessionId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: sessionId !== null && sessionId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof loadCircuitDocumentV2Draft>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type LoadCircuitDocumentV2DraftQueryResult = NonNullable<Awaited<ReturnType<typeof loadCircuitDocumentV2Draft>>>
+export type LoadCircuitDocumentV2DraftQueryError = ErrorType<CircuitDocumentV2DraftError>
+
+
+export function useLoadCircuitDocumentV2Draft<TData = Awaited<ReturnType<typeof loadCircuitDocumentV2Draft>>, TError = ErrorType<CircuitDocumentV2DraftError>>(
+ sessionId: CircuitDocumentV2SessionId, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadCircuitDocumentV2Draft>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof loadCircuitDocumentV2Draft>>,
+          TError,
+          Awaited<ReturnType<typeof loadCircuitDocumentV2Draft>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useLoadCircuitDocumentV2Draft<TData = Awaited<ReturnType<typeof loadCircuitDocumentV2Draft>>, TError = ErrorType<CircuitDocumentV2DraftError>>(
+ sessionId: CircuitDocumentV2SessionId, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadCircuitDocumentV2Draft>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof loadCircuitDocumentV2Draft>>,
+          TError,
+          Awaited<ReturnType<typeof loadCircuitDocumentV2Draft>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useLoadCircuitDocumentV2Draft<TData = Awaited<ReturnType<typeof loadCircuitDocumentV2Draft>>, TError = ErrorType<CircuitDocumentV2DraftError>>(
+ sessionId: CircuitDocumentV2SessionId, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadCircuitDocumentV2Draft>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Load a signed-in user's V2 circuit document
+ */
+
+export function useLoadCircuitDocumentV2Draft<TData = Awaited<ReturnType<typeof loadCircuitDocumentV2Draft>>, TError = ErrorType<CircuitDocumentV2DraftError>>(
+ sessionId: CircuitDocumentV2SessionId, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadCircuitDocumentV2Draft>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getLoadCircuitDocumentV2DraftQueryOptions(sessionId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveCircuitDocumentV2DraftUrl = (sessionId: CircuitDocumentV2SessionId,) => {
+
+
+
+
+  return `/api/circuit-documents/v2/sessions/${sessionId}`
+}
+
+/**
+ * Validates a tagged V2 envelope and atomically saves it only when expectedRevision matches the authenticated user's current record. Use expectedRevision 0 only to create a missing record.
+ * @summary Create or update a V2 circuit document
+ */
+export const saveCircuitDocumentV2Draft = async (sessionId: CircuitDocumentV2SessionId,
+    circuitDocumentV2DraftWriteInput: CircuitDocumentV2DraftWriteInput, options?: Parameters<typeof customFetch>[1]): Promise<CircuitDocumentV2DraftSavedResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CircuitDocumentV2DraftSavedResponse>(getSaveCircuitDocumentV2DraftUrl(sessionId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(circuitDocumentV2DraftWriteInput)
+  }
+);}
+
+
+
+
+
+export const getSaveCircuitDocumentV2DraftMutationKey = () => ['saveCircuitDocumentV2Draft'] as const;
+
+export const getSaveCircuitDocumentV2DraftMutationOptions = <TError = ErrorType<CircuitDocumentV2DraftError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveCircuitDocumentV2Draft>>, TError,SaveCircuitDocumentV2DraftMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveCircuitDocumentV2Draft>>, TError,SaveCircuitDocumentV2DraftMutationVariables, TContext> => {
+
+const mutationKey = getSaveCircuitDocumentV2DraftMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveCircuitDocumentV2Draft>>, SaveCircuitDocumentV2DraftMutationVariables> = (props) => {
+          const {sessionId,data} = props ?? {};
+
+          return  saveCircuitDocumentV2Draft(sessionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveCircuitDocumentV2DraftMutationResult = NonNullable<Awaited<ReturnType<typeof saveCircuitDocumentV2Draft>>>
+    export type SaveCircuitDocumentV2DraftMutationBody = BodyType<CircuitDocumentV2DraftWriteInput>
+    export type SaveCircuitDocumentV2DraftMutationError = ErrorType<CircuitDocumentV2DraftError>
+    export type SaveCircuitDocumentV2DraftMutationVariables = {sessionId: CircuitDocumentV2SessionId;data: BodyType<CircuitDocumentV2DraftWriteInput>}
+
+    /**
+ * @summary Create or update a V2 circuit document
+ */
+export const useSaveCircuitDocumentV2Draft = <TError = ErrorType<CircuitDocumentV2DraftError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveCircuitDocumentV2Draft>>, TError,SaveCircuitDocumentV2DraftMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof saveCircuitDocumentV2Draft>>,
+        TError,
+        SaveCircuitDocumentV2DraftMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveCircuitDocumentV2DraftMutationOptions(options), queryClient);
+    }
+
+export const getListCircuitBuilderHistoryUrl = () => {
+
+
+
+
+  return `/api/circuit-builder/history`
+}
+
+/**
+ * Returns the signed-in user's complete chat and build history.
+ * @summary List saved Circuit Studio conversations
+ */
+export const listCircuitBuilderHistory = async ( options?: Parameters<typeof customFetch>[1]): Promise<CircuitBuilderHistorySession[]> => {
+
+  return customFetch<CircuitBuilderHistorySession[]>(getListCircuitBuilderHistoryUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCircuitBuilderHistoryQueryKey = () => {
+    return [
+    `/api/circuit-builder/history`
+    ] as const;
+    }
+
+
+export const getListCircuitBuilderHistoryQueryOptions = <TData = Awaited<ReturnType<typeof listCircuitBuilderHistory>>, TError = ErrorType<ApiError>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCircuitBuilderHistory>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCircuitBuilderHistoryQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCircuitBuilderHistory>>> = ({ signal }) => listCircuitBuilderHistory({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCircuitBuilderHistory>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListCircuitBuilderHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof listCircuitBuilderHistory>>>
+export type ListCircuitBuilderHistoryQueryError = ErrorType<ApiError>
+
+
+export function useListCircuitBuilderHistory<TData = Awaited<ReturnType<typeof listCircuitBuilderHistory>>, TError = ErrorType<ApiError>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCircuitBuilderHistory>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCircuitBuilderHistory>>,
+          TError,
+          Awaited<ReturnType<typeof listCircuitBuilderHistory>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCircuitBuilderHistory<TData = Awaited<ReturnType<typeof listCircuitBuilderHistory>>, TError = ErrorType<ApiError>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCircuitBuilderHistory>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCircuitBuilderHistory>>,
+          TError,
+          Awaited<ReturnType<typeof listCircuitBuilderHistory>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCircuitBuilderHistory<TData = Awaited<ReturnType<typeof listCircuitBuilderHistory>>, TError = ErrorType<ApiError>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCircuitBuilderHistory>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary List saved Circuit Studio conversations
+ */
+
+export function useListCircuitBuilderHistory<TData = Awaited<ReturnType<typeof listCircuitBuilderHistory>>, TError = ErrorType<ApiError>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCircuitBuilderHistory>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListCircuitBuilderHistoryQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSyncCircuitBuilderHistoryUrl = () => {
+
+
+
+
+  return `/api/circuit-builder/history`
+}
+
+/**
+ * Saves or updates account-owned sessions, including unfinished chats and circuit snapshots.
+ * @summary Save Circuit Studio conversations
+ */
+export const syncCircuitBuilderHistory = async (circuitBuilderHistorySyncInput: CircuitBuilderHistorySyncInput, options?: Parameters<typeof customFetch>[1]): Promise<CircuitBuilderHistorySyncResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CircuitBuilderHistorySyncResponse>(getSyncCircuitBuilderHistoryUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(circuitBuilderHistorySyncInput)
+  }
+);}
+
+
+
+
+
+export const getSyncCircuitBuilderHistoryMutationKey = () => ['syncCircuitBuilderHistory'] as const;
+
+export const getSyncCircuitBuilderHistoryMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncCircuitBuilderHistory>>, TError,SyncCircuitBuilderHistoryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof syncCircuitBuilderHistory>>, TError,SyncCircuitBuilderHistoryMutationVariables, TContext> => {
+
+const mutationKey = getSyncCircuitBuilderHistoryMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof syncCircuitBuilderHistory>>, SyncCircuitBuilderHistoryMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  syncCircuitBuilderHistory(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SyncCircuitBuilderHistoryMutationResult = NonNullable<Awaited<ReturnType<typeof syncCircuitBuilderHistory>>>
+    export type SyncCircuitBuilderHistoryMutationBody = BodyType<CircuitBuilderHistorySyncInput>
+    export type SyncCircuitBuilderHistoryMutationError = ErrorType<ApiError>
+    export type SyncCircuitBuilderHistoryMutationVariables = {data: BodyType<CircuitBuilderHistorySyncInput>}
+
+    /**
+ * @summary Save Circuit Studio conversations
+ */
+export const useSyncCircuitBuilderHistory = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncCircuitBuilderHistory>>, TError,SyncCircuitBuilderHistoryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof syncCircuitBuilderHistory>>,
+        TError,
+        SyncCircuitBuilderHistoryMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSyncCircuitBuilderHistoryMutationOptions(options), queryClient);
+    }
+
+export const getListDeletedCircuitBuilderHistoryUrl = () => {
+
+
+
+
+  return `/api/circuit-builder/history/deletions`
+}
+
+/**
+ * Returns account-owned conversation deletion markers so older device copies cannot restore deleted sessions.
+ * @summary List deleted Circuit Studio conversations
+ */
+export const listDeletedCircuitBuilderHistory = async ( options?: Parameters<typeof customFetch>[1]): Promise<CircuitBuilderHistoryDeletion[]> => {
+
+  return customFetch<CircuitBuilderHistoryDeletion[]>(getListDeletedCircuitBuilderHistoryUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListDeletedCircuitBuilderHistoryQueryKey = () => {
+    return [
+    `/api/circuit-builder/history/deletions`
+    ] as const;
+    }
+
+
+export const getListDeletedCircuitBuilderHistoryQueryOptions = <TData = Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>, TError = ErrorType<ApiError>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListDeletedCircuitBuilderHistoryQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>> = ({ signal }) => listDeletedCircuitBuilderHistory({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListDeletedCircuitBuilderHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>>
+export type ListDeletedCircuitBuilderHistoryQueryError = ErrorType<ApiError>
+
+
+export function useListDeletedCircuitBuilderHistory<TData = Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>, TError = ErrorType<ApiError>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>,
+          TError,
+          Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListDeletedCircuitBuilderHistory<TData = Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>, TError = ErrorType<ApiError>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>,
+          TError,
+          Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListDeletedCircuitBuilderHistory<TData = Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>, TError = ErrorType<ApiError>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary List deleted Circuit Studio conversations
+ */
+
+export function useListDeletedCircuitBuilderHistory<TData = Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>, TError = ErrorType<ApiError>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListDeletedCircuitBuilderHistoryQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDeleteCircuitBuilderHistoryUrl = (sessionId: string,) => {
+
+
+
+
+  return `/api/circuit-builder/history/${sessionId}`
+}
+
+/**
+ * Deletes one conversation owned by the signed-in user.
+ * @summary Delete a saved Circuit Studio conversation
+ */
+export const deleteCircuitBuilderHistory = async (sessionId: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteCircuitBuilderHistoryUrl(sessionId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteCircuitBuilderHistoryMutationKey = () => ['deleteCircuitBuilderHistory'] as const;
+
+export const getDeleteCircuitBuilderHistoryMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCircuitBuilderHistory>>, TError,DeleteCircuitBuilderHistoryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteCircuitBuilderHistory>>, TError,DeleteCircuitBuilderHistoryMutationVariables, TContext> => {
+
+const mutationKey = getDeleteCircuitBuilderHistoryMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteCircuitBuilderHistory>>, DeleteCircuitBuilderHistoryMutationVariables> = (props) => {
+          const {sessionId} = props ?? {};
+
+          return  deleteCircuitBuilderHistory(sessionId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteCircuitBuilderHistoryMutationResult = NonNullable<Awaited<ReturnType<typeof deleteCircuitBuilderHistory>>>
+
+    export type DeleteCircuitBuilderHistoryMutationError = ErrorType<ApiError>
+    export type DeleteCircuitBuilderHistoryMutationVariables = {sessionId: string}
+
+    /**
+ * @summary Delete a saved Circuit Studio conversation
+ */
+export const useDeleteCircuitBuilderHistory = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCircuitBuilderHistory>>, TError,DeleteCircuitBuilderHistoryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteCircuitBuilderHistory>>,
+        TError,
+        DeleteCircuitBuilderHistoryMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteCircuitBuilderHistoryMutationOptions(options), queryClient);
+    }
+
+export const getUpdateCircuitBuilderMemoryUrl = (id: number,) => {
+
+
+
+
+  return `/api/circuit-builder/memories/${id}`
+}
+
+/**
+ * @summary Edit a saved Circuit Studio assumption
+ */
+export const updateCircuitBuilderMemory = async (id: number,
+    circuitBuilderMemoryInput: CircuitBuilderMemoryInput, options?: Parameters<typeof customFetch>[1]): Promise<CircuitBuilderMemory> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CircuitBuilderMemory>(getUpdateCircuitBuilderMemoryUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(circuitBuilderMemoryInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateCircuitBuilderMemoryMutationKey = () => ['updateCircuitBuilderMemory'] as const;
+
+export const getUpdateCircuitBuilderMemoryMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCircuitBuilderMemory>>, TError,UpdateCircuitBuilderMemoryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateCircuitBuilderMemory>>, TError,UpdateCircuitBuilderMemoryMutationVariables, TContext> => {
+
+const mutationKey = getUpdateCircuitBuilderMemoryMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCircuitBuilderMemory>>, UpdateCircuitBuilderMemoryMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateCircuitBuilderMemory(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateCircuitBuilderMemoryMutationResult = NonNullable<Awaited<ReturnType<typeof updateCircuitBuilderMemory>>>
+    export type UpdateCircuitBuilderMemoryMutationBody = BodyType<CircuitBuilderMemoryInput>
+    export type UpdateCircuitBuilderMemoryMutationError = ErrorType<ApiError>
+    export type UpdateCircuitBuilderMemoryMutationVariables = {id: number;data: BodyType<CircuitBuilderMemoryInput>}
+
+    /**
+ * @summary Edit a saved Circuit Studio assumption
+ */
+export const useUpdateCircuitBuilderMemory = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCircuitBuilderMemory>>, TError,UpdateCircuitBuilderMemoryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateCircuitBuilderMemory>>,
+        TError,
+        UpdateCircuitBuilderMemoryMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateCircuitBuilderMemoryMutationOptions(options), queryClient);
+    }
+
+export const getDeleteCircuitBuilderMemoryUrl = (id: number,) => {
+
+
+
+
+  return `/api/circuit-builder/memories/${id}`
+}
+
+/**
+ * @summary Delete a saved Circuit Studio assumption
+ */
+export const deleteCircuitBuilderMemory = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteCircuitBuilderMemoryUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteCircuitBuilderMemoryMutationKey = () => ['deleteCircuitBuilderMemory'] as const;
+
+export const getDeleteCircuitBuilderMemoryMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCircuitBuilderMemory>>, TError,DeleteCircuitBuilderMemoryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteCircuitBuilderMemory>>, TError,DeleteCircuitBuilderMemoryMutationVariables, TContext> => {
+
+const mutationKey = getDeleteCircuitBuilderMemoryMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteCircuitBuilderMemory>>, DeleteCircuitBuilderMemoryMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteCircuitBuilderMemory(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteCircuitBuilderMemoryMutationResult = NonNullable<Awaited<ReturnType<typeof deleteCircuitBuilderMemory>>>
+
+    export type DeleteCircuitBuilderMemoryMutationError = ErrorType<ApiError>
+    export type DeleteCircuitBuilderMemoryMutationVariables = {id: number}
+
+    /**
+ * @summary Delete a saved Circuit Studio assumption
+ */
+export const useDeleteCircuitBuilderMemory = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCircuitBuilderMemory>>, TError,DeleteCircuitBuilderMemoryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteCircuitBuilderMemory>>,
+        TError,
+        DeleteCircuitBuilderMemoryMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteCircuitBuilderMemoryMutationOptions(options), queryClient);
     }
 
 export const getReviewCircuitUrl = () => {
@@ -487,13 +2012,102 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
  */
 export const useReviewCircuit = <TError = ErrorType<ApiError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewCircuit>>, TError,ReviewCircuitMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
+ , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof reviewCircuit>>,
         TError,
         ReviewCircuitMutationVariables,
         TContext
       > => {
-      return useMutation(getReviewCircuitMutationOptions(options));
+      return useMutation(getReviewCircuitMutationOptions(options), queryClient);
+    }
+
+export const getReviewCircuitProposalUrl = () => {
+
+
+
+
+  return `/api/circuits/proposal-review`
+}
+
+/**
+ * Returns advisory concerns about request fit and schematic readability. It does not verify electrical behavior, correctness, ratings, or safety, and never overrides deterministic blocking checks.
+ * @summary Review a staged circuit proposal for intent and readability
+ */
+export const reviewCircuitProposal = async (circuitProposalReviewInput: CircuitProposalReviewInput, options?: Parameters<typeof customFetch>[1]): Promise<CircuitProposalReview> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CircuitProposalReview>(getReviewCircuitProposalUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(circuitProposalReviewInput)
+  }
+);}
+
+
+
+
+
+export const getReviewCircuitProposalMutationKey = () => ['reviewCircuitProposal'] as const;
+
+export const getReviewCircuitProposalMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewCircuitProposal>>, TError,ReviewCircuitProposalMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewCircuitProposal>>, TError,ReviewCircuitProposalMutationVariables, TContext> => {
+
+const mutationKey = getReviewCircuitProposalMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewCircuitProposal>>, ReviewCircuitProposalMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  reviewCircuitProposal(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewCircuitProposalMutationResult = NonNullable<Awaited<ReturnType<typeof reviewCircuitProposal>>>
+    export type ReviewCircuitProposalMutationBody = BodyType<CircuitProposalReviewInput>
+    export type ReviewCircuitProposalMutationError = ErrorType<ApiError>
+    export type ReviewCircuitProposalMutationVariables = {data: BodyType<CircuitProposalReviewInput>}
+
+    /**
+ * @summary Review a staged circuit proposal for intent and readability
+ */
+export const useReviewCircuitProposal = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewCircuitProposal>>, TError,ReviewCircuitProposalMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof reviewCircuitProposal>>,
+        TError,
+        ReviewCircuitProposalMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReviewCircuitProposalMutationOptions(options), queryClient);
     }
 
 export const getGetAiUsageUrl = () => {
@@ -529,7 +2143,7 @@ export const getGetAiUsageQueryKey = () => {
     }
 
 
-export const getGetAiUsageQueryOptions = <TData = Awaited<ReturnType<typeof getAiUsage>>, TError = ErrorType<ApiError>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAiUsage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetAiUsageQueryOptions = <TData = Awaited<ReturnType<typeof getAiUsage>>, TError = ErrorType<ApiError>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAiUsage>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -544,25 +2158,49 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAiUsage>>, TError, TData> & { queryKey: QueryKey }
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAiUsage>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type GetAiUsageQueryResult = NonNullable<Awaited<ReturnType<typeof getAiUsage>>>
 export type GetAiUsageQueryError = ErrorType<ApiError>
 
 
+export function useGetAiUsage<TData = Awaited<ReturnType<typeof getAiUsage>>, TError = ErrorType<ApiError>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAiUsage>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAiUsage>>,
+          TError,
+          Awaited<ReturnType<typeof getAiUsage>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAiUsage<TData = Awaited<ReturnType<typeof getAiUsage>>, TError = ErrorType<ApiError>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAiUsage>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAiUsage>>,
+          TError,
+          Awaited<ReturnType<typeof getAiUsage>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAiUsage<TData = Awaited<ReturnType<typeof getAiUsage>>, TError = ErrorType<ApiError>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAiUsage>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
  * @summary Read the signed-in account's AI usage and selected key
  */
 
 export function useGetAiUsage<TData = Awaited<ReturnType<typeof getAiUsage>>, TError = ErrorType<ApiError>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAiUsage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAiUsage>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetAiUsageQueryOptions(options)
 
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   return withQueryKey(query, queryOptions.queryKey);
 }
@@ -606,7 +2244,7 @@ export const getGetAiStatusQueryKey = () => {
     }
 
 
-export const getGetAiStatusQueryOptions = <TData = Awaited<ReturnType<typeof getAiStatus>>, TError = ErrorType<ApiError>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAiStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetAiStatusQueryOptions = <TData = Awaited<ReturnType<typeof getAiStatus>>, TError = ErrorType<ApiError>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAiStatus>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -621,25 +2259,49 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAiStatus>>, TError, TData> & { queryKey: QueryKey }
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAiStatus>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type GetAiStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getAiStatus>>>
 export type GetAiStatusQueryError = ErrorType<ApiError>
 
 
+export function useGetAiStatus<TData = Awaited<ReturnType<typeof getAiStatus>>, TError = ErrorType<ApiError>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAiStatus>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAiStatus>>,
+          TError,
+          Awaited<ReturnType<typeof getAiStatus>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAiStatus<TData = Awaited<ReturnType<typeof getAiStatus>>, TError = ErrorType<ApiError>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAiStatus>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAiStatus>>,
+          TError,
+          Awaited<ReturnType<typeof getAiStatus>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAiStatus<TData = Awaited<ReturnType<typeof getAiStatus>>, TError = ErrorType<ApiError>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAiStatus>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
  * @summary Check Gemini model availability without generating content
  */
 
 export function useGetAiStatus<TData = Awaited<ReturnType<typeof getAiStatus>>, TError = ErrorType<ApiError>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAiStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAiStatus>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetAiStatusQueryOptions(options)
 
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   return withQueryKey(query, queryOptions.queryKey);
 }
@@ -729,12 +2391,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
  */
 export const useSetAiKeySelection = <TError = ErrorType<ApiError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setAiKeySelection>>, TError,SetAiKeySelectionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
+ , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof setAiKeySelection>>,
         TError,
         SetAiKeySelectionMutationVariables,
         TContext
       > => {
-      return useMutation(getSetAiKeySelectionMutationOptions(options));
+      return useMutation(getSetAiKeySelectionMutationOptions(options), queryClient);
     }
 

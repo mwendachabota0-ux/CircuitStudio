@@ -1,5 +1,14 @@
 export type NumberedAiKey = { number: number };
 
+export function canFallbackToAnotherKey(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const record = error as { status?: unknown; code?: unknown; message?: unknown };
+  const status = Number(record.status);
+  if (status === 429 || status === 503) return true;
+  const code = `${record.code ?? ""} ${record.message ?? ""}`.toLowerCase();
+  return /quota|rate.?limit|resource.?exhausted/.test(code);
+}
+
 export function orderKeysAfter<T extends NumberedAiKey>(
   keys: readonly T[],
   usedKeyNumber: number,

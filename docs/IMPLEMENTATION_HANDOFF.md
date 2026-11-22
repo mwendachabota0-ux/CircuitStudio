@@ -484,5 +484,45 @@ The deterministic placement core is now implemented in Phase 2B-2. Any routing o
 
 - Routes are generated only for multi-pin nets with no existing route; this engine does not reroute or repair manual paths.
 - The bounded A* grid search can report an incomplete net in dense or canvas-constrained drawings. It uses conservative body bounds and does not prove electrical simulation or rendered readability.
-- Routing is library-only. The next dependency is an explicitly scoped V2 route-preview/integration flow; the legacy workbench was not changed.
+- Routing is library-only. Batch 10 below composes it with the existing placement operation; the next dependency is an explicitly scoped V2 preview/workbench integration. The legacy workbench was not changed.
 - No external files or symbol packs were accessed or downloaded. The implementation reuses the geometry available in this workspace.
+
+---
+
+## Batch 10 — Phase 3B layout/routing preparation pipeline
+
+**Status:** Completed. `prepareCircuitDocumentDrawing` composes the existing placement and routing engines as a pure library operation.
+
+### Implemented behavior
+
+1. Added versioned `circuit-drawing-preparation/1` request/result types and a public pipeline export. Placement always uses `place-unplaced`; existing placements and their lock fields are protected.
+2. The pipeline validates input, passes the placement proposal and unchanged electrical model to `routeCircuitDocument`, then validates the final drawing. Routing still skips every net with an existing route.
+3. Results include placement/routing stage statuses, placement metrics, route counts and IDs, and deterministically combined diagnostics. Overall statuses distinguish invalid input, placement blocked, routing blocked, partial drawing, and complete drawing.
+4. Existing partial manual routes and unresolved final consistency warnings produce a partial result without being overwritten. Structural final-validation errors prevent a completed result.
+5. Focused integration coverage includes a placed/routed series LED, parallel route trees, protected transistor placements and exact pins, eight-pin fanout, manual drawing preservation, partial routes, idempotence, and blocked stages.
+
+### Changed files
+
+- `lib/circuit-document/src/drawing-preparation.ts` and `drawing-preparation-types.ts` — orchestration API, status contract, combined metrics, and diagnostics.
+- `lib/circuit-document/src/index.ts` — public pipeline exports.
+- `lib/circuit-document/test/drawing-preparation.test.mjs` — focused pipeline integration tests.
+- `lib/circuit-document/dist/` — generated declaration files and maps for the public API.
+- `docs/CIRCUIT_LAYOUT_ENGINE_DESIGN.md` — Phase 3B integration contract and limits.
+- `docs/IMPLEMENTATION_HANDOFF.md` — this completion checkpoint.
+- Workspace typechecking refreshed tracked incremental build metadata.
+
+### Verification
+
+| Command | Result |
+| --- | --- |
+| `node --experimental-strip-types --test lib/circuit-document/test/drawing-preparation.test.mjs` | **PASS** — 7 pipeline tests |
+| `pnpm --filter @workspace/circuit-document test` | **PASS** — 105 tests |
+| `pnpm run typecheck` | **PASS** — all configured workspace typechecks |
+| `git diff --check` | **PASS** |
+
+### Limitations and next dependency
+
+- An existing net with any route is intentionally not auto-completed. If final consistency checks find it visually incomplete or ambiguous, the result is `partial` and the manual route remains unchanged.
+- The existing router can reject a routable-looking branch arrangement when its deterministic candidate overlaps or touches another route ambiguously. The single-transistor fixture's control net currently returns `route-collinear-overlap`; the pipeline reports partial completion and does not change the router.
+- The pipeline is library-only. The next dependency is a separately scoped V2 route-preview/workbench integration; no live workbench, UI, persistence, or AI generation was changed.
+- No GitHub or remote file access was used.

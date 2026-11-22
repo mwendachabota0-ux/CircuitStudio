@@ -582,6 +582,36 @@ checking exact pin endpoints, branch connectivity, and input immutability.
 This phase adds the V2 library engine only; it does not connect routing to the
 legacy workbench or add a route-preview UI. Geometry bounds remain
 conservative estimates, and tight canvases or obstacle layouts can exhaust the
-configured search envelope. The next dependency is a separately scoped V2
-route-preview/integration flow. No remote symbol library was accessed or
-downloaded for this local-only implementation.
+configured search envelope. Batch 10 below composes placement and routing at
+the library level. No remote symbol library was accessed or downloaded for
+this local-only implementation.
+
+## Batch 10 — Phase 3B layout/routing preparation pipeline
+
+`prepareCircuitDocumentDrawing` is a pure V2 operation that runs the existing
+`layoutCircuitDocument` in protected `place-unplaced` mode, then passes its
+document to `routeCircuitDocument`. Callers can supply the existing placement
+hints and routing options; the pipeline does not expose reflow or a second
+placement/routing implementation.
+
+- The electrical model is never changed. Existing placements and lock fields,
+  routes, junctions, crossings, annotations, canvas settings, and metadata are
+  retained. The router adds routes only to eligible nets without existing
+  routes.
+- The result reports placement/routing stage states, placement metrics, route
+  counts and IDs, combined deterministic diagnostics, and one of `complete`,
+  `partial`, `invalid-input`, `placement-blocked`, or `routing-blocked`.
+- Structural input errors stop before placement. A placement failure returns
+  the original drawing; a routing failure returns the validated placement
+  proposal without partial additions from a blocked net. Final structural
+  validation errors prevent a completed result. Residual consistency warnings
+  or a router `incomplete` result are reported as `partial`.
+- Existing routed nets are not repaired or extended. A partial manual route
+  remains unchanged and makes the overall result partial. Existing router
+  limitations also remain; for example, the single-transistor fixture's
+  control net is blocked by a collinear-overlap diagnostic.
+
+The Phase 3B integration tests and exact verification commands are recorded in
+the Batch 10 checkpoint in `docs/IMPLEMENTATION_HANDOFF.md`. The next
+dependency is a separately scoped V2 preview/workbench integration; this
+pipeline is not connected to the live UI.

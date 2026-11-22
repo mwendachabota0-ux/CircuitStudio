@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { CircuitPoint } from './circuitPoint';
+import type { KicadSymbolData } from './kicadSymbolData';
 
 export interface CircuitElement {
   type: string;
@@ -15,6 +16,15 @@ export interface CircuitElement {
   from?: CircuitPoint;
   to?: CircuitPoint;
   at?: CircuitPoint;
+  /** @pattern ^[^:\s]+:[^:\s]+$ */
+  symbolId?: string;
+  /** @minimum 1 */
+  unit?: number;
+  /** @minimum 1 */
+  bodyStyle?: number;
+  /** Any finite rotation angle in degrees, including fractional and negative angles. */
+  rotation?: number;
+  symbolData?: KicadSymbolData;
   points?: CircuitPoint[];
   x?: number;
   y?: number;

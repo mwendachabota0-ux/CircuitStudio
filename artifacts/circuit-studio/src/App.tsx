@@ -4,24 +4,30 @@ import { publishableKeyFromHost } from '@clerk/react/internal';
 import { shadcn } from '@clerk/themes';
 import { QueryClient, QueryClientProvider, useIsMutating, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import {
   getAskCircuitTutorMutationKey, getGenerateCircuitMutationKey, getGetAiStatusQueryKey,
   getGetAiUsageQueryKey, getReviewCircuitMutationKey, useAskCircuitTutor,
-  useGenerateCircuit, useGetAiStatus, useGetAiUsage, useReviewCircuit, useSetAiKeySelection,
+  useGetAiStatus, useGetAiUsage, useReviewCircuit, useSetAiKeySelection,
 } from '@workspace/api-client-react';
 import type { AiUsage, CircuitSpec as ApiCircuitSpec, TutorImageMimeType, TutorResponse } from '@workspace/api-client-react';
+import * as CircuitGeometry from '@workspace/circuit-geometry';
 import {
   ArrowDownRight, ArrowRight, Bell, BellOff, BellRing, Check, CheckCircle2, ChevronDown, ChevronUp, CircuitBoard,
   Clipboard, Code2, Download, FileCode2, FileText, Image, LoaderCircle,
-  TriangleAlert, ScanSearch, MoveUpRight, Maximize, Maximize2, Minimize, ZoomIn, ZoomOut,
-  Bot, BookOpenCheck, CircleHelp, Eye, Lightbulb, ListChecks, MessageCircle, Send, ShieldAlert, X,
+  ScanSearch, MoveUpRight, Maximize, Maximize2, Minimize, ZoomIn, ZoomOut,
+  Bot, BookOpenCheck, CircleHelp, Eye, Lightbulb, ListChecks, MessageCircle, Send, X,
 } from 'lucide-react';
 import { ErrorBoundary } from '@/components/error-boundary';
+import CircuitBuilderChat, { type JsonRepairRequest } from './components/circuit-builder-chat';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import exampleCircuit from './exampleCircuit.json';
+import { areCircuitSpecsEqual, parseCircuitSpecJson } from './lib/circuit-spec-editor';
 import {
   buildBomCsv,
   buildBomRows,
@@ -31,20 +37,47 @@ import {
 } from './lib/bill-of-materials';
 import { Redirect, Route, Switch, useLocation, Link, Router as WouterRouter } from 'wouter';
 
-type ValidationReport = { errors: string[]; warnings: string[] };
+type ValidationReport = {
+  errors: string[];
+  warnings: string[];
+  topologyErrors?: string[];
+  topologyWarnings?: string[];
+};
 type CircuitSpec = ApiCircuitSpec;
+type CircuitDrawRenderOptions = {
+  allowStructuralErrors?: boolean;
+  padding?: number;
+  stroke?: string;
+  text?: string;
+  muted?: string;
+  background?: string | null;
+  font?: string;
+  lineWidth?: number;
+  dotRadius?: number;
+};
 type CircuitDrawApi = {
-  render: (spec: CircuitSpec) => string;
+  render: (spec: CircuitSpec, options?: CircuitDrawRenderOptions) => string;
   validate: (spec: CircuitSpec) => ValidationReport;
+  layoutWarnings: (spec: CircuitSpec) => string[];
+  autoFix: (spec: CircuitSpec) => { spec: CircuitSpec; changes: string[] };
+  netlist: (spec: CircuitSpec, allowStructuralErrors?: boolean) => {
+    parts: Array<{ designator: string; type: string; value: string }>;
+    nets: Array<{ name: string; pins: string[] }>;
+  };
   buildSheet: (spec: CircuitSpec) => string;
 };
 declare global {
-  interface Window { CircuitDraw?: CircuitDrawApi; }
+  interface Window {
+    CircuitDraw?: CircuitDrawApi;
+    CircuitGeometry: typeof CircuitGeometry;
+  }
   interface ImportMetaEnv {
     readonly VITE_CLERK_PUBLISHABLE_KEY: string;
     readonly VITE_CLERK_PROXY_URL: string;
   }
 }
+
+window.CircuitGeometry = CircuitGeometry;
 
 const queryClient = new QueryClient();
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -84,7 +117,7 @@ const clerkAppearance = {
     colorInputForeground: '#263b40',
     colorNeutral: '#263b40',
     fontFamily: 'DM Sans',
-    borderRadius: '0.65rem',
+    borderRadius: '0.4875rem',
   },
   elements: {
     rootBox: 'w-full flex justify-center',
@@ -123,6 +156,17 @@ function readDraft(userId: string): CircuitSpec {
       if (parsed && typeof parsed.title === 'string' && Array.isArray(parsed.elements)) return parsed;
     }
   } catch { /* A damaged local draft should never prevent opening the workbench. */ }
+  return initialSpec;
+}
+
+function getBuilderCompatibleSpec(candidate: CircuitSpec, fallback: CircuitSpec): CircuitSpec {
+  const isCompatible = (value: CircuitSpec) =>
+    value.elements.length > 0 &&
+    value.elements.length <= 300 &&
+    value.elements.every((element) => !CircuitGeometry.getCircuitElementSchemaError(element));
+
+  if (isCompatible(candidate)) return candidate;
+  if (isCompatible(fallback)) return fallback;
   return initialSpec;
 }
 
@@ -177,7 +221,7 @@ function Landing() {
         <div className="hero-copy">
           <p className="hero-kicker">A workbench for curious minds</p>
           <h1>Make the idea<br />visible<span>.</span></h1>
-          <p>Describe the circuit you have in mind. Get a clear schematic you can inspect, refine, and carry into your next tool.</p>
+          <p>Describe a circuit. Get an editable schematic.</p>
           <div className="hero-ctas">
             <Link href="/sign-up" className="hero-cta" data-testid="link-start-building">Start building <ArrowRight /></Link>
             <Link href="/sign-in" className="hero-secondary" data-testid="link-return-to-studio">I have an account <MoveUpRight /></Link>
@@ -231,12 +275,12 @@ function Landing() {
       <section className="landing-section">
         <div className="section-intro">
           <div><p className="hero-kicker">A little structure goes a long way</p><h2>From a sentence<br />to a circuit you can read.</h2></div>
-          <p>Circuit Studio makes the first pass less intimidating. Bring a rough idea, get an inspectable drawing, and keep the parts you want to change close at hand.</p>
+          <p>Turn a circuit idea into a drawing you can refine.</p>
         </div>
         <div className="steps-line">
-          <article className="step"><span className="step-number">01 / DESCRIBE</span><h3>Say what it should do</h3><p>Write in plain language. Mention the supply, parts, or behavior you already know.</p></article>
-          <article className="step"><span className="step-number">02 / INSPECT</span><h3>Follow the connections</h3><p>See the circuit as a clean vector drawing, with structure notes alongside it.</p></article>
-          <article className="step"><span className="step-number">03 / REFINE</span><h3>Keep your hands on it</h3><p>Edit the CircuitSpec directly, then export a drawing or an EasyEDA-ready sheet.</p></article>
+          <article className="step"><span className="step-number">01 / DESCRIBE</span><h3>Say what it should do</h3><p>Add the supply, parts, or behavior you know.</p></article>
+          <article className="step"><span className="step-number">02 / INSPECT</span><h3>Follow the connections</h3><p>Check how the parts connect.</p></article>
+          <article className="step"><span className="step-number">03 / REFINE</span><h3>Keep your hands on it</h3><p>Edit the schematic. Export when ready.</p></article>
         </div>
       </section>
 
@@ -304,6 +348,29 @@ function AiStatusControls() {
     notificationsSupported ? Notification.permission : 'denied',
   );
   const [permissionFeedback, setPermissionFeedback] = useState('');
+  const controlsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!permissionFeedback) return;
+
+    const dismissOnOutsidePointer = (event: PointerEvent) => {
+      if (event.target instanceof Node && !controlsRef.current?.contains(event.target)) {
+        setPermissionFeedback('');
+      }
+    };
+    const dismissOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setPermissionFeedback('');
+    };
+    const dismissTimer = window.setTimeout(() => setPermissionFeedback(''), 5000);
+
+    document.addEventListener('pointerdown', dismissOnOutsidePointer);
+    document.addEventListener('keydown', dismissOnEscape);
+    return () => {
+      window.clearTimeout(dismissTimer);
+      document.removeEventListener('pointerdown', dismissOnOutsidePointer);
+      document.removeEventListener('keydown', dismissOnEscape);
+    };
+  }, [permissionFeedback]);
 
   const state = isWorking
     ? 'working'
@@ -352,7 +419,7 @@ function AiStatusControls() {
   };
 
   return (
-    <div className="ai-status-controls" title={statusMessage}>
+    <div ref={controlsRef} className="ai-status-controls" title={statusMessage}>
       <span className={`ai-status-dot is-${state}`} role="status" aria-label={statusMessage} data-testid="status-ai-availability" />
       <button
         type="button"
@@ -617,7 +684,7 @@ function SchematicViewer({ svg, onFullscreenError }: { svg: string; onFullscreen
         </button>
         <span className="zoom-divider" aria-hidden="true" />
         <button
-          className="quiet-button fit-control-button"
+          className="icon-button fit-control-button"
           type="button"
           aria-label="Reset zoom and fit schematic to view"
           title="Reset zoom and fit to view"
@@ -645,16 +712,21 @@ function SchematicViewer({ svg, onFullscreenError }: { svg: string; onFullscreen
 function Studio({ userId }: { userId: string }) {
   const [spec, setSpec] = useState<CircuitSpec>(() => readDraft(userId));
   const [jsonText, setJsonText] = useState(() => JSON.stringify(readDraft(userId), null, 2));
-  const [prompt, setPrompt] = useState('');
   const [jsonError, setJsonError] = useState('');
+  const [jsonEditorDirty, setJsonEditorDirty] = useState(false);
+  const [jsonRepairRequest, setJsonRepairRequest] = useState<JsonRepairRequest | null>(null);
+  const jsonRepairRequestIdRef = useRef(0);
+  const [hasStagedBuilderProposal, setHasStagedBuilderProposal] = useState(false);
+  const [schematicFeedbackHost, setSchematicFeedbackHost] = useState<HTMLDivElement | null>(null);
   const [libraryReady, setLibraryReady] = useState(!!window.CircuitDraw);
   const [toast, setToast] = useState('');
   const [copied, setCopied] = useState(false);
+  const [easyedaSheetOpen, setEasyedaSheetOpen] = useState(false);
+  const [easyedaSheet, setEasyedaSheet] = useState('');
   const [saveTime, setSaveTime] = useState('Saved on this account');
   const [downloadMenuOpen, setDownloadMenuOpen] = useState(false);
   const [bomVisible, setBomVisible] = useState(false);
   const [bomOverrides, setBomOverrides] = useState<BomOverrides>(() => readBomOverrides(userId));
-  const generate = useGenerateCircuit();
   const review = useReviewCircuit();
   const queryClient = useQueryClient();
   const reviewDraftRef = useRef('');
@@ -717,7 +789,7 @@ function Studio({ userId }: { userId: string }) {
       setDraftReview({ signature: reviewSignature, text: '', state: 'idle' });
       return;
     }
-    if (!libraryReady || jsonError || report.errors.length) {
+    if (!libraryReady || jsonError || jsonEditorDirty || report.errors.length) {
       setDraftReview({ signature: reviewSignature, text: '', state: 'idle' });
       return;
     }
@@ -739,10 +811,14 @@ function Studio({ userId }: { userId: string }) {
       });
     }, 850);
     return () => window.clearTimeout(timer);
-  }, [spec, reviewSignature, jsonError, libraryReady, report.errors.length]);
+  }, [spec, reviewSignature, jsonError, jsonEditorDirty, libraryReady, report.errors.length]);
   const svg = useMemo(() => {
-    if (!window.CircuitDraw || report.errors.length) return '';
-    try { return window.CircuitDraw.render(spec); }
+    if (!window.CircuitDraw) return '';
+    try {
+      return window.CircuitDraw.render(spec, {
+        allowStructuralErrors: report.errors.length > 0,
+      });
+    }
     catch { return ''; }
   }, [spec, report, libraryReady]);
   const elementCount = spec.elements?.length ?? 0;
@@ -752,6 +828,7 @@ function Studio({ userId }: { userId: string }) {
     setSpec(next);
     setJsonText(JSON.stringify(next, null, 2));
     setJsonError('');
+    setJsonEditorDirty(false);
   };
 
   const updateBomMetadata = (row: (typeof bomRows)[number], field: BomMetadataField, value: string) => {
@@ -770,40 +847,50 @@ function Studio({ userId }: { userId: string }) {
 
   const onJsonChange = (value: string) => {
     setJsonText(value);
-    try {
-      const parsed = JSON.parse(value);
-      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) || typeof parsed.title !== 'string' || !Array.isArray(parsed.elements)) {
-        setJsonError('Expected a CircuitSpec with a string title and an elements array.');
-        return;
-      }
-      if ((parsed.width !== undefined && typeof parsed.width !== 'number') || (parsed.height !== undefined && typeof parsed.height !== 'number')) {
-        setJsonError('Optional width and height values must be numbers.');
-        return;
-      }
-      const invalidElementIndex = parsed.elements.findIndex((element: unknown) => !element || typeof element !== 'object' || Array.isArray(element) || typeof (element as { type?: unknown }).type !== 'string');
-      if (invalidElementIndex >= 0) {
-        setJsonError(`Element ${invalidElementIndex + 1} must be an object with a string type.`);
-        return;
-      }
-      hasEditedDraftRef.current = true;
-      setSpec(parsed as CircuitSpec);
-      setJsonError('');
-    } catch {
-      setJsonError('JSON is incomplete or malformed. Fix the syntax to update the drawing.');
-    }
+    const result = parseCircuitSpecJson(value);
+    setJsonError(result.ok ? '' : result.error);
+    setJsonEditorDirty(!result.ok || !areCircuitSpecsEqual(result.spec, spec));
   };
+  const applyJsonEdit = () => {
+    const parsed = parseCircuitSpecJson(jsonText);
+    if (!parsed.ok) {
+      setJsonError(parsed.error);
+      setJsonEditorDirty(false);
+      setJsonRepairRequest({
+        id: ++jsonRepairRequestIdRef.current,
+        rawJson: jsonText,
+        parseError: parsed.error,
+        baseSpec: getBuilderCompatibleSpec(spec, initialSpec),
+      });
+      setToast('Studio AI is interpreting your JSON edit and will stage any repair for review.');
+      return;
+    }
 
-  const submitPrompt = () => {
-    const trimmed = prompt.trim();
-    if (trimmed.length < 8 || trimmed.length > 3000) return;
-    generate.mutate({ data: { prompt: trimmed } }, {
-      onSuccess: (result) => {
-        acceptSpec(result);
-        setToast('Generated schematic is ready to inspect.');
-        sendDesktopNotification('Schematic ready', 'Your generated circuit is ready to inspect.');
-      },
-      onError: () => sendDesktopNotification('Schematic generation failed', 'Circuit Studio could not finish generating your circuit.'),
-    });
+    let validation: ValidationReport = { errors: [], warnings: [] };
+    try {
+      if (window.CircuitDraw) validation = window.CircuitDraw.validate(parsed.spec);
+    } catch (error) {
+      validation = {
+        errors: [error instanceof Error ? error.message : 'The drawing structure could not be checked.'],
+        warnings: [],
+      };
+    }
+
+    const repairBaseSpec = getBuilderCompatibleSpec(parsed.spec, spec);
+    acceptSpec(parsed.spec);
+    if (validation.errors.length) {
+      setJsonRepairRequest({
+        id: ++jsonRepairRequestIdRef.current,
+        rawJson: jsonText,
+        parseError: 'The JSON parsed, but the drawing has structural issues.',
+        validationFindings: validation.errors,
+        baseSpec: repairBaseSpec,
+      });
+      setToast('Draft applied. Studio AI is preparing a repair proposal for you to review.');
+      return;
+    }
+
+    setToast('CircuitSpec edit applied. The preview and Studio AI now use this draft.');
   };
 
   const download = (filename: string, content: BlobPart, type: string) => {
@@ -831,7 +918,7 @@ function Studio({ userId }: { userId: string }) {
         schematicSvg: svg,
         rows: bomRows,
         buildSheet: window.CircuitDraw.buildSheet(spec),
-        designIntent: prompt.trim(),
+        designIntent: '',
         createdAt: new Intl.DateTimeFormat(undefined, {
           dateStyle: 'medium',
           timeStyle: 'short',
@@ -887,15 +974,19 @@ function Studio({ userId }: { userId: string }) {
       window.setTimeout(() => setCopied(false), 1800);
     } catch { setToast('Clipboard access was blocked by this browser.'); }
   };
+  const showEasyedaSheet = () => {
+    if (!window.CircuitDraw || report.errors.length) return;
+    try {
+      setEasyedaSheet(window.CircuitDraw.buildSheet(spec));
+      setEasyedaSheetOpen(true);
+    } catch {
+      setToast('EasyEDA build sheet could not be created. Check the drawing and try again.');
+    }
+  };
   const loadExample = () => {
     acceptSpec(initialSpec);
-    setPrompt('');
-    generate.reset();
     setToast('FM transmitter example loaded.');
   };
-  const generationError = generate.error instanceof Error
-    ? generate.error.message
-    : generate.error ? 'Circuit generation failed. Please try again.' : '';
 
   return (
     <main className="studio-shell">
@@ -909,27 +1000,42 @@ function Studio({ userId }: { userId: string }) {
           <div className="save-state" data-testid="status-save">{saveTime}</div>
         </div>
 
-        <section className="workbench" aria-label="Circuit workbench">
-          <div className="panel prompt-panel">
-            <h2 className="section-title">Start with a description</h2>
-            <p className="section-note">Tell the generator what the circuit should do and name any parts or supply details you already know.</p>
-            <label className="field-label" htmlFor="circuit-prompt"><span>Your circuit idea</span><span>{prompt.length}/3000</span></label>
-            <textarea id="circuit-prompt" className="prompt-input" data-testid="input-circuit-prompt" minLength={8} maxLength={3000} value={prompt} onChange={(event) => { setPrompt(event.target.value); generate.reset(); }} placeholder="For example: a 9V LED indicator with a current-limiting resistor and an on/off switch." />
-            <div className="prompt-hint"><span>Plain language works</span><span>8–3000 characters</span></div>
-            {generationError && <p className="prompt-error" role="alert" data-testid="status-generation-error">{generationError}</p>}
-            <div className="button-below">
-              <button className="primary-button" data-testid="button-generate" onClick={submitPrompt} disabled={generate.isPending || prompt.trim().length < 8 || prompt.trim().length > 3000}>
-                {generate.isPending ? <><LoaderCircle className="spin-icon" /> Building schematic…</> : 'Generate schematic'}
-              </button>
-            </div>
-            <p className="quota-note">Gemini-reported tokens count toward your lifetime Circuit Studio allowance. Open Tutor to review usage and key selection.</p>
-          </div>
+        <section className="workbench workbench--conversational" aria-label="Circuit workbench">
+          <CircuitBuilderChat
+            key={userId}
+            userId={userId}
+            currentSpec={spec}
+            validationFindings={jsonError || jsonEditorDirty ? [] : report.errors}
+            canRepairCurrentDraft={libraryReady && !jsonError && !jsonEditorDirty && report.errors.length > 0}
+            hasUnappliedJsonEdits={jsonEditorDirty}
+            jsonRepairRequest={jsonRepairRequest}
+            schematicFeedbackHost={schematicFeedbackHost}
+            onProposalStateChange={setHasStagedBuilderProposal}
+            onJsonRepairRequestHandled={(id) => {
+              setJsonRepairRequest((current) => current?.id === id ? null : current);
+            }}
+            onApplySpec={(nextSpec, source = 'proposal') => {
+              acceptSpec(nextSpec as CircuitSpec);
+              setJsonRepairRequest(null);
+              setToast(source === 'history'
+                ? 'Conversation and circuit restored.'
+                : 'Proposal applied to the workbench.');
+            }}
+            onTaskComplete={(mode) => {
+              sendDesktopNotification(
+                mode === 'build' ? 'Circuit proposal ready' : 'Circuit conversation updated',
+                mode === 'build'
+                  ? 'A draft is staged for your review. Apply it when you are ready.'
+                  : 'The design notes have been updated.',
+              );
+            }}
+          />
 
           <div className="panel canvas-panel">
             <div className="canvas-toolbar">
               <div className="canvas-name"><span className="section-icon"><CircuitBoard /></span><strong>{spec.title || 'Untitled circuit'}</strong><span>{elementCount} elements</span></div>
               <div className="toolbar-actions">
-                <button className="toolbar-link-button" data-testid="button-load-example" onClick={loadExample} title="Load the FM transmitter example"><CircuitBoard /> Load example</button>
+                <button className="toolbar-link-button" data-testid="button-load-example" onClick={loadExample} title="Load the FM transmitter example" disabled={!!jsonRepairRequest}><CircuitBoard /> Load example</button>
                 <div className="download-menu">
                   <button className="toolbar-link-button toolbar-icon-button" type="button" aria-label="Open downloads" title="Downloads" aria-expanded={downloadMenuOpen} aria-haspopup="menu" data-testid="button-download-menu" onClick={() => setDownloadMenuOpen((open) => !open)} disabled={!svg && !bomRows.length}><Download aria-hidden="true" /></button>
                   {downloadMenuOpen && <div className="download-popover" role="menu">
@@ -943,12 +1049,20 @@ function Studio({ userId }: { userId: string }) {
               </div>
             </div>
             <div className="schematic-stage">
-              {!libraryReady ? <div className="schematic-paper canvas-empty"><div className="loading-skeleton" /><p>Loading the drawing engine…</p></div>
-                : report.errors.length ? <div className="schematic-paper canvas-empty"><div className="empty-icon"><TriangleAlert /></div><h3>This schematic needs a repair</h3><p>Resolve the drawing errors in the JSON editor below to see the rendered circuit.</p></div>
-                  : svg ? <SchematicViewer svg={svg} onFullscreenError={() => setToast('Fullscreen mode is unavailable in this browser.')} />
-                    : <div className="schematic-paper canvas-empty"><div className="empty-icon"><CircuitBoard /></div><h3>Ready to draw</h3><p>Your schematic will appear here once the drawing engine is available.</p></div>}
+              {!libraryReady ? <div className="schematic-paper canvas-empty"><div className="loading-skeleton" /><p>Loading schematic…</p></div>
+                : svg ? <>
+                    {report.errors.length > 0 && <span className="schematic-repair-badge" data-testid="status-schematic-repair">Needs repair</span>}
+                    <SchematicViewer svg={svg} onFullscreenError={() => setToast('Fullscreen mode is unavailable in this browser.')} />
+                  </>
+                  : report.errors.length ? <div className="schematic-paper canvas-empty"><h3>This schematic needs repair</h3><p>Fix the errors to preview it.</p></div>
+                    : <div className="schematic-paper canvas-empty"><div className="empty-icon"><CircuitBoard /></div><h3>Ready to draw</h3><p>Your schematic will appear here.</p></div>}
             </div>
-            <div className="canvas-foot"><span className="zoom-label" data-testid="status-canvas">{report.errors.length ? 'Drawing paused' : 'Vector schematic'}</span><span>Canvas {spec.width || 'auto'} × {spec.height || 'auto'}</span></div>
+            <div
+              className="schematic-feedback-host"
+              ref={setSchematicFeedbackHost}
+              data-testid="slot-schematic-feedback"
+            />
+            <div className="canvas-foot"><span data-testid="status-canvas">{report.errors.length ? svg ? 'Needs repair' : 'Drawing paused' : 'Vector schematic'}</span><span>Canvas {spec.width || 'auto'} × {spec.height || 'auto'}</span></div>
           </div>
         </section>
 
@@ -1026,10 +1140,10 @@ function Studio({ userId }: { userId: string }) {
         <section className="panel review-panel" aria-label="AI draft review">
           <div className="panel-heading"><h2 className="section-title"><span className="section-icon"><BookOpenCheck /></span>A second set of eyes</h2><span className="count-badge">Draft review</span></div>
           <div className="review-content">
-            {jsonError || report.errors.length ? <p className="review-prompt">Fix JSON and drawing-structure issues to request a review of this draft.</p>
+            {jsonError || jsonEditorDirty || report.errors.length ? <p className="review-prompt">Apply or repair your JSON edit before requesting a review of this draft.</p>
               : draftReview.signature !== reviewSignature ? <p className="review-prompt">Pause after a valid edit and an educational review will appear here.</p>
                 : draftReview.state === 'loading' ? <div className="review-loading" role="status"><span className="loading-skeleton" />Preparing an educational review…</div>
-                  : draftReview.state === 'error' ? <div className="review-error" role="alert"><TriangleAlert /><span>{review.error instanceof Error ? review.error.message : 'Review unavailable right now.'} Your draft is unchanged.</span><button type="button" onClick={() => {
+                  : draftReview.state === 'error' ? <div className="review-error" role="alert"><span>{review.error instanceof Error ? review.error.message : 'Review unavailable right now.'} Your draft is unchanged.</span><button type="button" onClick={() => {
                     setDraftReview({ signature: reviewSignature, text: '', state: 'loading' });
                     review.mutate({ data: { spec: spec as ApiCircuitSpec } }, {
                       onSuccess: (result) => {
@@ -1057,8 +1171,8 @@ function Studio({ userId }: { userId: string }) {
             <div className="panel-heading"><h2 className="section-title"><span className="section-icon"><CheckCircle2 /></span>Structure check</h2><span className="count-badge" data-testid="status-validation-count">{report.errors.length ? `${report.errors.length} errors` : report.warnings.length ? `${report.warnings.length} notes` : 'Ready'}</span></div>
             <div className="validation-content">
               {!libraryReady ? <div className="validation-banner neutral" data-testid="status-validation"><LoaderCircle /><span>Checking the drawing…</span></div>
-                : report.errors.length ? <div className="validation-banner warn" data-testid="status-validation"><TriangleAlert /><span>Drawing structure has {report.errors.length} error{report.errors.length === 1 ? '' : 's'}. Fix the JSON before exporting a schematic build sheet.</span></div>
-                  : report.warnings.length ? <div className="validation-banner warn" data-testid="status-validation"><TriangleAlert /><span>Drawing structure is readable, with {report.warnings.length} connection or layout note{report.warnings.length === 1 ? '' : 's'} to review.</span></div>
+                : report.errors.length ? <div className="validation-banner warn" data-testid="status-validation"><span>Drawing structure has {report.errors.length} error{report.errors.length === 1 ? '' : 's'}. Fix the JSON before exporting a schematic build sheet.</span></div>
+                  : report.warnings.length ? <div className="validation-banner warn" data-testid="status-validation"><span>Drawing structure is readable, with {report.warnings.length} connection or layout note{report.warnings.length === 1 ? '' : 's'} to review.</span></div>
                     : <div className="validation-banner good" data-testid="status-validation"><Check /><span>No drawing-structure errors or warnings. That is not an electrical safety or correctness check.</span></div>}
               {(report.errors.length > 0 || report.warnings.length > 0) && <ul className="validation-list">{report.errors.map((item, index) => <li className="error" key={`e-${index}`} data-testid={`validation-error-${index}`}>{item}</li>)}{report.warnings.map((item, index) => <li key={`w-${index}`} data-testid={`validation-warning-${index}`}>{item}</li>)}</ul>}
             </div>
@@ -1067,18 +1181,68 @@ function Studio({ userId }: { userId: string }) {
 
           <div className="panel details-panel">
             <div className="panel-heading"><h2 className="section-title"><span className="section-icon"><Code2 /></span>Editable CircuitSpec</h2><span className="count-badge">JSON</span></div>
-            <textarea className="json-editor" data-testid="input-circuit-json" aria-label="Editable CircuitSpec JSON" spellCheck={false} value={jsonText} onChange={(event) => onJsonChange(event.target.value)} />
-            <div className="editor-footer"><span className="editor-status" data-testid="status-json">{jsonError || `${elementCount} elements · draft saved to your account on this device`}</span><button className="quiet-button" data-testid="button-export-json" onClick={exportJson}><FileCode2 /> Export JSON</button></div>
+            <textarea className="json-editor" data-testid="input-circuit-json" aria-label="Editable CircuitSpec JSON" spellCheck={false} value={jsonText} disabled={!!jsonRepairRequest || hasStagedBuilderProposal} onChange={(event) => onJsonChange(event.target.value)} />
+            <div className="editor-footer">
+              {(hasStagedBuilderProposal || jsonRepairRequest || jsonError || jsonEditorDirty) && (
+                <span className={`editor-status${jsonError || jsonEditorDirty ? ' is-pending' : ''}`} data-testid="status-json">
+                  {hasStagedBuilderProposal
+                    ? 'Review or discard the staged proposal before applying JSON edits.'
+                    : jsonRepairRequest
+                    ? 'Studio AI is interpreting this edit…'
+                    : jsonError
+                      ? `${jsonError} Click Apply edit to ask Studio AI.`
+                      : 'Unapplied edits'}
+                </span>
+              )}
+              <div className="editor-actions">
+                <button
+                  className="editor-apply-button"
+                  type="button"
+                  data-testid="button-apply-json-edit"
+                  disabled={hasStagedBuilderProposal || !!jsonRepairRequest || (!jsonEditorDirty && !jsonError)}
+                  onClick={applyJsonEdit}
+                >
+                  <Check aria-hidden="true" /> Apply edit
+                </button>
+                <button className="quiet-button" type="button" data-testid="button-export-json" onClick={exportJson}><FileCode2 /> Export JSON</button>
+              </div>
+            </div>
           </div>
         </section>
 
         <section className="export-bar" aria-label="Export circuit">
-          <div className="export-copy"><strong>Take this circuit to your next tool.</strong><span>Use the download menu for files, or copy the EasyEDA sheet.</span></div>
+          <div className="export-copy"><strong>Take this circuit to your next tool.</strong><span>Preview or copy the EasyEDA sheet, or use the download menu for files.</span></div>
           <div className="export-actions">
-            <button className="quiet-button" data-testid="button-copy-sheet" onClick={copySheet} disabled={!libraryReady || report.errors.length > 0}><Clipboard /> {copied ? 'Copied' : 'Copy EasyEDA sheet'}</button>
+            <button className="quiet-button" data-testid="button-preview-easyeda-sheet" onClick={showEasyedaSheet} disabled={!libraryReady || report.errors.length > 0}>Show EasyEDA sheet</button>
+            <button className="quiet-button" data-testid="button-copy-sheet" onClick={copySheet} disabled={!libraryReady || report.errors.length > 0}>{copied ? 'Copied' : 'Copy EasyEDA sheet'}</button>
           </div>
         </section>
       </div>
+      <Dialog open={easyedaSheetOpen} onOpenChange={setEasyedaSheetOpen}>
+        <DialogContent className="easyeda-sheet-dialog" data-testid="dialog-easyeda-sheet">
+          <DialogHeader className="easyeda-sheet-header">
+            <DialogTitle className="easyeda-sheet-title">EasyEDA build sheet</DialogTitle>
+            <DialogDescription className="easyeda-sheet-description">
+              Review the generated parts and connections before copying them into EasyEDA.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="easyeda-sheet-body" role="region" aria-label="EasyEDA sheet contents" tabIndex={0} data-testid="text-easyeda-sheet">
+            <div className="easyeda-markdown">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  table: ({ children }) => <div className="easyeda-markdown-table-wrap"><table>{children}</table></div>,
+                }}
+              >
+                {easyedaSheet}
+              </ReactMarkdown>
+            </div>
+          </div>
+          <div className="easyeda-sheet-footer">
+            <button className="quiet-button" type="button" onClick={copySheet} disabled={!easyedaSheet}><Clipboard /> {copied ? 'Copied' : 'Copy sheet'}</button>
+          </div>
+        </DialogContent>
+      </Dialog>
       {toast && <div className="status-toast" role="status" data-testid="status-toast">{toast}</div>}
     </main>
   );
@@ -1102,7 +1266,6 @@ function Tutor({ userId }: { userId: string }) {
   const usageQuery = useGetAiUsage({ query: { queryKey: getGetAiUsageQueryKey() } });
   const usage = usageQuery.data as AiUsage | undefined;
   const currentSpec = useMemo(() => readDraft(userId), [userId]);
-  const remainingRatio = usage ? Math.max(0, Math.min(1, usage.tokensRemaining / usage.lifetimeLimit)) : 0;
   const requestError = askTutor.error instanceof Error
     ? askTutor.error.message
     : askTutor.error ? 'The tutor could not complete this request. Please try again.' : '';
@@ -1194,8 +1357,10 @@ function Tutor({ userId }: { userId: string }) {
     <main className="studio-shell tutor-shell">
       <header className="topbar">
         <Link href="/studio" className="brand" data-testid="link-tutor-studio"><span className="brand-mark"><CircuitBoard aria-hidden="true" /></span><span>Circuit Studio</span></Link>
-        <div className="top-meta"><span>LEARNING DESK</span><AiStatusControls /></div>
-        <Link href="/studio" className="tutor-back-link" data-testid="link-back-to-studio"><ArrowRight /> Back to workbench</Link>
+        <div className="tutor-header-actions">
+          <Link href="/studio" className="tutor-back-link" data-testid="link-back-to-studio"><ArrowRight /> Back to workbench</Link>
+          <div className="top-meta"><span>LEARNING DESK</span><AiStatusControls /></div>
+        </div>
       </header>
       <div className="workspace tutor-workspace">
         <div className="page-heading tutor-heading">
@@ -1238,10 +1403,10 @@ function Tutor({ userId }: { userId: string }) {
                 <label className="proposal-toggle">
                   <input type="checkbox" data-testid="toggle-propose-edits" checked={proposeEdits} onChange={(event) => setProposeEdits(event.target.checked)} />
                   <span className="toggle-mark" />
-                  <span><strong>Allow a proposed edit</strong><small>The tutor will show the complete proposed CircuitSpec. Nothing is applied automatically.</small></span>
+                  <span><strong>Allow a proposed edit</strong><small>Review edits before applying.</small></span>
                 </label>
                 <div className="tutor-submit-row">
-                  <span className="tutor-input-hint">Your current local draft is included as context.</span>
+                  <span className="tutor-input-hint">Current draft included.</span>
                   <button className="primary-button" data-testid="button-ask-tutor" type="submit" disabled={askTutor.isPending || (!question.trim() && !image) || question.trim().length > 3000 || !!imageError || usageQuery.isLoading || !usage?.canUseAi}>
                     {askTutor.isPending ? <><LoaderCircle className="spin-icon" /> Thinking…</> : <><Send /> Ask the tutor</>}
                   </button>
@@ -1249,13 +1414,13 @@ function Tutor({ userId }: { userId: string }) {
               </form>
             </Form>
             {formError && <p className="prompt-error" role="alert">{formError}</p>}
-            {!usageQuery.isLoading && usage && !usage.canUseAi && <div className="quota-exhausted" role="status" data-testid="status-quota-exhausted"><ShieldAlert /><span><strong>Lifetime allowance reached</strong><small>AI requests are unavailable for this account right now. Your draft remains available in the workbench.</small></span></div>}
-            {usageQuery.isError && <div className="usage-error" role="alert" data-testid="status-usage-error"><TriangleAlert /><span>Account allowance could not be loaded. Retry to check AI availability.</span><button type="button" onClick={() => usageQuery.refetch()}>Retry</button></div>}
-            {requestError && <div className="tutor-error" role="alert" data-testid="status-tutor-error"><TriangleAlert /><span>{requestError}</span><button type="button" onClick={() => formRef.current?.requestSubmit()}>Retry</button></div>}
+            {!usageQuery.isLoading && usage && usage.configuredKeyNumbers.length === 0 && <div className="ai-unavailable" role="status" data-testid="status-ai-unavailable"><span><strong>AI unavailable</strong><small>Your draft is still available.</small></span></div>}
+            {usageQuery.isError && <div className="usage-error" role="alert" data-testid="status-usage-error"><span>AI availability could not be checked. Retry to check again.</span><button type="button" onClick={() => usageQuery.refetch()}>Retry</button></div>}
+            {requestError && <div className="tutor-error" role="alert" data-testid="status-tutor-error"><span>{requestError}</span><button type="button" onClick={() => formRef.current?.requestSubmit()}>Retry</button></div>}
           </section>
 
           <aside className="panel usage-panel">
-            <div className="panel-heading"><h2 className="section-title"><span className="section-icon"><ListChecks /></span>Account allowance</h2></div>
+            <div className="panel-heading"><h2 className="section-title"><span className="section-icon"><ListChecks /></span>AI usage and keys</h2></div>
             {usageQuery.isLoading ? <div className="usage-skeleton" role="status"><span /><span /><span /></div>
               : usage ? <div className="usage-content" data-testid="status-ai-usage">
                 <div className="usage-key-row"><span>Active key</span><strong data-testid="text-active-key">#{usage.activeKeyNumber}</strong></div>
@@ -1265,20 +1430,20 @@ function Tutor({ userId }: { userId: string }) {
                 </select>
                 {selectKey.isPending && <p className="usage-feedback" role="status">Switching account key…</p>}
                 {selectKey.isError && <p className="prompt-error" role="alert">Key selection failed. Try again.</p>}
-                <div className="allowance-meter"><div className="allowance-label"><span>Lifetime allowance remaining</span><strong>{usage.tokensRemaining.toLocaleString()} / {usage.lifetimeLimit.toLocaleString()}</strong></div><div className="meter-track"><span style={{ transform: `scaleX(${remainingRatio})` }} /></div></div>
+                <p className="usage-policy" data-testid="text-ai-usage-policy">No app-side token cap</p>
                 <p className="usage-detail">{usage.tokensUsed.toLocaleString()} used · {usage.tokensReserved.toLocaleString()} reserved</p>
-                <p className="usage-footnote">Keys are selected by account configuration. Circuit Studio never asks for or stores API keys in your browser.</p>
+                <p className="usage-footnote">Provider costs apply. Keys stay on the server.</p>
               </div>
-                : <div className="usage-fallback" role="status"><CircleHelp /><p>Allowance details are unavailable. You can still return to your saved workbench.</p><button type="button" className="quiet-button" onClick={() => usageQuery.refetch()}>Retry account check</button></div>}
+                : <div className="usage-fallback" role="status"><p>Usage unavailable. Your workbench is saved.</p><button type="button" className="quiet-button" onClick={() => usageQuery.refetch()}>Retry</button></div>}
           </aside>
         </div>
 
         <section className="tutor-response-area" aria-live="polite">
-          {askTutor.isPending ? <div className="panel response-empty response-loading"><span className="loading-skeleton" /><p>The tutor is separating what is visible from what is inferred.</p></div>
+          {askTutor.isPending ? <div className="panel response-empty response-loading"><span className="loading-skeleton" /><p>Preparing answer…</p></div>
             : response ? <TutorAnswer response={response} onApply={applyProposal} applied={applied} libraryReady={libraryReady} />
-              : <div className="panel response-empty"><span className="response-empty-icon"><MessageCircle /></span><h2>Your explanation will appear here.</h2><p>Observed details, interpretation, uncertainty, and missing values stay in separate lanes.</p></div>}
+              : <div className="panel response-empty"><span className="response-empty-icon"><MessageCircle /></span><h2>Ask about this circuit.</h2></div>}
         </section>
-        <p className="tutor-safety"><ShieldAlert /> Educational explanations only. They are not electrical correctness, safety, simulation, or compliance checks. Do not rely on them to build, power, or use a circuit.</p>
+        <p className="tutor-safety"><span>For learning only. Verify circuit safety before building or powering.</span></p>
       </div>
     </main>
   );
@@ -1325,10 +1490,10 @@ function TutorAnswer({ response, onApply, applied, libraryReady }: { response: T
           <summary>Inspect exact proposed CircuitSpec</summary>
           <pre data-testid="text-proposed-circuit-spec">{JSON.stringify(response.proposedEdit.spec, null, 2)}</pre>
         </details>
-        <div className="proposal-actions"><p>This replaces the current editable draft only after you choose Apply.</p><button type="button" className="primary-button" data-testid="button-apply-proposal" onClick={onApply} disabled={proposalPreview.state !== 'ready'}><Check /> Apply proposal</button></div>
+          <div className="proposal-actions"><p>Your draft changes only when applied.</p><button type="button" className="primary-button" data-testid="button-apply-proposal" onClick={onApply} disabled={proposalPreview.state !== 'ready'}><Check /> Apply proposal</button></div>
         {applied && <p className="proposal-applied" role="status">Proposal saved to your workbench draft.</p>}
       </section>}
-      <p className="answer-disclaimer">An explanation is not a verification. Confirm circuit behavior and safety with qualified sources and appropriate instruments.</p>
+      <p className="answer-disclaimer">Verify circuit behavior and safety before building.</p>
     </article>
   );
 }

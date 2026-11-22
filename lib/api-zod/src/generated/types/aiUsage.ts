@@ -12,10 +12,6 @@ export interface AiUsage {
   /** @minimum 0 */
   tokensReserved: number;
   /** @minimum 1 */
-  lifetimeLimit: number;
-  /** @minimum 0 */
-  tokensRemaining: number;
-  /** @minimum 1 */
   activeKeyNumber: number;
   /** @items.minimum 1 */
   configuredKeyNumbers: number[];

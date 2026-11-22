@@ -6,15 +6,26 @@ import {
 } from "@workspace/db";
 import { and, eq, lt, sql } from "drizzle-orm";
 import { GoogleGenAI, type GenerateContentResponse } from "@google/genai";
+import {
+  getProviderErrorDiagnostics,
+  type ProviderErrorDiagnostics,
+} from "./providerErrorDiagnostics";
+import {
+  canFallbackToAnotherKey,
+  orderKeysAfter,
+} from "./circuitAiKeySelection";
 
-const DEFAULT_LIFETIME_TOKEN_ALLOWANCE = 25_000;
 const MAX_CONFIGURED_KEYS = 10;
 const STALE_RESERVATION_AGE_MS = 60 * 60 * 1000;
+const GEMINI_API_VERSION = "v1beta";
 
 export class CircuitAiError extends Error {
   constructor(
     message: string,
     readonly statusCode: number,
+    readonly retryable = false,
+    readonly retryAfterMs?: number,
+    readonly providerDiagnostics?: ProviderErrorDiagnostics,
   ) {
     super(message);
     this.name = "CircuitAiError";
@@ -25,8 +36,6 @@ type ConfiguredKey = { number: number; apiKey: string };
 type AiUsageSummary = {
   tokensUsed: number;
   tokensReserved: number;
-  lifetimeLimit: number;
-  tokensRemaining: number;
   activeKeyNumber: number;
   configuredKeyNumbers: number[];
   canUseAi: boolean;
@@ -45,17 +54,6 @@ const aiStatusCache = new Map<
   number,
   { expiresAt: number; result: Promise<ModelProbe> }
 >();
-
-function getLifetimeTokenAllowance(): number {
-  const raw = process.env.CIRCUIT_STUDIO_LIFETIME_TOKEN_ALLOWANCE;
-  const value = raw === undefined ? DEFAULT_LIFETIME_TOKEN_ALLOWANCE : Number(raw);
-  if (!Number.isSafeInteger(value) || value < 1) {
-    throw new Error(
-      "CIRCUIT_STUDIO_LIFETIME_TOKEN_ALLOWANCE must be a positive safe integer.",
-    );
-  }
-  return value;
-}
 
 function getConfiguredKeys(): ConfiguredKey[] {
   const keys: ConfiguredKey[] = [];
@@ -95,12 +93,7 @@ export async function getCircuitAiUsage(
       .limit(1),
     readReservedTokens(userId),
   ]);
-  const lifetimeLimit = getLifetimeTokenAllowance();
   const tokensUsed = usageTotal(account?.tokensUsed);
-  const tokensRemaining = Math.max(
-    0,
-    lifetimeLimit - tokensUsed - tokensReserved,
-  );
   const activeKeyNumber =
     keys.find((key) => key.number === account?.selectedKeyNumber)?.number ??
     keys[0]?.number ??
@@ -109,11 +102,9 @@ export async function getCircuitAiUsage(
   return {
     tokensUsed,
     tokensReserved,
-    lifetimeLimit,
-    tokensRemaining,
     activeKeyNumber,
     configuredKeyNumbers: keys.map((key) => key.number),
-    canUseAi: keys.length > 0 && tokensRemaining > 0,
+    canUseAi: keys.length > 0,
   };
 }
 
@@ -127,10 +118,13 @@ async function probeConfiguredKey(key: ConfiguredKey): Promise<ModelProbe> {
     try {
       // This reads model metadata only. It does not send a prompt or generate
       // content, so it does not consume input or output tokens.
-      const model = await new GoogleGenAI({ apiKey: key.apiKey }).models.get({
-        model: AI_STATUS_MODEL,
-        config: { abortSignal: AbortSignal.timeout(5_000) },
-      });
+      const model = await new GoogleGenAI({
+        apiKey: key.apiKey,
+        apiVersion: GEMINI_API_VERSION,
+      }).models.get({
+          model: AI_STATUS_MODEL,
+          config: { abortSignal: AbortSignal.timeout(5_000) },
+        });
       return {
         available: model.supportedActions?.includes("generateContent") ?? false,
         latencyMs: Math.max(0, Date.now() - startedAt),
@@ -206,7 +200,6 @@ async function reserveTokens(
   reserve: number,
   availableKeys: ConfiguredKey[],
 ): Promise<{ requestId: string; keyNumber: number }> {
-  const lifetimeLimit = getLifetimeTokenAllowance();
   const requestId = randomUUID();
   const firstConfiguredKey = availableKeys[0]?.number ?? 1;
   const staleBefore = new Date(Date.now() - STALE_RESERVATION_AGE_MS);
@@ -235,22 +228,6 @@ async function reserveTokens(
 
     if (!account) {
       throw new CircuitAiError("Could not prepare your AI usage account.", 503);
-    }
-
-    const [reservedRow] = await tx
-      .select({
-        total: sql<string>`coalesce(sum(${circuitAiReservations.reservedTokens}), 0)`,
-      })
-      .from(circuitAiReservations)
-      .where(eq(circuitAiReservations.userId, userId));
-    const existingReserved = usageTotal(reservedRow?.total);
-    const used = usageTotal(account.tokensUsed);
-
-    if (used + existingReserved + reserve > lifetimeLimit) {
-      throw new CircuitAiError(
-        "This account has reached its lifetime AI token allowance. No tokens were reserved for this request.",
-        402,
-      );
     }
 
     const keyNumber =
@@ -305,13 +282,58 @@ async function settleReservation(
   });
 }
 
-function canFallbackToAnotherKey(error: unknown): boolean {
+function providerErrorText(error: unknown): string {
+  if (!error || typeof error !== "object") return "";
+  const record = error as { code?: unknown; message?: unknown; status?: unknown };
+  return `${record.code ?? ""} ${record.message ?? ""} ${record.status ?? ""}`.toLowerCase();
+}
+
+function providerRetryAfterMs(error: unknown): number | undefined {
+  if (!error || typeof error !== "object") return undefined;
+  const record = error as {
+    headers?: unknown;
+    response?: { headers?: unknown };
+  };
+  const headerSources = [record.headers, record.response?.headers];
+  let value: string | null = null;
+  for (const source of headerSources) {
+    if (!source || typeof source !== "object") continue;
+    const get = (source as { get?: unknown }).get;
+    if (typeof get === "function") {
+      value = (get as (name: string) => string | null).call(source, "retry-after");
+      if (value) break;
+    }
+    const entries = Object.entries(source as Record<string, unknown>);
+    const header = entries.find(([name]) => name.toLowerCase() === "retry-after");
+    if (typeof header?.[1] === "string" || typeof header?.[1] === "number") {
+      value = String(header[1]);
+      break;
+    }
+  }
+  if (!value) return undefined;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000);
+  const date = Date.parse(value);
+  return Number.isFinite(date) ? Math.max(0, date - Date.now()) : undefined;
+}
+
+function isProviderRateLimited(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
-  const record = error as { status?: unknown; code?: unknown; message?: unknown };
+  const record = error as { status?: unknown };
+  return Number(record.status) === 429 ||
+    /quota|rate.?limit|resource.?exhausted/.test(providerErrorText(error));
+}
+
+function isTransientProviderFailure(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const record = error as { status?: unknown };
   const status = Number(record.status);
-  if (status === 429 || status === 503) return true;
-  const code = `${record.code ?? ""} ${record.message ?? ""}`.toLowerCase();
-  return /quota|rate.?limit|resource.?exhausted/.test(code);
+  if (status === 408 || status === 425 || (status >= 500 && status <= 599)) {
+    return true;
+  }
+  return /timeout|timed.?out|temporar|unavailable|network|connection reset|socket hang up|econnreset|etimedout|bad gateway/.test(
+    providerErrorText(error),
+  );
 }
 
 function tokenReservation(
@@ -319,8 +341,7 @@ function tokenReservation(
   maxOutputTokens: number,
   imageTokenEstimate: number,
 ): number {
-  // Reserving one token per text character plus a generous image allowance
-  // keeps concurrent requests from spending the same remaining allowance.
+  // Keep a conservative usage estimate visible while the request is in flight.
   return inputText.length + imageTokenEstimate + maxOutputTokens + 512;
 }
 
@@ -330,6 +351,9 @@ export async function generateWithAccountUsage(
     inputText: string;
     maxOutputTokens: number;
     imageTokenEstimate?: number;
+    afterKeyNumber?: number;
+    onKeyUsed?: (keyNumber: number) => void;
+    onKeyFallback?: (failedKeyNumber: number, nextKeyNumber: number) => void;
   },
   generate: (client: GoogleGenAI) => Promise<GenerateContentResponse>,
 ): Promise<GenerateContentResponse> {
@@ -354,26 +378,55 @@ export async function generateWithAccountUsage(
     throw new CircuitAiError(
       "AI usage is temporarily unavailable. Please try again.",
       503,
+      true,
     );
   }
-  const orderedKeys = [
-    ...keys.filter((key) => key.number === reservation.keyNumber),
-    ...keys.filter((key) => key.number !== reservation.keyNumber),
-  ];
+  const orderedKeys = options.afterKeyNumber === undefined
+    ? [
+        ...keys.filter((key) => key.number === reservation.keyNumber),
+        ...keys.filter((key) => key.number !== reservation.keyNumber),
+      ]
+    : orderKeysAfter(keys, options.afterKeyNumber);
+  const attemptedKeyNumbers: number[] = [];
+  const rateLimitedKeyNumbers: number[] = [];
 
   try {
     for (let index = 0; index < orderedKeys.length; index += 1) {
       const key = orderedKeys[index];
+      attemptedKeyNumbers.push(key.number);
       let response: GenerateContentResponse;
       try {
-        response = await generate(new GoogleGenAI({ apiKey: key.apiKey }));
+        response = await generate(
+          new GoogleGenAI({
+            apiKey: key.apiKey,
+            apiVersion: GEMINI_API_VERSION,
+          }),
+        );
       } catch (error) {
+        const rateLimited = isProviderRateLimited(error);
+        if (rateLimited) rateLimitedKeyNumbers.push(key.number);
         if (index < orderedKeys.length - 1 && canFallbackToAnotherKey(error)) {
+          options.onKeyFallback?.(key.number, orderedKeys[index + 1].number);
           continue;
         }
+        const everyConfiguredKeyRateLimited =
+          attemptedKeyNumbers.length === orderedKeys.length &&
+          rateLimitedKeyNumbers.length === orderedKeys.length;
         throw new CircuitAiError(
-          "Gemini could not complete this request. Try again shortly or select another configured key.",
+          everyConfiguredKeyRateLimited
+            ? `All ${orderedKeys.length} configured Gemini keys are rate-limited. Circuit Studio tried each key; wait for quota to reset or configure another key.`
+            : "Gemini could not complete this request. Circuit Studio tried the configured keys that could be used. Try again shortly or select another configured key.",
           502,
+          rateLimited
+            ? true
+            : isTransientProviderFailure(error),
+          providerRetryAfterMs(error),
+          getProviderErrorDiagnostics(
+            error,
+            key.number,
+            attemptedKeyNumbers,
+            rateLimitedKeyNumbers,
+          ),
         );
       }
 
@@ -386,6 +439,12 @@ export async function generateWithAccountUsage(
         throw new CircuitAiError(
           "Gemini did not return token usage, so this response could not be safely recorded.",
           502,
+          false,
+          undefined,
+          {
+            providerKeyNumber: key.number,
+            failurePhase: "usage_metadata_missing",
+          },
         );
       }
 
@@ -396,6 +455,7 @@ export async function generateWithAccountUsage(
         reservation.keyNumber,
         key.number,
       );
+      options.onKeyUsed?.(key.number);
       return response;
     }
     throw new CircuitAiError(

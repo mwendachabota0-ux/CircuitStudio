@@ -1,12 +1,65 @@
+import {
+  STUDIO_LIBRARY_RESEARCH,
+  type StudioLibraryResearchEntry,
+} from "./generatedStudioLibraryResource.js";
+
 export type CircuitPoint = [number, number];
 export type CircuitPin = { name: string; point: CircuitPoint };
 export type CircuitElementGeometry = {
   type?: unknown;
+  label?: unknown;
+  value?: unknown;
   from?: unknown;
   to?: unknown;
   at?: unknown;
   flip?: unknown;
   swap?: unknown;
+  circle?: unknown;
+  height?: unknown;
+  pins?: unknown;
+  labelAt?: unknown;
+  labelPos?: unknown;
+  labelNudge?: unknown;
+  labelAnchor?: unknown;
+  symbolId?: unknown;
+  unit?: unknown;
+  bodyStyle?: unknown;
+  rotation?: unknown;
+  symbolData?: unknown;
+};
+
+export type KicadSymbolGraphic = {
+  type: 'polyline' | 'rectangle' | 'circle' | 'arc' | 'bezier' | 'text';
+  points?: CircuitPoint[];
+  radius?: number;
+  text?: string;
+  fontSize?: number;
+  strokeWidth?: number;
+  fillType?: 'none' | 'background' | 'outline';
+  closed?: boolean;
+};
+
+export type KicadSymbolPin = {
+  number: string;
+  name: string;
+  electricalType: string;
+  shape: string;
+  point: CircuitPoint;
+  bodyPoint: CircuitPoint;
+  showName: boolean;
+  showNumber: boolean;
+};
+
+export type KicadSymbolUnit = {
+  unit: number;
+  bodyStyle: number;
+  pins: KicadSymbolPin[];
+  graphics: KicadSymbolGraphic[];
+};
+
+export type KicadSymbolData = {
+  id: string;
+  units: KicadSymbolUnit[];
 };
 
 const TWO_TERMINAL_PIN_NAMES = {
@@ -133,6 +186,7 @@ export const CIRCUIT_COMPONENT_REFERENCE = [
   { type: 'opto', requiredProperties: ['at'], optionalProperties: ['id', 'label', 'value', 'labelPos', 'labelNudge', 'labelAt', 'labelAnchor'], pinCount: 4, pinNames: 'IN+, IN-, OUT, EMIT', pinPositions: 'IN+=(x-50,y-20), IN-=(x-50,y+20), OUT=(x+50,y-20), EMIT=(x+50,y+20).', connectionRules: 'Input and output pins are shown on separate sides; the symbol is not a safety or isolation certification.', validation: 'Rendered and structurally validated; transfer behavior is not simulated.', autoFix: 'May snap a unique wire endpoint within 8 px.' },
   { type: 'ic', requiredProperties: ['at', 'pins'], optionalProperties: ['id', 'label', 'value', 'labelPos', 'labelNudge', 'labelAt', 'labelAnchor'], pinCount: null, pinNames: 'Named pins with an explicit side ("left" or "right").', pinPositions: 'Each side is spaced vertically at 24 px around at; left pins are at x-64 and right pins at x+64.', connectionRules: 'Provide real pin names and sides from a datasheet or a known pinout; never guess a part-specific pinout.', validation: 'Rendered and structurally validated; internal IC behavior and pinout correctness are not checked.', autoFix: 'May snap a unique wire endpoint within 8 px.' },
   { type: 'connector', requiredProperties: ['at', 'pins'], optionalProperties: ['id', 'label', 'value', 'labelPos', 'labelNudge', 'labelAt', 'labelAnchor'], pinCount: null, pinNames: 'Named pins with an explicit side ("left" or "right").', pinPositions: 'Each side is spaced vertically at 24 px around at; left pins are at x-64 and right pins at x+64.', connectionRules: 'Use a unique pin name for each connector contact.', validation: 'Rendered and structurally validated; connector mechanical details are not modeled.', autoFix: 'May snap a unique wire endpoint within 8 px.' },
+  { type: 'kicad', requiredProperties: ['symbolId', 'at'], optionalProperties: ['id', 'label', 'value', 'unit', 'bodyStyle', 'rotation', 'flip', 'symbolData', 'labelPos', 'labelNudge', 'labelAt', 'labelAnchor'], pinCount: null, pinNames: 'Exact KiCad pin numbers and names from the imported source symbol.', pinPositions: 'Pin endpoints are derived from the selected library symbol, unit, and rotation.', connectionRules: 'Use the exact symbol ID and pin offsets supplied by the library. Do not invent a pinout.', validation: 'The source symbol drawing and structural connections are checked; electrical behavior is not simulated.', autoFix: 'May snap a unique wire endpoint within 8 px.' },
   { type: 'wire', requiredProperties: ['points'], optionalProperties: ['id', 'label', 'open'], pinCount: null, pinNames: 'Not a component; endpoints are points[0] and points[last].', pinPositions: 'Every points entry is a route coordinate.', connectionRules: 'Use two or more points; route orthogonally; endpoints connect exactly. Crossings alone do not connect; use a junction for an explicit crossing connection. Set open:true only for an intentionally open wire.', validation: 'Rendered and structurally validated; disconnected endpoints and component overlaps are blocking errors.', autoFix: 'Only unique endpoint snaps within 8 px and limited eligible rail-tail trimming.' },
   { type: 'junction', requiredProperties: ['x', 'y'], optionalProperties: ['id', 'label'], pinCount: 1, pinNames: 'junction', pinPositions: 'The junction is at (x,y).', connectionRules: 'Place exactly on the wire intersection or wire endpoint that should connect.', validation: 'Rendered and structurally validated.', autoFix: 'No junction relocation or topology repair.' },
   { type: 'crossing', requiredProperties: ['at'], optionalProperties: ['id', 'orientation'], pinCount: 0, pinNames: 'None; drawing annotation only.', pinPositions: 'Place at the exact interior intersection of one horizontal and one vertical wire segment. orientation selects which wire is drawn as the bridge; defaults to horizontal.', connectionRules: 'This bridge marker keeps the two crossing wires electrically separate. Use a junction instead when they should connect.', validation: 'Rendered and structurally validated; crossing geometry is checked.', autoFix: 'No crossing relocation or topology repair.' },
@@ -209,6 +263,7 @@ const COMPONENT_LIBRARY_METADATA = {
   opto: { displayName: 'Optocoupler', category: 'Semiconductors', description: 'Four-pin optical input/output symbol; isolation certification is not implied.' },
   ic: { displayName: 'Integrated circuit', category: 'Semiconductors', description: 'Flexible block with named pins; provide a verified pinout.' },
   connector: { displayName: 'Connector', category: 'Connectors', description: 'Flexible connector block with named pins.' },
+  kicad: { displayName: 'KiCad library symbol', category: 'Semiconductors', description: 'Imported KiCad symbol with its source drawing and pin geometry.' },
   wire: { displayName: 'Wire', category: 'Drawing', description: 'Orthogonal route between exact pin coordinates.' },
   junction: { displayName: 'Junction', category: 'Drawing', description: 'Explicit connection point for crossing wires.' },
   crossing: { displayName: 'Wire crossing bridge', category: 'Drawing', description: 'Bridge mark shows two crossing wires that remain electrically separate.' },
@@ -217,12 +272,23 @@ const COMPONENT_LIBRARY_METADATA = {
 } satisfies Record<SupportedCircuitElementType, CircuitComponentLibraryMetadata>;
 
 export type CircuitComponentLibraryEntry =
-  CircuitComponentReferenceEntry & CircuitComponentLibraryMetadata;
+  CircuitComponentReferenceEntry &
+    CircuitComponentLibraryMetadata &
+    StudioLibraryResearchEntry;
 
-export const CIRCUIT_COMPONENT_LIBRARY: CircuitComponentLibraryEntry[] = CIRCUIT_COMPONENT_REFERENCE.map((entry) => ({
-  ...entry,
-  ...COMPONENT_LIBRARY_METADATA[entry.type],
-}));
+export const CIRCUIT_COMPONENT_LIBRARY: CircuitComponentLibraryEntry[] = CIRCUIT_COMPONENT_REFERENCE
+  .filter((entry) => entry.type !== 'kicad')
+  .map((entry) => {
+    const research =
+      STUDIO_LIBRARY_RESEARCH[
+        entry.type as keyof typeof STUDIO_LIBRARY_RESEARCH
+      ];
+    return {
+      ...entry,
+      ...COMPONENT_LIBRARY_METADATA[entry.type],
+      ...research,
+    };
+  });
 
 export function getCircuitComponentReference(
   type: unknown,
@@ -273,6 +339,79 @@ export function getCircuitElementSchemaError(element: unknown): string | null {
       return `${record.type} needs at least one right-side pin.`;
     }
   }
+  if (record.type === 'kicad') {
+    if (
+      typeof record.symbolId !== 'string' ||
+      !/^[^:\s]+:[^:\s]+$/.test(record.symbolId) ||
+      !isPoint(record.at)
+    ) {
+      return 'kicad elements need an exact Library:Symbol ID and a numeric at point.';
+    }
+    for (const property of ['unit', 'bodyStyle'] as const) {
+      const value = record[property];
+      if (value !== undefined && (!Number.isInteger(value) || (value as number) < 1)) {
+        return `kicad ${property} must be a positive integer.`;
+      }
+    }
+    if (
+      record.rotation !== undefined &&
+      (typeof record.rotation !== 'number' ||
+        !Number.isFinite(record.rotation))
+    ) {
+      return 'kicad rotation must be a finite angle in degrees.';
+    }
+    if (record.symbolData !== undefined) {
+      const symbolData = record.symbolData as Partial<KicadSymbolData> | null;
+      if (
+        !symbolData ||
+        typeof symbolData !== 'object' ||
+        symbolData.id !== record.symbolId ||
+        !Array.isArray(symbolData.units) ||
+        symbolData.units.length < 1 ||
+        symbolData.units.length > 256
+      ) {
+        return 'kicad symbolData must match the selected symbol ID and contain valid units.';
+      }
+      const unitNumber = Number.isInteger(record.unit) ? record.unit as number : 1;
+      const bodyStyle = Number.isInteger(record.bodyStyle) ? record.bodyStyle as number : 1;
+      const unitData = symbolData.units.find(
+        (unit) => unit?.unit === unitNumber && unit?.bodyStyle === bodyStyle,
+      );
+      if (!unitData || !Array.isArray(unitData.pins) || !Array.isArray(unitData.graphics)) {
+        return `kicad symbolData does not contain unit ${unitNumber}, body style ${bodyStyle}.`;
+      }
+      if (unitData.pins.length > 512 || unitData.graphics.length > 2048) {
+        return 'kicad symbolData exceeds the supported drawing size.';
+      }
+      for (const pin of unitData.pins) {
+        if (
+          !pin ||
+          typeof pin.number !== 'string' ||
+          typeof pin.name !== 'string' ||
+          typeof pin.shape !== 'string' ||
+          !isPoint(pin.point) ||
+          !isPoint(pin.bodyPoint)
+        ) {
+          return 'kicad symbolData contains an invalid pin definition.';
+        }
+      }
+      for (const graphic of unitData.graphics) {
+        if (
+          !graphic ||
+          !['polyline', 'rectangle', 'circle', 'arc', 'bezier', 'text'].includes(graphic.type) ||
+          (graphic.points !== undefined &&
+            (!Array.isArray(graphic.points) || graphic.points.some((point) => !isPoint(point)))) ||
+          (graphic.radius !== undefined &&
+            (typeof graphic.radius !== 'number' || !Number.isFinite(graphic.radius))) ||
+          (graphic.text !== undefined && typeof graphic.text !== 'string') ||
+          (graphic.strokeWidth !== undefined &&
+            (typeof graphic.strokeWidth !== 'number' || !Number.isFinite(graphic.strokeWidth)))
+        ) {
+          return 'kicad symbolData contains an unsupported or invalid drawing primitive.';
+        }
+      }
+    }
+  }
   if (
     record.type === 'crossing' &&
     record.orientation !== undefined &&
@@ -302,6 +441,29 @@ function isPoint(value: unknown): value is CircuitPoint {
 
 function copyPoint(point: CircuitPoint): CircuitPoint {
   return [point[0], point[1]];
+}
+
+/**
+ * Applies the Circuit Studio KiCad transform in renderer order: horizontal
+ * mirror, rotation, then translation. Kept unrounded so callers that render
+ * vector artwork do not lose precision; pin anchors are rounded separately for
+ * compatibility with the existing catalog contract.
+ */
+export function transformKicadPoint(
+  point: CircuitPoint,
+  origin: CircuitPoint,
+  rotationDegrees = 0,
+  flipX = false,
+): CircuitPoint {
+  const rotation = rotationDegrees * Math.PI / 180;
+  const localX = point[0] * (flipX ? -1 : 1);
+  const localY = point[1];
+  const cos = Math.cos(rotation);
+  const sin = Math.sin(rotation);
+  return [
+    origin[0] + localX * cos - localY * sin,
+    origin[1] + localX * sin + localY * cos,
+  ];
 }
 
 function coordinateOffset(value: number, axis: 'x' | 'y'): string {
@@ -436,6 +598,33 @@ export function getCircuitPins(element: CircuitElementGeometry): CircuitPin[] {
     });
   }
 
+  if (type === 'kicad' && isPoint(element.at)) {
+    const symbolData = element.symbolData as KicadSymbolData | undefined;
+    const unitNumber = Number.isInteger(element.unit) ? element.unit as number : 1;
+    const bodyStyle = Number.isInteger(element.bodyStyle) ? element.bodyStyle as number : 1;
+    const unitData = symbolData?.units?.find(
+      (unit) => unit.unit === unitNumber && unit.bodyStyle === bodyStyle,
+    );
+    if (!unitData) return [];
+    const cleanCoordinate = (value: number) => Math.round(value * 100) / 100;
+    return unitData.pins.flatMap((pin) => {
+      if (!pin || !isPoint(pin.point)) return [];
+      const point = transformKicadPoint(
+        pin.point,
+        element.at as CircuitPoint,
+        typeof element.rotation === 'number' ? element.rotation : 0,
+        element.flip === true,
+      );
+      return [{
+        name: pin.number || pin.name || 'pin',
+        point: [
+          cleanCoordinate(point[0]),
+          cleanCoordinate(point[1]),
+        ],
+      }];
+    });
+  }
+
   if (SINGLE_PIN_TYPES.has(type) && isPoint(element.at)) {
     return [{ name: 'at', point: copyPoint(element.at) }];
   }
@@ -465,10 +654,22 @@ export function formatCircuitPinGuide(): string {
   lines.push(
     `opamp: INV=${formatOffset([-40, -20])}, NONINV=${formatOffset([-40, 20])}, OUT=${formatOffset([40, 0])}; swap:true exchanges the two input y offsets.`,
     'ground, antenna, terminal: the pin is exactly at the element at coordinate.',
+    'kicad: use the exact symbolId and per-unit pin offsets supplied in the selected KiCad library definitions; element.at is the symbol origin, rotation accepts any finite angle in degrees (including fractional and negative angles). Preserve the exact angle the user requests; otherwise, choose an angle that improves a clear layout. Rotate each pin offset around the origin using x′=x cos(θ)−y sin(θ), y′=x sin(θ)+y cos(θ), then add element.at. unit/bodyStyle default to 1.',
   );
 
   return lines.join('\n');
 }
+
+export {
+  CIRCUIT_GEOMETRY_COMPATIBILITY_PROPERTY_KEYS,
+  getCircuitPinIdentities,
+  resolveCircuitComponentGeometry,
+  type CircuitGeometryBounds,
+  type CircuitGeometryPinIdentity,
+  type CircuitGeometryResolution,
+  type CircuitGeometryTextBound,
+  type ResolvedCircuitPin,
+} from './resolver.ts';
 
 export function formatCircuitComponentGuide(): string {
   const componentLines = CIRCUIT_COMPONENT_LIBRARY.map((entry) => {
@@ -488,7 +689,57 @@ export function formatCircuitComponentGuide(): string {
   return [
     'Use only these exact CircuitDraw element type identifiers and schemas:',
     ...componentLines,
+    '- kicad (imported KiCad symbol): required symbolId, at; optional id, label, value, unit, bodyStyle, rotation, flip. Use only exact IDs and unit pin offsets provided in the selected library definitions. The server attaches the trusted source geometry.',
     'General pin offsets:',
     formatCircuitPinGuide(),
+  ].join('\n');
+}
+
+export function formatRelevantCircuitComponentResearchContext(
+  queryTexts: string[],
+  requestedLimit = 8,
+): string {
+  const stopWords = new Set([
+    'add', 'all', 'and', 'are', 'can', 'circuit', 'component', 'components',
+    'create', 'for', 'from', 'have', 'help', 'how', 'into', 'make', 'need',
+    'please', 'show', 'symbol', 'symbols', 'that', 'the', 'this', 'use',
+    'using', 'what', 'with',
+  ]);
+  const queryTokens = new Set(
+    queryTexts
+      .join(' ')
+      .toLocaleLowerCase()
+      .match(/[a-z0-9]+/g)
+      ?.filter((token) => token.length > 1 && !stopWords.has(token)) ?? [],
+  );
+  if (!queryTokens.size) return '';
+
+  const ranked = CIRCUIT_COMPONENT_LIBRARY.map((entry) => {
+    const identity = `${entry.type} ${entry.displayName}`.toLocaleLowerCase();
+    const keywords = entry.keywords.join(' ').toLocaleLowerCase();
+    const short = entry.shortDescription.toLocaleLowerCase();
+    const long = entry.longDescription.toLocaleLowerCase();
+    let score = 0;
+    for (const token of queryTokens) {
+      if (identity.includes(token)) score += 5;
+      else if (keywords.includes(token)) score += 4;
+      else if (short.includes(token)) score += 2;
+      else if (long.includes(token)) score += 1;
+    }
+    return { entry, score };
+  })
+    .filter((item) => item.score > 0)
+    .sort((left, right) =>
+      right.score - left.score ||
+      left.entry.type.localeCompare(right.entry.type),
+    )
+    .slice(0, Math.max(1, Math.min(12, Math.floor(requestedLimit) || 8)));
+
+  if (!ranked.length) return '';
+  return [
+    'Relevant built-in Circuit Studio component references. These descriptions explain symbol purpose; they do not verify electrical behavior, ratings, or safety.',
+    ...ranked.map(({ entry }) =>
+      `- ${entry.type} (${entry.displayName}): ${entry.shortDescription} Detailed reference: ${entry.longDescription} Search terms: ${entry.keywords.join(', ')}`,
+    ),
   ].join('\n');
 }

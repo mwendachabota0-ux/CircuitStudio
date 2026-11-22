@@ -1,3 +1,4 @@
+import { type StudioLibraryResearchEntry } from "./generatedStudioLibraryResource.js";
 export type CircuitPoint = [number, number];
 export type CircuitPin = {
     name: string;
@@ -5,11 +6,55 @@ export type CircuitPin = {
 };
 export type CircuitElementGeometry = {
     type?: unknown;
+    label?: unknown;
+    value?: unknown;
     from?: unknown;
     to?: unknown;
     at?: unknown;
     flip?: unknown;
     swap?: unknown;
+    circle?: unknown;
+    height?: unknown;
+    pins?: unknown;
+    labelAt?: unknown;
+    labelPos?: unknown;
+    labelNudge?: unknown;
+    labelAnchor?: unknown;
+    symbolId?: unknown;
+    unit?: unknown;
+    bodyStyle?: unknown;
+    rotation?: unknown;
+    symbolData?: unknown;
+};
+export type KicadSymbolGraphic = {
+    type: 'polyline' | 'rectangle' | 'circle' | 'arc' | 'bezier' | 'text';
+    points?: CircuitPoint[];
+    radius?: number;
+    text?: string;
+    fontSize?: number;
+    strokeWidth?: number;
+    fillType?: 'none' | 'background' | 'outline';
+    closed?: boolean;
+};
+export type KicadSymbolPin = {
+    number: string;
+    name: string;
+    electricalType: string;
+    shape: string;
+    point: CircuitPoint;
+    bodyPoint: CircuitPoint;
+    showName: boolean;
+    showNumber: boolean;
+};
+export type KicadSymbolUnit = {
+    unit: number;
+    bodyStyle: number;
+    pins: KicadSymbolPin[];
+    graphics: KicadSymbolGraphic[];
+};
+export type KicadSymbolData = {
+    id: string;
+    units: KicadSymbolUnit[];
 };
 export type CircuitComponentReferenceEntry = {
     type: string;
@@ -503,6 +548,16 @@ export declare const CIRCUIT_COMPONENT_REFERENCE: readonly [{
     readonly validation: "Rendered and structurally validated; connector mechanical details are not modeled.";
     readonly autoFix: "May snap a unique wire endpoint within 8 px.";
 }, {
+    readonly type: "kicad";
+    readonly requiredProperties: readonly ["symbolId", "at"];
+    readonly optionalProperties: readonly ["id", "label", "value", "unit", "bodyStyle", "rotation", "flip", "symbolData", "labelPos", "labelNudge", "labelAt", "labelAnchor"];
+    readonly pinCount: null;
+    readonly pinNames: "Exact KiCad pin numbers and names from the imported source symbol.";
+    readonly pinPositions: "Pin endpoints are derived from the selected library symbol, unit, and rotation.";
+    readonly connectionRules: "Use the exact symbol ID and pin offsets supplied by the library. Do not invent a pinout.";
+    readonly validation: "The source symbol drawing and structural connections are checked; electrical behavior is not simulated.";
+    readonly autoFix: "May snap a unique wire endpoint within 8 px.";
+}, {
     readonly type: "wire";
     readonly requiredProperties: readonly ["points"];
     readonly optionalProperties: readonly ["id", "label", "open"];
@@ -561,13 +616,21 @@ type CircuitComponentLibraryMetadata = {
     category: CircuitComponentCategory;
     description: string;
 };
-export type CircuitComponentLibraryEntry = CircuitComponentReferenceEntry & CircuitComponentLibraryMetadata;
+export type CircuitComponentLibraryEntry = CircuitComponentReferenceEntry & CircuitComponentLibraryMetadata & StudioLibraryResearchEntry;
 export declare const CIRCUIT_COMPONENT_LIBRARY: CircuitComponentLibraryEntry[];
 export declare function getCircuitComponentReference(type: unknown): (typeof CIRCUIT_COMPONENT_REFERENCE)[number] | undefined;
 export declare function getCircuitElementSchemaError(element: unknown): string | null;
 export declare function isSupportedCircuitElementType(value: unknown): value is SupportedCircuitElementType;
+/**
+ * Applies the Circuit Studio KiCad transform in renderer order: horizontal
+ * mirror, rotation, then translation. Kept unrounded so callers that render
+ * vector artwork do not lose precision; pin anchors are rounded separately for
+ * compatibility with the existing catalog contract.
+ */
+export declare function transformKicadPoint(point: CircuitPoint, origin: CircuitPoint, rotationDegrees?: number, flipX?: boolean): CircuitPoint;
 export declare function getCircuitPins(element: CircuitElementGeometry): CircuitPin[];
 export declare function formatCircuitPinGuide(): string;
+export { CIRCUIT_GEOMETRY_COMPATIBILITY_PROPERTY_KEYS, getCircuitPinIdentities, resolveCircuitComponentGeometry, type CircuitGeometryBounds, type CircuitGeometryPinIdentity, type CircuitGeometryResolution, type CircuitGeometryTextBound, type ResolvedCircuitPin, } from './resolver.ts';
 export declare function formatCircuitComponentGuide(): string;
-export {};
+export declare function formatRelevantCircuitComponentResearchContext(queryTexts: string[], requestedLimit?: number): string;
 //# sourceMappingURL=index.d.ts.map

@@ -1,9 +1,8 @@
 import {
   CIRCUIT_SUPPORTED_ELEMENT_TYPES,
   getCircuitElementSchemaError,
-  getCircuitPins,
+  getCircuitPinIdentities,
   type CircuitElementGeometry,
-  type KicadSymbolData,
 } from "@workspace/circuit-geometry";
 import { z } from "zod";
 
@@ -95,6 +94,7 @@ const placementSchema = z.object({
   position: finitePointSchema,
   rotation: z.number().finite(),
   flip: z.boolean(),
+  userPinned: z.boolean().optional(),
   legacyGeometry: z.object({
     from: finitePointSchema.optional(),
     to: finitePointSchema.optional(),
@@ -213,39 +213,8 @@ export function getCircuitPinDefinitions(
   const schemaError = getCircuitElementSchemaError(geometry);
   if (schemaError) return null;
 
-  const namesFromCatalog = getCircuitPins(geometry).map((pin) => pin.name);
-  if (namesFromCatalog.length === 0) return null;
-
-  if (type !== "kicad") {
-    return namesFromCatalog.map((name) => ({ id: name, name }));
-  }
-
-  const symbolData = properties.symbolData as KicadSymbolData | undefined;
-  const unit = Number.isInteger(properties.unit) ? properties.unit as number : 1;
-  const bodyStyle = Number.isInteger(properties.bodyStyle)
-    ? properties.bodyStyle as number
-    : 1;
-  const unitData = symbolData?.units.find(
-    (entry) => entry.unit === unit && entry.bodyStyle === bodyStyle,
-  );
-  if (!unitData || unitData.pins.length !== namesFromCatalog.length) return null;
-
-  const occurrences = new Map<string, number>();
-  return unitData.pins.map((pin, index) => {
-    const identity = `${pin.number}\u0000${pin.name}`;
-    const occurrence = occurrences.get(identity) ?? 0;
-    occurrences.set(identity, occurrence + 1);
-    const stableToken = (value: string) => encodeURIComponent(value || "_");
-    return {
-      id: `kicad:u${unit}:b${bodyStyle}:${stableToken(pin.number)}:${stableToken(pin.name)}:${occurrence}`,
-      name: namesFromCatalog[index],
-      number: pin.number,
-      unit,
-      bodyStyle,
-      occurrence,
-      electricalType: pin.electricalType,
-    };
-  });
+  const identities = getCircuitPinIdentities(geometry);
+  return identities?.length ? identities : null;
 }
 
 export function createCircuitComponent(

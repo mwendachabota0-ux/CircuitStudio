@@ -1,4 +1,5 @@
 import {
+  CIRCUIT_GEOMETRY_COMPATIBILITY_PROPERTY_KEYS,
   getCircuitElementSchemaError,
   type CircuitPoint as GeometryPoint,
 } from "@workspace/circuit-geometry";
@@ -801,9 +802,13 @@ function legacyElementFromComponent(
   placement: CircuitDocumentV2["drawing"]["placements"][number] | undefined,
 ): LegacyCircuitElement | null {
   if (!placement) return null;
+  const placementNonGeometryProperties = copyRecordExcept(
+    placement.properties,
+    new Set<string>(CIRCUIT_GEOMETRY_COMPATIBILITY_PROPERTY_KEYS),
+  );
   const element: Record<string, unknown> = {
     ...component.properties,
-    ...placement.properties,
+    ...placementNonGeometryProperties,
     type: component.type,
     id: component.id,
     ...(component.reference !== undefined ? { label: component.reference } : {}),
@@ -853,6 +858,16 @@ export function projectCircuitDocumentToLegacy(
     };
   }
   const document = parsed.data;
+  document.drawing.placements.forEach((placement, index) => {
+    if (placement.userPinned === true) {
+      diagnostics.push(diagnostic(
+        "projection-placement-lock-not-preserved",
+        "warning",
+        `drawing.placements.${index}.userPinned`,
+        "Legacy CircuitSpec cannot preserve this user-pinned placement lock.",
+      ));
+    }
+  });
   const validation = validateCircuitDocumentV2(document);
   if (
     validation.schemaErrors.length > 0 ||

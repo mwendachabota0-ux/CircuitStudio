@@ -357,7 +357,7 @@ No signed-in browser or end-to-end UI verification was performed. The code is co
 
 ## Batch 7 — Phase 2B-1 working checkpoint
 
-**Status:** Local source reconciliation is complete. Implementation has not started. No prior workspace edits were present at the start of this batch.
+**Status:** Baseline inspection and tests are complete; implementation is in progress. No source edits have been made yet.
 
 ### Verified starting point
 
@@ -369,6 +369,7 @@ No signed-in browser or end-to-end UI verification was performed. The code is co
 - The browser already assigns `window.CircuitGeometry` before loading `public/circuit-draw.js`; the renderer factory receives that shared module. A new browser bridge/build system is not needed.
 - Legacy projection currently merges component properties before placement properties; geometry-affecting duplicate values therefore can override canonical component symbol data. Placement-lock data also has no legacy representation.
 - `lib/circuit-geometry/package.json` has no test script. Existing geometry/renderer regression tests live in Circuit Document and Circuit Studio package test suites.
+- The Phase 2B-1 attachment named in the request was not present anywhere under the local workspace when checked. Work is proceeding only from this workspace and the verified Phase 2A design plus the task requirements recorded here; no remote source was accessed.
 
 ### Baseline tests before source changes
 
@@ -379,8 +380,8 @@ No signed-in browser or end-to-end UI verification was performed. The code is co
 
 ### Remaining work
 
-1. Record baseline results for existing document and Studio tests before source changes.
-2. Implement the shared local/world geometry contract and route the renderer and V2 consistency checks through the same transform.
-3. Add `userPinned` with omitted-as-protected semantics, pure mode/mobility and route-impact policy helpers, and legacy projection diagnostics.
-4. Add geometry/lock fixtures and tests; update the Phase 2A design and `lib/circuit-document/DESIGN.md`.
-5. Run the required tests, typecheck and builds; replace this checkpoint with final results and the Phase 2B-2 handoff.
+1. Finish the existing transform, body-bound, text-bound, and placement semantics audit from local source.
+2. Implement a shared, deterministic component-geometry resolver and route the renderer and V2 consistency checks through its authoritative pin transform.
+3. Add `userPinned` with omitted-as-protected semantics, pure placement-mode/mobility and route-impact policy helpers, and explicit legacy projection diagnostics.
+4. Add transformed geometry/lock fixtures and tests; update the Phase 2A design and `lib/circuit-document/DESIGN.md`.
+5. Run package tests, workspace typecheck/builds, and diff checks; replace this checkpoint with final results and the Phase 2B-2 handoff.

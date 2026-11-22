@@ -434,6 +434,29 @@ function copyPoint(point: CircuitPoint): CircuitPoint {
   return [point[0], point[1]];
 }
 
+/**
+ * Applies the Circuit Studio KiCad transform in renderer order: horizontal
+ * mirror, rotation, then translation. Kept unrounded so callers that render
+ * vector artwork do not lose precision; pin anchors are rounded separately for
+ * compatibility with the existing catalog contract.
+ */
+export function transformKicadPoint(
+  point: CircuitPoint,
+  origin: CircuitPoint,
+  rotationDegrees = 0,
+  flipX = false,
+): CircuitPoint {
+  const rotation = rotationDegrees * Math.PI / 180;
+  const localX = point[0] * (flipX ? -1 : 1);
+  const localY = point[1];
+  const cos = Math.cos(rotation);
+  const sin = Math.sin(rotation);
+  return [
+    origin[0] + localX * cos - localY * sin,
+    origin[1] + localX * sin + localY * cos,
+  ];
+}
+
 function coordinateOffset(value: number, axis: 'x' | 'y'): string {
   if (value === 0) return axis;
   return `${axis}${value > 0 ? '+' : '−'}${Math.abs(value)}`;
@@ -574,21 +597,20 @@ export function getCircuitPins(element: CircuitElementGeometry): CircuitPin[] {
       (unit) => unit.unit === unitNumber && unit.bodyStyle === bodyStyle,
     );
     if (!unitData) return [];
-    const [x, y] = element.at;
-    const flip = element.flip === true ? -1 : 1;
-    const rotation = Number(element.rotation ?? 0) * Math.PI / 180;
-    const cos = Math.cos(rotation);
-    const sin = Math.sin(rotation);
     const cleanCoordinate = (value: number) => Math.round(value * 100) / 100;
     return unitData.pins.flatMap((pin) => {
       if (!pin || !isPoint(pin.point)) return [];
-      const localX = pin.point[0] * flip;
-      const localY = pin.point[1];
+      const point = transformKicadPoint(
+        pin.point,
+        element.at as CircuitPoint,
+        typeof element.rotation === 'number' ? element.rotation : 0,
+        element.flip === true,
+      );
       return [{
         name: pin.number || pin.name || 'pin',
         point: [
-          cleanCoordinate(x + localX * cos - localY * sin),
-          cleanCoordinate(y + localX * sin + localY * cos),
+          cleanCoordinate(point[0]),
+          cleanCoordinate(point[1]),
         ],
       }];
     });
@@ -628,6 +650,17 @@ export function formatCircuitPinGuide(): string {
 
   return lines.join('\n');
 }
+
+export {
+  CIRCUIT_GEOMETRY_COMPATIBILITY_PROPERTY_KEYS,
+  getCircuitPinIdentities,
+  resolveCircuitComponentGeometry,
+  type CircuitGeometryBounds,
+  type CircuitGeometryPinIdentity,
+  type CircuitGeometryResolution,
+  type CircuitGeometryTextBound,
+  type ResolvedCircuitPin,
+} from './resolver.ts';
 
 export function formatCircuitComponentGuide(): string {
   const componentLines = CIRCUIT_COMPONENT_LIBRARY.map((entry) => {

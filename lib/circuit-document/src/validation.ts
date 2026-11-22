@@ -1,8 +1,4 @@
 import {
-  getCircuitPins,
-  type CircuitElementGeometry,
-} from "@workspace/circuit-geometry";
-import {
   CircuitDocumentV2Schema,
   getCircuitPinDefinitions,
   type CircuitComponentV2,
@@ -11,6 +7,10 @@ import {
   type CircuitPoint,
   type CircuitPinReference,
 } from "./model.ts";
+import {
+  getPlacementGeometryPropertyConflicts,
+  resolveCircuitDocumentComponentGeometry,
+} from "./geometry.ts";
 
 export type CircuitDocumentValidationResult = {
   schemaErrors: CircuitDocumentDiagnostic[];
@@ -206,7 +206,10 @@ function validateDrawing(
   errors: CircuitDocumentDiagnostic[],
   warnings: CircuitDocumentDiagnostic[],
 ): void {
-  const componentIds = new Set(document.electrical.components.map((component) => component.id));
+  const componentById = new Map(
+    document.electrical.components.map((component) => [component.id, component]),
+  );
+  const componentIds = new Set(componentById.keys());
   const netIds = new Set(document.electrical.nets.map((net) => net.id));
   const routeById = new Map(document.drawing.routes.map((route) => [route.id, route]));
   const netByRoute = new Map<string, string>();
@@ -233,6 +236,17 @@ function validateDrawing(
       ));
     }
     placements.add(placement.componentId);
+    const component = componentById.get(placement.componentId);
+    if (component) {
+      const conflicts = getPlacementGeometryPropertyConflicts(component, placement);
+      if (conflicts.length > 0) {
+        errors.push(errorDiagnostic(
+          "placement-geometry-property-conflict",
+          `drawing.placements.${index}.properties`,
+          `Placement properties cannot override canonical geometry fields: ${conflicts.join(", ")}.`,
+        ));
+      }
+    }
   });
 
   document.drawing.routes.forEach((route, index) => {
@@ -371,26 +385,6 @@ function routeTouches(route: CircuitDocumentV2["drawing"]["routes"][number], poi
   );
 }
 
-function worldPinPoints(
-  component: CircuitComponentV2,
-  placement: CircuitDocumentV2["drawing"]["placements"][number] | undefined,
-): Map<string, CircuitPoint> {
-  if (!placement) return new Map();
-  const geometry: CircuitElementGeometry = {
-    ...component.properties,
-    type: component.type,
-    ...placement.legacyGeometry,
-    at: placement.legacyGeometry?.at ?? placement.position,
-    flip: placement.flip,
-    rotation: placement.rotation,
-  };
-  const pins = getCircuitPins(geometry);
-  return new Map(component.pins.flatMap((pin, index) => {
-    const point = pins[index]?.point;
-    return point ? [[pin.id, point as CircuitPoint]] : [];
-  }));
-}
-
 export function checkCircuitDrawingConsistency(
   value: unknown,
 ): CircuitDocumentDiagnostic[] {
@@ -408,16 +402,26 @@ export function checkCircuitDrawingConsistency(
     document.electrical.components.map((component) => [component.id, component]),
   );
   const pinPoints = new Map<string, CircuitPoint>();
+  const warnings: CircuitDocumentDiagnostic[] = [];
 
   document.electrical.components.forEach((component) => {
-    const points = worldPinPoints(component, placementByComponent.get(component.id));
-    points.forEach((point, pinId) => pinPoints.set(
-      pinKey({ componentId: component.id, pinId }),
-      point,
+    const placement = placementByComponent.get(component.id);
+    if (!placement) return;
+    const geometry = resolveCircuitDocumentComponentGeometry(component, placement);
+    if (geometry.status === "unsupported") {
+      warnings.push(warningDiagnostic(
+        "component-geometry-unresolved",
+        `drawing.placements.${component.id}`,
+        geometry.message,
+      ));
+      return;
+    }
+    geometry.pins.forEach((pin) => pinPoints.set(
+      pinKey({ componentId: component.id, pinId: pin.id }),
+      pin.point,
     ));
   });
 
-  const warnings: CircuitDocumentDiagnostic[] = [];
   document.electrical.nets.forEach((net, netIndex) => {
     if (net.members.length < 2) return;
     const membersWithPoints = net.members.flatMap((member) => {

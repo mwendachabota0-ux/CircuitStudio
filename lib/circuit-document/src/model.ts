@@ -262,7 +262,9 @@ export function createCircuitComponent(
 }
 
 export function parseCircuitDocumentV2(value: unknown): CircuitDocumentV2 {
-  return CircuitDocumentV2Schema.parse(value);
+  return CircuitDocumentV2Schema.parse(
+    typeof value === "string" ? JSON.parse(value) : value,
+  );
 }
 
 export function serializeCircuitDocumentV2(value: unknown): string {

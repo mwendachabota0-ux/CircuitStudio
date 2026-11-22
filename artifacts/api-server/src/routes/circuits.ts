@@ -2,8 +2,15 @@ import { GenerateCircuitBody } from "@workspace/api-zod";
 import { getAuth } from "@clerk/express";
 import rateLimit from "express-rate-limit";
 import { Router, type IRouter, type RequestHandler } from "express";
+import {
+  formatCircuitComponentGuide,
+  formatRelevantCircuitComponentResearchContext,
+} from "@workspace/circuit-geometry";
 import { CircuitAiError, generateWithAccountUsage } from "../lib/circuitAi";
-import { parseUsableCircuit } from "../lib/circuitSpec";
+import {
+  CircuitSpecCompatibilityError,
+  parseUsableCircuit,
+} from "../lib/circuitSpec";
 
 const router: IRouter = Router();
 
@@ -28,14 +35,13 @@ const circuitSystemInstructions = `You convert plain-language circuit requests i
 Return exactly one JSON object, with no Markdown fences, comments, or prose. The shape is:
 {"title":"Circuit name","width":680,"height":480,"elements":[...]}
 
-Coordinates are pixels from the top-left, with y increasing downward. Use a 10 px grid and keep a 40 px margin. Use only these element types:
-resistor, capacitor, electrolytic, inductor, diode, zener, led, battery, switch, mic, speaker, lamp, acsource, crystal, npn, pnp, opamp, ground, antenna, terminal, wire, junction, label, box.
+Coordinates are pixels from the top-left, with y increasing downward. Use a 10 px grid and keep a 40 px margin.
 
-Two-terminal parts use "from":[x,y] and "to":[x,y]. Minimum terminal distances in pixels: resistor 50, capacitor/electrolytic 12, inductor 64, diode/zener/led 20, battery 10, switch 36, mic 36, speaker 24, lamp 28, acsource 32, crystal 18. Use 80–100 px for most parts. npn/pnp/opamp use "at":[x,y]. For npn, Base=[x-25,y], Collector=[x+25,y-44], Emitter=[x+25,y+44]. For pnp, Base=[x-25,y], Emitter=[x+25,y-44], Collector=[x+25,y+44]. For opamp, inverting=[x-40,y-20], non-inverting=[x-40,y+20], output=[x+40,y].
+${formatCircuitComponentGuide()}
 
-Single-point parts ground, antenna, and terminal use "at":[x,y]. Wires use "points":[[x1,y1],[x2,y2],...] and only horizontal or vertical segments; include every corner. Connect wire endpoints exactly to component pins. A wire intentionally ending in open space must have "open":true. Crossings do not connect unless a junction is explicit. Use short, unique designators in "label" (R1, C1, Q1, D1, L1, MK1, SW1, B1, ANT1) and descriptive values in "value". Put supply at the top, ground at the bottom, and signal flow left to right where practical.
+Use 80–100 px for most two-terminal parts. Keep at least 20 px between distinct symbol bodies where possible, reserve clear space for labels and pin names, and avoid compressing a multi-branch circuit into one long row. Give connected parts visible lead wires; route around symbol bodies and text. Use short, unique designators in "label" (R1, C1, Q1, D1, L1, MK1, SW1, B1, ANT1) and descriptive values in "value". Give wires unique IDs (W1, W2, ...) so connection diagnostics can identify them. Put supply at the top, ground at the bottom, and signal flow left to right where practical. Increase width or height when needed to preserve margins.
 
-Do not invent unsupported component types or draw SVG. Make a best effort to ensure every connection and value follows the request. The renderer's structural warnings are not an electrical rules check: do not claim the design is electrically verified.`;
+Do not invent unsupported component types or draw SVG. If a requested part has no supported equivalent, state the limitation instead of assigning it imaginary pins. For a two-transistor astable multivibrator or alternating LED flasher, keep each transistor's base separate from its collector and emitter, give each base its own resistor to the positive supply, and cross-couple each collector to the opposite transistor's base through a timing capacitor. Never connect a transistor's base directly to its own collector or connect a timing capacitor to that same transistor's base. Make a best effort to ensure every connection and value follows the request. Structural validation checks the drawing and selected topology rules only; it is not general electrical validation or simulation.`;
 
 router.post(
   "/circuits/generate",
@@ -50,7 +56,13 @@ router.post(
     }
 
     try {
-      const inputText = `${circuitSystemInstructions}\n\nCircuit request:\n${parsed.data.prompt}`;
+      const relevantComponentContext =
+        formatRelevantCircuitComponentResearchContext([parsed.data.prompt]);
+      const systemInstructions = [
+        circuitSystemInstructions,
+        relevantComponentContext,
+      ].filter(Boolean).join("\n\n");
+      const inputText = `${systemInstructions}\n\nCircuit request:\n${parsed.data.prompt}`;
       const response = await generateWithAccountUsage(
         userId!,
         { inputText, maxOutputTokens: 3072 },
@@ -59,7 +71,7 @@ router.post(
             model: "gemini-2.5-flash",
             contents: parsed.data.prompt,
             config: {
-              systemInstruction: circuitSystemInstructions,
+              systemInstruction: systemInstructions,
               responseMimeType: "application/json",
               maxOutputTokens: 3072,
               temperature: 0.2,
@@ -83,7 +95,9 @@ router.post(
       }
       req.log.error({ reason: "invalid_or_unusable_model_output" }, "Circuit generation failed");
       res.status(502).json({
-        error: "Gemini could not produce a usable schematic. Try describing the parts and connections more specifically.",
+        error: err instanceof CircuitSpecCompatibilityError
+          ? err.message
+          : "Gemini could not produce a usable schematic. Try describing the parts and connections more specifically.",
       });
     }
   },

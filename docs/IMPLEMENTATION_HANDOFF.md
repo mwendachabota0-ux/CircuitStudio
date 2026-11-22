@@ -352,3 +352,35 @@ No signed-in browser or end-to-end UI verification was performed. The code is co
 - **Recommended next task — Phase 2B:** define and test one shared component-geometry resolver (stable transformed pin anchors plus conservative body/text bounds), settle component-versus-placement geometry authority, and add a backward-safe optional user-pinned placement field. Do not add automatic movement until these contracts and their fixtures pass.
 - Changed files: `docs/CIRCUIT_LAYOUT_ENGINE_DESIGN.md` and `docs/IMPLEMENTATION_HANDOFF.md`. No source, test, schema, dependency, database, migration, API, UI, or build files changed; no remote repository or external source was accessed.
 - Documentation whitespace and fenced-code checks passed. Application tests/builds were not run because this batch made documentation-only changes.
+
+---
+
+## Batch 7 — Phase 2B-1 working checkpoint
+
+**Status:** Local source reconciliation is complete. Implementation has not started. No prior workspace edits were present at the start of this batch.
+
+### Verified starting point
+
+- The Phase 2A design and the preceding handoff checkpoint were read before editing. The design recommends a shared geometry authority and an optional `userPinned` placement field; it explicitly defers automatic placement and routing.
+- No shared component-geometry resolver, normalized placement-lock helper, or `userPinned` schema field exists in the current source.
+- `lib/circuit-geometry/src/index.ts` provides `getCircuitPins`, including built-in pin offsets and selected KiCad unit/body-style pin data. KiCad world transform math is also duplicated in `artifacts/circuit-studio/public/circuit-draw.js` (`transformKicadPoint` and `kicadTransform`).
+- V2 `worldPinPoints` in `lib/circuit-document/src/validation.ts` reconstructs geometry separately from the model and aligns pins by array index. `CircuitDraw.pinsOf` calls the shared `getCircuitPins`.
+- The renderer keeps local `TWO_BODY_BOUNDS`, `MULTI_BODY_BOUNDS`, `kicadBodyBounds`, and `componentBodyBounds`; it also tracks estimated text boxes separately in `layoutWarnings`.
+- The browser already assigns `window.CircuitGeometry` before loading `public/circuit-draw.js`; the renderer factory receives that shared module. A new browser bridge/build system is not needed.
+- Legacy projection currently merges component properties before placement properties; geometry-affecting duplicate values therefore can override canonical component symbol data. Placement-lock data also has no legacy representation.
+- `lib/circuit-geometry/package.json` has no test script. Existing geometry/renderer regression tests live in Circuit Document and Circuit Studio package test suites.
+
+### Baseline tests before source changes
+
+| Command | Result |
+| --- | --- |
+| `pnpm --filter @workspace/circuit-document test` | **PASS** — 65 tests |
+| `pnpm --filter @workspace/circuit-studio test` | **PASS** — 122 tests |
+
+### Remaining work
+
+1. Record baseline results for existing document and Studio tests before source changes.
+2. Implement the shared local/world geometry contract and route the renderer and V2 consistency checks through the same transform.
+3. Add `userPinned` with omitted-as-protected semantics, pure mode/mobility and route-impact policy helpers, and legacy projection diagnostics.
+4. Add geometry/lock fixtures and tests; update the Phase 2A design and `lib/circuit-document/DESIGN.md`.
+5. Run the required tests, typecheck and builds; replace this checkpoint with final results and the Phase 2B-2 handoff.

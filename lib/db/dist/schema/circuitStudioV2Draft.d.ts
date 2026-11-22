@@ -70,6 +70,23 @@ export declare const circuitStudioV2Drafts: import("drizzle-orm/pg-core").PgTabl
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
+        revision: import("drizzle-orm/pg-core").PgColumn<{
+            name: "revision";
+            tableName: "circuit_studio_v2_drafts";
+            dataType: "number";
+            columnType: "PgInteger";
+            data: number;
+            driverParam: string | number;
+            notNull: true;
+            hasDefault: true;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
         draft: import("drizzle-orm/pg-core").PgColumn<{
             name: "draft";
             tableName: "circuit_studio_v2_drafts";

@@ -703,6 +703,362 @@ export interface AiKeySelectionRequest {
   keyNumber: number;
 }
 
+/**
+ * @minLength 1
+ * @maxLength 128
+ * @pattern .*\S.*
+ */
+export type CircuitDocumentV2SessionId = string;
+
+export interface CircuitDocumentV2PinReference {
+  /** @minLength 1 */
+  componentId: string;
+  /** @minLength 1 */
+  pinId: string;
+}
+
+export interface CircuitDocumentV2PinDefinition {
+  /** @minLength 1 */
+  id: string;
+  /** @minLength 1 */
+  name: string;
+  number?: string;
+  /** @minimum 1 */
+  unit?: number;
+  /** @minimum 1 */
+  bodyStyle?: number;
+  /** @minimum 0 */
+  occurrence?: number;
+  electricalType?: string;
+}
+
+export type CircuitDocumentV2ComponentProperties = { [key: string]: unknown };
+
+export interface CircuitDocumentV2Component {
+  /** @minLength 1 */
+  id: string;
+  /** @minLength 1 */
+  type: string;
+  reference?: string;
+  value?: string;
+  properties: CircuitDocumentV2ComponentProperties;
+  pins: CircuitDocumentV2PinDefinition[];
+}
+
+export type CircuitDocumentV2NetAttributes = { [key: string]: unknown };
+
+export interface CircuitDocumentV2Net {
+  /** @minLength 1 */
+  id: string;
+  name?: string;
+  attributes?: CircuitDocumentV2NetAttributes;
+  members: CircuitDocumentV2PinReference[];
+}
+
+export type CircuitDocumentV2PlacementLegacyGeometry = {
+  from?: CircuitPoint;
+  to?: CircuitPoint;
+  at?: CircuitPoint;
+};
+
+export type CircuitDocumentV2PlacementProperties = { [key: string]: unknown };
+
+export interface CircuitDocumentV2Placement {
+  /** @minLength 1 */
+  componentId: string;
+  position: CircuitPoint;
+  rotation: number;
+  flip: boolean;
+  legacyGeometry?: CircuitDocumentV2PlacementLegacyGeometry;
+  properties: CircuitDocumentV2PlacementProperties;
+}
+
+export type CircuitDocumentV2RouteProperties = { [key: string]: unknown };
+
+export interface CircuitDocumentV2Route {
+  /** @minLength 1 */
+  id: string;
+  /** @minLength 1 */
+  netId: string;
+  /** @minItems 2 */
+  points: CircuitPoint[];
+  open?: boolean;
+  properties: CircuitDocumentV2RouteProperties;
+}
+
+export type CircuitDocumentV2JunctionProperties = { [key: string]: unknown };
+
+export interface CircuitDocumentV2Junction {
+  /** @minLength 1 */
+  id: string;
+  at: CircuitPoint;
+  /** @items.minLength 1 */
+  routeIds: string[];
+  properties: CircuitDocumentV2JunctionProperties;
+}
+
+export type CircuitDocumentV2CrossingOrientation = typeof CircuitDocumentV2CrossingOrientation[keyof typeof CircuitDocumentV2CrossingOrientation];
+
+
+export const CircuitDocumentV2CrossingOrientation = {
+  horizontal: 'horizontal',
+  vertical: 'vertical',
+} as const;
+
+export type CircuitDocumentV2CrossingProperties = { [key: string]: unknown };
+
+export interface CircuitDocumentV2Crossing {
+  /** @minLength 1 */
+  id: string;
+  at: CircuitPoint;
+  orientation?: CircuitDocumentV2CrossingOrientation;
+  /** @items.minLength 1 */
+  routeIds: string[];
+  properties: CircuitDocumentV2CrossingProperties;
+}
+
+export type CircuitDocumentV2Annotation = {
+  /** @minLength 1 */
+  id: string;
+  type: 'label';
+  at: CircuitPoint;
+  text: string;
+  properties: { [key: string]: unknown };
+} | {
+  /** @minLength 1 */
+  id: string;
+  type: 'box';
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  properties: { [key: string]: unknown };
+};
+
+export type CircuitDocumentV2SchemaVersion = typeof CircuitDocumentV2SchemaVersion[keyof typeof CircuitDocumentV2SchemaVersion];
+
+
+export const CircuitDocumentV2SchemaVersion = {
+  NUMBER_2: 2,
+} as const;
+
+export type CircuitDocumentV2Electrical = {
+  components: CircuitDocumentV2Component[];
+  nets: CircuitDocumentV2Net[];
+  noConnects: CircuitDocumentV2PinReference[];
+  unassignedPins: CircuitDocumentV2PinReference[];
+};
+
+export type CircuitDocumentV2DrawingUnits = typeof CircuitDocumentV2DrawingUnits[keyof typeof CircuitDocumentV2DrawingUnits];
+
+
+export const CircuitDocumentV2DrawingUnits = {
+  px: 'px',
+} as const;
+
+export type CircuitDocumentV2DrawingCanvas = {
+  /** @exclusiveMinimum 0 */
+  width?: number;
+  /** @exclusiveMinimum 0 */
+  height?: number;
+};
+
+export type CircuitDocumentV2Drawing = {
+  units: CircuitDocumentV2DrawingUnits;
+  canvas: CircuitDocumentV2DrawingCanvas;
+  placements: CircuitDocumentV2Placement[];
+  routes: CircuitDocumentV2Route[];
+  junctions: CircuitDocumentV2Junction[];
+  crossings: CircuitDocumentV2Crossing[];
+  annotations: CircuitDocumentV2Annotation[];
+};
+
+export type CircuitDocumentV2LegacyImportSourceFormat = typeof CircuitDocumentV2LegacyImportSourceFormat[keyof typeof CircuitDocumentV2LegacyImportSourceFormat];
+
+
+export const CircuitDocumentV2LegacyImportSourceFormat = {
+  CircuitSpec: 'CircuitSpec',
+} as const;
+
+export type CircuitDocumentV2LegacyImportGroundSemantics = typeof CircuitDocumentV2LegacyImportGroundSemantics[keyof typeof CircuitDocumentV2LegacyImportGroundSemantics];
+
+
+export const CircuitDocumentV2LegacyImportGroundSemantics = {
+  'global-ground': 'global-ground',
+} as const;
+
+export type CircuitDocumentV2LegacyImportTerminalLabelSemantics = typeof CircuitDocumentV2LegacyImportTerminalLabelSemantics[keyof typeof CircuitDocumentV2LegacyImportTerminalLabelSemantics];
+
+
+export const CircuitDocumentV2LegacyImportTerminalLabelSemantics = {
+  'local-labels-do-not-merge': 'local-labels-do-not-merge',
+} as const;
+
+export type CircuitDocumentV2LegacyImportSourceMetadata = { [key: string]: unknown };
+
+export type CircuitDocumentV2LegacyImport = {
+  sourceFormat: CircuitDocumentV2LegacyImportSourceFormat;
+  groundSemantics: CircuitDocumentV2LegacyImportGroundSemantics;
+  terminalLabelSemantics: CircuitDocumentV2LegacyImportTerminalLabelSemantics;
+  sourceMetadata: CircuitDocumentV2LegacyImportSourceMetadata;
+};
+
+export type CircuitDocumentV2Metadata = { [key: string]: unknown };
+
+export interface CircuitDocumentV2 {
+  schemaVersion: CircuitDocumentV2SchemaVersion;
+  /** @minLength 1 */
+  id: string;
+  title?: string;
+  electrical: CircuitDocumentV2Electrical;
+  drawing: CircuitDocumentV2Drawing;
+  legacyImport?: CircuitDocumentV2LegacyImport;
+  metadata?: CircuitDocumentV2Metadata;
+}
+
+export type CircuitDocumentV2DraftEnvelopeFormat = typeof CircuitDocumentV2DraftEnvelopeFormat[keyof typeof CircuitDocumentV2DraftEnvelopeFormat];
+
+
+export const CircuitDocumentV2DraftEnvelopeFormat = {
+  'circuit-studio-draft': 'circuit-studio-draft',
+} as const;
+
+export type CircuitDocumentV2DraftEnvelopeEnvelopeVersion = typeof CircuitDocumentV2DraftEnvelopeEnvelopeVersion[keyof typeof CircuitDocumentV2DraftEnvelopeEnvelopeVersion];
+
+
+export const CircuitDocumentV2DraftEnvelopeEnvelopeVersion = {
+  NUMBER_1: 1,
+} as const;
+
+export type CircuitDocumentV2DraftEnvelopeRepresentation = typeof CircuitDocumentV2DraftEnvelopeRepresentation[keyof typeof CircuitDocumentV2DraftEnvelopeRepresentation];
+
+
+export const CircuitDocumentV2DraftEnvelopeRepresentation = {
+  'circuit-document-v2': 'circuit-document-v2',
+} as const;
+
+export interface CircuitDocumentV2DraftEnvelope {
+  format: CircuitDocumentV2DraftEnvelopeFormat;
+  envelopeVersion: CircuitDocumentV2DraftEnvelopeEnvelopeVersion;
+  representation: CircuitDocumentV2DraftEnvelopeRepresentation;
+  document: CircuitDocumentV2;
+}
+
+export interface CircuitDocumentV2DraftWriteInput {
+  /**
+     * Use 0 only for a new document; otherwise use the revision most recently loaded.
+     * @minimum 0
+     * @maximum 2147483646
+     */
+  expectedRevision: number;
+  draft: CircuitDocumentV2DraftEnvelope;
+}
+
+export type CircuitDocumentV2DraftLoadedResponseStatus = typeof CircuitDocumentV2DraftLoadedResponseStatus[keyof typeof CircuitDocumentV2DraftLoadedResponseStatus];
+
+
+export const CircuitDocumentV2DraftLoadedResponseStatus = {
+  loaded: 'loaded',
+} as const;
+
+export type CircuitDocumentV2DraftLoadedResponseRepresentation = typeof CircuitDocumentV2DraftLoadedResponseRepresentation[keyof typeof CircuitDocumentV2DraftLoadedResponseRepresentation];
+
+
+export const CircuitDocumentV2DraftLoadedResponseRepresentation = {
+  'circuit-document-v2': 'circuit-document-v2',
+} as const;
+
+export type CircuitDocumentV2DraftLoadedResponseSchemaVersion = typeof CircuitDocumentV2DraftLoadedResponseSchemaVersion[keyof typeof CircuitDocumentV2DraftLoadedResponseSchemaVersion];
+
+
+export const CircuitDocumentV2DraftLoadedResponseSchemaVersion = {
+  NUMBER_2: 2,
+} as const;
+
+export interface CircuitDocumentV2DraftLoadedResponse {
+  status: CircuitDocumentV2DraftLoadedResponseStatus;
+  representation: CircuitDocumentV2DraftLoadedResponseRepresentation;
+  schemaVersion: CircuitDocumentV2DraftLoadedResponseSchemaVersion;
+  /** @minimum 1 */
+  revision: number;
+  updatedAt: string;
+  draft: CircuitDocumentV2DraftEnvelope;
+}
+
+export type CircuitDocumentV2DraftEmptyResponseStatus = typeof CircuitDocumentV2DraftEmptyResponseStatus[keyof typeof CircuitDocumentV2DraftEmptyResponseStatus];
+
+
+export const CircuitDocumentV2DraftEmptyResponseStatus = {
+  empty: 'empty',
+} as const;
+
+export interface CircuitDocumentV2DraftEmptyResponse {
+  status: CircuitDocumentV2DraftEmptyResponseStatus;
+}
+
+export type CircuitDocumentV2DraftSavedResponseStatus = typeof CircuitDocumentV2DraftSavedResponseStatus[keyof typeof CircuitDocumentV2DraftSavedResponseStatus];
+
+
+export const CircuitDocumentV2DraftSavedResponseStatus = {
+  saved: 'saved',
+} as const;
+
+export type CircuitDocumentV2DraftSavedResponseRepresentation = typeof CircuitDocumentV2DraftSavedResponseRepresentation[keyof typeof CircuitDocumentV2DraftSavedResponseRepresentation];
+
+
+export const CircuitDocumentV2DraftSavedResponseRepresentation = {
+  'circuit-document-v2': 'circuit-document-v2',
+} as const;
+
+export type CircuitDocumentV2DraftSavedResponseSchemaVersion = typeof CircuitDocumentV2DraftSavedResponseSchemaVersion[keyof typeof CircuitDocumentV2DraftSavedResponseSchemaVersion];
+
+
+export const CircuitDocumentV2DraftSavedResponseSchemaVersion = {
+  NUMBER_2: 2,
+} as const;
+
+export interface CircuitDocumentV2DraftSavedResponse {
+  status: CircuitDocumentV2DraftSavedResponseStatus;
+  representation: CircuitDocumentV2DraftSavedResponseRepresentation;
+  schemaVersion: CircuitDocumentV2DraftSavedResponseSchemaVersion;
+  /** @minimum 1 */
+  revision: number;
+  updatedAt: string;
+  draft: CircuitDocumentV2DraftEnvelope;
+}
+
+export type CircuitDocumentV2DraftErrorCode = typeof CircuitDocumentV2DraftErrorCode[keyof typeof CircuitDocumentV2DraftErrorCode];
+
+
+export const CircuitDocumentV2DraftErrorCode = {
+  'authentication-required': 'authentication-required',
+  'invalid-session-id': 'invalid-session-id',
+  'invalid-request': 'invalid-request',
+  'invalid-scope': 'invalid-scope',
+  'invalid-revision': 'invalid-revision',
+  'malformed-envelope': 'malformed-envelope',
+  'unsupported-envelope-version': 'unsupported-envelope-version',
+  'unsupported-representation': 'unsupported-representation',
+  'unsupported-schema-version': 'unsupported-schema-version',
+  'mixed-representations': 'mixed-representations',
+  'invalid-document': 'invalid-document',
+  'wrong-representation': 'wrong-representation',
+  'schema-version-mismatch': 'schema-version-mismatch',
+  'revision-conflict': 'revision-conflict',
+  'storage-failed': 'storage-failed',
+} as const;
+
+export type CircuitDocumentV2DraftErrorDiagnosticsItem = {
+  path: string;
+  message: string;
+};
+
+export interface CircuitDocumentV2DraftError {
+  code: CircuitDocumentV2DraftErrorCode;
+  message: string;
+  diagnostics: CircuitDocumentV2DraftErrorDiagnosticsItem[];
+}
+
 export type SearchCircuitSymbolsParams = {
 /**
  * @maxLength 120

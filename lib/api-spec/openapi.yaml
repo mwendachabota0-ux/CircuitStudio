@@ -496,6 +496,93 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+  /circuit-documents/v2/sessions/{sessionId}:
+    parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/CircuitDocumentV2SessionId"
+    get:
+      operationId: loadCircuitDocumentV2Draft
+      tags: [account]
+      summary: Load a signed-in user's V2 circuit document
+      description: Reads only the V2 draft owned by the authenticated user and session. An empty result does not read or import legacy history.
+      responses:
+        "200":
+          description: Loaded V2 draft or an explicit empty result
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/CircuitDocumentV2DraftLoadedResponse"
+                  - $ref: "#/components/schemas/CircuitDocumentV2DraftEmptyResponse"
+        "400":
+          description: Invalid session identifier
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CircuitDocumentV2DraftError"
+        "401":
+          description: Authentication is required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CircuitDocumentV2DraftError"
+        "422":
+          description: Stored V2 data is unsupported or quarantined
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CircuitDocumentV2DraftError"
+        "503":
+          description: V2 storage is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CircuitDocumentV2DraftError"
+    put:
+      operationId: saveCircuitDocumentV2Draft
+      tags: [account]
+      summary: Create or update a V2 circuit document
+      description: Validates a tagged V2 envelope and atomically saves it only when expectedRevision matches the authenticated user's current record. Use expectedRevision 0 only to create a missing record.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CircuitDocumentV2DraftWriteInput"
+      responses:
+        "200":
+          description: The draft was saved with its new storage revision
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CircuitDocumentV2DraftSavedResponse"
+        "400":
+          description: Invalid session, revision, envelope, or document
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CircuitDocumentV2DraftError"
+        "401":
+          description: Authentication is required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CircuitDocumentV2DraftError"
+        "409":
+          description: The expected storage revision is stale or the record already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CircuitDocumentV2DraftError"
+        "503":
+          description: V2 storage is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CircuitDocumentV2DraftError"
   /circuit-builder/history:
     get:
       operationId: listCircuitBuilderHistory
@@ -1681,4 +1768,418 @@ components:
       type: object
       description: Untrusted snapshot of a rejected model proposal; intentionally permissive so invalid elements can be reviewed.
       additionalProperties: true
+    CircuitDocumentV2SessionId:
+      type: string
+      minLength: 1
+      maxLength: 128
+      pattern: ".*\\S.*"
+    CircuitDocumentV2PinReference:
+      type: object
+      properties:
+        componentId:
+          type: string
+          minLength: 1
+        pinId:
+          type: string
+          minLength: 1
+      required: [componentId, pinId]
+      additionalProperties: false
+    CircuitDocumentV2PinDefinition:
+      type: object
+      properties:
+        id:
+          type: string
+          minLength: 1
+        name:
+          type: string
+          minLength: 1
+        number:
+          type: string
+        unit:
+          type: integer
+          minimum: 1
+        bodyStyle:
+          type: integer
+          minimum: 1
+        occurrence:
+          type: integer
+          minimum: 0
+        electricalType:
+          type: string
+      required: [id, name]
+      additionalProperties: false
+    CircuitDocumentV2Component:
+      type: object
+      properties:
+        id:
+          type: string
+          minLength: 1
+        type:
+          type: string
+          minLength: 1
+        reference:
+          type: string
+        value:
+          type: string
+        properties:
+          type: object
+          additionalProperties: true
+        pins:
+          type: array
+          items:
+            $ref: "#/components/schemas/CircuitDocumentV2PinDefinition"
+      required: [id, type, properties, pins]
+      additionalProperties: false
+    CircuitDocumentV2Net:
+      type: object
+      properties:
+        id:
+          type: string
+          minLength: 1
+        name:
+          type: string
+        attributes:
+          type: object
+          additionalProperties: true
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/CircuitDocumentV2PinReference"
+      required: [id, members]
+      additionalProperties: false
+    CircuitDocumentV2Placement:
+      type: object
+      properties:
+        componentId:
+          type: string
+          minLength: 1
+        position:
+          $ref: "#/components/schemas/CircuitPoint"
+        rotation:
+          type: number
+        flip:
+          type: boolean
+        legacyGeometry:
+          type: object
+          properties:
+            from:
+              $ref: "#/components/schemas/CircuitPoint"
+            to:
+              $ref: "#/components/schemas/CircuitPoint"
+            at:
+              $ref: "#/components/schemas/CircuitPoint"
+          additionalProperties: false
+        properties:
+          type: object
+          additionalProperties: true
+      required: [componentId, position, rotation, flip, properties]
+      additionalProperties: false
+    CircuitDocumentV2Route:
+      type: object
+      properties:
+        id:
+          type: string
+          minLength: 1
+        netId:
+          type: string
+          minLength: 1
+        points:
+          type: array
+          minItems: 2
+          items:
+            $ref: "#/components/schemas/CircuitPoint"
+        open:
+          type: boolean
+        properties:
+          type: object
+          additionalProperties: true
+      required: [id, netId, points, properties]
+      additionalProperties: false
+    CircuitDocumentV2Junction:
+      type: object
+      properties:
+        id:
+          type: string
+          minLength: 1
+        at:
+          $ref: "#/components/schemas/CircuitPoint"
+        routeIds:
+          type: array
+          items:
+            type: string
+            minLength: 1
+        properties:
+          type: object
+          additionalProperties: true
+      required: [id, at, routeIds, properties]
+      additionalProperties: false
+    CircuitDocumentV2Crossing:
+      type: object
+      properties:
+        id:
+          type: string
+          minLength: 1
+        at:
+          $ref: "#/components/schemas/CircuitPoint"
+        orientation:
+          type: string
+          enum: [horizontal, vertical]
+        routeIds:
+          type: array
+          items:
+            type: string
+            minLength: 1
+        properties:
+          type: object
+          additionalProperties: true
+      required: [id, at, routeIds, properties]
+      additionalProperties: false
+    CircuitDocumentV2Annotation:
+      oneOf:
+        - type: object
+          properties:
+            id:
+              type: string
+              minLength: 1
+            type:
+              type: string
+              enum: [label]
+            at:
+              $ref: "#/components/schemas/CircuitPoint"
+            text:
+              type: string
+            properties:
+              type: object
+              additionalProperties: true
+          required: [id, type, at, text, properties]
+          additionalProperties: false
+        - type: object
+          properties:
+            id:
+              type: string
+              minLength: 1
+            type:
+              type: string
+              enum: [box]
+            x:
+              type: number
+            y:
+              type: number
+            w:
+              type: number
+            h:
+              type: number
+            properties:
+              type: object
+              additionalProperties: true
+          required: [id, type, x, y, w, h, properties]
+          additionalProperties: false
+    CircuitDocumentV2:
+      type: object
+      properties:
+        schemaVersion:
+          type: integer
+          enum: [2]
+        id:
+          type: string
+          minLength: 1
+        title:
+          type: string
+        electrical:
+          type: object
+          properties:
+            components:
+              type: array
+              items:
+                $ref: "#/components/schemas/CircuitDocumentV2Component"
+            nets:
+              type: array
+              items:
+                $ref: "#/components/schemas/CircuitDocumentV2Net"
+            noConnects:
+              type: array
+              items:
+                $ref: "#/components/schemas/CircuitDocumentV2PinReference"
+            unassignedPins:
+              type: array
+              items:
+                $ref: "#/components/schemas/CircuitDocumentV2PinReference"
+          required: [components, nets, noConnects, unassignedPins]
+          additionalProperties: false
+        drawing:
+          type: object
+          properties:
+            units:
+              type: string
+              enum: [px]
+            canvas:
+              type: object
+              properties:
+                width:
+                  type: number
+                  exclusiveMinimum: 0
+                height:
+                  type: number
+                  exclusiveMinimum: 0
+              additionalProperties: false
+            placements:
+              type: array
+              items:
+                $ref: "#/components/schemas/CircuitDocumentV2Placement"
+            routes:
+              type: array
+              items:
+                $ref: "#/components/schemas/CircuitDocumentV2Route"
+            junctions:
+              type: array
+              items:
+                $ref: "#/components/schemas/CircuitDocumentV2Junction"
+            crossings:
+              type: array
+              items:
+                $ref: "#/components/schemas/CircuitDocumentV2Crossing"
+            annotations:
+              type: array
+              items:
+                $ref: "#/components/schemas/CircuitDocumentV2Annotation"
+          required: [units, canvas, placements, routes, junctions, crossings, annotations]
+          additionalProperties: false
+        legacyImport:
+          type: object
+          properties:
+            sourceFormat:
+              type: string
+              enum: [CircuitSpec]
+            groundSemantics:
+              type: string
+              enum: [global-ground]
+            terminalLabelSemantics:
+              type: string
+              enum: [local-labels-do-not-merge]
+            sourceMetadata:
+              type: object
+              additionalProperties: true
+          required: [sourceFormat, groundSemantics, terminalLabelSemantics, sourceMetadata]
+          additionalProperties: false
+        metadata:
+          type: object
+          additionalProperties: true
+      required: [schemaVersion, id, electrical, drawing]
+      additionalProperties: false
+    CircuitDocumentV2DraftEnvelope:
+      type: object
+      properties:
+        format:
+          type: string
+          enum: [circuit-studio-draft]
+        envelopeVersion:
+          type: integer
+          enum: [1]
+        representation:
+          type: string
+          enum: [circuit-document-v2]
+        document:
+          $ref: "#/components/schemas/CircuitDocumentV2"
+      required: [format, envelopeVersion, representation, document]
+      additionalProperties: false
+    CircuitDocumentV2DraftWriteInput:
+      type: object
+      properties:
+        expectedRevision:
+          type: integer
+          minimum: 0
+          maximum: 2147483646
+          description: Use 0 only for a new document; otherwise use the revision most recently loaded.
+        draft:
+          $ref: "#/components/schemas/CircuitDocumentV2DraftEnvelope"
+      required: [expectedRevision, draft]
+      additionalProperties: false
+    CircuitDocumentV2DraftLoadedResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [loaded]
+        representation:
+          type: string
+          enum: [circuit-document-v2]
+        schemaVersion:
+          type: integer
+          enum: [2]
+        revision:
+          type: integer
+          minimum: 1
+        updatedAt:
+          type: string
+          format: date-time
+        draft:
+          $ref: "#/components/schemas/CircuitDocumentV2DraftEnvelope"
+      required: [status, representation, schemaVersion, revision, updatedAt, draft]
+      additionalProperties: false
+    CircuitDocumentV2DraftEmptyResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [empty]
+      required: [status]
+      additionalProperties: false
+    CircuitDocumentV2DraftSavedResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [saved]
+        representation:
+          type: string
+          enum: [circuit-document-v2]
+        schemaVersion:
+          type: integer
+          enum: [2]
+        revision:
+          type: integer
+          minimum: 1
+        updatedAt:
+          type: string
+          format: date-time
+        draft:
+          $ref: "#/components/schemas/CircuitDocumentV2DraftEnvelope"
+      required: [status, representation, schemaVersion, revision, updatedAt, draft]
+      additionalProperties: false
+    CircuitDocumentV2DraftError:
+      type: object
+      properties:
+        code:
+          type: string
+          enum:
+            - authentication-required
+            - invalid-session-id
+            - invalid-request
+            - invalid-scope
+            - invalid-revision
+            - malformed-envelope
+            - unsupported-envelope-version
+            - unsupported-representation
+            - unsupported-schema-version
+            - mixed-representations
+            - invalid-document
+            - wrong-representation
+            - schema-version-mismatch
+            - revision-conflict
+            - storage-failed
+        message:
+          type: string
+        diagnostics:
+          type: array
+          items:
+            type: object
+            properties:
+              path:
+                type: string
+              message:
+                type: string
+            required: [path, message]
+            additionalProperties: false
+      required: [code, message, diagnostics]
+      additionalProperties: false
 

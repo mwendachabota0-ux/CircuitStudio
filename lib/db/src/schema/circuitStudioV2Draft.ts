@@ -14,6 +14,7 @@ export const circuitStudioV2Drafts = pgTable(
     sessionId: text("session_id").notNull(),
     representation: text("representation").notNull(),
     schemaVersion: integer("schema_version").notNull(),
+    revision: integer("revision").notNull().default(1),
     draft: jsonb("draft").$type<unknown>().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
   },

@@ -20636,11 +20636,11 @@ var require_router = __commonJS({
     var slice = Array.prototype.slice;
     var flatten = Array.prototype.flat;
     var methods = METHODS.map((method) => method.toLowerCase());
-    module.exports = Router10;
+    module.exports = Router11;
     module.exports.Route = Route;
-    function Router10(options) {
-      if (!(this instanceof Router10)) {
-        return new Router10(options);
+    function Router11(options) {
+      if (!(this instanceof Router11)) {
+        return new Router11(options);
       }
       const opts = options || {};
       function router10(req, res, next) {
@@ -20654,9 +20654,9 @@ var require_router = __commonJS({
       router10.stack = [];
       return router10;
     }
-    Router10.prototype = function() {
+    Router11.prototype = function() {
     };
-    Router10.prototype.param = function param(name, fn) {
+    Router11.prototype.param = function param(name, fn) {
       if (!name) {
         throw new TypeError("argument name is required");
       }
@@ -20676,7 +20676,7 @@ var require_router = __commonJS({
       params.push(fn);
       return this;
     };
-    Router10.prototype.handle = function handle(req, res, callback) {
+    Router11.prototype.handle = function handle(req, res, callback) {
       if (!callback) {
         throw new TypeError("argument callback is required");
       }
@@ -20803,7 +20803,7 @@ var require_router = __commonJS({
         }
       }
     };
-    Router10.prototype.use = function use(handler) {
+    Router11.prototype.use = function use(handler) {
       let offset = 0;
       let path2 = "/";
       if (typeof handler !== "function") {
@@ -20836,7 +20836,7 @@ var require_router = __commonJS({
       }
       return this;
     };
-    Router10.prototype.route = function route(path2) {
+    Router11.prototype.route = function route(path2) {
       const route2 = new Route(path2);
       const layer = new Layer(path2, {
         sensitive: this.caseSensitive,
@@ -20851,7 +20851,7 @@ var require_router = __commonJS({
       return route2;
     };
     methods.concat("all").forEach(function(method) {
-      Router10.prototype[method] = function(path2) {
+      Router11.prototype[method] = function(path2) {
         const route = this.route(path2);
         route[method].apply(route, slice.call(arguments, 1));
         return this;
@@ -21034,7 +21034,7 @@ var require_application = __commonJS({
     var compileTrust = require_utils3().compileTrust;
     var resolve = __require("node:path").resolve;
     var once = require_once();
-    var Router10 = require_router();
+    var Router11 = require_router();
     var slice = Array.prototype.slice;
     var flatten = Array.prototype.flat;
     var app2 = exports = module.exports = {};
@@ -21050,7 +21050,7 @@ var require_application = __commonJS({
         enumerable: true,
         get: function getrouter() {
           if (router10 === null) {
-            router10 = new Router10({
+            router10 = new Router11({
               caseSensitive: this.enabled("case sensitive routing"),
               strict: this.enabled("strict routing")
             });
@@ -23723,7 +23723,7 @@ var require_express = __commonJS({
     var EventEmitter2 = __require("node:events").EventEmitter;
     var mixin = require_merge_descriptors();
     var proto = require_application();
-    var Router10 = require_router();
+    var Router11 = require_router();
     var req = require_request();
     var res = require_response();
     exports = module.exports = createApplication;
@@ -23745,8 +23745,8 @@ var require_express = __commonJS({
     exports.application = proto;
     exports.request = req;
     exports.response = res;
-    exports.Route = Router10.Route;
-    exports.Router = Router10;
+    exports.Route = Router11.Route;
+    exports.Router = Router11;
     exports.json = bodyParser.json;
     exports.raw = bodyParser.raw;
     exports.static = require_serve_static();
@@ -39384,7 +39384,7 @@ var require_micromatch = __commonJS({
 });
 
 // src/app.ts
-var import_express17 = __toESM(require_express2(), 1);
+var import_express19 = __toESM(require_express2(), 1);
 var import_cors = __toESM(require_lib3(), 1);
 var import_pino_http = __toESM(require_logger(), 1);
 
@@ -49675,7 +49675,119 @@ var getAuth = ((req, options) => {
 });
 
 // src/routes/index.ts
-var import_express16 = __toESM(require_express2(), 1);
+var import_express18 = __toESM(require_express2(), 1);
+
+// ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/external.js
+var external_exports = {};
+__export(external_exports, {
+  BRAND: () => BRAND,
+  DIRTY: () => DIRTY,
+  EMPTY_PATH: () => EMPTY_PATH,
+  INVALID: () => INVALID,
+  NEVER: () => NEVER,
+  OK: () => OK,
+  ParseStatus: () => ParseStatus,
+  Schema: () => ZodType,
+  ZodAny: () => ZodAny,
+  ZodArray: () => ZodArray,
+  ZodBigInt: () => ZodBigInt,
+  ZodBoolean: () => ZodBoolean,
+  ZodBranded: () => ZodBranded,
+  ZodCatch: () => ZodCatch,
+  ZodDate: () => ZodDate,
+  ZodDefault: () => ZodDefault,
+  ZodDiscriminatedUnion: () => ZodDiscriminatedUnion,
+  ZodEffects: () => ZodEffects,
+  ZodEnum: () => ZodEnum,
+  ZodError: () => ZodError,
+  ZodFirstPartyTypeKind: () => ZodFirstPartyTypeKind,
+  ZodFunction: () => ZodFunction,
+  ZodIntersection: () => ZodIntersection,
+  ZodIssueCode: () => ZodIssueCode,
+  ZodLazy: () => ZodLazy,
+  ZodLiteral: () => ZodLiteral,
+  ZodMap: () => ZodMap,
+  ZodNaN: () => ZodNaN,
+  ZodNativeEnum: () => ZodNativeEnum,
+  ZodNever: () => ZodNever,
+  ZodNull: () => ZodNull,
+  ZodNullable: () => ZodNullable,
+  ZodNumber: () => ZodNumber,
+  ZodObject: () => ZodObject,
+  ZodOptional: () => ZodOptional,
+  ZodParsedType: () => ZodParsedType,
+  ZodPipeline: () => ZodPipeline,
+  ZodPromise: () => ZodPromise,
+  ZodReadonly: () => ZodReadonly,
+  ZodRecord: () => ZodRecord,
+  ZodSchema: () => ZodType,
+  ZodSet: () => ZodSet,
+  ZodString: () => ZodString,
+  ZodSymbol: () => ZodSymbol,
+  ZodTransformer: () => ZodEffects,
+  ZodTuple: () => ZodTuple,
+  ZodType: () => ZodType,
+  ZodUndefined: () => ZodUndefined,
+  ZodUnion: () => ZodUnion,
+  ZodUnknown: () => ZodUnknown,
+  ZodVoid: () => ZodVoid,
+  addIssueToContext: () => addIssueToContext,
+  any: () => anyType,
+  array: () => arrayType,
+  bigint: () => bigIntType,
+  boolean: () => booleanType,
+  coerce: () => coerce,
+  custom: () => custom,
+  date: () => dateType,
+  datetimeRegex: () => datetimeRegex,
+  defaultErrorMap: () => en_default,
+  discriminatedUnion: () => discriminatedUnionType,
+  effect: () => effectsType,
+  enum: () => enumType,
+  function: () => functionType,
+  getErrorMap: () => getErrorMap,
+  getParsedType: () => getParsedType,
+  instanceof: () => instanceOfType,
+  intersection: () => intersectionType,
+  isAborted: () => isAborted,
+  isAsync: () => isAsync,
+  isDirty: () => isDirty,
+  isValid: () => isValid,
+  late: () => late,
+  lazy: () => lazyType,
+  literal: () => literalType,
+  makeIssue: () => makeIssue,
+  map: () => mapType,
+  nan: () => nanType,
+  nativeEnum: () => nativeEnumType,
+  never: () => neverType,
+  null: () => nullType,
+  nullable: () => nullableType,
+  number: () => numberType,
+  object: () => objectType,
+  objectUtil: () => objectUtil,
+  oboolean: () => oboolean,
+  onumber: () => onumber,
+  optional: () => optionalType,
+  ostring: () => ostring,
+  pipeline: () => pipelineType,
+  preprocess: () => preprocessType,
+  promise: () => promiseType,
+  quotelessJson: () => quotelessJson,
+  record: () => recordType,
+  set: () => setType,
+  setErrorMap: () => setErrorMap,
+  strictObject: () => strictObjectType,
+  string: () => stringType,
+  symbol: () => symbolType,
+  transformer: () => effectsType,
+  tuple: () => tupleType,
+  undefined: () => undefinedType,
+  union: () => unionType,
+  unknown: () => unknownType,
+  util: () => util,
+  void: () => voidType
+});
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/helpers/util.js
 var util;
@@ -49830,6 +49942,10 @@ var ZodIssueCode = util.arrayToEnum([
   "not_multiple_of",
   "not_finite"
 ]);
+var quotelessJson = (obj) => {
+  const json3 = JSON.stringify(obj, null, 2);
+  return json3.replace(/"([^"]+)":/g, "$1:");
+};
 var ZodError = class _ZodError extends Error {
   get errors() {
     return this.issues;
@@ -50030,6 +50146,9 @@ var en_default = errorMap;
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/errors.js
 var overrideErrorMap = en_default;
+function setErrorMap(map2) {
+  overrideErrorMap = map2;
+}
 function getErrorMap() {
   return overrideErrorMap;
 }
@@ -50060,6 +50179,7 @@ var makeIssue = (params) => {
     message: errorMessage
   };
 };
+var EMPTY_PATH = [];
 function addIssueToContext(ctx, issueData) {
   const overrideMap = getErrorMap();
   const issue2 = makeIssue({
@@ -53385,6 +53505,7 @@ ZodNaN.create = (params) => {
     ...processCreateParams(params)
   });
 };
+var BRAND = /* @__PURE__ */ Symbol("zod_brand");
 var ZodBranded = class extends ZodType {
   _parse(input) {
     const { ctx } = this._processInputParams(input);
@@ -53476,6 +53597,33 @@ ZodReadonly.create = (type, params) => {
     ...processCreateParams(params)
   });
 };
+function cleanParams(params, data) {
+  const p = typeof params === "function" ? params(data) : typeof params === "string" ? { message: params } : params;
+  const p2 = typeof p === "string" ? { message: p } : p;
+  return p2;
+}
+function custom(check2, _params = {}, fatal) {
+  if (check2)
+    return ZodAny.create().superRefine((data, ctx) => {
+      const r = check2(data);
+      if (r instanceof Promise) {
+        return r.then((r2) => {
+          if (!r2) {
+            const params = cleanParams(_params, data);
+            const _fatal = params.fatal ?? fatal ?? true;
+            ctx.addIssue({ code: "custom", ...params, fatal: _fatal });
+          }
+        });
+      }
+      if (!r) {
+        const params = cleanParams(_params, data);
+        const _fatal = params.fatal ?? fatal ?? true;
+        ctx.addIssue({ code: "custom", ...params, fatal: _fatal });
+      }
+      return;
+    });
+  return ZodAny.create();
+}
 var late = {
   object: ZodObject.lazycreate
 };
@@ -53518,6 +53666,9 @@ var ZodFirstPartyTypeKind;
   ZodFirstPartyTypeKind2["ZodPipeline"] = "ZodPipeline";
   ZodFirstPartyTypeKind2["ZodReadonly"] = "ZodReadonly";
 })(ZodFirstPartyTypeKind || (ZodFirstPartyTypeKind = {}));
+var instanceOfType = (cls, params = {
+  message: `Input not instance of ${cls.name}`
+}) => custom((data) => data instanceof cls, params);
 var stringType = ZodString.create;
 var numberType = ZodNumber.create;
 var nanType = ZodNaN.create;
@@ -53552,6 +53703,9 @@ var optionalType = ZodOptional.create;
 var nullableType = ZodNullable.create;
 var preprocessType = ZodEffects.createWithPreprocess;
 var pipelineType = ZodPipeline.create;
+var ostring = () => stringType().optional();
+var onumber = () => numberType().optional();
+var oboolean = () => booleanType().optional();
 var coerce = {
   string: ((arg) => ZodString.create({ ...arg, coerce: true })),
   number: ((arg) => ZodNumber.create({ ...arg, coerce: true })),
@@ -53562,6 +53716,7 @@ var coerce = {
   bigint: ((arg) => ZodBigInt.create({ ...arg, coerce: true })),
   date: ((arg) => ZodDate.create({ ...arg, coerce: true }))
 };
+var NEVER = INVALID;
 
 // ../../lib/api-zod/src/generated/api.ts
 var HealthCheckResponse = objectType({
@@ -54560,6 +54715,415 @@ var SaveCircuitBuilderFeedbackBody = objectType({
 });
 var SaveCircuitBuilderFeedbackResponse = objectType({
   "saved": booleanType()
+});
+var loadCircuitDocumentV2DraftPathSessionIdMax = 128;
+var loadCircuitDocumentV2DraftPathSessionIdRegExp = new RegExp(".*\\S.*");
+var LoadCircuitDocumentV2DraftParams = objectType({
+  "sessionId": coerce.string().min(1).max(loadCircuitDocumentV2DraftPathSessionIdMax).regex(loadCircuitDocumentV2DraftPathSessionIdRegExp)
+});
+var loadCircuitDocumentV2DraftResponseOneDraftDocumentElectricalComponentsItemPinsItemOccurrenceMin = 0;
+var loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingCanvasWidthExclusiveMin = 0;
+var loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingCanvasHeightExclusiveMin = 0;
+var loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingPlacementsItemPositionMin = 2;
+var loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingPlacementsItemPositionMax = 2;
+var loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingPlacementsItemLegacyGeometryFromMin = 2;
+var loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingPlacementsItemLegacyGeometryFromMax = 2;
+var loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingPlacementsItemLegacyGeometryToMin = 2;
+var loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingPlacementsItemLegacyGeometryToMax = 2;
+var loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingPlacementsItemLegacyGeometryAtMin = 2;
+var loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingPlacementsItemLegacyGeometryAtMax = 2;
+var loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingRoutesItemPointsItemMin = 2;
+var loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingRoutesItemPointsItemMax = 2;
+var loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingRoutesItemPointsMin = 2;
+var loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingJunctionsItemAtMin = 2;
+var loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingJunctionsItemAtMax = 2;
+var loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingCrossingsItemAtMin = 2;
+var loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingCrossingsItemAtMax = 2;
+var loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingAnnotationsItemOneAtMin = 2;
+var loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingAnnotationsItemOneAtMax = 2;
+var LoadCircuitDocumentV2DraftResponse = unionType([objectType({
+  "status": enumType(["loaded"]),
+  "representation": enumType(["circuit-document-v2"]),
+  "schemaVersion": literalType(2),
+  "revision": numberType().int().min(1),
+  "updatedAt": coerce.date(),
+  "draft": objectType({
+    "format": enumType(["circuit-studio-draft"]),
+    "envelopeVersion": literalType(1),
+    "representation": enumType(["circuit-document-v2"]),
+    "document": objectType({
+      "schemaVersion": literalType(2),
+      "id": stringType().min(1),
+      "title": stringType().optional(),
+      "electrical": objectType({
+        "components": arrayType(objectType({
+          "id": stringType().min(1),
+          "type": stringType().min(1),
+          "reference": stringType().optional(),
+          "value": stringType().optional(),
+          "properties": recordType(stringType(), unknownType()),
+          "pins": arrayType(objectType({
+            "id": stringType().min(1),
+            "name": stringType().min(1),
+            "number": stringType().optional(),
+            "unit": numberType().int().min(1).optional(),
+            "bodyStyle": numberType().int().min(1).optional(),
+            "occurrence": numberType().int().min(loadCircuitDocumentV2DraftResponseOneDraftDocumentElectricalComponentsItemPinsItemOccurrenceMin).optional(),
+            "electricalType": stringType().optional()
+          }))
+        })),
+        "nets": arrayType(objectType({
+          "id": stringType().min(1),
+          "name": stringType().optional(),
+          "attributes": recordType(stringType(), unknownType()).optional(),
+          "members": arrayType(objectType({
+            "componentId": stringType().min(1),
+            "pinId": stringType().min(1)
+          }))
+        })),
+        "noConnects": arrayType(objectType({
+          "componentId": stringType().min(1),
+          "pinId": stringType().min(1)
+        })),
+        "unassignedPins": arrayType(objectType({
+          "componentId": stringType().min(1),
+          "pinId": stringType().min(1)
+        }))
+      }),
+      "drawing": objectType({
+        "units": enumType(["px"]),
+        "canvas": objectType({
+          "width": numberType().gt(loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingCanvasWidthExclusiveMin).optional(),
+          "height": numberType().gt(loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingCanvasHeightExclusiveMin).optional()
+        }),
+        "placements": arrayType(objectType({
+          "componentId": stringType().min(1),
+          "position": arrayType(numberType()).min(loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingPlacementsItemPositionMin).max(loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingPlacementsItemPositionMax),
+          "rotation": numberType(),
+          "flip": booleanType(),
+          "legacyGeometry": objectType({
+            "from": arrayType(numberType()).min(loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingPlacementsItemLegacyGeometryFromMin).max(loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingPlacementsItemLegacyGeometryFromMax).optional(),
+            "to": arrayType(numberType()).min(loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingPlacementsItemLegacyGeometryToMin).max(loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingPlacementsItemLegacyGeometryToMax).optional(),
+            "at": arrayType(numberType()).min(loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingPlacementsItemLegacyGeometryAtMin).max(loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingPlacementsItemLegacyGeometryAtMax).optional()
+          }).optional(),
+          "properties": recordType(stringType(), unknownType())
+        })),
+        "routes": arrayType(objectType({
+          "id": stringType().min(1),
+          "netId": stringType().min(1),
+          "points": arrayType(arrayType(numberType()).min(loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingRoutesItemPointsItemMin).max(loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingRoutesItemPointsItemMax)).min(loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingRoutesItemPointsMin),
+          "open": booleanType().optional(),
+          "properties": recordType(stringType(), unknownType())
+        })),
+        "junctions": arrayType(objectType({
+          "id": stringType().min(1),
+          "at": arrayType(numberType()).min(loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingJunctionsItemAtMin).max(loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingJunctionsItemAtMax),
+          "routeIds": arrayType(stringType().min(1)),
+          "properties": recordType(stringType(), unknownType())
+        })),
+        "crossings": arrayType(objectType({
+          "id": stringType().min(1),
+          "at": arrayType(numberType()).min(loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingCrossingsItemAtMin).max(loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingCrossingsItemAtMax),
+          "orientation": enumType(["horizontal", "vertical"]).optional(),
+          "routeIds": arrayType(stringType().min(1)),
+          "properties": recordType(stringType(), unknownType())
+        })),
+        "annotations": arrayType(unionType([objectType({
+          "id": stringType().min(1),
+          "type": enumType(["label"]),
+          "at": arrayType(numberType()).min(loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingAnnotationsItemOneAtMin).max(loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingAnnotationsItemOneAtMax),
+          "text": stringType(),
+          "properties": recordType(stringType(), unknownType())
+        }), objectType({
+          "id": stringType().min(1),
+          "type": enumType(["box"]),
+          "x": numberType(),
+          "y": numberType(),
+          "w": numberType(),
+          "h": numberType(),
+          "properties": recordType(stringType(), unknownType())
+        })]))
+      }),
+      "legacyImport": objectType({
+        "sourceFormat": enumType(["CircuitSpec"]),
+        "groundSemantics": enumType(["global-ground"]),
+        "terminalLabelSemantics": enumType(["local-labels-do-not-merge"]),
+        "sourceMetadata": recordType(stringType(), unknownType())
+      }).optional(),
+      "metadata": recordType(stringType(), unknownType()).optional()
+    })
+  })
+}), objectType({
+  "status": enumType(["empty"])
+})]);
+var saveCircuitDocumentV2DraftPathSessionIdMax = 128;
+var saveCircuitDocumentV2DraftPathSessionIdRegExp = new RegExp(".*\\S.*");
+var SaveCircuitDocumentV2DraftParams = objectType({
+  "sessionId": coerce.string().min(1).max(saveCircuitDocumentV2DraftPathSessionIdMax).regex(saveCircuitDocumentV2DraftPathSessionIdRegExp)
+});
+var saveCircuitDocumentV2DraftBodyExpectedRevisionMin = 0;
+var saveCircuitDocumentV2DraftBodyExpectedRevisionMax = 2147483646;
+var saveCircuitDocumentV2DraftBodyDraftDocumentElectricalComponentsItemPinsItemOccurrenceMin = 0;
+var saveCircuitDocumentV2DraftBodyDraftDocumentDrawingCanvasWidthExclusiveMin = 0;
+var saveCircuitDocumentV2DraftBodyDraftDocumentDrawingCanvasHeightExclusiveMin = 0;
+var saveCircuitDocumentV2DraftBodyDraftDocumentDrawingPlacementsItemPositionMin = 2;
+var saveCircuitDocumentV2DraftBodyDraftDocumentDrawingPlacementsItemPositionMax = 2;
+var saveCircuitDocumentV2DraftBodyDraftDocumentDrawingPlacementsItemLegacyGeometryFromMin = 2;
+var saveCircuitDocumentV2DraftBodyDraftDocumentDrawingPlacementsItemLegacyGeometryFromMax = 2;
+var saveCircuitDocumentV2DraftBodyDraftDocumentDrawingPlacementsItemLegacyGeometryToMin = 2;
+var saveCircuitDocumentV2DraftBodyDraftDocumentDrawingPlacementsItemLegacyGeometryToMax = 2;
+var saveCircuitDocumentV2DraftBodyDraftDocumentDrawingPlacementsItemLegacyGeometryAtMin = 2;
+var saveCircuitDocumentV2DraftBodyDraftDocumentDrawingPlacementsItemLegacyGeometryAtMax = 2;
+var saveCircuitDocumentV2DraftBodyDraftDocumentDrawingRoutesItemPointsItemMin = 2;
+var saveCircuitDocumentV2DraftBodyDraftDocumentDrawingRoutesItemPointsItemMax = 2;
+var saveCircuitDocumentV2DraftBodyDraftDocumentDrawingRoutesItemPointsMin = 2;
+var saveCircuitDocumentV2DraftBodyDraftDocumentDrawingJunctionsItemAtMin = 2;
+var saveCircuitDocumentV2DraftBodyDraftDocumentDrawingJunctionsItemAtMax = 2;
+var saveCircuitDocumentV2DraftBodyDraftDocumentDrawingCrossingsItemAtMin = 2;
+var saveCircuitDocumentV2DraftBodyDraftDocumentDrawingCrossingsItemAtMax = 2;
+var saveCircuitDocumentV2DraftBodyDraftDocumentDrawingAnnotationsItemOneAtMin = 2;
+var saveCircuitDocumentV2DraftBodyDraftDocumentDrawingAnnotationsItemOneAtMax = 2;
+var SaveCircuitDocumentV2DraftBody = objectType({
+  "expectedRevision": numberType().int().min(saveCircuitDocumentV2DraftBodyExpectedRevisionMin).max(saveCircuitDocumentV2DraftBodyExpectedRevisionMax).describe("Use 0 only for a new document; otherwise use the revision most recently loaded."),
+  "draft": objectType({
+    "format": enumType(["circuit-studio-draft"]),
+    "envelopeVersion": literalType(1),
+    "representation": enumType(["circuit-document-v2"]),
+    "document": objectType({
+      "schemaVersion": literalType(2),
+      "id": stringType().min(1),
+      "title": stringType().optional(),
+      "electrical": objectType({
+        "components": arrayType(objectType({
+          "id": stringType().min(1),
+          "type": stringType().min(1),
+          "reference": stringType().optional(),
+          "value": stringType().optional(),
+          "properties": recordType(stringType(), unknownType()),
+          "pins": arrayType(objectType({
+            "id": stringType().min(1),
+            "name": stringType().min(1),
+            "number": stringType().optional(),
+            "unit": numberType().int().min(1).optional(),
+            "bodyStyle": numberType().int().min(1).optional(),
+            "occurrence": numberType().int().min(saveCircuitDocumentV2DraftBodyDraftDocumentElectricalComponentsItemPinsItemOccurrenceMin).optional(),
+            "electricalType": stringType().optional()
+          }))
+        })),
+        "nets": arrayType(objectType({
+          "id": stringType().min(1),
+          "name": stringType().optional(),
+          "attributes": recordType(stringType(), unknownType()).optional(),
+          "members": arrayType(objectType({
+            "componentId": stringType().min(1),
+            "pinId": stringType().min(1)
+          }))
+        })),
+        "noConnects": arrayType(objectType({
+          "componentId": stringType().min(1),
+          "pinId": stringType().min(1)
+        })),
+        "unassignedPins": arrayType(objectType({
+          "componentId": stringType().min(1),
+          "pinId": stringType().min(1)
+        }))
+      }),
+      "drawing": objectType({
+        "units": enumType(["px"]),
+        "canvas": objectType({
+          "width": numberType().gt(saveCircuitDocumentV2DraftBodyDraftDocumentDrawingCanvasWidthExclusiveMin).optional(),
+          "height": numberType().gt(saveCircuitDocumentV2DraftBodyDraftDocumentDrawingCanvasHeightExclusiveMin).optional()
+        }),
+        "placements": arrayType(objectType({
+          "componentId": stringType().min(1),
+          "position": arrayType(numberType()).min(saveCircuitDocumentV2DraftBodyDraftDocumentDrawingPlacementsItemPositionMin).max(saveCircuitDocumentV2DraftBodyDraftDocumentDrawingPlacementsItemPositionMax),
+          "rotation": numberType(),
+          "flip": booleanType(),
+          "legacyGeometry": objectType({
+            "from": arrayType(numberType()).min(saveCircuitDocumentV2DraftBodyDraftDocumentDrawingPlacementsItemLegacyGeometryFromMin).max(saveCircuitDocumentV2DraftBodyDraftDocumentDrawingPlacementsItemLegacyGeometryFromMax).optional(),
+            "to": arrayType(numberType()).min(saveCircuitDocumentV2DraftBodyDraftDocumentDrawingPlacementsItemLegacyGeometryToMin).max(saveCircuitDocumentV2DraftBodyDraftDocumentDrawingPlacementsItemLegacyGeometryToMax).optional(),
+            "at": arrayType(numberType()).min(saveCircuitDocumentV2DraftBodyDraftDocumentDrawingPlacementsItemLegacyGeometryAtMin).max(saveCircuitDocumentV2DraftBodyDraftDocumentDrawingPlacementsItemLegacyGeometryAtMax).optional()
+          }).optional(),
+          "properties": recordType(stringType(), unknownType())
+        })),
+        "routes": arrayType(objectType({
+          "id": stringType().min(1),
+          "netId": stringType().min(1),
+          "points": arrayType(arrayType(numberType()).min(saveCircuitDocumentV2DraftBodyDraftDocumentDrawingRoutesItemPointsItemMin).max(saveCircuitDocumentV2DraftBodyDraftDocumentDrawingRoutesItemPointsItemMax)).min(saveCircuitDocumentV2DraftBodyDraftDocumentDrawingRoutesItemPointsMin),
+          "open": booleanType().optional(),
+          "properties": recordType(stringType(), unknownType())
+        })),
+        "junctions": arrayType(objectType({
+          "id": stringType().min(1),
+          "at": arrayType(numberType()).min(saveCircuitDocumentV2DraftBodyDraftDocumentDrawingJunctionsItemAtMin).max(saveCircuitDocumentV2DraftBodyDraftDocumentDrawingJunctionsItemAtMax),
+          "routeIds": arrayType(stringType().min(1)),
+          "properties": recordType(stringType(), unknownType())
+        })),
+        "crossings": arrayType(objectType({
+          "id": stringType().min(1),
+          "at": arrayType(numberType()).min(saveCircuitDocumentV2DraftBodyDraftDocumentDrawingCrossingsItemAtMin).max(saveCircuitDocumentV2DraftBodyDraftDocumentDrawingCrossingsItemAtMax),
+          "orientation": enumType(["horizontal", "vertical"]).optional(),
+          "routeIds": arrayType(stringType().min(1)),
+          "properties": recordType(stringType(), unknownType())
+        })),
+        "annotations": arrayType(unionType([objectType({
+          "id": stringType().min(1),
+          "type": enumType(["label"]),
+          "at": arrayType(numberType()).min(saveCircuitDocumentV2DraftBodyDraftDocumentDrawingAnnotationsItemOneAtMin).max(saveCircuitDocumentV2DraftBodyDraftDocumentDrawingAnnotationsItemOneAtMax),
+          "text": stringType(),
+          "properties": recordType(stringType(), unknownType())
+        }), objectType({
+          "id": stringType().min(1),
+          "type": enumType(["box"]),
+          "x": numberType(),
+          "y": numberType(),
+          "w": numberType(),
+          "h": numberType(),
+          "properties": recordType(stringType(), unknownType())
+        })]))
+      }),
+      "legacyImport": objectType({
+        "sourceFormat": enumType(["CircuitSpec"]),
+        "groundSemantics": enumType(["global-ground"]),
+        "terminalLabelSemantics": enumType(["local-labels-do-not-merge"]),
+        "sourceMetadata": recordType(stringType(), unknownType())
+      }).optional(),
+      "metadata": recordType(stringType(), unknownType()).optional()
+    })
+  })
+});
+var saveCircuitDocumentV2DraftResponseDraftDocumentElectricalComponentsItemPinsItemOccurrenceMin = 0;
+var saveCircuitDocumentV2DraftResponseDraftDocumentDrawingCanvasWidthExclusiveMin = 0;
+var saveCircuitDocumentV2DraftResponseDraftDocumentDrawingCanvasHeightExclusiveMin = 0;
+var saveCircuitDocumentV2DraftResponseDraftDocumentDrawingPlacementsItemPositionMin = 2;
+var saveCircuitDocumentV2DraftResponseDraftDocumentDrawingPlacementsItemPositionMax = 2;
+var saveCircuitDocumentV2DraftResponseDraftDocumentDrawingPlacementsItemLegacyGeometryFromMin = 2;
+var saveCircuitDocumentV2DraftResponseDraftDocumentDrawingPlacementsItemLegacyGeometryFromMax = 2;
+var saveCircuitDocumentV2DraftResponseDraftDocumentDrawingPlacementsItemLegacyGeometryToMin = 2;
+var saveCircuitDocumentV2DraftResponseDraftDocumentDrawingPlacementsItemLegacyGeometryToMax = 2;
+var saveCircuitDocumentV2DraftResponseDraftDocumentDrawingPlacementsItemLegacyGeometryAtMin = 2;
+var saveCircuitDocumentV2DraftResponseDraftDocumentDrawingPlacementsItemLegacyGeometryAtMax = 2;
+var saveCircuitDocumentV2DraftResponseDraftDocumentDrawingRoutesItemPointsItemMin = 2;
+var saveCircuitDocumentV2DraftResponseDraftDocumentDrawingRoutesItemPointsItemMax = 2;
+var saveCircuitDocumentV2DraftResponseDraftDocumentDrawingRoutesItemPointsMin = 2;
+var saveCircuitDocumentV2DraftResponseDraftDocumentDrawingJunctionsItemAtMin = 2;
+var saveCircuitDocumentV2DraftResponseDraftDocumentDrawingJunctionsItemAtMax = 2;
+var saveCircuitDocumentV2DraftResponseDraftDocumentDrawingCrossingsItemAtMin = 2;
+var saveCircuitDocumentV2DraftResponseDraftDocumentDrawingCrossingsItemAtMax = 2;
+var saveCircuitDocumentV2DraftResponseDraftDocumentDrawingAnnotationsItemOneAtMin = 2;
+var saveCircuitDocumentV2DraftResponseDraftDocumentDrawingAnnotationsItemOneAtMax = 2;
+var SaveCircuitDocumentV2DraftResponse = objectType({
+  "status": enumType(["saved"]),
+  "representation": enumType(["circuit-document-v2"]),
+  "schemaVersion": literalType(2),
+  "revision": numberType().int().min(1),
+  "updatedAt": coerce.date(),
+  "draft": objectType({
+    "format": enumType(["circuit-studio-draft"]),
+    "envelopeVersion": literalType(1),
+    "representation": enumType(["circuit-document-v2"]),
+    "document": objectType({
+      "schemaVersion": literalType(2),
+      "id": stringType().min(1),
+      "title": stringType().optional(),
+      "electrical": objectType({
+        "components": arrayType(objectType({
+          "id": stringType().min(1),
+          "type": stringType().min(1),
+          "reference": stringType().optional(),
+          "value": stringType().optional(),
+          "properties": recordType(stringType(), unknownType()),
+          "pins": arrayType(objectType({
+            "id": stringType().min(1),
+            "name": stringType().min(1),
+            "number": stringType().optional(),
+            "unit": numberType().int().min(1).optional(),
+            "bodyStyle": numberType().int().min(1).optional(),
+            "occurrence": numberType().int().min(saveCircuitDocumentV2DraftResponseDraftDocumentElectricalComponentsItemPinsItemOccurrenceMin).optional(),
+            "electricalType": stringType().optional()
+          }))
+        })),
+        "nets": arrayType(objectType({
+          "id": stringType().min(1),
+          "name": stringType().optional(),
+          "attributes": recordType(stringType(), unknownType()).optional(),
+          "members": arrayType(objectType({
+            "componentId": stringType().min(1),
+            "pinId": stringType().min(1)
+          }))
+        })),
+        "noConnects": arrayType(objectType({
+          "componentId": stringType().min(1),
+          "pinId": stringType().min(1)
+        })),
+        "unassignedPins": arrayType(objectType({
+          "componentId": stringType().min(1),
+          "pinId": stringType().min(1)
+        }))
+      }),
+      "drawing": objectType({
+        "units": enumType(["px"]),
+        "canvas": objectType({
+          "width": numberType().gt(saveCircuitDocumentV2DraftResponseDraftDocumentDrawingCanvasWidthExclusiveMin).optional(),
+          "height": numberType().gt(saveCircuitDocumentV2DraftResponseDraftDocumentDrawingCanvasHeightExclusiveMin).optional()
+        }),
+        "placements": arrayType(objectType({
+          "componentId": stringType().min(1),
+          "position": arrayType(numberType()).min(saveCircuitDocumentV2DraftResponseDraftDocumentDrawingPlacementsItemPositionMin).max(saveCircuitDocumentV2DraftResponseDraftDocumentDrawingPlacementsItemPositionMax),
+          "rotation": numberType(),
+          "flip": booleanType(),
+          "legacyGeometry": objectType({
+            "from": arrayType(numberType()).min(saveCircuitDocumentV2DraftResponseDraftDocumentDrawingPlacementsItemLegacyGeometryFromMin).max(saveCircuitDocumentV2DraftResponseDraftDocumentDrawingPlacementsItemLegacyGeometryFromMax).optional(),
+            "to": arrayType(numberType()).min(saveCircuitDocumentV2DraftResponseDraftDocumentDrawingPlacementsItemLegacyGeometryToMin).max(saveCircuitDocumentV2DraftResponseDraftDocumentDrawingPlacementsItemLegacyGeometryToMax).optional(),
+            "at": arrayType(numberType()).min(saveCircuitDocumentV2DraftResponseDraftDocumentDrawingPlacementsItemLegacyGeometryAtMin).max(saveCircuitDocumentV2DraftResponseDraftDocumentDrawingPlacementsItemLegacyGeometryAtMax).optional()
+          }).optional(),
+          "properties": recordType(stringType(), unknownType())
+        })),
+        "routes": arrayType(objectType({
+          "id": stringType().min(1),
+          "netId": stringType().min(1),
+          "points": arrayType(arrayType(numberType()).min(saveCircuitDocumentV2DraftResponseDraftDocumentDrawingRoutesItemPointsItemMin).max(saveCircuitDocumentV2DraftResponseDraftDocumentDrawingRoutesItemPointsItemMax)).min(saveCircuitDocumentV2DraftResponseDraftDocumentDrawingRoutesItemPointsMin),
+          "open": booleanType().optional(),
+          "properties": recordType(stringType(), unknownType())
+        })),
+        "junctions": arrayType(objectType({
+          "id": stringType().min(1),
+          "at": arrayType(numberType()).min(saveCircuitDocumentV2DraftResponseDraftDocumentDrawingJunctionsItemAtMin).max(saveCircuitDocumentV2DraftResponseDraftDocumentDrawingJunctionsItemAtMax),
+          "routeIds": arrayType(stringType().min(1)),
+          "properties": recordType(stringType(), unknownType())
+        })),
+        "crossings": arrayType(objectType({
+          "id": stringType().min(1),
+          "at": arrayType(numberType()).min(saveCircuitDocumentV2DraftResponseDraftDocumentDrawingCrossingsItemAtMin).max(saveCircuitDocumentV2DraftResponseDraftDocumentDrawingCrossingsItemAtMax),
+          "orientation": enumType(["horizontal", "vertical"]).optional(),
+          "routeIds": arrayType(stringType().min(1)),
+          "properties": recordType(stringType(), unknownType())
+        })),
+        "annotations": arrayType(unionType([objectType({
+          "id": stringType().min(1),
+          "type": enumType(["label"]),
+          "at": arrayType(numberType()).min(saveCircuitDocumentV2DraftResponseDraftDocumentDrawingAnnotationsItemOneAtMin).max(saveCircuitDocumentV2DraftResponseDraftDocumentDrawingAnnotationsItemOneAtMax),
+          "text": stringType(),
+          "properties": recordType(stringType(), unknownType())
+        }), objectType({
+          "id": stringType().min(1),
+          "type": enumType(["box"]),
+          "x": numberType(),
+          "y": numberType(),
+          "w": numberType(),
+          "h": numberType(),
+          "properties": recordType(stringType(), unknownType())
+        })]))
+      }),
+      "legacyImport": objectType({
+        "sourceFormat": enumType(["CircuitSpec"]),
+        "groundSemantics": enumType(["global-ground"]),
+        "terminalLabelSemantics": enumType(["local-labels-do-not-merge"]),
+        "sourceMetadata": recordType(stringType(), unknownType())
+      }).optional(),
+      "metadata": recordType(stringType(), unknownType()).optional()
+    })
+  })
 });
 var listCircuitBuilderHistoryResponseIdMax = 128;
 var listCircuitBuilderHistoryResponseTitleMax = 64;
@@ -56807,6 +57371,14 @@ var TRANSISTOR_PIN_OFFSETS = {
     C: [25, 44]
   }
 };
+var FIELD_EFFECT_PIN_OFFSETS = {
+  nmos: { G: [-40, 0], D: [20, -40], S: [20, 40] },
+  pmos: { G: [-40, 0], D: [20, -40], S: [20, 40] },
+  mosfet: { G: [-40, 0], D: [20, -40], S: [20, 40] },
+  njfet: { G: [-40, 0], D: [20, -40], S: [20, 40] },
+  pjfet: { G: [-40, 0], D: [20, -40], S: [20, 40] }
+};
+var SINGLE_PIN_TYPES = /* @__PURE__ */ new Set(["ground", "antenna", "terminal"]);
 var COMMON_PART_OPTIONAL_PROPERTIES = [
   "id",
   "label",
@@ -57021,12 +57593,153 @@ function getCircuitElementSchemaError(element) {
 function isPoint(value) {
   return Array.isArray(value) && value.length === 2 && typeof value[0] === "number" && Number.isFinite(value[0]) && typeof value[1] === "number" && Number.isFinite(value[1]);
 }
+function copyPoint(point3) {
+  return [point3[0], point3[1]];
+}
 function coordinateOffset(value, axis) {
   if (value === 0) return axis;
   return `${axis}${value > 0 ? "+" : "\u2212"}${Math.abs(value)}`;
 }
 function formatOffset([x, y]) {
   return `(${coordinateOffset(x, "x")}, ${coordinateOffset(y, "y")})`;
+}
+function getCircuitPins(element) {
+  const type = typeof element.type === "string" ? element.type : "";
+  const twoTerminalNames = TWO_TERMINAL_PIN_NAMES[type];
+  if (twoTerminalNames && isPoint(element.from) && isPoint(element.to)) {
+    return [
+      { name: twoTerminalNames[0], point: copyPoint(element.from) },
+      { name: twoTerminalNames[1], point: copyPoint(element.to) }
+    ];
+  }
+  if ((type === "npn" || type === "pnp") && isPoint(element.at)) {
+    const [x, y] = element.at;
+    const mirrored = element.flip === true ? -1 : 1;
+    return Object.entries(TRANSISTOR_PIN_OFFSETS[type]).map(([name, [dx, dy]]) => ({
+      name,
+      point: [x + dx * mirrored, y + dy]
+    }));
+  }
+  if (Object.hasOwn(FIELD_EFFECT_PIN_OFFSETS, type) && isPoint(element.at)) {
+    const [x, y] = element.at;
+    const mirrored = element.flip === true ? -1 : 1;
+    return Object.entries(FIELD_EFFECT_PIN_OFFSETS[type]).map(([name, [dx, dy]]) => ({
+      name,
+      point: [x + dx * mirrored, y + dy]
+    }));
+  }
+  if ((type === "opamp" || type === "comparator") && isPoint(element.at)) {
+    const [x, y] = element.at;
+    const inputTop = element.swap === true ? 20 : -20;
+    const inputBottom = -inputTop;
+    return [
+      { name: "INV", point: [x - 40, y + inputTop] },
+      { name: "NONINV", point: [x - 40, y + inputBottom] },
+      { name: "OUT", point: [x + 40, y] }
+    ];
+  }
+  if (type === "potentiometer" && isPoint(element.at)) {
+    const [x, y] = element.at;
+    return [
+      { name: "A", point: [x - 44, y] },
+      { name: "W", point: [x, y - 52] },
+      { name: "B", point: [x + 44, y] }
+    ];
+  }
+  if (type === "regulator" && isPoint(element.at)) {
+    const [x, y] = element.at;
+    return [
+      { name: "IN", point: [x - 50, y] },
+      { name: "GND", point: [x, y + 50] },
+      { name: "OUT", point: [x + 50, y] }
+    ];
+  }
+  if (type === "transformer" && isPoint(element.at)) {
+    const [x, y] = element.at;
+    return [
+      { name: "P1", point: [x - 50, y - 30] },
+      { name: "P2", point: [x - 50, y + 30] },
+      { name: "S1", point: [x + 50, y - 30] },
+      { name: "S2", point: [x + 50, y + 30] }
+    ];
+  }
+  if (type === "relay" && isPoint(element.at)) {
+    const [x, y] = element.at;
+    return [
+      { name: "COIL1", point: [x - 55, y - 20] },
+      { name: "COIL2", point: [x - 55, y + 20] },
+      { name: "COM", point: [x + 55, y] },
+      { name: "NC", point: [x + 55, y - 30] },
+      { name: "NO", point: [x + 55, y + 30] }
+    ];
+  }
+  if (type === "bridge" && isPoint(element.at)) {
+    const [x, y] = element.at;
+    return [
+      { name: "AC1", point: [x - 50, y - 30] },
+      { name: "AC2", point: [x - 50, y + 30] },
+      { name: "POS", point: [x + 50, y - 30] },
+      { name: "NEG", point: [x + 50, y + 30] }
+    ];
+  }
+  if (type === "opto" && isPoint(element.at)) {
+    const [x, y] = element.at;
+    return [
+      { name: "IN+", point: [x - 50, y - 20] },
+      { name: "IN-", point: [x - 50, y + 20] },
+      { name: "OUT", point: [x + 50, y - 20] },
+      { name: "EMIT", point: [x + 50, y + 20] }
+    ];
+  }
+  if ((type === "ic" || type === "connector") && isPoint(element.at) && Array.isArray(element.pins)) {
+    const [x, y] = element.at;
+    const pins = element.pins;
+    const sideCounts = {
+      left: pins.filter((pin) => pin?.side === "left").length,
+      right: pins.filter((pin) => pin?.side === "right").length
+    };
+    const sideIndexes = { left: 0, right: 0 };
+    return pins.flatMap((pin) => {
+      if (!pin || pin.side !== "left" && pin.side !== "right" || typeof pin.name !== "string") return [];
+      const index2 = sideIndexes[pin.side]++;
+      const offsetY = (index2 - (sideCounts[pin.side] - 1) / 2) * 24;
+      return [{
+        name: pin.name,
+        point: [x + (pin.side === "left" ? -64 : 64), y + offsetY]
+      }];
+    });
+  }
+  if (type === "kicad" && isPoint(element.at)) {
+    const symbolData = element.symbolData;
+    const unitNumber = Number.isInteger(element.unit) ? element.unit : 1;
+    const bodyStyle = Number.isInteger(element.bodyStyle) ? element.bodyStyle : 1;
+    const unitData = symbolData?.units?.find(
+      (unit) => unit.unit === unitNumber && unit.bodyStyle === bodyStyle
+    );
+    if (!unitData) return [];
+    const [x, y] = element.at;
+    const flip = element.flip === true ? -1 : 1;
+    const rotation = Number(element.rotation ?? 0) * Math.PI / 180;
+    const cos = Math.cos(rotation);
+    const sin = Math.sin(rotation);
+    const cleanCoordinate = (value) => Math.round(value * 100) / 100;
+    return unitData.pins.flatMap((pin) => {
+      if (!pin || !isPoint(pin.point)) return [];
+      const localX = pin.point[0] * flip;
+      const localY = pin.point[1];
+      return [{
+        name: pin.number || pin.name || "pin",
+        point: [
+          cleanCoordinate(x + localX * cos - localY * sin),
+          cleanCoordinate(y + localX * sin + localY * cos)
+        ]
+      }];
+    });
+  }
+  if (SINGLE_PIN_TYPES.has(type) && isPoint(element.at)) {
+    return [{ name: "at", point: copyPoint(element.at) }];
+  }
+  return [];
 }
 function formatCircuitPinGuide() {
   const lines = [
@@ -64295,12 +65008,12 @@ var circuitBuilderHistory = pgTable(
 );
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v4/classic/external.js
-var external_exports = {};
-__export(external_exports, {
+var external_exports2 = {};
+__export(external_exports2, {
   $brand: () => $brand,
   $input: () => $input,
   $output: () => $output,
-  NEVER: () => NEVER,
+  NEVER: () => NEVER2,
   TimePrecision: () => TimePrecision,
   ZodAny: () => ZodAny2,
   ZodArray: () => ZodArray2,
@@ -64390,7 +65103,7 @@ __export(external_exports, {
   core: () => core_exports2,
   cuid: () => cuid3,
   cuid2: () => cuid22,
-  custom: () => custom,
+  custom: () => custom2,
   date: () => date4,
   discriminatedUnion: () => discriminatedUnion,
   e164: () => e1642,
@@ -64472,7 +65185,7 @@ __export(external_exports, {
   safeParse: () => safeParse2,
   safeParseAsync: () => safeParseAsync2,
   set: () => set,
-  setErrorMap: () => setErrorMap,
+  setErrorMap: () => setErrorMap2,
   size: () => _size,
   startsWith: () => _startsWith,
   strictObject: () => strictObject,
@@ -64610,7 +65323,7 @@ __export(core_exports2, {
   Doc: () => Doc,
   JSONSchema: () => json_schema_exports,
   JSONSchemaGenerator: () => JSONSchemaGenerator,
-  NEVER: () => NEVER,
+  NEVER: () => NEVER2,
   TimePrecision: () => TimePrecision,
   _any: () => _any,
   _array: () => _array,
@@ -64751,7 +65464,7 @@ __export(core_exports2, {
 });
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v4/core/core.js
-var NEVER = Object.freeze({
+var NEVER2 = Object.freeze({
   status: "aborted"
 });
 // @__NO_SIDE_EFFECTS__
@@ -75327,7 +76040,7 @@ function check(fn) {
   ch._zod.check = fn;
   return ch;
 }
-function custom(fn, _params) {
+function custom2(fn, _params) {
   return _custom(ZodCustom, fn ?? (() => true), _params);
 }
 function refine(fn, _params = {}) {
@@ -75396,7 +76109,7 @@ var ZodIssueCode2 = {
   invalid_value: "invalid_value",
   custom: "custom"
 };
-function setErrorMap(map2) {
+function setErrorMap2(map2) {
   config({
     customError: map2
   });
@@ -75460,15 +76173,15 @@ function isColumnType(column, columnTypes) {
 function isWithEnum(column) {
   return "enumValues" in column && Array.isArray(column.enumValues) && column.enumValues.length > 0;
 }
-var literalSchema = external_exports.union([external_exports.string(), external_exports.number(), external_exports.boolean(), external_exports.null()]);
-var jsonSchema = external_exports.union([
+var literalSchema = external_exports2.union([external_exports2.string(), external_exports2.number(), external_exports2.boolean(), external_exports2.null()]);
+var jsonSchema = external_exports2.union([
   literalSchema,
-  external_exports.record(external_exports.string(), external_exports.any()),
-  external_exports.array(external_exports.any())
+  external_exports2.record(external_exports2.string(), external_exports2.any()),
+  external_exports2.array(external_exports2.any())
 ]);
-var bufferSchema = external_exports.custom((v) => v instanceof Buffer);
+var bufferSchema = external_exports2.custom((v) => v instanceof Buffer);
 function columnToSchema(column, factory) {
-  const z$1 = factory?.zodInstance ?? external_exports;
+  const z$1 = factory?.zodInstance ?? external_exports2;
   const coerce2 = factory?.coerce ?? {};
   let schema;
   if (isWithEnum(column)) {
@@ -75652,7 +76365,7 @@ function handleColumns(columns, refinements, conditions, factory) {
       continue;
     }
     const column = is(selected, Column) ? selected : void 0;
-    const schema = column ? columnToSchema(column, factory) : external_exports.any();
+    const schema = column ? columnToSchema(column, factory) : external_exports2.any();
     const refined = typeof refinement === "function" ? refinement(schema) : schema;
     if (conditions.never(column)) {
       continue;
@@ -75668,7 +76381,7 @@ function handleColumns(columns, refinements, conditions, factory) {
       }
     }
   }
-  return external_exports.object(columnSchemas);
+  return external_exports2.object(columnSchemas);
 }
 var insertConditions = {
   never: (column) => column?.generated?.type === "always" || column?.generatedIdentity?.type === "always",
@@ -75707,6 +76420,7 @@ var circuitStudioV2Drafts = pgTable(
     sessionId: text("session_id").notNull(),
     representation: text("representation").notNull(),
     schemaVersion: integer("schema_version").notNull(),
+    revision: integer("revision").notNull().default(1),
     draft: jsonb("draft").$type().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull()
   },
@@ -79363,8 +80077,1154 @@ router8.get(
 );
 var kicadSymbols_default = router8;
 
+// ../../lib/circuit-document/src/model.ts
+var CIRCUIT_DOCUMENT_SCHEMA_VERSION = 2;
+var CIRCUIT_DOCUMENT_DRAWING_TYPES = [
+  "wire",
+  "junction",
+  "crossing",
+  "label",
+  "box"
+];
+var finitePointSchema = external_exports.tuple([external_exports.number().finite(), external_exports.number().finite()]);
+var pinReferenceSchema = external_exports.object({
+  componentId: external_exports.string().min(1),
+  pinId: external_exports.string().min(1)
+}).strict();
+var propertiesSchema = external_exports.record(external_exports.string(), external_exports.unknown());
+var pinDefinitionSchema = external_exports.object({
+  id: external_exports.string().min(1),
+  name: external_exports.string().min(1),
+  number: external_exports.string().optional(),
+  unit: external_exports.number().int().positive().optional(),
+  bodyStyle: external_exports.number().int().positive().optional(),
+  occurrence: external_exports.number().int().nonnegative().optional(),
+  electricalType: external_exports.string().optional()
+}).strict();
+var supportedComponentTypeSchema = external_exports.custom(
+  (value) => typeof value === "string" && CIRCUIT_SUPPORTED_ELEMENT_TYPES.includes(
+    value
+  ) && !CIRCUIT_DOCUMENT_DRAWING_TYPES.includes(value),
+  { message: "Unsupported electrical component type." }
+);
+var componentSchema = external_exports.object({
+  id: external_exports.string().min(1),
+  type: supportedComponentTypeSchema,
+  reference: external_exports.string().optional(),
+  value: external_exports.string().optional(),
+  properties: propertiesSchema,
+  pins: external_exports.array(pinDefinitionSchema)
+}).strict();
+var netSchema = external_exports.object({
+  id: external_exports.string().min(1),
+  name: external_exports.string().optional(),
+  attributes: propertiesSchema.optional(),
+  members: external_exports.array(pinReferenceSchema)
+}).strict();
+var placementSchema = external_exports.object({
+  componentId: external_exports.string().min(1),
+  position: finitePointSchema,
+  rotation: external_exports.number().finite(),
+  flip: external_exports.boolean(),
+  legacyGeometry: external_exports.object({
+    from: finitePointSchema.optional(),
+    to: finitePointSchema.optional(),
+    at: finitePointSchema.optional()
+  }).strict().optional(),
+  properties: propertiesSchema
+}).strict();
+var routeSchema = external_exports.object({
+  id: external_exports.string().min(1),
+  netId: external_exports.string().min(1),
+  points: external_exports.array(finitePointSchema).min(2),
+  open: external_exports.boolean().optional(),
+  properties: propertiesSchema
+}).strict();
+var junctionSchema = external_exports.object({
+  id: external_exports.string().min(1),
+  at: finitePointSchema,
+  routeIds: external_exports.array(external_exports.string().min(1)),
+  properties: propertiesSchema
+}).strict();
+var crossingSchema = external_exports.object({
+  id: external_exports.string().min(1),
+  at: finitePointSchema,
+  orientation: external_exports.enum(["horizontal", "vertical"]).optional(),
+  routeIds: external_exports.array(external_exports.string().min(1)),
+  properties: propertiesSchema
+}).strict();
+var annotationSchema = external_exports.discriminatedUnion("type", [
+  external_exports.object({
+    id: external_exports.string().min(1),
+    type: external_exports.literal("label"),
+    at: finitePointSchema,
+    text: external_exports.string(),
+    properties: propertiesSchema
+  }).strict(),
+  external_exports.object({
+    id: external_exports.string().min(1),
+    type: external_exports.literal("box"),
+    x: external_exports.number().finite(),
+    y: external_exports.number().finite(),
+    w: external_exports.number().finite(),
+    h: external_exports.number().finite(),
+    properties: propertiesSchema
+  }).strict()
+]);
+var CircuitDocumentV2Schema = external_exports.object({
+  schemaVersion: external_exports.literal(CIRCUIT_DOCUMENT_SCHEMA_VERSION),
+  id: external_exports.string().min(1),
+  title: external_exports.string().optional(),
+  electrical: external_exports.object({
+    components: external_exports.array(componentSchema),
+    nets: external_exports.array(netSchema),
+    noConnects: external_exports.array(pinReferenceSchema),
+    unassignedPins: external_exports.array(pinReferenceSchema)
+  }).strict(),
+  drawing: external_exports.object({
+    units: external_exports.literal("px"),
+    canvas: external_exports.object({
+      width: external_exports.number().finite().positive().optional(),
+      height: external_exports.number().finite().positive().optional()
+    }).strict(),
+    placements: external_exports.array(placementSchema),
+    routes: external_exports.array(routeSchema),
+    junctions: external_exports.array(junctionSchema),
+    crossings: external_exports.array(crossingSchema),
+    annotations: external_exports.array(annotationSchema)
+  }).strict(),
+  legacyImport: external_exports.object({
+    sourceFormat: external_exports.literal("CircuitSpec"),
+    groundSemantics: external_exports.literal("global-ground"),
+    terminalLabelSemantics: external_exports.literal("local-labels-do-not-merge"),
+    sourceMetadata: propertiesSchema
+  }).strict().optional(),
+  metadata: propertiesSchema.optional()
+}).strict();
+var drawingTypeSet = new Set(CIRCUIT_DOCUMENT_DRAWING_TYPES);
+function isCircuitDocumentComponentType(value) {
+  return typeof value === "string" && !drawingTypeSet.has(value) && CIRCUIT_SUPPORTED_ELEMENT_TYPES.includes(
+    value
+  );
+}
+function getCircuitPinDefinitions(type, properties = {}) {
+  if (!isCircuitDocumentComponentType(type)) return null;
+  const geometry2 = {
+    ...properties,
+    type,
+    from: [0, 0],
+    to: [100, 0],
+    at: [0, 0]
+  };
+  const schemaError = getCircuitElementSchemaError(geometry2);
+  if (schemaError) return null;
+  const namesFromCatalog = getCircuitPins(geometry2).map((pin) => pin.name);
+  if (namesFromCatalog.length === 0) return null;
+  if (type !== "kicad") {
+    return namesFromCatalog.map((name) => ({ id: name, name }));
+  }
+  const symbolData = properties.symbolData;
+  const unit = Number.isInteger(properties.unit) ? properties.unit : 1;
+  const bodyStyle = Number.isInteger(properties.bodyStyle) ? properties.bodyStyle : 1;
+  const unitData = symbolData?.units.find(
+    (entry) => entry.unit === unit && entry.bodyStyle === bodyStyle
+  );
+  if (!unitData || unitData.pins.length !== namesFromCatalog.length) return null;
+  const occurrences = /* @__PURE__ */ new Map();
+  return unitData.pins.map((pin, index2) => {
+    const identity = `${pin.number}\0${pin.name}`;
+    const occurrence = occurrences.get(identity) ?? 0;
+    occurrences.set(identity, occurrence + 1);
+    const stableToken = (value) => encodeURIComponent(value || "_");
+    return {
+      id: `kicad:u${unit}:b${bodyStyle}:${stableToken(pin.number)}:${stableToken(pin.name)}:${occurrence}`,
+      name: namesFromCatalog[index2],
+      number: pin.number,
+      unit,
+      bodyStyle,
+      occurrence,
+      electricalType: pin.electricalType
+    };
+  });
+}
+
+// ../../lib/circuit-document/src/validation.ts
+var errorDiagnostic = (code, path2, message) => ({ code, severity: "error", path: path2, message });
+var warningDiagnostic = (code, path2, message) => ({ code, severity: "warning", path: path2, message });
+function pinKey(reference) {
+  return `${reference.componentId}\0${reference.pinId}`;
+}
+function parseDocument(value, errors) {
+  const result = CircuitDocumentV2Schema.safeParse(value);
+  if (result.success) return result.data;
+  for (const issue2 of result.error.issues) {
+    errors.push(errorDiagnostic(
+      "schema-invalid",
+      issue2.path.join("."),
+      issue2.message
+    ));
+  }
+  return null;
+}
+function validateUniqueIds(values, path2, errors) {
+  const ids = /* @__PURE__ */ new Set();
+  values.forEach((value, index2) => {
+    if (ids.has(value.id)) {
+      errors.push(errorDiagnostic(
+        "duplicate-id",
+        `${path2}.${index2}.id`,
+        `Duplicate ID "${value.id}".`
+      ));
+    }
+    ids.add(value.id);
+  });
+}
+function validateElectrical(document2, errors, unassignedPins) {
+  const components = /* @__PURE__ */ new Map();
+  const componentIndexes = /* @__PURE__ */ new Map();
+  document2.electrical.components.forEach((component, index2) => {
+    if (!components.has(component.id)) {
+      components.set(component.id, component);
+      componentIndexes.set(component.id, index2);
+    }
+  });
+  validateUniqueIds(document2.electrical.components, "electrical.components", errors);
+  validateUniqueIds(document2.electrical.nets, "electrical.nets", errors);
+  const knownPins = /* @__PURE__ */ new Map();
+  document2.electrical.components.forEach((component, componentIndex) => {
+    const properties = component.properties ?? {};
+    const canonicalPins = getCircuitPinDefinitions(component.type, properties);
+    if (!canonicalPins) {
+      errors.push(errorDiagnostic(
+        "pin-identities-unavailable",
+        `electrical.components.${componentIndex}`,
+        `Stable pin identities could not be derived from the shared catalog for ${component.id} (${component.type}).`
+      ));
+    } else {
+      const actualIds = component.pins.map((pin) => pin.id);
+      const canonicalIds = canonicalPins.map((pin) => pin.id);
+      if (actualIds.length !== canonicalIds.length || actualIds.some((id, index2) => id !== canonicalIds[index2])) {
+        errors.push(errorDiagnostic(
+          "pin-definitions-mismatch",
+          `electrical.components.${componentIndex}.pins`,
+          `Pin identities for ${component.id} do not match the shared component or imported symbol data.`
+        ));
+      }
+    }
+    const pins = /* @__PURE__ */ new Set();
+    component.pins.forEach((pin, pinIndex) => {
+      if (pins.has(pin.id)) {
+        errors.push(errorDiagnostic(
+          "duplicate-pin-id",
+          `electrical.components.${componentIndex}.pins.${pinIndex}.id`,
+          `Component ${component.id} contains duplicate pin identity "${pin.id}".`
+        ));
+      }
+      pins.add(pin.id);
+    });
+    knownPins.set(component.id, pins);
+  });
+  const assignmentCounts = /* @__PURE__ */ new Map();
+  const seenInCategory = /* @__PURE__ */ new Map();
+  const registerReference = (reference, category, path2) => {
+    const component = components.get(reference.componentId);
+    const validPins = knownPins.get(reference.componentId);
+    if (!component || !validPins) {
+      errors.push(errorDiagnostic(
+        "component-reference-missing",
+        path2,
+        `Pin reference points to missing component "${reference.componentId}".`
+      ));
+      return;
+    }
+    if (!validPins.has(reference.pinId)) {
+      errors.push(errorDiagnostic(
+        "pin-reference-invalid",
+        path2,
+        `Component ${reference.componentId} has no pin "${reference.pinId}".`
+      ));
+      return;
+    }
+    const key = pinKey(reference);
+    const previousCategory = seenInCategory.get(key);
+    if (previousCategory) {
+      errors.push(errorDiagnostic(
+        "duplicate-pin-reference",
+        path2,
+        `Pin ${reference.componentId}.${reference.pinId} appears more than once in ${previousCategory} or ${category}.`
+      ));
+    } else {
+      seenInCategory.set(key, category);
+    }
+    assignmentCounts.set(key, (assignmentCounts.get(key) ?? 0) + 1);
+  };
+  document2.electrical.nets.forEach((net, netIndex) => {
+    net.members.forEach((reference, memberIndex) => {
+      registerReference(
+        reference,
+        "net membership",
+        `electrical.nets.${netIndex}.members.${memberIndex}`
+      );
+    });
+  });
+  document2.electrical.noConnects.forEach((reference, index2) => {
+    registerReference(reference, "no-connect markers", `electrical.noConnects.${index2}`);
+  });
+  document2.electrical.unassignedPins.forEach((reference, index2) => {
+    registerReference(reference, "unassigned pins", `electrical.unassignedPins.${index2}`);
+    unassignedPins.push(reference);
+  });
+  document2.electrical.components.forEach((component, componentIndex) => {
+    component.pins.forEach((pin) => {
+      const reference = { componentId: component.id, pinId: pin.id };
+      const count = assignmentCounts.get(pinKey(reference)) ?? 0;
+      if (count !== 1) {
+        errors.push(errorDiagnostic(
+          count === 0 ? "pin-state-missing" : "pin-assigned-more-than-once",
+          `electrical.components.${componentIndex}.pins`,
+          count === 0 ? `Pin ${component.id}.${pin.id} must be listed on one net, marked no-connect, or listed as unassigned.` : `Pin ${component.id}.${pin.id} is assigned to more than one electrical state.`
+        ));
+      }
+    });
+  });
+}
+function validateDrawing(document2, errors, warnings) {
+  const componentIds = new Set(document2.electrical.components.map((component) => component.id));
+  const netIds = new Set(document2.electrical.nets.map((net) => net.id));
+  const routeById = new Map(document2.drawing.routes.map((route) => [route.id, route]));
+  const netByRoute = /* @__PURE__ */ new Map();
+  validateUniqueIds(document2.drawing.routes, "drawing.routes", errors);
+  validateUniqueIds(document2.drawing.junctions, "drawing.junctions", errors);
+  validateUniqueIds(document2.drawing.crossings, "drawing.crossings", errors);
+  validateUniqueIds(document2.drawing.annotations, "drawing.annotations", errors);
+  const placements = /* @__PURE__ */ new Set();
+  document2.drawing.placements.forEach((placement, index2) => {
+    if (!componentIds.has(placement.componentId)) {
+      errors.push(errorDiagnostic(
+        "placement-component-missing",
+        `drawing.placements.${index2}.componentId`,
+        `Placement references missing component "${placement.componentId}".`
+      ));
+    }
+    if (placements.has(placement.componentId)) {
+      errors.push(errorDiagnostic(
+        "duplicate-placement",
+        `drawing.placements.${index2}.componentId`,
+        `Component "${placement.componentId}" has more than one placement.`
+      ));
+    }
+    placements.add(placement.componentId);
+  });
+  document2.drawing.routes.forEach((route, index2) => {
+    if (!netIds.has(route.netId)) {
+      errors.push(errorDiagnostic(
+        "route-net-missing",
+        `drawing.routes.${index2}.netId`,
+        `Route "${route.id}" references missing net "${route.netId}".`
+      ));
+    }
+    netByRoute.set(route.id, route.netId);
+    route.points.slice(1).forEach((point3, pointIndex) => {
+      const previous = route.points[pointIndex];
+      if (previous[0] !== point3[0] && previous[1] !== point3[1]) {
+        warnings.push(warningDiagnostic(
+          "diagonal-route",
+          `drawing.routes.${index2}.points.${pointIndex + 1}`,
+          `Route "${route.id}" contains a diagonal segment; electrical membership is unaffected.`
+        ));
+      }
+      if (previous[0] === point3[0] && previous[1] === point3[1]) {
+        warnings.push(warningDiagnostic(
+          "zero-length-route-segment",
+          `drawing.routes.${index2}.points.${pointIndex + 1}`,
+          `Route "${route.id}" contains a zero-length segment.`
+        ));
+      }
+    });
+  });
+  const checkAnnotationRoutes = (id, at, routeIds, path2, kind) => {
+    const referencedNets = /* @__PURE__ */ new Set();
+    const uniqueRouteIds = new Set(routeIds);
+    routeIds.forEach((routeId, routeIndex) => {
+      const route = routeById.get(routeId);
+      if (!route) {
+        errors.push(errorDiagnostic(
+          "drawing-route-missing",
+          `${path2}.routeIds.${routeIndex}`,
+          `${kind} "${id}" references missing route "${routeId}".`
+        ));
+        return;
+      }
+      referencedNets.add(route.netId);
+      if (!routeTouches(route, at)) {
+        errors.push(errorDiagnostic(
+          `${kind}-route-not-at-point`,
+          `${path2}.routeIds.${routeIndex}`,
+          `${kind} "${id}" references route "${routeId}" that does not pass through its annotation point.`
+        ));
+      }
+    });
+    if (uniqueRouteIds.size !== routeIds.length) {
+      errors.push(errorDiagnostic(
+        `${kind}-route-duplicate`,
+        `${path2}.routeIds`,
+        `${kind} "${id}" repeats a route reference.`
+      ));
+    }
+    if (kind === "junction" && referencedNets.size > 1) {
+      errors.push(errorDiagnostic(
+        "junction-crosses-nets",
+        path2,
+        `Junction "${id}" visually touches routes from different net IDs; it cannot merge them.`
+      ));
+    } else if (kind === "junction" && routeIds.length < 2) {
+      errors.push(errorDiagnostic(
+        "junction-under-specified",
+        path2,
+        `Junction "${id}" references fewer than two routes.`
+      ));
+    } else if (kind === "crossing" && referencedNets.size === 1 && routeIds.length > 1) {
+      warnings.push(warningDiagnostic(
+        "crossing-same-net",
+        path2,
+        `Crossing "${id}" visually separates routes assigned to the same net ID.`
+      ));
+    } else if (kind === "crossing" && routeIds.length < 2) {
+      errors.push(errorDiagnostic(
+        "crossing-under-specified",
+        path2,
+        `Crossing "${id}" references fewer than two routes.`
+      ));
+    }
+  };
+  document2.drawing.junctions.forEach((junction, index2) => {
+    checkAnnotationRoutes(
+      junction.id,
+      junction.at,
+      junction.routeIds,
+      `drawing.junctions.${index2}`,
+      "junction"
+    );
+  });
+  document2.drawing.crossings.forEach((crossing, index2) => {
+    checkAnnotationRoutes(
+      crossing.id,
+      crossing.at,
+      crossing.routeIds,
+      `drawing.crossings.${index2}`,
+      "crossing"
+    );
+  });
+  void netByRoute;
+}
+function pointOnSegment(point3, start, end) {
+  const [x, y] = point3;
+  const [x1, y1] = start;
+  const [x2, y2] = end;
+  const cross = (x - x1) * (y2 - y1) - (y - y1) * (x2 - x1);
+  if (Math.abs(cross) > 1e-6) return false;
+  return x >= Math.min(x1, x2) - 1e-6 && x <= Math.max(x1, x2) + 1e-6 && y >= Math.min(y1, y2) - 1e-6 && y <= Math.max(y1, y2) + 1e-6;
+}
+function routeTouches(route, point3) {
+  return route.points.some(
+    (candidate) => Math.abs(candidate[0] - point3[0]) <= 1e-6 && Math.abs(candidate[1] - point3[1]) <= 1e-6
+  ) || route.points.slice(1).some(
+    (end, index2) => pointOnSegment(point3, route.points[index2], end)
+  );
+}
+function worldPinPoints(component, placement) {
+  if (!placement) return /* @__PURE__ */ new Map();
+  const geometry2 = {
+    ...component.properties,
+    type: component.type,
+    ...placement.legacyGeometry,
+    at: placement.legacyGeometry?.at ?? placement.position,
+    flip: placement.flip,
+    rotation: placement.rotation
+  };
+  const pins = getCircuitPins(geometry2);
+  return new Map(component.pins.flatMap((pin, index2) => {
+    const point3 = pins[index2]?.point;
+    return point3 ? [[pin.id, point3]] : [];
+  }));
+}
+function checkCircuitDrawingConsistency(value) {
+  const parse4 = CircuitDocumentV2Schema.safeParse(value);
+  if (!parse4.success) {
+    return parse4.error.issues.map(
+      (issue2) => errorDiagnostic("schema-invalid", issue2.path.join("."), issue2.message)
+    );
+  }
+  const document2 = parse4.data;
+  const placementByComponent = new Map(
+    document2.drawing.placements.map((placement) => [placement.componentId, placement])
+  );
+  const componentById = new Map(
+    document2.electrical.components.map((component) => [component.id, component])
+  );
+  const pinPoints = /* @__PURE__ */ new Map();
+  document2.electrical.components.forEach((component) => {
+    const points = worldPinPoints(component, placementByComponent.get(component.id));
+    points.forEach((point3, pinId) => pinPoints.set(
+      pinKey({ componentId: component.id, pinId }),
+      point3
+    ));
+  });
+  const warnings = [];
+  document2.electrical.nets.forEach((net, netIndex) => {
+    if (net.members.length < 2) return;
+    const membersWithPoints = net.members.flatMap((member) => {
+      const point3 = pinPoints.get(pinKey(member));
+      return point3 ? [{ member, point: point3 }] : [];
+    });
+    if (membersWithPoints.length < 2) {
+      warnings.push(warningDiagnostic(
+        "net-visual-connection-unknown",
+        `electrical.nets.${netIndex}`,
+        `Net "${net.id}" has multiple members but not enough placed pin geometry to check its visible connection.`
+      ));
+      return;
+    }
+    const disconnected = membersWithPoints.filter(({ member, point: point3 }) => {
+      const hasSameNetRoute = document2.drawing.routes.some(
+        (route) => route.netId === net.id && routeTouches(route, point3)
+      );
+      const hasCoincidentSameNetPin = membersWithPoints.some(
+        (other) => other.member.componentId !== member.componentId || other.member.pinId !== member.pinId
+      ) && membersWithPoints.some(
+        (other) => (other.member.componentId !== member.componentId || other.member.pinId !== member.pinId) && Math.abs(other.point[0] - point3[0]) <= 1e-6 && Math.abs(other.point[1] - point3[1]) <= 1e-6
+      );
+      return !hasSameNetRoute && !hasCoincidentSameNetPin;
+    });
+    if (disconnected.length > 0) {
+      warnings.push(warningDiagnostic(
+        "net-not-visibly-connected",
+        `electrical.nets.${netIndex}`,
+        `Net "${net.id}" contains electrically connected pins that are not all represented by a visible route or coincident pin geometry.`
+      ));
+    }
+  });
+  document2.drawing.routes.forEach((route, routeIndex) => {
+    const sameNetMembers = document2.electrical.nets.find((net) => net.id === route.netId)?.members ?? [];
+    if (sameNetMembers.length === 0) {
+      warnings.push(warningDiagnostic(
+        "route-has-no-electrical-pins",
+        `drawing.routes.${routeIndex}`,
+        `Route "${route.id}" belongs to a net with no component pin members.`
+      ));
+      return;
+    }
+    const touchesAnyMember = sameNetMembers.some((member) => {
+      const point3 = pinPoints.get(pinKey(member));
+      return point3 ? routeTouches(route, point3) : false;
+    });
+    if (!touchesAnyMember) {
+      warnings.push(warningDiagnostic(
+        "route-does-not-touch-net-pin",
+        `drawing.routes.${routeIndex}`,
+        `Route "${route.id}" does not visibly touch a pin assigned to net "${route.netId}".`
+      ));
+    }
+  });
+  const explicitCrossings = new Set(
+    document2.drawing.crossings.flatMap((crossing) => crossing.routeIds.length > 1 ? [crossing.routeIds.slice().sort().join("\0") + "\0" + crossing.at.join(",")] : [])
+  );
+  for (let firstIndex = 0; firstIndex < document2.drawing.routes.length; firstIndex += 1) {
+    const first = document2.drawing.routes[firstIndex];
+    for (let secondIndex = firstIndex + 1; secondIndex < document2.drawing.routes.length; secondIndex += 1) {
+      const second = document2.drawing.routes[secondIndex];
+      if (first.netId === second.netId) continue;
+      const intersections = [];
+      first.points.slice(1).forEach((firstEnd, i) => {
+        const firstStart = first.points[i];
+        second.points.slice(1).forEach((secondEnd, j) => {
+          const secondStart = second.points[j];
+          const candidates = [
+            [firstStart[0], secondStart[1]],
+            [secondStart[0], firstStart[1]]
+          ];
+          candidates.forEach((point3) => {
+            if (pointOnSegment(point3, firstStart, firstEnd) && pointOnSegment(point3, secondStart, secondEnd) && !intersections.some(
+              (existing) => existing[0] === point3[0] && existing[1] === point3[1]
+            )) intersections.push(point3);
+          });
+        });
+      });
+      intersections.forEach((point3) => {
+        const refs = [first.id, second.id].sort().join("\0");
+        const marked = explicitCrossings.has(`${refs}\0${point3.join(",")}`);
+        if (!marked) {
+          warnings.push(warningDiagnostic(
+            "unmarked-route-crossing",
+            "drawing.routes",
+            `Different-net routes "${first.id}" and "${second.id}" cross at (${point3[0]}, ${point3[1]}) without an explicit visual crossing marker.`
+          ));
+        }
+      });
+    }
+  }
+  void componentById;
+  return warnings;
+}
+function validateCircuitDocumentV2(value) {
+  const schemaErrors = [];
+  const electricalErrors = [];
+  const drawingErrors = [];
+  const drawingWarnings = [];
+  const consistencyWarnings = [];
+  const unassignedPins = [];
+  const document2 = parseDocument(value, schemaErrors);
+  if (!document2) {
+    return {
+      schemaErrors,
+      electricalErrors,
+      drawingErrors,
+      drawingWarnings,
+      consistencyWarnings,
+      unassignedPins,
+      isValid: false
+    };
+  }
+  validateElectrical(document2, electricalErrors, unassignedPins);
+  validateDrawing(document2, drawingErrors, drawingWarnings);
+  consistencyWarnings.push(...checkCircuitDrawingConsistency(document2));
+  return {
+    schemaErrors,
+    electricalErrors,
+    drawingErrors,
+    drawingWarnings,
+    consistencyWarnings,
+    unassignedPins,
+    isValid: schemaErrors.length === 0 && electricalErrors.length === 0 && drawingErrors.length === 0
+  };
+}
+
+// ../../lib/circuit-document/src/legacy.ts
+var drawingTypeSet2 = new Set(CIRCUIT_DOCUMENT_DRAWING_TYPES);
+
+// ../../lib/circuit-document/src/persistence.ts
+var CIRCUIT_DRAFT_FORMAT = "circuit-studio-draft";
+var CIRCUIT_DRAFT_ENVELOPE_VERSION = 1;
+function isRecord4(value) {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+function isLegacyCircuitSpec(value) {
+  return isRecord4(value) && typeof value.title === "string" && Array.isArray(value.elements);
+}
+function quarantine(code, message, rawValue, diagnostics = []) {
+  return { status: "quarantined", code, message, diagnostics, rawValue };
+}
+function parsePersistedCircuitDraft(value) {
+  if (!isRecord4(value)) {
+    return quarantine(
+      "malformed-envelope",
+      "A saved circuit draft must be an object.",
+      value
+    );
+  }
+  const hasRepresentationMarker = "format" in value || "representation" in value || "document" in value;
+  if (!hasRepresentationMarker && isLegacyCircuitSpec(value)) {
+    return {
+      status: "legacy",
+      representation: "legacy-circuit-spec",
+      document: value
+    };
+  }
+  if (!hasRepresentationMarker || value.format !== CIRCUIT_DRAFT_FORMAT) {
+    return quarantine(
+      "malformed-envelope",
+      "The circuit draft does not have a supported representation marker.",
+      value
+    );
+  }
+  if ("currentSpec" in value || "legacySpec" in value || "legacyDocument" in value || "title" in value && "elements" in value) {
+    return quarantine(
+      "mixed-representations",
+      "The saved envelope contains both legacy and versioned circuit data.",
+      value
+    );
+  }
+  const allowedEnvelopeKeys = /* @__PURE__ */ new Set([
+    "format",
+    "envelopeVersion",
+    "representation",
+    "document"
+  ]);
+  const unexpectedKeys = Object.keys(value).filter(
+    (key) => !allowedEnvelopeKeys.has(key)
+  );
+  if (unexpectedKeys.length > 0) {
+    return quarantine(
+      "malformed-envelope",
+      "The circuit draft envelope contains unrecognized fields.",
+      value,
+      unexpectedKeys.map((path2) => ({
+        path: path2,
+        message: "Unexpected envelope field."
+      }))
+    );
+  }
+  if (value.envelopeVersion !== CIRCUIT_DRAFT_ENVELOPE_VERSION) {
+    return quarantine(
+      "unsupported-envelope-version",
+      "This circuit draft envelope version is not supported.",
+      value
+    );
+  }
+  if (value.representation === "legacy-circuit-spec") {
+    if (!isLegacyCircuitSpec(value.document)) {
+      return quarantine(
+        "invalid-document",
+        "The saved legacy CircuitSpec is malformed.",
+        value
+      );
+    }
+    return {
+      status: "legacy",
+      representation: "legacy-circuit-spec",
+      document: value.document
+    };
+  }
+  if (value.representation !== "circuit-document-v2") {
+    return quarantine(
+      "unsupported-representation",
+      "This circuit draft representation is not supported.",
+      value
+    );
+  }
+  const candidate = value.document;
+  if (isRecord4(candidate) && typeof candidate.schemaVersion === "number" && candidate.schemaVersion !== 2) {
+    return quarantine(
+      "unsupported-schema-version",
+      `CircuitDocument schema version ${candidate.schemaVersion} is not supported.`,
+      value
+    );
+  }
+  const parsed = CircuitDocumentV2Schema.safeParse(candidate);
+  if (!parsed.success) {
+    return quarantine(
+      "invalid-document",
+      "The saved CircuitDocumentV2 does not match its schema.",
+      value,
+      parsed.error.issues.map((issue2) => ({
+        path: issue2.path.join("."),
+        message: issue2.message
+      }))
+    );
+  }
+  const validation = validateCircuitDocumentV2(parsed.data);
+  const diagnostics = [
+    ...validation.schemaErrors,
+    ...validation.electricalErrors,
+    ...validation.drawingErrors
+  ].map(({ path: path2, message }) => ({ path: path2, message }));
+  if (!validation.isValid) {
+    return quarantine(
+      "invalid-document",
+      "The saved CircuitDocumentV2 failed model validation.",
+      value,
+      diagnostics
+    );
+  }
+  return {
+    status: "v2",
+    representation: "circuit-document-v2",
+    document: parsed.data
+  };
+}
+
+// src/lib/circuitDocumentDraftService.ts
+function validScope(userId, sessionId) {
+  return userId.trim().length > 0 && sessionId.trim().length > 0 && sessionId.length <= 128;
+}
+var MAX_EXPECTED_REVISION = 2147483646;
+function createCircuitDocumentV2DraftPersistence(repository, now = () => /* @__PURE__ */ new Date()) {
+  return {
+    async save(userId, sessionId, expectedRevision, input) {
+      if (!validScope(userId, sessionId)) {
+        return {
+          status: "rejected",
+          code: "invalid-scope",
+          message: "A signed-in user and valid session ID are required.",
+          diagnostics: []
+        };
+      }
+      if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0 || expectedRevision > MAX_EXPECTED_REVISION) {
+        return {
+          status: "rejected",
+          code: "invalid-revision",
+          message: "A valid expected storage revision is required.",
+          diagnostics: []
+        };
+      }
+      const parsed = parsePersistedCircuitDraft(input);
+      if (parsed.status !== "v2") {
+        return {
+          status: "rejected",
+          code: parsed.status === "quarantined" ? parsed.code : "wrong-representation",
+          message: parsed.status === "quarantined" ? parsed.message : "Only explicitly marked CircuitDocumentV2 drafts can be saved here.",
+          diagnostics: parsed.status === "quarantined" ? parsed.diagnostics : []
+        };
+      }
+      const updatedAt = now();
+      const draft = {
+        format: CIRCUIT_DRAFT_FORMAT,
+        envelopeVersion: CIRCUIT_DRAFT_ENVELOPE_VERSION,
+        representation: "circuit-document-v2",
+        document: parsed.document
+      };
+      try {
+        const record2 = {
+          userId,
+          sessionId,
+          representation: "circuit-document-v2",
+          schemaVersion: parsed.document.schemaVersion,
+          revision: expectedRevision + 1,
+          draft,
+          updatedAt
+        };
+        const stored = expectedRevision === 0 ? await repository.createIfAbsent(record2) : await repository.updateIfRevision(record2, expectedRevision);
+        if (!stored) return { status: "conflict" };
+        return {
+          status: "saved",
+          revision: stored.revision,
+          updatedAt: stored.updatedAt,
+          draft
+        };
+      } catch {
+        return {
+          status: "failed",
+          code: "storage-failed",
+          message: "The v2 circuit draft could not be saved. The previous saved draft remains available."
+        };
+      }
+    },
+    async load(userId, sessionId) {
+      if (!validScope(userId, sessionId)) return { status: "empty" };
+      let record2;
+      try {
+        record2 = await repository.getOwned(userId, sessionId);
+      } catch {
+        return {
+          status: "failed",
+          code: "storage-failed",
+          message: "The v2 circuit draft could not be loaded."
+        };
+      }
+      if (!record2) return { status: "empty" };
+      const parsed = parsePersistedCircuitDraft(record2.draft);
+      if (record2.representation !== "circuit-document-v2") {
+        return {
+          status: "quarantined",
+          code: "unsupported-representation",
+          message: "The saved record uses an unsupported circuit representation.",
+          diagnostics: [],
+          rawDraft: record2.draft
+        };
+      }
+      if (record2.schemaVersion !== 2) {
+        return {
+          status: "quarantined",
+          code: "unsupported-schema-version",
+          message: `CircuitDocument schema version ${record2.schemaVersion} is not supported.`,
+          diagnostics: [],
+          rawDraft: record2.draft
+        };
+      }
+      if (parsed.status !== "v2") {
+        return {
+          status: "quarantined",
+          code: parsed.status === "quarantined" ? parsed.code : "wrong-representation",
+          message: parsed.status === "quarantined" ? parsed.message : "A legacy CircuitSpec cannot be interpreted as a v2 draft.",
+          diagnostics: parsed.status === "quarantined" ? parsed.diagnostics : [],
+          rawDraft: record2.draft
+        };
+      }
+      if (parsed.document.schemaVersion !== record2.schemaVersion) {
+        return {
+          status: "quarantined",
+          code: "schema-version-mismatch",
+          message: "The stored schema version does not match the saved document.",
+          diagnostics: [],
+          rawDraft: record2.draft
+        };
+      }
+      return {
+        status: "loaded",
+        revision: record2.revision,
+        updatedAt: record2.updatedAt,
+        draft: {
+          format: CIRCUIT_DRAFT_FORMAT,
+          envelopeVersion: CIRCUIT_DRAFT_ENVELOPE_VERSION,
+          representation: "circuit-document-v2",
+          document: parsed.document
+        }
+      };
+    }
+  };
+}
+
+// src/lib/circuitDocumentDraftRepository.ts
+var databaseRepository = {
+  async createIfAbsent(record2) {
+    const [created] = await db.insert(circuitStudioV2Drafts).values(record2).onConflictDoNothing({
+      target: [
+        circuitStudioV2Drafts.userId,
+        circuitStudioV2Drafts.sessionId
+      ]
+    }).returning();
+    return created ?? null;
+  },
+  async updateIfRevision(record2, expectedRevision) {
+    const [updated] = await db.update(circuitStudioV2Drafts).set({
+      representation: record2.representation,
+      schemaVersion: record2.schemaVersion,
+      revision: sql`${circuitStudioV2Drafts.revision} + 1`,
+      draft: record2.draft,
+      updatedAt: record2.updatedAt
+    }).where(
+      and(
+        eq(circuitStudioV2Drafts.userId, record2.userId),
+        eq(circuitStudioV2Drafts.sessionId, record2.sessionId),
+        eq(circuitStudioV2Drafts.revision, expectedRevision)
+      )
+    ).returning();
+    return updated ?? null;
+  },
+  async getOwned(userId, sessionId) {
+    const [record2] = await db.select().from(circuitStudioV2Drafts).where(
+      and(
+        eq(circuitStudioV2Drafts.userId, userId),
+        eq(circuitStudioV2Drafts.sessionId, sessionId)
+      )
+    ).limit(1);
+    return record2 ?? null;
+  }
+};
+var circuitDocumentV2DraftPersistence = createCircuitDocumentV2DraftPersistence(databaseRepository);
+
+// src/routes/circuitDocumentDrafts.ts
+var import_express17 = __toESM(require_express2(), 1);
+var VALID_ERROR_CODES = /* @__PURE__ */ new Set([
+  "authentication-required",
+  "invalid-session-id",
+  "invalid-request",
+  "invalid-scope",
+  "invalid-revision",
+  "malformed-envelope",
+  "unsupported-envelope-version",
+  "unsupported-representation",
+  "unsupported-schema-version",
+  "mixed-representations",
+  "invalid-document",
+  "wrong-representation",
+  "schema-version-mismatch",
+  "revision-conflict",
+  "storage-failed"
+]);
+function safeErrorCode(code) {
+  return VALID_ERROR_CODES.has(code) ? code : "invalid-document";
+}
+function sendDraftError(response, status, code, message, diagnostics = []) {
+  const body = { code, message, diagnostics };
+  response.status(status).json(body);
+}
+function toDiagnostics(issues) {
+  return issues.map((issue2) => ({
+    path: issue2.path.map(String).join("."),
+    message: issue2.message
+  }));
+}
+function isRecord5(value) {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+function errorForLoad(response, result) {
+  if (result.status === "failed") {
+    sendDraftError(response, 503, "storage-failed", result.message);
+    return;
+  }
+  sendDraftError(
+    response,
+    422,
+    safeErrorCode(result.code),
+    result.message,
+    result.diagnostics
+  );
+}
+function createCircuitDocumentV2DraftRouter(options) {
+  const persistence = options.persistence;
+  const resolveUserId = options.resolveUserId ?? ((request2) => getAuth(request2).userId);
+  const router10 = (0, import_express17.Router)();
+  const requireAuth8 = (request2, response, next) => {
+    const userId = resolveUserId(request2);
+    if (!userId) {
+      sendDraftError(
+        response,
+        401,
+        "authentication-required",
+        "Sign in to access V2 circuit documents."
+      );
+      return;
+    }
+    response.locals.circuitDocumentUserId = userId;
+    next();
+  };
+  router10.get(
+    "/circuit-documents/v2/sessions/:sessionId",
+    requireAuth8,
+    async (request2, response) => {
+      const parsedParams = LoadCircuitDocumentV2DraftParams.safeParse(
+        request2.params
+      );
+      if (!parsedParams.success) {
+        sendDraftError(
+          response,
+          400,
+          "invalid-session-id",
+          "The session identifier is invalid.",
+          toDiagnostics(parsedParams.error.issues)
+        );
+        return;
+      }
+      try {
+        const userId = response.locals.circuitDocumentUserId;
+        const result = await persistence.load(
+          userId,
+          parsedParams.data.sessionId
+        );
+        if (result.status === "empty") {
+          response.json(LoadCircuitDocumentV2DraftResponse.parse({ status: "empty" }));
+          return;
+        }
+        if (result.status === "failed" || result.status === "quarantined") {
+          errorForLoad(response, result);
+          return;
+        }
+        response.json(
+          LoadCircuitDocumentV2DraftResponse.parse({
+            status: "loaded",
+            representation: result.draft.representation,
+            schemaVersion: result.draft.document.schemaVersion,
+            revision: result.revision,
+            updatedAt: result.updatedAt,
+            draft: result.draft
+          })
+        );
+      } catch {
+        sendDraftError(
+          response,
+          503,
+          "storage-failed",
+          "The V2 circuit document could not be loaded."
+        );
+      }
+    }
+  );
+  router10.put(
+    "/circuit-documents/v2/sessions/:sessionId",
+    requireAuth8,
+    async (request2, response) => {
+      const parsedParams = SaveCircuitDocumentV2DraftParams.safeParse(
+        request2.params
+      );
+      if (!parsedParams.success) {
+        sendDraftError(
+          response,
+          400,
+          "invalid-session-id",
+          "The session identifier is invalid.",
+          toDiagnostics(parsedParams.error.issues)
+        );
+        return;
+      }
+      const unknownFields = isRecord5(request2.body) ? Object.keys(request2.body).filter(
+        (key) => key !== "expectedRevision" && key !== "draft"
+      ) : [];
+      if (unknownFields.length > 0) {
+        sendDraftError(
+          response,
+          400,
+          "invalid-request",
+          "The request contains unsupported fields.",
+          unknownFields.map((path2) => ({
+            path: path2,
+            message: "Unexpected request field."
+          }))
+        );
+        return;
+      }
+      const parsedBody = SaveCircuitDocumentV2DraftBody.safeParse(request2.body);
+      if (!parsedBody.success) {
+        sendDraftError(
+          response,
+          400,
+          "invalid-request",
+          "The V2 circuit document request is invalid.",
+          toDiagnostics(parsedBody.error.issues)
+        );
+        return;
+      }
+      try {
+        const userId = response.locals.circuitDocumentUserId;
+        const result = await persistence.save(
+          userId,
+          parsedParams.data.sessionId,
+          parsedBody.data.expectedRevision,
+          isRecord5(request2.body) ? request2.body.draft : void 0
+        );
+        if (result.status === "conflict") {
+          sendDraftError(
+            response,
+            409,
+            "revision-conflict",
+            "The saved V2 document changed. Reload it before saving again."
+          );
+          return;
+        }
+        if (result.status === "failed") {
+          sendDraftError(response, 503, "storage-failed", result.message);
+          return;
+        }
+        if (result.status === "rejected") {
+          sendDraftError(
+            response,
+            400,
+            safeErrorCode(result.code),
+            result.message,
+            result.diagnostics
+          );
+          return;
+        }
+        response.json(
+          SaveCircuitDocumentV2DraftResponse.parse({
+            status: "saved",
+            representation: result.draft.representation,
+            schemaVersion: result.draft.document.schemaVersion,
+            revision: result.revision,
+            updatedAt: result.updatedAt,
+            draft: result.draft
+          })
+        );
+      } catch {
+        sendDraftError(
+          response,
+          503,
+          "storage-failed",
+          "The V2 circuit document could not be saved."
+        );
+      }
+    }
+  );
+  return router10;
+}
+
+// src/routes/circuitDocumentDraftsProduction.ts
+var circuitDocumentDraftsProduction_default = createCircuitDocumentV2DraftRouter({
+  persistence: circuitDocumentV2DraftPersistence
+});
+
 // src/routes/index.ts
-var router9 = (0, import_express16.Router)();
+var router9 = (0, import_express18.Router)();
 router9.use(health_default);
 router9.use(circuits_default);
 router9.use(tutor_default);
@@ -79372,6 +81232,7 @@ router9.use(circuitBuilder_default);
 router9.use(circuitBuilderHistory_default);
 router9.use(circuitBuilderMemories_default);
 router9.use(kicadSymbols_default);
+router9.use(circuitDocumentDraftsProduction_default);
 router9.use(aiUsage_default);
 var routes_default = router9;
 
@@ -80834,7 +82695,7 @@ function clerkProxyMiddleware() {
 }
 
 // src/app.ts
-var app = (0, import_express17.default)();
+var app = (0, import_express19.default)();
 app.set("trust proxy", 1);
 app.use(
   (0, import_pino_http.default)({
@@ -80857,8 +82718,8 @@ app.use(
 );
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 app.use((0, import_cors.default)({ credentials: true, origin: true }));
-app.use(import_express17.default.json({ limit: "6mb" }));
-app.use(import_express17.default.urlencoded({ extended: true }));
+app.use(import_express19.default.json({ limit: "6mb" }));
+app.use(import_express19.default.urlencoded({ extended: true }));
 app.use(
   clerkMiddleware((req) => ({
     publishableKey: publishableKeyFromHost(

@@ -68,13 +68,13 @@ structured quarantine results and retain the original value for recovery.
 Server-side v2 drafts are stored in the additive
 `circuit_studio_v2_drafts` table, scoped by the verified Clerk `user_id` plus
 `session_id`. The complete tagged envelope and its schema-version metadata are
-written together in one transaction. Reads use both ownership keys. The
-internal service accepts an already-verified user ID; any future route must
-derive that ID from Clerk auth rather than request data. This table does not
-add a stale `current_spec` sidecar, so a v2 draft cannot be replaced by an
-unrelated legacy spec. The existing `/circuit-builder/history` contract and
-generated client remain legacy-only; the v2 persistence service is internal
-until a later workbench integration.
+written together with its independent storage revision. Reads use both
+ownership keys. The internal service accepts an already-verified user ID, and
+the API route derives that ID from Clerk auth rather than request data. This
+table does not add a stale `current_spec` sidecar, so a v2 draft cannot be
+replaced by an unrelated legacy spec. The existing
+`/circuit-builder/history` route and its history contract remain legacy-only;
+the workbench is not yet integrated with the separate V2 API.
 
 Browser v2 drafts use a new user-scoped localStorage key and explicit envelope.
 Existing CircuitSpec draft and history keys are neither migrated nor rewritten.
@@ -112,3 +112,74 @@ envelope, and does not rewrite or delete the legacy key. The current workbench
 does not yet select or synchronize v2 drafts; that integration is intentionally
 deferred so this persistence phase cannot change the active renderer or draft
 format.
+
+## Phase 1C authenticated V2 document API
+
+The API is additive and remains separate from the legacy conversation-history
+API:
+
+- `GET /api/circuit-documents/v2/sessions/{sessionId}` returns either
+  `{ "status": "empty" }` or a tagged V2 envelope with `schemaVersion`,
+  `revision`, and ISO `updatedAt`. It queries only the V2 table for the
+  authenticated Clerk user and session. An empty result never falls back to
+  legacy history or imports a `CircuitSpec`.
+- `PUT /api/circuit-documents/v2/sessions/{sessionId}` accepts only
+  `{ "expectedRevision": number, "draft": taggedV2Envelope }`. Creation must
+  use revision `0`; the response is the saved envelope with its new revision
+  and update timestamp. A supplied `userId` or other unexpected top-level
+  field is rejected.
+- Authentication uses the existing Clerk middleware and `getAuth(req).userId`.
+  The server derives the storage owner only from that verified request context.
+  The composite `(user_id, session_id)` key and scoped SQL predicates prevent a
+  session identifier from granting access to another account's copy.
+- The document schema version inside the envelope is distinct from the
+  database storage revision. A single insert with conflict-do-nothing creates
+  revision 1; subsequent single-statement updates include the expected revision
+  in their `WHERE` clause and increment it atomically. A stale update, missing
+  row with a nonzero expected revision, or repeated create returns HTTP 409;
+  it never overwrites the current row. Retrying a successful write with its old
+  revision therefore conflicts rather than applying a duplicate write.
+- Invalid, mixed, legacy, and unsupported documents return a typed error with
+  safe path/message diagnostics and no partial write. Storage failures return
+  a typed 503 response without database details. A quarantined stored record is
+  reported as a typed 422 error; its raw value is not echoed.
+
+Lifecycle:
+
+```text
+Client request
+  → Clerk-authenticated route (user ID from request context)
+  → generated request validation + V2 envelope/document validation
+  → revision-aware persistence service
+  → atomic user/session-scoped PostgreSQL insert or compare-and-update
+  → typed loaded/empty/saved/conflict/error response
+```
+
+### Schema change and safe migration verification
+
+The configured database adapter is Drizzle's PostgreSQL schema push, using
+`drizzle-orm/node-postgres`. `pnpm --filter @workspace/db run push` is the
+existing non-force schema command; `lib/db/drizzle.config.ts` selects
+`NEON_DATABASE_URL` first and otherwise `DATABASE_URL`. Only run that command
+after positively confirming that the selected URL points to an isolated,
+disposable development database. Do not use `push-force` for this addition.
+
+`lib/db/migrations/0001_circuit_studio_v2_drafts.sql` is an existing standalone
+SQL reference file, not a journaled migration registered with Drizzle Kit.
+Drizzle schema push does not execute that file. The SQL now matches the Drizzle
+schema and includes an idempotent revision-column addition for older copies of
+the V2 table. `pnpm --filter @workspace/db test` statically compares columns,
+PostgreSQL types, nullability, defaults, ownership key, and safe/idempotent SQL
+properties without connecting to a database.
+
+Live table/migration verification remains **BLOCKED / NOT RUN** for this batch:
+no isolated database could be identified from the local files without reading
+or using the configured external connection. No database URL was inspected,
+and no push, force push, or SQL migration was run. After an isolated development
+database is confirmed, run the non-force `push` command above and verify the
+resulting `circuit_studio_v2_drafts` columns and composite primary key with a
+read-only schema query.
+
+The generated OpenAPI Zod request contracts and React Query client are updated,
+but neither the production Circuit Studio workbench nor generation, rendering,
+placement, routing, or exports call these routes in this phase.

@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { circuitStudioV2Drafts, db } from "@workspace/db";
 import {
   createCircuitDocumentV2DraftPersistence,
@@ -7,24 +7,42 @@ import {
 } from "./circuitDocumentDraftService";
 
 const databaseRepository: CircuitDocumentV2DraftRepository = {
-  async upsertOwned(record: CircuitDocumentV2DraftRecord): Promise<void> {
-    await db.transaction(async (transaction) => {
-      await transaction
-        .insert(circuitStudioV2Drafts)
-        .values(record)
-        .onConflictDoUpdate({
-          target: [
-            circuitStudioV2Drafts.userId,
-            circuitStudioV2Drafts.sessionId,
-          ],
-          set: {
-            representation: record.representation,
-            schemaVersion: record.schemaVersion,
-            draft: record.draft,
-            updatedAt: record.updatedAt,
-          },
-        });
-    });
+  async createIfAbsent(record: CircuitDocumentV2DraftRecord) {
+    const [created] = await db
+      .insert(circuitStudioV2Drafts)
+      .values(record)
+      .onConflictDoNothing({
+        target: [
+          circuitStudioV2Drafts.userId,
+          circuitStudioV2Drafts.sessionId,
+        ],
+      })
+      .returning();
+    return created ?? null;
+  },
+
+  async updateIfRevision(
+    record: CircuitDocumentV2DraftRecord,
+    expectedRevision: number,
+  ) {
+    const [updated] = await db
+      .update(circuitStudioV2Drafts)
+      .set({
+        representation: record.representation,
+        schemaVersion: record.schemaVersion,
+        revision: sql`${circuitStudioV2Drafts.revision} + 1`,
+        draft: record.draft,
+        updatedAt: record.updatedAt,
+      })
+      .where(
+        and(
+          eq(circuitStudioV2Drafts.userId, record.userId),
+          eq(circuitStudioV2Drafts.sessionId, record.sessionId),
+          eq(circuitStudioV2Drafts.revision, expectedRevision),
+        ),
+      )
+      .returning();
+    return updated ?? null;
   },
 
   async getOwned(userId: string, sessionId: string) {

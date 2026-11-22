@@ -1181,7 +1181,7 @@ function Studio({ userId }: { userId: string }) {
 
           <div className="panel details-panel">
             <div className="panel-heading"><h2 className="section-title"><span className="section-icon"><Code2 /></span>Editable CircuitSpec</h2><span className="count-badge">JSON</span></div>
-            <textarea className="json-editor" data-testid="input-circuit-json" aria-label="Editable CircuitSpec JSON" spellCheck={false} value={jsonText} disabled={!!jsonRepairRequest || hasStagedBuilderProposal} onChange={(event) => onJsonChange(event.target.value)} />
+            <textarea className="json-editor" data-testid="input-circuit-json" aria-label="Editable CircuitSpec JSON" spellCheck={false} value={jsonText} onChange={(event) => onJsonChange(event.target.value)} />
             <div className="editor-footer">
               {(hasStagedBuilderProposal || jsonRepairRequest || jsonError || jsonEditorDirty) && (
                 <span className={`editor-status${jsonError || jsonEditorDirty ? ' is-pending' : ''}`} data-testid="status-json">

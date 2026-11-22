@@ -645,6 +645,7 @@ export function CircuitBuilderChat({
   const [externalFixCopiedContextKey, setExternalFixCopiedContextKey] = useState<string | null>(null);
   const [externalFixCopyState, setExternalFixCopyState] = useState<RejectedSpecCopyState>('idle');
   const [externalFixDraft, setExternalFixDraft] = useState('');
+  const externalFixDraftRevisionRef = useRef(0);
   const [externalFixFeedback, setExternalFixFeedback] = useState<ExternalCircuitFixFeedback | null>(null);
   const [componentLibraryOpen, setComponentLibraryOpen] = useState(false);
   const [briefEditing, setBriefEditing] = useState(false);
@@ -1365,6 +1366,7 @@ export function CircuitBuilderChat({
   useEffect(() => {
     setExternalFixCopiedContextKey(null);
     setExternalFixCopyState('idle');
+    externalFixDraftRevisionRef.current += 1;
     setExternalFixDraft('');
     setExternalFixFeedback(null);
   }, [externalFixContextKey]);
@@ -1391,6 +1393,7 @@ export function CircuitBuilderChat({
     if (!externalFixContext || !externalFixContextKey) return;
     try {
       await navigator.clipboard.writeText(buildExternalCircuitFixPrompt(externalFixContext));
+      externalFixDraftRevisionRef.current += 1;
       setExternalFixDraft('');
       setExternalFixFeedback(null);
       externalFixReviewMutation.reset();
@@ -1412,8 +1415,10 @@ export function CircuitBuilderChat({
     ) return;
 
     const submittedContextKey = externalFixContextKey;
+    const submittedDraftRevision = externalFixDraftRevisionRef.current;
+    const submittedDraft = externalFixDraft;
     setExternalFixFeedback(null);
-    const parsed = parseCircuitSpecJson(externalFixDraft);
+    const parsed = parseCircuitSpecJson(submittedDraft);
     if (!parsed.ok) {
       setExternalFixFeedback({ kind: 'local-rejected', reasons: [parsed.error] });
       return;
@@ -1477,6 +1482,13 @@ export function CircuitBuilderChat({
         externalFixContextKeyRef.current !== submittedContextKey ||
         externalFixCopiedContextKeyRef.current !== submittedContextKey
       ) return;
+      if (externalFixDraftRevisionRef.current !== submittedDraftRevision) {
+        setExternalFixFeedback({
+          kind: 'error',
+          message: 'The pasted JSON changed during review. Your edits are intact; submit the updated text to review it.',
+        });
+        return;
+      }
 
       setExternalFixFeedback({
         kind: 'review',
@@ -1507,6 +1519,13 @@ export function CircuitBuilderChat({
         externalFixContextKeyRef.current !== submittedContextKey ||
         externalFixCopiedContextKeyRef.current !== submittedContextKey
       ) return;
+      if (externalFixDraftRevisionRef.current !== submittedDraftRevision) {
+        setExternalFixFeedback({
+          kind: 'error',
+          message: 'The pasted JSON changed during review. Your edits are intact; submit the updated text to review it.',
+        });
+        return;
+      }
       setExternalFixFeedback({
         kind: 'error',
         message: error instanceof Error
@@ -2243,6 +2262,7 @@ export function CircuitBuilderChat({
     setRejectedProposalSvg('');
     setExternalFixCopiedContextKey(null);
     setExternalFixCopyState('idle');
+    externalFixDraftRevisionRef.current += 1;
     setExternalFixDraft('');
     setExternalFixFeedback(null);
   };
@@ -2643,8 +2663,11 @@ export function CircuitBuilderChat({
                   <textarea
                     id="external-circuit-fix-json"
                     value={externalFixDraft}
-                    onChange={(event) => setExternalFixDraft(event.target.value)}
-                    disabled={externalFixReviewMutation.isPending}
+                    onChange={(event) => {
+                      externalFixDraftRevisionRef.current += 1;
+                      setExternalFixDraft(event.target.value);
+                      setExternalFixFeedback(null);
+                    }}
                     spellCheck={false}
                     rows={8}
                     data-testid="input-external-circuit-fix"

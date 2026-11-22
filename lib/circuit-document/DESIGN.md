@@ -247,7 +247,11 @@ routes, and unrouted multi-pin nets affected by proposed movement; it never
 changes a placement or route. Legacy CircuitSpec projection warns when either
 explicit lock value would be lost.
 
-This contract does not perform automatic placement or routing and adds no UI,
-API, database integration, or electrical-validator changes. See
-`docs/CIRCUIT_LAYOUT_ENGINE_DESIGN.md` and the Batch 7 checkpoint in
-`docs/IMPLEMENTATION_HANDOFF.md` for exact source boundaries and tests.
+`routeCircuitDocument` is the separate, pure V2 route operation. It uses
+explicit net membership and shared resolved pin/body geometry, adds routes only
+to nets without existing routes, and preserves the rest of the document.
+Per-net failures are atomic; branch junctions and clean different-net crossings
+are explicit drawing annotations. It does not repair manual routes or add a UI,
+API, database integration, or electrical simulation. See
+`docs/CIRCUIT_LAYOUT_ENGINE_DESIGN.md` and the Batch 9 checkpoint in
+`docs/IMPLEMENTATION_HANDOFF.md` for its limits and verification.

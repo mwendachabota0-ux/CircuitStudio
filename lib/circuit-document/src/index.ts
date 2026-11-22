@@ -4,6 +4,8 @@ export * from "./placement-policy.ts";
 export * from "./layout-types.ts";
 export * from "./layout-topology.ts";
 export * from "./layout.ts";
+export * from "./routing-types.ts";
+export * from "./routing.ts";
 export * from "./validation.ts";
 export * from "./legacy.ts";
 export * from "./persistence.ts";

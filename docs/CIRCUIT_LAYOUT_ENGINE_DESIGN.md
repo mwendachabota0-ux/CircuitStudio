@@ -389,7 +389,7 @@ A candidate placement is eligible to apply only when:
 2. **Phase 2B — geometry/placement contract:** introduce a shared component-geometry resolver with stable pin anchors and conservative symbol/text bounds; resolve duplicate property authority; add the optional user-pinned contract with backward-safe defaults. Add resolver fixtures/tests before any automatic movement.
 3. **Phase 2C — pure placement core:** implement a deterministic topology/hypergraph projection, role hints, SCC handling, rank/order/packing, immutable results, diagnostics, and structural/benchmark tests. Keep it isolated from UI and legacy CircuitSpec.
 4. **Phase 2D — route-impact gate and lab proposal UI:** expose explicit modes, candidate review, pinned controls, diagnostics, and safe local save only in the V2 lab. Keep legacy workbench untouched; block routed reflow until routing exists.
-5. **Phase 2E — routing integration (separate design/authorization):** define pin-anchored route endpoint references and an atomic placement-plus-routing lifecycle before any router implementation. Do not widen the placement engine into a route repair tool.
+5. **Phase 2E — routing integration (separate design/authorization):** this was the planned boundary before Batch 9 authorized the standalone route generator. Any UI or placement-plus-routing lifecycle remains separately scoped; do not widen the placement engine into a route repair tool.
 6. **Later — native V2 rendering and export:** consume the same geometry resolver and display warnings consistently; keep preview provenance visible until it is native.
 
 ## 11. Risks and open questions
@@ -473,8 +473,8 @@ Phase 2B-1 implementation without changing the original Phase 2A scope:
   would be lost.
 - No automatic placement, graph ordering, wire routing, UI, API/database
   integration, or validator behavior was added or changed in Phase 2B-1.
-  Phase 2B-2 later added the separate deterministic placement core; routing
-  remains a future, separately scoped capability.
+  Phase 2B-2 later added the separate deterministic placement core; Batch 9
+  subsequently added the separately scoped V2 routing operation.
 
 ## Phase 2B-2 deterministic placement implementation
 
@@ -537,3 +537,48 @@ metadata are retained.
   that a future router will succeed.
 - No UI, AI generation, persistence/database change, electrical simulation,
   route generation, or direct canvas editing is included in this phase.
+
+## Batch 9 — Phase 3A deterministic wire routing
+
+The V2 library now exports the pure `routeCircuitDocument` operation with
+algorithm version `circuit-routing/1`. Its typed options default to a 10 px
+grid, 12 px body clearance, a 24-cell search margin, and a 30,000-node bound
+per branch connection.
+
+- Electrical membership comes only from explicit net IDs and pin members.
+  Single-pin nets and nets that already have routes are not edited; existing
+  routes, junctions, crossings, placements, annotations, metadata, and the
+  electrical model are retained.
+- Exact pin anchors and conservative symbol body bounds come from
+  `resolveCircuitDocumentComponentGeometry`. Orthogonal A* connects sorted net
+  members into a route tree, allows a short cardinal pin escape through that
+  pin's own body only, and keeps all other route segments outside body
+  clearance.
+- Each multi-pin branch joins the existing same-net tree with an explicit
+  junction. Clean perpendicular crossings with another net receive a crossing
+  marker; overlaps, endpoint touches, and ambiguous crossings reject that
+  net's candidate rather than leaving visually ambiguous wiring.
+- `complete` means the permitted pass finished; `incomplete` returns successful
+  nets but no partial drawing for any failed net; `blocked` means the document,
+  options, or algorithm version could not be accepted. Geometry, placement,
+  no-path, and search-limit problems are explicit diagnostics.
+- No-connect and unassigned pins are never selected as route terminals.
+  Unresolved placed geometry blocks pending nets when it prevents safe
+  obstacle clearance. The router does not alter existing manual routes or
+  automatically repair/reroute them.
+
+Verification:
+
+| Command | Result |
+| --- | --- |
+| `node --experimental-strip-types --test lib/circuit-document/test/routing.test.mjs` | **PASS** — 11 routing tests |
+| `pnpm --filter @workspace/circuit-document test` | **PASS** — 97 tests |
+| `pnpm run typecheck` | **PASS** — libraries, API server, Circuit Studio, mockup sandbox, and scripts |
+| `git diff --check` | **PASS** |
+
+This phase adds the V2 library engine only; it does not connect routing to the
+legacy workbench or add a route-preview UI. Geometry bounds remain
+conservative estimates, and tight canvases or obstacle layouts can exhaust the
+configured search envelope. The next dependency is a separately scoped V2
+route-preview/integration flow. No remote symbol library was accessed or
+downloaded for this local-only implementation.

@@ -446,4 +446,43 @@ The deterministic placement core is now implemented in Phase 2B-2. Any routing o
 - Geometry and text extents remain the shared resolver's documented conservative estimates. Unknown geometry is surfaced rather than guessed. New two-terminal placements may use the catalog's declared minimum terminal spacing only when the geometry is known and the source has no endpoints.
 - No UI, AI, database/persistence behavior, electrical simulation, wire routing, or direct canvas editing was started.
 - TypeScript emitted the new package declaration files and refreshed tracked incremental build metadata during verification.
-- Phase 2B-2 is complete. Any visual integration or routing is a separately scoped follow-up.
+- Phase 2B-2 placement work was complete at this checkpoint; Batch 9 later added standalone routing, while visual integration remains separately scoped.
+
+---
+
+## Batch 9 — Phase 3A deterministic wire routing
+
+**Status:** Completed. The pure V2 routing engine is implemented and verified using only the current local workspace.
+
+### Implemented behavior
+
+1. Added `routeCircuitDocument` with the versioned `circuit-routing/1` request/result contract and typed grid, clearance, search-margin, and A* expansion limits.
+2. Reused the shared V2 geometry resolver for exact transformed pin anchors and conservative symbol body bounds. Deterministic orthogonal A* connects explicit net members into two-pin paths and high-fanout route trees.
+3. Existing routes and all unrelated document content remain unchanged. Nets with existing routes are skipped; no-connect/unassigned pins are excluded; each failed net leaves no partial routes.
+4. Same-net branch joins receive explicit junctions, and clean perpendicular different-net crossings receive explicit crossing markers. Ambiguous touches and collinear overlaps reject the affected net.
+5. Incomplete placement or geometry, blocked pin access, no-path, and bounded-search outcomes are returned as structured diagnostics. No UI integration or route repair was added.
+
+### Changed files
+
+- `lib/circuit-document/src/routing.ts` and `routing-types.ts` — deterministic V2 routing engine and typed API.
+- `lib/circuit-document/src/index.ts` — public routing exports.
+- `lib/circuit-document/test/routing.test.mjs` — exact transformed endpoints, determinism, body clearance, branches, crossings, preservation, incomplete geometry, search limits, and input immutability.
+- `lib/circuit-document/dist/` — generated public declaration files and maps.
+- `docs/CIRCUIT_LAYOUT_ENGINE_DESIGN.md` and `lib/circuit-document/DESIGN.md` — routing contract, limits, verification, and integration boundary.
+- `docs/IMPLEMENTATION_HANDOFF.md` — this completion checkpoint.
+
+### Verification
+
+| Command | Result |
+| --- | --- |
+| `node --experimental-strip-types --test lib/circuit-document/test/routing.test.mjs` | **PASS** — 11 routing tests |
+| `pnpm --filter @workspace/circuit-document test` | **PASS** — 97 tests |
+| `pnpm run typecheck` | **PASS** — all configured workspace typechecks |
+| `git diff --check` | **PASS** |
+
+### Limitations and next dependency
+
+- Routes are generated only for multi-pin nets with no existing route; this engine does not reroute or repair manual paths.
+- The bounded A* grid search can report an incomplete net in dense or canvas-constrained drawings. It uses conservative body bounds and does not prove electrical simulation or rendered readability.
+- Routing is library-only. The next dependency is an explicitly scoped V2 route-preview/integration flow; the legacy workbench was not changed.
+- No external files or symbol packs were accessed or downloaded. The implementation reuses the geometry available in this workspace.

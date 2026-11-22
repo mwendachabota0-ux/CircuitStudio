@@ -569,10 +569,13 @@ per branch connection.
 
 Verification:
 
+The routing suite also exercises a deterministic eight-pin fanout tree,
+checking exact pin endpoints, branch connectivity, and input immutability.
+
 | Command | Result |
 | --- | --- |
-| `node --experimental-strip-types --test lib/circuit-document/test/routing.test.mjs` | **PASS** — 11 routing tests |
-| `pnpm --filter @workspace/circuit-document test` | **PASS** — 97 tests |
+| `node --experimental-strip-types --test lib/circuit-document/test/routing.test.mjs` | **PASS** — 12 routing tests |
+| `pnpm --filter @workspace/circuit-document test` | **PASS** — 98 tests |
 | `pnpm run typecheck` | **PASS** — libraries, API server, Circuit Studio, mockup sandbox, and scripts |
 | `git diff --check` | **PASS** |
 

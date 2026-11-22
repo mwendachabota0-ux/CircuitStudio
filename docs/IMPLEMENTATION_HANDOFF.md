@@ -466,7 +466,7 @@ The deterministic placement core is now implemented in Phase 2B-2. Any routing o
 
 - `lib/circuit-document/src/routing.ts` and `routing-types.ts` — deterministic V2 routing engine and typed API.
 - `lib/circuit-document/src/index.ts` — public routing exports.
-- `lib/circuit-document/test/routing.test.mjs` — exact transformed endpoints, determinism, body clearance, branches, crossings, preservation, incomplete geometry, search limits, and input immutability.
+- `lib/circuit-document/test/routing.test.mjs` — exact transformed endpoints, determinism, an eight-pin high-fanout tree, body clearance, branches, crossings, preservation, incomplete geometry, search limits, and input immutability.
 - `lib/circuit-document/dist/` — generated public declaration files and maps.
 - `docs/CIRCUIT_LAYOUT_ENGINE_DESIGN.md` and `lib/circuit-document/DESIGN.md` — routing contract, limits, verification, and integration boundary.
 - `docs/IMPLEMENTATION_HANDOFF.md` — this completion checkpoint.
@@ -475,8 +475,8 @@ The deterministic placement core is now implemented in Phase 2B-2. Any routing o
 
 | Command | Result |
 | --- | --- |
-| `node --experimental-strip-types --test lib/circuit-document/test/routing.test.mjs` | **PASS** — 11 routing tests |
-| `pnpm --filter @workspace/circuit-document test` | **PASS** — 97 tests |
+| `node --experimental-strip-types --test lib/circuit-document/test/routing.test.mjs` | **PASS** — 12 routing tests |
+| `pnpm --filter @workspace/circuit-document test` | **PASS** — 98 tests |
 | `pnpm run typecheck` | **PASS** — all configured workspace typechecks |
 | `git diff --check` | **PASS** |
 

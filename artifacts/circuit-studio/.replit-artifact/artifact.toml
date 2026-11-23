@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "CircuitStudio"
+description = "A circuit-diagram workspace that turns plain-language circuit ideas into editable schematics, validates connections, and exports drawings and EasyEDA build sheets."
+version = "1.0.0"
+id = "artifacts/circuit-studio"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 26043
+
+[services.development]
+run = "pnpm --filter @workspace/circuit-studio run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/circuit-studio", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/circuit-studio/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "26043"
+BASE_PATH = "/"

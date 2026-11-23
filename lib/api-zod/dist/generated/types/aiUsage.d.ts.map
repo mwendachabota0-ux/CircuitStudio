@@ -1,0 +1,1 @@
+{"version":3,"file":"aiUsage.d.ts","sourceRoot":"","sources":["../../../src/generated/types/aiUsage.ts"],"names":[],"mappings":"AAAA;;;;;;GAMG;AAEH,MAAM,WAAW,OAAO;IACtB,iBAAiB;IACjB,UAAU,EAAE,MAAM,CAAC;IACnB,iBAAiB;IACjB,cAAc,EAAE,MAAM,CAAC;IACvB,iBAAiB;IACjB,eAAe,EAAE,MAAM,CAAC;IACxB,uBAAuB;IACvB,oBAAoB,EAAE,MAAM,EAAE,CAAC;IAC/B,QAAQ,EAAE,OAAO,CAAC;CACnB"}

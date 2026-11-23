@@ -340,6 +340,16 @@ test('chooses recovery only for exhausted repairs and matching blocker types', (
     wireFindings,
     rejectedProposal,
   ), null);
+  assert.equal(getRetryRecoveryKind(
+    [{ ...exhausted[0], attempt: 1, outcome: 'stopped' }],
+    wireFindings,
+    rejectedProposal,
+  ), null);
+  assert.equal(getRetryRecoveryKind(
+    [{ ...exhausted[0], outcome: 'stopped' }],
+    wireFindings,
+    rejectedProposal,
+  ), 'rewire');
   assert.equal(getRetryRecoveryKind(exhausted, wireFindings, rejectedProposal), 'rewire');
   assert.equal(getRetryRecoveryKind(
     exhausted,

@@ -21,6 +21,7 @@ export type CircuitBuilderComposerHandle = {
 type CircuitBuilderComposerProps = {
   mode: ChatMode;
   isWorking: boolean;
+  allowSendWhileWorking?: boolean;
   briefEditing: boolean;
   hasProposal: boolean;
   hasUnappliedJsonEdits: boolean;
@@ -37,6 +38,7 @@ const CircuitBuilderComposer = forwardRef<
 >(function CircuitBuilderComposer({
   mode,
   isWorking,
+  allowSendWhileWorking = false,
   briefEditing,
   hasProposal,
   hasUnappliedJsonEdits,
@@ -48,7 +50,12 @@ const CircuitBuilderComposer = forwardRef<
 }, ref) {
   const [draft, setDraft] = useState('');
   const draftRevisionRef = useRef(0);
-  const canSend = draft.trim().length > 0 && !isWorking && !isHistoryLoading && !hasProposal && !briefEditing && !hasUnappliedJsonEdits;
+  const canSend = draft.trim().length > 0 &&
+    (!isWorking || allowSendWhileWorking) &&
+    !isHistoryLoading &&
+    !hasProposal &&
+    !briefEditing &&
+    !hasUnappliedJsonEdits;
 
   useImperativeHandle(ref, () => ({
     getDraftRevision: () => draftRevisionRef.current,
@@ -89,7 +96,9 @@ const CircuitBuilderComposer = forwardRef<
   const composerHint = isHistoryLoading
     ? 'Loading history…'
     : isWorking
-    ? 'Draft a follow-up while Studio works'
+    ? allowSendWhileWorking
+      ? 'Chat while the repair runs'
+      : 'Draft a follow-up while Studio works'
     : briefEditing
       ? 'Save or cancel notes first'
       : hasProposal
@@ -103,7 +112,9 @@ const CircuitBuilderComposer = forwardRef<
   const sendLabel = isHistoryLoading
     ? 'Loading'
     : isWorking
-    ? retryAttempt > 0
+    ? allowSendWhileWorking
+      ? 'Send chat'
+      : retryAttempt > 0
       ? retryKind === 'repair' ? 'Repairing' : 'Retrying'
       : 'Thinking'
     : 'Send';
@@ -138,7 +149,7 @@ const CircuitBuilderComposer = forwardRef<
             </span>
           )}
           <button type="submit" disabled={!canSend} aria-label="Send message" data-testid="button-send-builder-message">
-            {isWorking
+            {isWorking && !allowSendWhileWorking
               ? <LoaderCircle className="is-spinning" aria-hidden="true" />
               : <Send aria-hidden="true" />}
             <span>{sendLabel}</span>

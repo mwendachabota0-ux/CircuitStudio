@@ -200,6 +200,15 @@
   flex: none;
 }
 
+.builder-chat__repair-lesson-status {
+  margin: 8px 12px 0;
+  color: #61746a;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.builder-chat__repair-lesson-status[data-kind="error"] { color: #9a463e; }
+
 .builder-chat__repair-dismiss {
   display: inline-grid;
   width: 30px;

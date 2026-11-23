@@ -591,6 +591,7 @@ export function CircuitBuilderChat({
   const chatMutation = useChatWithCircuitBuilder({
     mutation: { mutationKey: getChatWithCircuitBuilderMutationKey() },
   });
+  const followupChatMutation = useChatWithCircuitBuilder();
   const proposalReviewMutation = useReviewCircuitProposal();
   const feedbackMutation = useSaveCircuitBuilderFeedback();
   const repairLessonMutation = useSaveCircuitBuilderRepairLesson();
@@ -649,6 +650,7 @@ export function CircuitBuilderChat({
   const [lastProtectedElementsBaseSpec, setLastProtectedElementsBaseSpec] =
     useState<NonNullable<CircuitBuildChatInput['currentSpec']> | null>(null);
   const [requestCycleActive, setRequestCycleActive] = useState(false);
+  const [externalFixProcessing, setExternalFixProcessing] = useState(false);
   const [repairStopAvailable, setRepairStopAvailable] = useState(false);
   const [repairStopRequested, setRepairStopRequested] = useState(false);
   const [retryAttempt, setRetryAttempt] = useState(0);
@@ -703,7 +705,7 @@ export function CircuitBuilderChat({
     }
   }, [historySyncMutation.mutateAsync]);
   const saveRepairLesson = useCallback(async (draft: ProposalRepairLesson) => {
-    setRepairLessonNotice({ kind: 'saving', message: 'Saving what went wrong, how it was fixed, and how to avoid it next time…' });
+    setRepairLessonNotice({ kind: 'saving', message: 'Saving repair lesson…' });
     const useEvidence = !draft.content?.trim();
     const data: CircuitBuilderRepairLessonInput = useEvidence
       ? {
@@ -728,21 +730,30 @@ export function CircuitBuilderChat({
           ? {
               kind: result.saved ? 'saved' : 'known',
               message: result.saved
-                ? 'Saved a repair lesson. I’ll use it when a similar circuit issue comes up.'
+                  ? 'Repair lesson saved for similar issues.'
                 : 'This repair lesson is already saved.',
             }
           : {
               kind: 'none',
-              message: 'Circuit applied. This correction did not produce a reusable lesson.',
+              message: 'No reusable repair lesson found.',
             },
       );
     } catch (error) {
       setRepairLessonNotice({
         kind: 'error',
-        message: `Circuit applied, but its repair lesson could not be saved${error instanceof Error ? `: ${error.message}` : '.'}`,
+        message: 'Circuit applied, but its repair lesson could not be saved.',
       });
     }
   }, [queryClient, repairLessonMutation.mutateAsync]);
+
+  useEffect(() => {
+    if (!repairLessonNotice || repairLessonNotice.kind === 'saving') return;
+    const timeout = window.setTimeout(
+      () => setRepairLessonNotice(null),
+      repairLessonNotice.kind === 'error' ? 8_000 : 5_000,
+    );
+    return () => window.clearTimeout(timeout);
+  }, [repairLessonNotice]);
 
   const clearProposalQualityReview = () => {
     proposalReviewRunIdRef.current += 1;
@@ -1437,16 +1448,21 @@ export function CircuitBuilderChat({
       ...current,
       messages: [...current.messages, newMessage('user', message)].slice(-60),
     }));
-    await runRequest(
-      request,
-      composerRef.current?.getDraftRevision() ?? 0,
-      externalFixContext.rejectedSpec,
-      true,
-      true,
-      repairLessonSeed,
-      externalFixContext.rejectedSpec,
-      true,
-    );
+    setExternalFixProcessing(true);
+    try {
+      await runRequest(
+        request,
+        composerRef.current?.getDraftRevision() ?? 0,
+        externalFixContext.rejectedSpec,
+        true,
+        true,
+        repairLessonSeed,
+        externalFixContext.rejectedSpec,
+        true,
+      );
+    } finally {
+      setExternalFixProcessing(false);
+    }
   };
 
   const runRequest = async (
@@ -1726,9 +1742,71 @@ export function CircuitBuilderChat({
     }
   };
 
+  const submitChatDuringExternalRepair = async (
+    content: string,
+    draftRevisionAtStart: number,
+  ) => {
+    const normalizedContent = content.trim();
+    if (!normalizedContent) return;
+    const history = saved.messages
+      .slice(-8)
+      .map(({ role, content: messageContent }) => ({ role, content: messageContent }));
+    const userMessage = newMessage('user', normalizedContent);
+    composerRef.current?.clearDraftIfUnchanged(draftRevisionAtStart, normalizedContent);
+    setSaved((current) => ({
+      ...current,
+      messages: [...current.messages, userMessage].slice(-60),
+    }));
+
+    try {
+      const response = await followupChatMutation.mutateAsync({
+        data: {
+          message: normalizedContent,
+          mode: 'chat',
+          currentSpec,
+          history,
+          brief: saved.brief,
+        },
+      });
+      setSaved((current) => ({
+        ...current,
+        messages: [
+          ...current.messages,
+          newMessage(
+            'assistant',
+            response.answer,
+            response.suggestedActions,
+            { buildApprovalRequest: response.buildApprovalRequested },
+          ),
+        ].slice(-60),
+      }));
+      void queryClient.invalidateQueries({ queryKey: getGetAiUsageQueryKey() });
+      void queryClient.invalidateQueries({
+        queryKey: getListCircuitBuilderMemoriesQueryKey(),
+      });
+      onTaskComplete('chat');
+    } catch {
+      setSaved((current) => ({
+        ...current,
+        messages: [
+          ...current.messages,
+          newMessage(
+            'assistant',
+            'I couldn’t answer that message just now. Your message and circuit work are still here; try again.',
+          ),
+        ].slice(-60),
+      }));
+    }
+  };
+
   const handleSubmitMessage = async (content: string, draftRevisionAtStart: number) => {
     const normalizedContent = content.trim();
-    if (!normalizedContent || chatMutation.isPending || requestCycleActive || briefEditing || hasUnappliedJsonEdits) return;
+    if (!normalizedContent || briefEditing || hasUnappliedJsonEdits) return;
+    if (externalFixProcessing) {
+      await submitChatDuringExternalRepair(normalizedContent, draftRevisionAtStart);
+      return;
+    }
+    if (chatMutation.isPending || requestCycleActive) return;
     const intent = getLocalBuilderModeIntent(normalizedContent);
     if (proposal && intent !== 'chat') return;
     if (intent === 'chat') {
@@ -1963,6 +2041,7 @@ export function CircuitBuilderChat({
     setProposal(null);
     setProposalSvg('');
     setProposalValidation(null);
+    setProposalRepairLesson(null);
     setProposalError('');
     setRejectedProposalSpec(null);
     setRejectedProposalSvg('');
@@ -2128,6 +2207,7 @@ export function CircuitBuilderChat({
     setProposal(null);
     setProposalSvg('');
     setProposalValidation(null);
+    setProposalRepairLesson(null);
     clearProposalQualityReview();
   };
 
@@ -2201,6 +2281,8 @@ export function CircuitBuilderChat({
       specSignature: JSON.stringify(proposal.spec),
     });
     onApplySpec(proposal.spec);
+    if (proposalRepairLesson) void saveRepairLesson(proposalRepairLesson);
+    setProposalRepairLesson(null);
     setProposal(null);
     setProposalSvg('');
     setProposalValidation(null);
@@ -2775,11 +2857,29 @@ export function CircuitBuilderChat({
             </section>
           )}
 
+          {repairLessonNotice && (
+            <p
+              className="builder-chat__repair-lesson-status"
+              role="status"
+              aria-live="polite"
+              data-kind={repairLessonNotice.kind}
+              data-testid="status-repair-lesson"
+            >
+              {repairLessonNotice.message}
+            </p>
+          )}
           <CircuitBuilderComposer
             key="circuit-builder-composer"
             ref={composerRef}
-            mode={mode}
-            isWorking={chatMutation.isPending || requestCycleActive}
+            mode={externalFixProcessing ? 'chat' : mode}
+            isWorking={
+              chatMutation.isPending ||
+              requestCycleActive ||
+              followupChatMutation.isPending
+            }
+            allowSendWhileWorking={
+              externalFixProcessing && !followupChatMutation.isPending
+            }
             briefEditing={briefEditing}
             hasProposal={!!proposal}
             hasUnappliedJsonEdits={hasUnappliedJsonEdits}

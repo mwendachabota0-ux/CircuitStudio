@@ -341,12 +341,14 @@ export function getRetryRecoveryKind(
   validationFindings: readonly string[],
   rejectedProposal: CircuitBuildChatInput['currentSpec'] | null,
 ): RetryRecoveryKind | null {
+  const retryLimitReached = diagnostics.some((diagnostic) =>
+    diagnostic.attempt >= MAX_AUTO_RETRIES &&
+    (diagnostic.outcome === 'exhausted' || diagnostic.outcome === 'stopped'),
+  );
   if (
     !rejectedProposal ||
     validationFindings.length === 0 ||
-    !diagnostics.some((diagnostic) =>
-      diagnostic.outcome === 'exhausted' || diagnostic.outcome === 'stopped',
-    )
+    !retryLimitReached
   ) return null;
 
   if (validationFindings.some(indicatesCircuitCompositionFailure)) return 'rebuild';

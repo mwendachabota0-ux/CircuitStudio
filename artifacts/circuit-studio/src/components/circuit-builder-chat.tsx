@@ -7,6 +7,8 @@ import {
   getListCircuitBuilderHistoryQueryKey,
   getListDeletedCircuitBuilderHistoryQueryKey,
   getListCircuitBuilderMemoriesQueryKey,
+  chatWithCircuitBuilder,
+  reviewCircuitProposal,
   useChatWithCircuitBuilder,
   useGetAiUsage,
   useListCircuitBuilderHistory,
@@ -152,7 +154,7 @@ type ValidationReport = {
   topologyWarnings?: string[];
 };
 type ProposalQualityReviewState =
-  | { kind: 'idle' | 'loading' | 'unavailable' | 'skipped' }
+  | { kind: 'idle' | 'loading' | 'unavailable' | 'skipped' | 'cancelled' }
   | { kind: 'ready'; review: CircuitProposalReview };
 type LayoutRepairOutcome =
   | {
@@ -636,13 +638,34 @@ export function CircuitBuilderChat({
       refetchOnMount: 'always',
     },
   });
+  const buildAbortControllerRef = useRef<AbortController | null>(null);
+  const followupAbortControllerRef = useRef<AbortController | null>(null);
+  const proposalReviewAbortControllerRef = useRef<AbortController | null>(null);
+  const proposalReviewLayoutRepairActiveRef = useRef(false);
   const historySyncMutation = useSyncCircuitBuilderHistory();
   const historyDeleteMutation = useDeleteCircuitBuilderHistory();
   const chatMutation = useChatWithCircuitBuilder({
-    mutation: { mutationKey: getChatWithCircuitBuilderMutationKey() },
+    mutation: {
+      mutationKey: getChatWithCircuitBuilderMutationKey(),
+      mutationFn: ({ data }) => chatWithCircuitBuilder(data, {
+        signal: buildAbortControllerRef.current?.signal,
+      }),
+    },
   });
-  const followupChatMutation = useChatWithCircuitBuilder();
-  const proposalReviewMutation = useReviewCircuitProposal();
+  const followupChatMutation = useChatWithCircuitBuilder({
+    mutation: {
+      mutationFn: ({ data }) => chatWithCircuitBuilder(data, {
+        signal: followupAbortControllerRef.current?.signal,
+      }),
+    },
+  });
+  const proposalReviewMutation = useReviewCircuitProposal({
+    mutation: {
+      mutationFn: ({ data }) => reviewCircuitProposal(data, {
+        signal: proposalReviewAbortControllerRef.current?.signal,
+      }),
+    },
+  });
   const feedbackMutation = useSaveCircuitBuilderFeedback();
   const repairLessonMutation = useSaveCircuitBuilderRepairLesson();
   const historyImportMutation = useLearnFromCircuitBuilderHistory();
@@ -691,6 +714,7 @@ export function CircuitBuilderChat({
   const [briefAssumptionsDraft, setBriefAssumptionsDraft] = useState('');
   const [briefOpenQuestionsDraft, setBriefOpenQuestionsDraft] = useState('');
   const [requestCycleActive, setRequestCycleActive] = useState(false);
+  const [isStoppingWork, setIsStoppingWork] = useState(false);
   const [externalFixProcessing, setExternalFixProcessing] = useState(false);
   const [repairStopAvailable, setRepairStopAvailable] = useState(false);
   const [repairStopRequested, setRepairStopRequested] = useState(false);
@@ -895,9 +919,39 @@ export function CircuitBuilderChat({
 
   const clearProposalQualityReview = () => {
     proposalReviewRunIdRef.current += 1;
+    proposalReviewAbortControllerRef.current?.abort();
+    proposalReviewAbortControllerRef.current = null;
+    if (proposalReviewLayoutRepairActiveRef.current) {
+      buildAbortControllerRef.current?.abort();
+    }
+    proposalReviewLayoutRepairActiveRef.current = false;
     setProposalQualityReview({ kind: 'idle' });
     setLayoutRepairNotice('');
   };
+
+  const stopProposalQualityReview = () => {
+    proposalReviewRunIdRef.current += 1;
+    proposalReviewAbortControllerRef.current?.abort();
+    proposalReviewAbortControllerRef.current = null;
+    if (proposalReviewLayoutRepairActiveRef.current) {
+      buildAbortControllerRef.current?.abort();
+    }
+    proposalReviewLayoutRepairActiveRef.current = false;
+    setProposalQualityReview({ kind: 'cancelled' });
+    setLayoutRepairNotice('');
+  };
+
+  const stopBuilderWork = () => {
+    setIsStoppingWork(true);
+    buildAbortControllerRef.current?.abort();
+    followupAbortControllerRef.current?.abort();
+  };
+
+  useEffect(() => () => {
+    buildAbortControllerRef.current?.abort();
+    followupAbortControllerRef.current?.abort();
+    proposalReviewAbortControllerRef.current?.abort();
+  }, []);
 
   const runLayoutRepair = useCallback(async (
     spec: NonNullable<CircuitBuildChatInput['currentSpec']>,
@@ -917,6 +971,8 @@ export function CircuitBuilderChat({
       spec,
       findings,
     );
+    const abortController = new AbortController();
+    buildAbortControllerRef.current = abortController;
     let latestBrief = brief;
     setRetryAttempt(0);
     setRetryKind(null);
@@ -926,6 +982,7 @@ export function CircuitBuilderChat({
       const result = await runCircuitBuildAttempts({
         initialRequest: layoutRequest,
         initialProtectedSpec: spec,
+        signal: abortController.signal,
         getConnectivitySignature: (candidate) =>
           getConnectivitySignature(candidate as CircuitSpec),
         send: (workingRequest) => chatMutation.mutateAsync({ data: workingRequest }),
@@ -1021,6 +1078,11 @@ export function CircuitBuilderChat({
           ? `Studio could not clear ${remainingLayoutFindings} visual layout issue${remainingLayoutFindings === 1 ? '' : 's'} without changing the circuit; the original proposal was kept.`
           : 'The layout attempt could not be completed; the original proposal was kept.',
       };
+    } finally {
+      if (buildAbortControllerRef.current === abortController) {
+        buildAbortControllerRef.current = null;
+      }
+      setIsStoppingWork(Boolean(followupAbortControllerRef.current?.signal.aborted));
     }
   }, [chatMutation.mutateAsync, queryClient]);
 
@@ -1034,8 +1096,12 @@ export function CircuitBuilderChat({
     },
   ) => {
     const runId = ++proposalReviewRunIdRef.current;
+    const abortController = new AbortController();
+    proposalReviewAbortControllerRef.current = abortController;
+    proposalReviewLayoutRepairActiveRef.current = false;
     setProposalQualityReview({ kind: 'loading' });
     setLayoutRepairNotice('');
+    try {
     let firstReview: CircuitProposalReview | null = null;
     try {
       firstReview = await proposalReviewMutation.mutateAsync({
@@ -1070,12 +1136,18 @@ export function CircuitBuilderChat({
       setLayoutRepairNotice(
         'Studio found readability issues and is trying a layout-only repair. The original will stay unless its parts and connections match.',
       );
-      const outcome = await runLayoutRepair(
-        spec,
-        options.buildRequest,
-        brief,
-        initialReview.readabilityWarnings,
-      );
+      proposalReviewLayoutRepairActiveRef.current = true;
+      let outcome: LayoutRepairOutcome;
+      try {
+        outcome = await runLayoutRepair(
+          spec,
+          options.buildRequest,
+          brief,
+          initialReview.readabilityWarnings,
+        );
+      } finally {
+        proposalReviewLayoutRepairActiveRef.current = false;
+      }
       if (proposalReviewRunIdRef.current !== runId) return;
       if (outcome.kind === 'failure') {
         setLayoutRepairNotice(outcome.message);
@@ -1134,6 +1206,12 @@ export function CircuitBuilderChat({
       setProposalQualityReview({ kind: 'ready', review: initialReview });
     } else {
       setProposalQualityReview({ kind: 'unavailable' });
+    }
+    } finally {
+      if (proposalReviewAbortControllerRef.current === abortController) {
+        proposalReviewAbortControllerRef.current = null;
+      }
+      proposalReviewLayoutRepairActiveRef.current = false;
     }
   }, [proposalReviewMutation.mutateAsync, queryClient, runLayoutRepair]);
 
@@ -1678,6 +1756,8 @@ export function CircuitBuilderChat({
     setRepairStatus('running');
     setRequestCycleActive(true);
     chatMutation.reset();
+    const abortController = new AbortController();
+    buildAbortControllerRef.current = abortController;
     let latestBrief = safeRequest.brief ?? emptyBrief();
     try {
       const {
@@ -1689,6 +1769,7 @@ export function CircuitBuilderChat({
       } = await runCircuitBuildAttempts({
         initialRequest: safeRequest,
         allowConnectivityChange,
+        signal: abortController.signal,
         send: (workingRequest) => chatMutation.mutateAsync({ data: workingRequest }),
         getProposal: (result) => result.proposal?.spec ?? null,
         inspectProposal,
@@ -1841,6 +1922,10 @@ export function CircuitBuilderChat({
         void queryClient.invalidateQueries({ queryKey: getListCircuitBuilderMemoriesQueryKey() });
         onTaskComplete(nextMode);
     } catch (error) {
+      if (abortController.signal.aborted) {
+        setRepairStatus(preserveRejectedProposal ? 'rejected' : 'idle');
+        return;
+      }
       setSaved((current) => ({
         ...current,
         brief: mergeBriefPreservingManualEdits(current.aiBrief, current.brief, latestBrief),
@@ -1914,13 +1999,19 @@ export function CircuitBuilderChat({
       }
       setRepairStatus('rejected');
     } finally {
-      composerRef.current?.clearDraftIfUnchanged(draftRevisionAtStart, safeRequest.message);
+      if (!abortController.signal.aborted) {
+        composerRef.current?.clearDraftIfUnchanged(draftRevisionAtStart, safeRequest.message);
+      }
+      if (buildAbortControllerRef.current === abortController) {
+        buildAbortControllerRef.current = null;
+      }
       setRequestCycleActive(false);
       setRepairStopAvailable(false);
       setRepairStopRequested(false);
       stopRepairAfterAttemptRef.current = false;
       setRetryAttempt(0);
       setRetryKind(null);
+      setIsStoppingWork(Boolean(followupAbortControllerRef.current?.signal.aborted));
     }
   };
 
@@ -1933,8 +2024,9 @@ export function CircuitBuilderChat({
     const history = saved.messages
       .slice(-8)
       .map(({ role, content: messageContent }) => ({ role, content: messageContent }));
+    const abortController = new AbortController();
+    followupAbortControllerRef.current = abortController;
     const userMessage = newMessage('user', normalizedContent);
-    composerRef.current?.clearDraftIfUnchanged(draftRevisionAtStart, normalizedContent);
     setSaved((current) => ({
       ...current,
       messages: [...current.messages, userMessage].slice(-60),
@@ -1950,6 +2042,8 @@ export function CircuitBuilderChat({
           brief: saved.brief,
         },
       });
+      if (abortController.signal.aborted) return;
+      composerRef.current?.clearDraftIfUnchanged(draftRevisionAtStart, normalizedContent);
       setSaved((current) => ({
         ...current,
         messages: [
@@ -1968,6 +2062,7 @@ export function CircuitBuilderChat({
       });
       onTaskComplete('chat');
     } catch {
+      if (abortController.signal.aborted) return;
       setSaved((current) => ({
         ...current,
         messages: [
@@ -1978,6 +2073,15 @@ export function CircuitBuilderChat({
           ),
         ].slice(-60),
       }));
+    } finally {
+      if (followupAbortControllerRef.current === abortController) {
+        followupAbortControllerRef.current = null;
+      }
+      if (!buildAbortControllerRef.current?.signal.aborted) {
+        setIsStoppingWork(false);
+      } else {
+        setIsStoppingWork(true);
+      }
     }
   };
 
@@ -2965,7 +3069,20 @@ export function CircuitBuilderChat({
               <div className="builder-chat__quality-review" data-testid="panel-proposal-quality-review">
                 <strong>Intent and readability review</strong>
                 {proposalQualityReview.kind === 'loading' && (
-                  <p role="status">{layoutRepairNotice || 'Studio is checking how well the draft matches your request and whether it is readable…'}</p>
+                  <div className="builder-chat__quality-review-loading">
+                    <p role="status">{layoutRepairNotice || 'Studio is checking how well the draft matches your request and whether it is readable…'}</p>
+                    <button
+                      type="button"
+                      className="builder-chat__text-link"
+                      onClick={stopProposalQualityReview}
+                      data-testid="button-stop-proposal-review"
+                    >
+                      Stop review
+                    </button>
+                  </div>
+                )}
+                {proposalQualityReview.kind === 'cancelled' && (
+                  <p role="status">Review stopped. Your proposal is unchanged.</p>
                 )}
                 {layoutRepairNotice && proposalQualityReview.kind !== 'loading' && (
                   <p className="builder-chat__quality-review-note" role="status">{layoutRepairNotice}</p>
@@ -3066,6 +3183,8 @@ export function CircuitBuilderChat({
             retryKind={retryKind}
             isHistoryLoading={!historyHydrated}
             onSubmitMessage={handleSubmitMessage}
+            onStopWork={stopBuilderWork}
+            isStoppingWork={isStoppingWork}
           />
         </div>
 

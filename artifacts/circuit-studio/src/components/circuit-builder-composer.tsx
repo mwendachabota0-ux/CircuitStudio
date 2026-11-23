@@ -5,7 +5,7 @@ import {
   type FormEvent,
   type KeyboardEvent,
 } from 'react';
-import { LoaderCircle, Send } from 'lucide-react';
+import { LoaderCircle, Send, Square } from 'lucide-react';
 import type { BuildRetryKind } from '../lib/circuit-build-retry';
 import { shouldClearSubmittedDraft } from '../lib/circuit-build-retry';
 
@@ -31,6 +31,8 @@ type CircuitBuilderComposerProps = {
   retryKind: BuildRetryKind | null;
   isHistoryLoading: boolean;
   onSubmitMessage: (content: string, draftRevisionAtStart: number) => void | Promise<void>;
+  onStopWork: () => void;
+  isStoppingWork: boolean;
 };
 
 const CircuitBuilderComposer = forwardRef<
@@ -50,6 +52,8 @@ const CircuitBuilderComposer = forwardRef<
   retryKind,
   isHistoryLoading,
   onSubmitMessage,
+  onStopWork,
+  isStoppingWork,
 }, ref) {
   const draftRevisionRef = useRef(0);
   const canSend = draft.trim().length > 0 &&
@@ -146,6 +150,20 @@ const CircuitBuilderComposer = forwardRef<
             >
               Key #{activeKeyNumber}
             </span>
+          )}
+          {isWorking && (
+            <button
+              type="button"
+              className="builder-chat__stop-button"
+              onClick={onStopWork}
+              disabled={isStoppingWork}
+              aria-label="Stop AI work"
+              title="Stops chat or drawing work without stopping the separate review."
+              data-testid="button-stop-builder-work"
+            >
+              <Square aria-hidden="true" />
+              <span>{isStoppingWork ? 'Stopping…' : 'Stop'}</span>
+            </button>
           )}
           <button type="submit" disabled={!canSend} aria-label="Send message" data-testid="button-send-builder-message">
             {isWorking && !allowSendWhileWorking

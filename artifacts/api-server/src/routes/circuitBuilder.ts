@@ -11,6 +11,7 @@ import { getAuth } from "@clerk/express";
 import rateLimit from "express-rate-limit";
 import { Router, type IRouter, type RequestHandler } from "express";
 import { CircuitAiError, generateWithAccountUsage } from "../lib/circuitAi";
+import { createResponseAbortController } from "../lib/responseAbort";
 import {
   generateWithThinkingBudgetFallback,
   getBuilderThinkingBudgets,
@@ -174,6 +175,7 @@ router.post(
   requireAuth,
   builderLimiter,
   async (req, res): Promise<void> => {
+    const abortController = createResponseAbortController(res);
     const userId = getAuth(req).userId;
     const parsed = ChatWithCircuitBuilderBody.safeParse(req.body);
     if (!parsed.success) {
@@ -381,6 +383,7 @@ router.post(
     ]
       .filter(Boolean)
       .join("\n\n");
+    if (abortController.signal.aborted) return;
     let failureStage = "model_generation";
     let outputLength = 0;
     let finishReason = "unknown";
@@ -406,6 +409,7 @@ router.post(
             {
               inputText: `${builderInstructions}\n\n${contents}`,
               maxOutputTokens: 8192,
+              signal: abortController.signal,
               ...(continuation && lastUsedKeyNumber !== undefined
                 ? { afterKeyNumber: lastUsedKeyNumber }
                 : {}),
@@ -429,6 +433,7 @@ router.post(
                   responseMimeType: "application/json",
                   maxOutputTokens: 8192,
                   temperature: 0.2,
+                  abortSignal: abortController.signal,
                   thinkingConfig: { thinkingBudget },
                 },
               }),
@@ -446,6 +451,7 @@ router.post(
         isMaxTokens: (result) => result.candidates?.[0]?.finishReason === "MAX_TOKENS",
         getPartialOutput: (result) => result.text,
       });
+      if (abortController.signal.aborted) return;
       const response = generation.response;
 
       finishReason = response.candidates?.[0]?.finishReason ?? "unknown";
@@ -467,6 +473,7 @@ router.post(
         history,
         parsed.data.message,
       );
+      if (abortController.signal.aborted) return;
 
       if (result.proposal) {
         failureStage = "validate_circuit_spec";
@@ -474,6 +481,7 @@ router.post(
           parseUsableCircuit(result.proposal.spec),
         );
       }
+      if (abortController.signal.aborted) return;
       if (result.nextMode !== "build") {
         delete result.proposal;
       }
@@ -496,6 +504,7 @@ router.post(
 
       res.json(result);
     } catch (error) {
+      if (abortController.signal.aborted) return;
       if (error instanceof CircuitAiError) {
         if (error.statusCode >= 500) {
           req.log.error(

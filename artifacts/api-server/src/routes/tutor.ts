@@ -16,6 +16,7 @@ import {
   formatRelevantCircuitComponentResearchContext,
 } from "@workspace/circuit-geometry";
 import { CircuitAiError, generateWithAccountUsage } from "../lib/circuitAi";
+import { createResponseAbortController } from "../lib/responseAbort";
 import {
   CircuitSpecCompatibilityError,
   hydrateKicadSymbols,
@@ -296,6 +297,7 @@ router.post(
   requireAuth,
   reviewLimiter,
   async (req, res): Promise<void> => {
+    const abortController = createResponseAbortController(res);
     const userId = getAuth(req).userId;
     const parsed = ReviewCircuitBody.safeParse(req.body);
     if (!parsed.success) {
@@ -317,6 +319,7 @@ router.post(
         {
           inputText: `${reviewInstructions}\n\nCircuitSpec:\n${contents}`,
           maxOutputTokens: 768,
+          signal: abortController.signal,
         },
         (client) =>
           client.models.generateContent({
@@ -326,13 +329,16 @@ router.post(
               systemInstruction: reviewInstructions,
               maxOutputTokens: 768,
               temperature: 0.2,
+              abortSignal: abortController.signal,
             },
           }),
       );
+      if (abortController.signal.aborted) return;
       const review = response.text?.trim();
       if (!review) throw new Error("Empty editor review.");
       res.json(ReviewCircuitResponse.parse({ review }));
     } catch (error) {
+      if (abortController.signal.aborted) return;
       sendAiError(req, res, error, "Circuit editor review failed");
     }
   },
@@ -343,6 +349,7 @@ router.post(
   requireAuth,
   proposalReviewLimiter,
   async (req, res): Promise<void> => {
+    const abortController = createResponseAbortController(res);
     const userId = getAuth(req).userId;
     const parsed = ReviewCircuitProposalBody.safeParse(req.body);
     if (!parsed.success) {
@@ -363,12 +370,14 @@ router.post(
       brief: parsed.data.brief,
       spec,
     });
+    if (abortController.signal.aborted) return;
     try {
       const response = await generateWithAccountUsage(
         userId!,
         {
           inputText: `${proposalReviewInstructions}\n\nProposal review data:\n${reviewInput}`,
           maxOutputTokens: 8192,
+          signal: abortController.signal,
         },
         (client) =>
           client.models.generateContent({
@@ -379,13 +388,16 @@ router.post(
               responseMimeType: "application/json",
               maxOutputTokens: 8192,
               temperature: 0.1,
+              abortSignal: abortController.signal,
             },
           }),
       );
+      if (abortController.signal.aborted) return;
       const text = response.text?.trim();
       if (!text) throw new Error("Empty staged proposal review.");
       res.json(ReviewCircuitProposalResponse.parse(JSON.parse(text)));
     } catch (error) {
+      if (abortController.signal.aborted) return;
       sendAiError(req, res, error, "Circuit proposal review failed");
     }
   },

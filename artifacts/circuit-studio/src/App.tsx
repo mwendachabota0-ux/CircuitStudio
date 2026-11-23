@@ -8,7 +8,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
   getAskCircuitTutorMutationKey, getGenerateCircuitMutationKey, getGetAiStatusQueryKey,
-  getGetAiUsageQueryKey, getReviewCircuitMutationKey, useAskCircuitTutor,
+  getGetAiUsageQueryKey, getReviewCircuitMutationKey, reviewCircuit, useAskCircuitTutor,
   useGetAiStatus, useGetAiUsage, useReviewCircuit, useSetAiKeySelection,
 } from '@workspace/api-client-react';
 import type { AiUsage, CircuitSpec as ApiCircuitSpec, TutorImageMimeType, TutorResponse } from '@workspace/api-client-react';
@@ -727,11 +727,18 @@ function Studio({ userId }: { userId: string }) {
   const [downloadMenuOpen, setDownloadMenuOpen] = useState(false);
   const [bomVisible, setBomVisible] = useState(false);
   const [bomOverrides, setBomOverrides] = useState<BomOverrides>(() => readBomOverrides(userId));
-  const review = useReviewCircuit();
+  const reviewAbortControllerRef = useRef<AbortController | null>(null);
+  const review = useReviewCircuit({
+    mutation: {
+      mutationFn: ({ data }) => reviewCircuit(data, {
+        signal: reviewAbortControllerRef.current?.signal,
+      }),
+    },
+  });
   const queryClient = useQueryClient();
   const reviewDraftRef = useRef('');
   const hasEditedDraftRef = useRef(false);
-  const [draftReview, setDraftReview] = useState<{ signature: string; text: string; state: 'idle' | 'loading' | 'error' }>({ signature: '', text: '', state: 'idle' });
+  const [draftReview, setDraftReview] = useState<{ signature: string; text: string; state: 'idle' | 'loading' | 'error' | 'cancelled' }>({ signature: '', text: '', state: 'idle' });
   const { user } = useUser();
   const { signOut } = useClerk();
 
@@ -784,6 +791,44 @@ function Studio({ userId }: { userId: string }) {
   const bomRowsMissingPartDetails = bomRows.filter((row) => !row.mpn || !row.footprint).length;
   const reviewSignature = JSON.stringify(spec);
   reviewDraftRef.current = reviewSignature;
+  const startDraftReview = (
+    signature: string,
+    reviewSpec: ApiCircuitSpec,
+    controller = new AbortController(),
+  ) => {
+    if (controller.signal.aborted) return;
+    if (reviewAbortControllerRef.current !== controller) {
+      reviewAbortControllerRef.current?.abort();
+      reviewAbortControllerRef.current = controller;
+    }
+    setDraftReview({ signature, text: '', state: 'loading' });
+    review.mutate({ data: { spec: reviewSpec } }, {
+      onSuccess: (result) => {
+        if (controller.signal.aborted || reviewDraftRef.current !== signature) return;
+        setDraftReview({ signature, text: result.review, state: 'idle' });
+        queryClient.invalidateQueries({ queryKey: getGetAiUsageQueryKey() });
+        sendDesktopNotification('Circuit review ready', 'The educational review of your circuit draft is ready.');
+      },
+      onError: () => {
+        if (controller.signal.aborted || reviewDraftRef.current !== signature) return;
+        setDraftReview({ signature, text: '', state: 'error' });
+        sendDesktopNotification('Circuit review failed', 'Circuit Studio could not finish reviewing this draft.');
+      },
+      onSettled: () => {
+        if (reviewAbortControllerRef.current === controller) {
+          reviewAbortControllerRef.current = null;
+        }
+      },
+    });
+  };
+  const stopDraftReview = () => {
+    const controller = reviewAbortControllerRef.current;
+    if (!controller) return;
+    controller.abort();
+    reviewAbortControllerRef.current = null;
+    setDraftReview({ signature: reviewSignature, text: '', state: 'cancelled' });
+  };
+  useEffect(() => () => reviewAbortControllerRef.current?.abort(), []);
   useEffect(() => {
     if (!hasEditedDraftRef.current) {
       setDraftReview({ signature: reviewSignature, text: '', state: 'idle' });
@@ -793,24 +838,22 @@ function Studio({ userId }: { userId: string }) {
       setDraftReview({ signature: reviewSignature, text: '', state: 'idle' });
       return;
     }
+    const controller = new AbortController();
+    reviewAbortControllerRef.current?.abort();
+    reviewAbortControllerRef.current = controller;
     setDraftReview({ signature: reviewSignature, text: '', state: 'loading' });
     const timer = window.setTimeout(() => {
-      review.mutate({ data: { spec: spec as ApiCircuitSpec } }, {
-        onSuccess: (result) => {
-          if (reviewDraftRef.current !== reviewSignature) return;
-          setDraftReview({ signature: reviewSignature, text: result.review, state: 'idle' });
-          queryClient.invalidateQueries({ queryKey: getGetAiUsageQueryKey() });
-          sendDesktopNotification('Circuit review ready', 'The educational review of your circuit draft is ready.');
-        },
-        onError: () => {
-          if (reviewDraftRef.current === reviewSignature) {
-            setDraftReview({ signature: reviewSignature, text: '', state: 'error' });
-            sendDesktopNotification('Circuit review failed', 'Circuit Studio could not finish reviewing this draft.');
-          }
-        },
-      });
+      startDraftReview(reviewSignature, spec as ApiCircuitSpec, controller);
     }, 850);
-    return () => window.clearTimeout(timer);
+    return () => {
+      window.clearTimeout(timer);
+      if (reviewDraftRef.current !== reviewSignature) {
+        controller.abort();
+        if (reviewAbortControllerRef.current === controller) {
+          reviewAbortControllerRef.current = null;
+        }
+      }
+    };
   }, [spec, reviewSignature, jsonError, jsonEditorDirty, libraryReady, report.errors.length]);
   const svg = useMemo(() => {
     if (!window.CircuitDraw) return '';
@@ -1142,24 +1185,9 @@ function Studio({ userId }: { userId: string }) {
           <div className="review-content">
             {jsonError || jsonEditorDirty || report.errors.length ? <p className="review-prompt">Apply or repair your JSON edit before requesting a review of this draft.</p>
               : draftReview.signature !== reviewSignature ? <p className="review-prompt">Pause after a valid edit and an educational review will appear here.</p>
-                : draftReview.state === 'loading' ? <div className="review-loading" role="status"><span className="loading-skeleton" />Preparing an educational review…</div>
-                  : draftReview.state === 'error' ? <div className="review-error" role="alert"><span>{review.error instanceof Error ? review.error.message : 'Review unavailable right now.'} Your draft is unchanged.</span><button type="button" onClick={() => {
-                    setDraftReview({ signature: reviewSignature, text: '', state: 'loading' });
-                    review.mutate({ data: { spec: spec as ApiCircuitSpec } }, {
-                      onSuccess: (result) => {
-                        if (reviewDraftRef.current !== reviewSignature) return;
-                        setDraftReview({ signature: reviewSignature, text: result.review, state: 'idle' });
-                        queryClient.invalidateQueries({ queryKey: getGetAiUsageQueryKey() });
-                        sendDesktopNotification('Circuit review ready', 'The educational review of your circuit draft is ready.');
-                      },
-                      onError: () => {
-                        if (reviewDraftRef.current === reviewSignature) {
-                          setDraftReview({ signature: reviewSignature, text: '', state: 'error' });
-                          sendDesktopNotification('Circuit review failed', 'Circuit Studio could not finish reviewing this draft.');
-                        }
-                      },
-                    });
-                  }}>Retry review</button></div>
+                : draftReview.state === 'loading' ? <div className="review-loading" role="status"><span className="loading-skeleton" />Preparing an educational review…<button className="review-cancel-button" type="button" onClick={stopDraftReview} data-testid="button-stop-draft-review">Stop review</button></div>
+                  : draftReview.state === 'error' ? <div className="review-error" role="alert"><span>{review.error instanceof Error ? review.error.message : 'Review unavailable right now.'} Your draft is unchanged.</span><button type="button" onClick={() => startDraftReview(reviewSignature, spec as ApiCircuitSpec)}>Retry review</button></div>
+                    : draftReview.state === 'cancelled' ? <div className="review-error"><span>Review stopped. Your draft is unchanged.</span><button type="button" onClick={() => startDraftReview(reviewSignature, spec as ApiCircuitSpec)}>Run review</button></div>
                   : draftReview.text ? <p data-testid="text-ai-review">{draftReview.text}</p>
                     : <p className="review-prompt">Pause after a valid edit and an educational review will appear here.</p>}
             <p className="safety-note"><strong>Learning note:</strong> reviews are not electrical correctness, simulation, or safety checks.</p>

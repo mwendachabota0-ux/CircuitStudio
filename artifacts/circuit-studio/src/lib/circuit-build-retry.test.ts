@@ -419,6 +419,31 @@ test('retries transient generation failures at most three times, then recovers',
   assert.equal(result.response, noProposal);
 });
 
+test('stops a transient retry loop when the user aborts during its wait', async () => {
+  const controller = new AbortController();
+  let sends = 0;
+
+  await assert.rejects(
+    runCircuitBuildAttempts({
+      initialRequest: baseRequest,
+      signal: controller.signal,
+      send: async () => {
+        sends += 1;
+        throw Object.assign(new Error('temporary provider error'), { status: 503 });
+      },
+      getProposal: () => null,
+      inspectProposal: () => ({ validation: { errors: [], warnings: [] }, canRepair: true }),
+      makeRepairRequest: (request) => request,
+      wait: async () => {
+        controller.abort(new DOMException('Stopped by the user.', 'AbortError'));
+      },
+    }),
+    (error: unknown) => error instanceof Error && error.name === 'AbortError',
+  );
+
+  assert.equal(sends, 1);
+});
+
 test('exposes manual retry after exactly three transient failures', async () => {
   let sends = 0;
   await assert.rejects(

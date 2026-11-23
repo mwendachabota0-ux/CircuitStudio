@@ -642,6 +642,20 @@
 .builder-chat__composer-foot button:hover:not(:disabled),
 .builder-chat__brief-save:hover,
 .builder-chat__apply:hover:not(:disabled) { background: #105643; transform: translateY(-1px); }
+.builder-chat__composer-foot .builder-chat__stop-button {
+  border: 1px solid #dfc4b8;
+  background: #fbf1eb;
+  color: #8a4c3b;
+}
+.builder-chat__composer-foot .builder-chat__stop-button:hover:not(:disabled) {
+  border-color: #d9a998;
+  background: #f5e5dc;
+  color: #743c2e;
+}
+.builder-chat__composer-foot .builder-chat__stop-button:disabled {
+  cursor: wait;
+  opacity: .72;
+}
 .builder-chat__composer-foot button svg,
 .builder-chat__brief-save svg,
 .builder-chat__apply svg { width: 13px; height: 13px; }
@@ -846,6 +860,14 @@
 }
 .builder-chat__quality-review > strong { color: #41564a; font-size: 10px; }
 .builder-chat__quality-review > p { margin: 0; }
+.builder-chat__quality-review-loading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.builder-chat__quality-review-loading > p { margin: 0; }
+.builder-chat__quality-review-loading .builder-chat__text-link { flex: none; }
 .builder-chat__quality-review ul { width: 100%; margin: 2px 0 0; padding-left: 17px; }
 .builder-chat__quality-review li { margin: 2px 0; }
 .builder-chat__quality-review-group { display: grid; gap: 2px; }

@@ -77258,6 +77258,7 @@ function tokenReservation(inputText, maxOutputTokens, imageTokenEstimate) {
   return inputText.length + imageTokenEstimate + maxOutputTokens + 512;
 }
 async function generateWithAccountUsage(userId, options, generate) {
+  options.signal?.throwIfAborted();
   const keys = getConfiguredKeys();
   if (keys.length === 0) {
     throw new CircuitAiError(
@@ -77289,6 +77290,7 @@ async function generateWithAccountUsage(userId, options, generate) {
   const rateLimitedKeyNumbers = [];
   try {
     for (let index2 = 0; index2 < orderedKeys.length; index2 += 1) {
+      options.signal?.throwIfAborted();
       const key = orderedKeys[index2];
       attemptedKeyNumbers.push(key.number);
       let response;
@@ -77300,6 +77302,7 @@ async function generateWithAccountUsage(userId, options, generate) {
           })
         );
       } catch (error40) {
+        if (options.signal?.aborted) throw error40;
         const rateLimited = isProviderRateLimited(error40);
         if (rateLimited) rateLimitedKeyNumbers.push(key.number);
         if (index2 < orderedKeys.length - 1 && canFallbackToAnotherKey(error40)) {
@@ -77349,6 +77352,7 @@ async function generateWithAccountUsage(userId, options, generate) {
     );
   } catch (error40) {
     await releaseReservation(reservation.requestId).catch(() => void 0);
+    if (options.signal?.aborted) throw error40;
     if (error40 instanceof CircuitAiError) throw error40;
     throw new CircuitAiError(
       "AI usage could not be recorded. Please try again.",
@@ -78681,6 +78685,15 @@ var aiUsage_default = router3;
 // src/routes/tutor.ts
 var import_express7 = __toESM(require_express2(), 1);
 
+// src/lib/responseAbort.ts
+function createResponseAbortController(response) {
+  const controller = new AbortController();
+  response.once("close", () => {
+    if (!response.writableEnded) controller.abort();
+  });
+  return controller;
+}
+
 // src/lib/externalCircuitFixReview.ts
 function stripKicadGeometry(spec) {
   if (!spec || typeof spec !== "object" || Array.isArray(spec)) return spec;
@@ -78959,6 +78972,7 @@ router4.post(
   requireAuth3,
   reviewLimiter,
   async (req, res) => {
+    const abortController = createResponseAbortController(res);
     const userId = getAuth(req).userId;
     const parsed = ReviewCircuitBody.safeParse(req.body);
     if (!parsed.success) {
@@ -78981,7 +78995,8 @@ router4.post(
 
 CircuitSpec:
 ${contents}`,
-          maxOutputTokens: 768
+          maxOutputTokens: 768,
+          signal: abortController.signal
         },
         (client) => client.models.generateContent({
           model: "gemini-2.5-flash",
@@ -78990,14 +79005,17 @@ ${contents}`,
           config: {
             systemInstruction: reviewInstructions,
             maxOutputTokens: 768,
-            temperature: 0.2
+            temperature: 0.2,
+            abortSignal: abortController.signal
           }
         })
       );
+      if (abortController.signal.aborted) return;
       const review = response.text?.trim();
       if (!review) throw new Error("Empty editor review.");
       res.json(ReviewCircuitResponse.parse({ review }));
     } catch (error40) {
+      if (abortController.signal.aborted) return;
       sendAiError(req, res, error40, "Circuit editor review failed");
     }
   }
@@ -79007,6 +79025,7 @@ router4.post(
   requireAuth3,
   proposalReviewLimiter,
   async (req, res) => {
+    const abortController = createResponseAbortController(res);
     const userId = getAuth(req).userId;
     const parsed = ReviewCircuitProposalBody.safeParse(req.body);
     if (!parsed.success) {
@@ -79025,6 +79044,7 @@ router4.post(
       brief: parsed.data.brief,
       spec
     });
+    if (abortController.signal.aborted) return;
     try {
       const response = await generateWithAccountUsage(
         userId,
@@ -79033,7 +79053,8 @@ router4.post(
 
 Proposal review data:
 ${reviewInput}`,
-          maxOutputTokens: 8192
+          maxOutputTokens: 8192,
+          signal: abortController.signal
         },
         (client) => client.models.generateContent({
           model: "gemini-2.5-flash",
@@ -79043,14 +79064,17 @@ ${reviewInput}`,
             systemInstruction: proposalReviewInstructions,
             responseMimeType: "application/json",
             maxOutputTokens: 8192,
-            temperature: 0.1
+            temperature: 0.1,
+            abortSignal: abortController.signal
           }
         })
       );
+      if (abortController.signal.aborted) return;
       const text3 = response.text?.trim();
       if (!text3) throw new Error("Empty staged proposal review.");
       res.json(ReviewCircuitProposalResponse.parse(JSON.parse(text3)));
     } catch (error40) {
+      if (abortController.signal.aborted) return;
       sendAiError(req, res, error40, "Circuit proposal review failed");
     }
   }
@@ -79789,6 +79813,7 @@ router5.post(
   requireAuth4,
   builderLimiter,
   async (req, res) => {
+    const abortController = createResponseAbortController(res);
     const userId = getAuth(req).userId;
     const parsed = ChatWithCircuitBuilderBody.safeParse(req.body);
     if (!parsed.success) {
@@ -79969,6 +79994,7 @@ ${JSON.stringify(withoutKicadGeometry(currentSpec))}`,
       `Latest user message:
 ${parsed.data.message.trim()}`
     ].filter(Boolean).join("\n\n");
+    if (abortController.signal.aborted) return;
     let failureStage = "model_generation";
     let outputLength = 0;
     let finishReason = "unknown";
@@ -79987,6 +80013,7 @@ ${parsed.data.message.trim()}`
 
 ${contents}`,
               maxOutputTokens: 8192,
+              signal: abortController.signal,
               ...continuation && lastUsedKeyNumber !== void 0 ? { afterKeyNumber: lastUsedKeyNumber } : {},
               onKeyUsed: (usedKeyNumber) => {
                 keyNumber = usedKeyNumber;
@@ -80007,6 +80034,7 @@ ${contents}`,
                 responseMimeType: "application/json",
                 maxOutputTokens: 8192,
                 temperature: 0.2,
+                abortSignal: abortController.signal,
                 thinkingConfig: { thinkingBudget }
               }
             })
@@ -80024,6 +80052,7 @@ ${contents}`,
         isMaxTokens: (result2) => result2.candidates?.[0]?.finishReason === "MAX_TOKENS",
         getPartialOutput: (result2) => result2.text
       });
+      if (abortController.signal.aborted) return;
       const response = generation.response;
       finishReason = response.candidates?.[0]?.finishReason ?? "unknown";
       failureStage = "read_response_text";
@@ -80043,12 +80072,14 @@ ${contents}`,
         history,
         parsed.data.message
       );
+      if (abortController.signal.aborted) return;
       if (result.proposal) {
         failureStage = "validate_circuit_spec";
         result.proposal.spec = await hydrateKicadSymbols(
           parseUsableCircuit(result.proposal.spec)
         );
       }
+      if (abortController.signal.aborted) return;
       if (result.nextMode !== "build") {
         delete result.proposal;
       }
@@ -80069,6 +80100,7 @@ ${contents}`,
       }
       res.json(result);
     } catch (error40) {
+      if (abortController.signal.aborted) return;
       if (error40 instanceof CircuitAiError) {
         if (error40.statusCode >= 500) {
           req.log.error(

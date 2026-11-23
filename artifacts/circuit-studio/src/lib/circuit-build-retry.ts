@@ -163,9 +163,34 @@ export function isInvalidModelOutput(error: unknown): boolean {
   return getErrorHeader(error, 'x-circuit-ai-output-invalid') === 'true';
 }
 
-export function waitBeforeRetry(attempt: number, providerDelayMs?: number): Promise<void> {
+export function waitBeforeRetry(
+  attempt: number,
+  providerDelayMs?: number,
+  signal?: AbortSignal,
+): Promise<void> {
   const delayMs = providerDelayMs ?? Math.min(4_000, 600 * (2 ** (attempt - 1)));
-  return new Promise((resolve) => globalThis.setTimeout(resolve, delayMs));
+  if (signal?.aborted) {
+    return Promise.reject(signal.reason ?? new Error('The operation was aborted.'));
+  }
+  return new Promise((resolve, reject) => {
+    const timeout = globalThis.setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, delayMs);
+    const onAbort = () => {
+      globalThis.clearTimeout(timeout);
+      reject(signal?.reason ?? new Error('The operation was aborted.'));
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (!signal?.aborted) return;
+  if (signal.reason !== undefined) throw signal.reason;
+  const error = new Error('The operation was aborted.');
+  error.name = 'AbortError';
+  throw error;
 }
 
 export function shouldClearSubmittedDraft(
@@ -630,6 +655,7 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
     onRetry?: (attempt: number, kind: BuildRetryKind) => void;
     wait?: (attempt: number, providerDelayMs?: number) => Promise<void>;
     shouldStopRepair?: () => boolean;
+    signal?: AbortSignal;
   },
 ): Promise<{
   response: TResponse;
@@ -690,6 +716,7 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
   };
 
   while (true) {
+    throwIfAborted(options.signal);
     if (isRepairAttempt && options.shouldStopRepair?.()) {
       throwRepairStopped();
     }
@@ -699,6 +726,7 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
       if (isRepairAttempt) repairAttemptCount += 1;
       response = await options.send(workingRequest);
     } catch (cause) {
+      throwIfAborted(options.signal);
       if (isRepairAttempt && options.shouldStopRepair?.()) {
         throwRepairStopped(cause);
       }
@@ -711,7 +739,8 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
           outputRepairAttempted = true;
           retries += 1;
           options.onRetry?.(retries, 'format');
-          await (options.wait ?? waitBeforeRetry)(retries);
+          if (options.wait) await options.wait(retries);
+          else await waitBeforeRetry(retries, undefined, options.signal);
           workingRequest = options.makeOutputRepairRequest(workingRequest);
           continue;
         }
@@ -744,7 +773,8 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
       if (policy.retryable && retries < MAX_AUTO_RETRIES) {
         retries += 1;
         options.onRetry?.(retries, 'generation');
-        await (options.wait ?? waitBeforeRetry)(retries, policy.delayMs);
+        if (options.wait) await options.wait(retries, policy.delayMs);
+        else await waitBeforeRetry(retries, policy.delayMs, options.signal);
         continue;
       }
       throw new CircuitBuildAttemptError({
@@ -1005,7 +1035,8 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
 
     retries += 1;
     options.onRetry?.(retries, 'repair');
-    await (options.wait ?? waitBeforeRetry)(retries);
+    if (options.wait) await options.wait(retries);
+    else await waitBeforeRetry(retries, undefined, options.signal);
     workingRequest = options.makeRepairRequest(response, findings);
     isRepairAttempt = true;
   }

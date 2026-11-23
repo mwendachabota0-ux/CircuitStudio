@@ -352,11 +352,13 @@ export async function generateWithAccountUsage(
     maxOutputTokens: number;
     imageTokenEstimate?: number;
     afterKeyNumber?: number;
+    signal?: AbortSignal;
     onKeyUsed?: (keyNumber: number) => void;
     onKeyFallback?: (failedKeyNumber: number, nextKeyNumber: number) => void;
   },
   generate: (client: GoogleGenAI) => Promise<GenerateContentResponse>,
 ): Promise<GenerateContentResponse> {
+  options.signal?.throwIfAborted();
   const keys = getConfiguredKeys();
   if (keys.length === 0) {
     throw new CircuitAiError(
@@ -392,6 +394,7 @@ export async function generateWithAccountUsage(
 
   try {
     for (let index = 0; index < orderedKeys.length; index += 1) {
+      options.signal?.throwIfAborted();
       const key = orderedKeys[index];
       attemptedKeyNumbers.push(key.number);
       let response: GenerateContentResponse;
@@ -403,6 +406,7 @@ export async function generateWithAccountUsage(
           }),
         );
       } catch (error) {
+        if (options.signal?.aborted) throw error;
         const rateLimited = isProviderRateLimited(error);
         if (rateLimited) rateLimitedKeyNumbers.push(key.number);
         if (index < orderedKeys.length - 1 && canFallbackToAnotherKey(error)) {
@@ -464,6 +468,7 @@ export async function generateWithAccountUsage(
     );
   } catch (error) {
     await releaseReservation(reservation.requestId).catch(() => undefined);
+    if (options.signal?.aborted) throw error;
     if (error instanceof CircuitAiError) throw error;
     throw new CircuitAiError(
       "AI usage could not be recorded. Please try again.",

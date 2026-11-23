@@ -649,3 +649,11 @@ Automated preview capture showed the existing disabled-feature fallback at `/stu
 - `docs/IMPLEMENTATION_HANDOFF.md` — recorded the verification evidence, exact UI blocker, and remaining checks.
 - No application source, tests, authentication, feature-gate defaults, server sync, database, or migrations were changed.
 - **Next action:** repeat the proposal review and approve/reject/save-failure/reload checks in a real signed-in preview once the V2 Lab preview is available with an authenticated session. Keep the feature flag temporary and server sync off.
+
+### Phase 4D follow-up — required-text response recovery
+
+- The reported 502 was raised by strict validation of a generated text field. Optional component reference/value and net-name fields were treated as required whenever the model emitted them, including when empty.
+- Blank or null optional labels are now omitted. The generator prompt tells the model to omit unknown optional text fields, and a single bounded repair attempt is made when a required text value is still invalid. The repair retains the original design intent, treats the prior model output as untrusted, and reports the failing field path if it still cannot be corrected.
+- Focused tests cover blank optional labels, successful one-time repair, and stopping after one failed repair. The signed-in live Gemini request was not repeated; the user should retry from the authenticated Lab.
+- Follow-up checks: 31 V2 generation library/route tests passed; API typecheck passed; the rebuilt API returned the expected auth response for an unauthenticated generation probe and `/api/healthz` returned 200.
+- Changed files: `artifacts/api-server/src/lib/circuitDocumentV2Generation.ts`, `artifacts/api-server/src/lib/circuitDocumentV2Generation.test.mjs`, and this handoff. No authentication, feature gates, sync, database, or migrations changed.

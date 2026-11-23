@@ -1,4 +1,5 @@
 import type {
+  KicadSymbolData,
   CircuitDesignBrief,
   CircuitSpec,
 } from '@workspace/api-client-react';
@@ -13,6 +14,7 @@ export type ExternalCircuitFixContext = {
 
 export type ExternalCircuitFixDiff = {
   hasChanges: boolean;
+  hasElementChanges: boolean;
   changeCount: number;
   summary: string;
   details: string[];
@@ -65,7 +67,69 @@ export function parseExternalCircuitFixSpec(value: string): CircuitSpec {
   if (typeof record.title !== 'string' || !Array.isArray(record.elements)) {
     throw new Error('The pasted JSON needs a CircuitSpec title and elements array.');
   }
+  if (record.title.trim().length === 0) {
+    throw new Error('The CircuitSpec needs a non-empty title.');
+  }
+  if (record.elements.length === 0 || record.elements.length > 300) {
+    throw new Error('CircuitSpec must contain between 1 and 300 elements.');
+  }
+  if (record.elements.some((element) => {
+    const item = asRecord(element);
+    return typeof item.type !== 'string';
+  })) {
+    throw new Error('Each CircuitSpec element needs a string type.');
+  }
   return record as CircuitSpec;
+}
+
+export async function hydrateExternalCircuitFixSymbols(
+  spec: CircuitSpec,
+  loadSymbolData: (symbolId: string) => Promise<KicadSymbolData>,
+): Promise<CircuitSpec> {
+  const symbolRequests = new Map<string, Promise<KicadSymbolData>>();
+  const elements = await Promise.all(spec.elements.map(async (element) => {
+    if (element.type !== 'kicad') return element;
+
+    const symbolId = typeof element.symbolId === 'string' ? element.symbolId : '';
+    if (!/^[^:\s]+:[^:\s]+$/.test(symbolId)) {
+      throw new Error('Each KiCad element needs a valid library:symbol ID.');
+    }
+
+    let symbolRequest = symbolRequests.get(symbolId);
+    if (!symbolRequest) {
+      symbolRequest = loadSymbolData(symbolId);
+      symbolRequests.set(symbolId, symbolRequest);
+    }
+    const symbolData = await symbolRequest;
+    if (symbolData.id !== symbolId || !symbolData.units.length) {
+      throw new Error(`The exact KiCad drawing data for ${symbolId} is unavailable.`);
+    }
+
+    const requestedUnit = Number.isInteger(element.unit) ? element.unit : undefined;
+    const requestedBodyStyle = Number.isInteger(element.bodyStyle)
+      ? element.bodyStyle
+      : undefined;
+    const unitData = symbolData.units.find((unit) =>
+      (requestedUnit === undefined || unit.unit === requestedUnit) &&
+      (requestedBodyStyle === undefined || unit.bodyStyle === requestedBodyStyle)
+    ) ?? symbolData.units.find((unit) =>
+      requestedUnit === undefined || unit.unit === requestedUnit
+    ) ?? symbolData.units[0];
+
+    if (!unitData) {
+      throw new Error(`KiCad symbol ${symbolId} does not have a usable drawing unit.`);
+    }
+
+    return {
+      ...element,
+      unit: unitData.unit,
+      bodyStyle: unitData.bodyStyle,
+      // Always use catalog geometry, never geometry pasted from an external source.
+      symbolData,
+    };
+  }));
+
+  return { ...spec, elements };
 }
 
 export function summarizeExternalCircuitFix(
@@ -147,6 +211,8 @@ export function summarizeExternalCircuitFix(
 
   return {
     hasChanges: changeCount > 0,
+    hasElementChanges:
+      additions.length + removals.length + updatedWires.length + updatedComponents.length > 0,
     changeCount,
     summary: parts.length ? parts.join('; ') : 'No drawing changes detected.',
     details,
@@ -192,6 +258,18 @@ export function partitionExternalCircuitFixFindings(
     reportedProblems,
     advisoryWarnings: [...new Set([...validationWarnings, ...layoutNotes])],
   };
+}
+
+export function getExternalCircuitFixLessonFindings(
+  context: ExternalCircuitFixContext,
+): string[] {
+  const reportedProblems = context.reportedProblems.filter((finding) =>
+    !finding.startsWith('No CircuitDraw structural blocker remains;') &&
+    finding !== 'Studio rejected the previous response for a format or compatibility issue.',
+  );
+  return [...new Set([...reportedProblems, ...context.advisoryWarnings])]
+    .slice(0, 12)
+    .map((finding) => finding.slice(0, 700));
 }
 
 export function getExternalCircuitFixContextKey(

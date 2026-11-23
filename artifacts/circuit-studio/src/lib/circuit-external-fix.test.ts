@@ -3,7 +3,9 @@ import { test } from 'node:test';
 import {
   buildExternalCircuitFixProposal,
   buildExternalCircuitFixPrompt,
+  getExternalCircuitFixLessonFindings,
   getExternalCircuitFixContextKey,
+  hydrateExternalCircuitFixSymbols,
   parseExternalCircuitFixSpec,
   partitionExternalCircuitFixFindings,
   shouldShowExternalCircuitFixPaste,
@@ -70,6 +72,36 @@ test('visual notes are kept advisory rather than presented as blocking errors', 
   );
 });
 
+test('repair lessons use concrete reported findings and relevant advisory warnings', () => {
+  assert.deepEqual(
+    getExternalCircuitFixLessonFindings({
+      ...context,
+      reportedProblems: [
+        'No CircuitDraw structural blocker remains; the previous attempts were rejected for visual routing notes only.',
+      ],
+      advisoryWarnings: ['Wire W1 is diagonal.'],
+    }),
+    ['Wire W1 is diagonal.'],
+  );
+  assert.deepEqual(
+    getExternalCircuitFixLessonFindings({
+      ...context,
+      reportedProblems: ['Wire W1 is disconnected.'],
+    }),
+    ['Wire W1 is disconnected.', ...context.advisoryWarnings],
+  );
+  assert.deepEqual(
+    getExternalCircuitFixLessonFindings({
+      ...context,
+      reportedProblems: [
+        'Studio rejected the previous response for a format or compatibility issue.',
+      ],
+      advisoryWarnings: [],
+    }),
+    [],
+  );
+});
+
 test('pasted complete CircuitSpec accepts plain or fenced JSON only', () => {
   assert.deepEqual(
     parseExternalCircuitFixSpec(JSON.stringify(rejectedSpec)),
@@ -87,6 +119,76 @@ test('pasted complete CircuitSpec accepts plain or fenced JSON only', () => {
     () => parseExternalCircuitFixSpec('{"elements": []}'),
     /title and elements array/,
   );
+  assert.throws(
+    () => parseExternalCircuitFixSpec('{"title":" ","elements":[{"type":"wire"}]}'),
+    /non-empty title/,
+  );
+  assert.throws(
+    () => parseExternalCircuitFixSpec('{"title":"Empty","elements":[]}'),
+    /between 1 and 300 elements/,
+  );
+  assert.throws(
+    () => parseExternalCircuitFixSpec('{"title":"Bad element","elements":[{}]}'),
+    /string type/,
+  );
+});
+
+test('external KiCad corrections use verified catalog geometry and keep the pasted drawing', async () => {
+  const catalogData = {
+    id: 'Timer:NE555',
+    units: [
+      { unit: 1, bodyStyle: 1, pins: [], graphics: [] },
+      { unit: 2, bodyStyle: 1, pins: [], graphics: [] },
+    ],
+  };
+  const pastedSpec = {
+    title: 'Corrected timer',
+    elements: [
+      {
+        type: 'kicad',
+        id: 'U1',
+        symbolId: 'Timer:NE555',
+        unit: 2,
+        at: [200, 160],
+        symbolData: { id: 'untrusted:geometry', units: [] },
+      },
+      { type: 'wire', id: 'W1', points: [[100, 100], [120, 100]] },
+    ],
+  };
+  const requestedIds: string[] = [];
+  const hydrated = await hydrateExternalCircuitFixSymbols(
+    pastedSpec,
+    async (symbolId) => {
+      requestedIds.push(symbolId);
+      return catalogData;
+    },
+  );
+
+  assert.deepEqual(requestedIds, ['Timer:NE555']);
+  assert.deepEqual(hydrated.elements[0], {
+    type: 'kicad',
+    id: 'U1',
+    symbolId: 'Timer:NE555',
+    unit: 2,
+    bodyStyle: 1,
+    at: [200, 160],
+    symbolData: catalogData,
+  });
+  assert.deepEqual(hydrated.elements[1], pastedSpec.elements[1]);
+  assert.deepEqual(pastedSpec.elements[0].symbolData, {
+    id: 'untrusted:geometry',
+    units: [],
+  });
+});
+
+test('external KiCad corrections reject missing catalog geometry instead of staging an approximation', async () => {
+  await assert.rejects(
+    () => hydrateExternalCircuitFixSymbols({
+      title: 'Unavailable symbol',
+      elements: [{ type: 'kicad', id: 'U1', symbolId: 'Missing:Symbol' }],
+    }, async () => ({ id: 'Missing:Symbol', units: [] })),
+    /exact KiCad drawing data/,
+  );
 });
 
 test('external correction summary reports meaningful additions and wire changes', () => {
@@ -101,6 +203,7 @@ test('external correction summary reports meaningful additions and wire changes'
   const diff = summarizeExternalCircuitFix(rejectedSpec, after);
 
   assert.equal(diff.hasChanges, true);
+  assert.equal(diff.hasElementChanges, true);
   assert.equal(diff.changeCount, 2);
   assert.match(diff.summary, /1 added; 1 wire updated/);
   assert.ok(diff.details.some((line) => line.includes('Updated wire W1 (points)')));
@@ -139,5 +242,6 @@ test('external correction comparison ignores object key order and symbol geometr
   };
   const diff = summarizeExternalCircuitFix(before, after);
   assert.equal(diff.hasChanges, false);
+  assert.equal(diff.hasElementChanges, false);
   assert.equal(diff.summary, 'No drawing changes detected.');
 });

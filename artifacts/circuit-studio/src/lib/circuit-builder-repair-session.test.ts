@@ -6,6 +6,7 @@ import {
   getBuilderHistoryStorageKey,
   getNextBuilderHistoryTimestamp,
   normalizeRepairRecoveryState,
+  updateRepairRecoveryState,
 } from './circuit-builder-repair-session.ts';
 
 const spec = { title: 'Timer circuit', elements: [] };
@@ -122,6 +123,40 @@ test('discarding or applying a staged repair removes it from the saved state', (
   assert.equal(applied.rejectedProposalSpec, undefined);
   assert.equal(applied.externalFixDraft, '');
   assert.equal(applied.composerDraft, 'Keep this follow-up.');
+});
+
+test('staging an external correction preserves the rejected comparison baseline', () => {
+  const rejectedSpec = {
+    title: 'Rejected timer',
+    elements: [{ type: 'wire', id: 'W1', points: [[0, 0], [20, 0]] }],
+  };
+  const correctedSpec = {
+    title: 'Corrected timer',
+    elements: [{ type: 'wire', id: 'W1', points: [[0, 0], [20, 20]] }],
+  };
+  const rejected = normalizeRepairRecoveryState(
+    {
+      version: 1,
+      status: 'rejected',
+      rejectedProposalSpec: rejectedSpec,
+      repairDiagnostics: [],
+      retryAttempt: 0,
+      externalFixDraft: JSON.stringify(correctedSpec),
+      composerDraft: '',
+    },
+    isCircuitSpec,
+    isCircuitBuildRequest,
+  );
+
+  const staged = updateRepairRecoveryState(rejected, {
+    status: 'staged',
+    proposal: { summary: 'External correction: 1 wire updated.', spec: correctedSpec },
+    proposalValidation: { errors: [], warnings: [] },
+  });
+
+  assert.deepEqual(staged.rejectedProposalSpec, rejectedSpec);
+  assert.deepEqual(staged.proposal?.spec, correctedSpec);
+  assert.equal(staged.status, 'staged');
 });
 
 test('repair history uses separate local storage keys for each signed-in user', () => {

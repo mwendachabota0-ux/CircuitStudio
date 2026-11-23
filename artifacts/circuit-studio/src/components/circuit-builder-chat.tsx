@@ -8,6 +8,7 @@ import {
   getListDeletedCircuitBuilderHistoryQueryKey,
   getListCircuitBuilderMemoriesQueryKey,
   chatWithCircuitBuilder,
+  getCircuitSymbolData,
   reviewCircuitProposal,
   useChatWithCircuitBuilder,
   useGetAiUsage,
@@ -81,6 +82,8 @@ import {
 import {
   buildExternalCircuitFixProposal,
   buildExternalCircuitFixPrompt,
+  getExternalCircuitFixLessonFindings,
+  hydrateExternalCircuitFixSymbols,
   getExternalCircuitFixContextKey,
   partitionExternalCircuitFixFindings,
   shouldShowExternalCircuitFixPaste,
@@ -708,6 +711,7 @@ export function CircuitBuilderChat({
   const [requestCycleActive, setRequestCycleActive] = useState(false);
   const [isStoppingWork, setIsStoppingWork] = useState(false);
   const [externalFixFeedback, setExternalFixFeedback] = useState('');
+  const [externalFixValidationPending, setExternalFixValidationPending] = useState(false);
   const [repairStopAvailable, setRepairStopAvailable] = useState(false);
   const [repairStopRequested, setRepairStopRequested] = useState(false);
   const repairState = saved.repair;
@@ -810,6 +814,9 @@ export function CircuitBuilderChat({
       })),
     });
   const composerRef = useRef<CircuitBuilderComposerHandle>(null);
+  const externalFixValidationRef = useRef(false);
+  const activeSessionIdRef = useRef(activeSessionId);
+  activeSessionIdRef.current = activeSessionId;
   const handledJsonRepairRequestRef = useRef<number | null>(null);
   const observedWorkbenchRepairRef = useRef<{
     sessionId: string;
@@ -1602,6 +1609,8 @@ export function CircuitBuilderChat({
   const externalFixContextKey = externalFixContext
     ? getExternalCircuitFixContextKey(externalFixContext)
     : '';
+  const externalFixContextKeyRef = useRef(externalFixContextKey);
+  externalFixContextKeyRef.current = externalFixContextKey;
   const showExternalFixPaste = shouldShowExternalCircuitFixPaste(
     externalFixCopiedContextKey,
     externalFixContextKey,
@@ -1658,12 +1667,14 @@ export function CircuitBuilderChat({
     }
   };
 
-  const submitExternalCircuitFix = () => {
+  const submitExternalCircuitFix = async () => {
     if (
       !externalFixContext ||
       !showExternalFixPaste ||
       !externalFixDraft.trim() ||
       proposal ||
+      externalFixValidationPending ||
+      externalFixValidationRef.current ||
       requestCycleActive ||
       chatMutation.isPending
     ) return;
@@ -1686,35 +1697,65 @@ export function CircuitBuilderChat({
       return;
     }
 
-    const correctedSpec = candidate.spec;
-    const inspection = inspectProposal(correctedSpec);
-    setMode('build');
-    setProposal({
-      summary: candidate.summary,
-      spec: correctedSpec,
-    });
-    setProposalValidation(inspection.validation);
-    setProposalSvg(inspection.svg);
-    setProposalError('');
-    setLayoutRepairNotice('');
-    setProposalQualityReview({
-      kind: 'skipped',
-      reason: inspection.validation.errors.length
-        ? 'blocking-findings'
-        : 'external-correction',
-    });
-    setProposalRepairLesson(
-      inspection.validation.errors.length || !externalFixContext.reportedProblems.length
-        ? null
-        : {
-            beforeSpec: externalFixContext.rejectedSpec,
-            afterSpec: correctedSpec,
-            findings: externalFixContext.reportedProblems,
-            context: 'Applied external CircuitSpec correction.',
-            content: null,
-          },
-    );
-    updateRepairState({ repairDiagnostics: [], retryAttempt: 0, retryKind: undefined });
+    const sessionIdAtStart = activeSessionId;
+    const contextKeyAtStart = externalFixContextKey;
+    externalFixValidationRef.current = true;
+    setExternalFixValidationPending(true);
+    try {
+      const correctedSpec = await hydrateExternalCircuitFixSymbols(
+        candidate.spec,
+        (symbolId) => getCircuitSymbolData({ symbolId }),
+      );
+      if (
+        activeSessionIdRef.current !== sessionIdAtStart ||
+        externalFixContextKeyRef.current !== contextKeyAtStart
+      ) return;
+      const inspection = inspectProposal(correctedSpec);
+      const lessonFindings = getExternalCircuitFixLessonFindings(externalFixContext);
+      setMode('build');
+      setProposal({
+        summary: candidate.summary,
+        spec: correctedSpec,
+      });
+      setProposalValidation(inspection.validation);
+      setProposalSvg(inspection.svg);
+      setProposalError('');
+      setLayoutRepairNotice('');
+      setProposalQualityReview({
+        kind: 'skipped',
+        reason: inspection.validation.errors.length
+          ? 'blocking-findings'
+          : 'external-correction',
+      });
+      setProposalRepairLesson(
+        inspection.validation.errors.length ||
+          !candidate.diff.hasElementChanges ||
+          !lessonFindings.length
+          ? null
+          : {
+              beforeSpec: externalFixContext.rejectedSpec,
+              afterSpec: correctedSpec,
+              findings: lessonFindings,
+              context: 'Applied external CircuitSpec correction.',
+              content: null,
+            },
+      );
+      updateRepairState({ repairDiagnostics: [], retryAttempt: 0, retryKind: undefined });
+    } catch (error) {
+      if (
+        activeSessionIdRef.current === sessionIdAtStart &&
+        externalFixContextKeyRef.current === contextKeyAtStart
+      ) {
+        setExternalFixFeedback(
+          error instanceof Error
+            ? error.message
+            : 'The pasted correction could not be prepared for validation.',
+        );
+      }
+    } finally {
+      externalFixValidationRef.current = false;
+      setExternalFixValidationPending(false);
+    }
   };
 
   const runRequest = async (
@@ -2508,6 +2549,8 @@ export function CircuitBuilderChat({
   );
   const proposalTopologyErrors = proposalValidation?.topologyErrors ?? [];
   const proposalTopologyWarnings = proposalValidation?.topologyWarnings ?? [];
+  const isExternalCircuitFixProposal =
+    proposal?.summary.startsWith('External correction:') ?? false;
   const proposalStructuralErrors = proposalValidation?.errors.filter(
     (finding) => !proposalTopologyErrors.includes(finding),
   ) ?? [];
@@ -2879,11 +2922,11 @@ export function CircuitBuilderChat({
                       type="button"
                       className="builder-chat__text-link builder-chat__rejected-copy builder-chat__external-fix-copy"
                       onClick={copyExternalCircuitFixPrompt}
-                      disabled={!externalFixContext || chatMutation.isPending || requestCycleActive}
+                      disabled={!externalFixContext || chatMutation.isPending || requestCycleActive || externalFixValidationPending}
                       data-testid="button-copy-external-repair-context"
                     >
                       {externalFixCopyState === 'copied' ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
-                      {externalFixCopyState === 'copied' ? 'Context copied' : 'Copy CircuitSpec + findings'}
+                      {externalFixCopyState === 'copied' ? 'Context copied' : 'Copy context for external help'}
                     </button>
                     {externalFixCopyState === 'error' && (
                       <span className="builder-chat__rejected-copy-error" role="status">
@@ -2901,7 +2944,7 @@ export function CircuitBuilderChat({
                   data-testid="panel-external-circuit-fix"
                 >
                   <h3>Paste the corrected CircuitSpec</h3>
-                  <p>Copy the CircuitSpec and findings for your external helper, then paste its complete corrected JSON here. CircuitStudio checks and stages what you paste; it does not regenerate it.</p>
+                  <p>Paste the complete corrected CircuitSpec here. CircuitStudio checks and stages it as a full replacement; it will not ask AI to repair or regenerate it.</p>
                   <label htmlFor="external-circuit-fix-json">Corrected CircuitSpec JSON</label>
                   <textarea
                     id="external-circuit-fix-json"
@@ -2911,7 +2954,7 @@ export function CircuitBuilderChat({
                       setExternalFixDraft(event.target.value);
                       setExternalFixFeedback('');
                     }}
-                    disabled={chatMutation.isPending || requestCycleActive}
+                    disabled={chatMutation.isPending || requestCycleActive || externalFixValidationPending}
                     spellCheck={false}
                     rows={8}
                     placeholder="Paste the complete CircuitSpec JSON (code fences are okay)."
@@ -2926,10 +2969,10 @@ export function CircuitBuilderChat({
                     type="button"
                     className="builder-chat__external-fix-submit"
                     onClick={submitExternalCircuitFix}
-                    disabled={!externalFixDraft.trim() || chatMutation.isPending || requestCycleActive || !!proposal}
+                    disabled={!externalFixDraft.trim() || chatMutation.isPending || requestCycleActive || externalFixValidationPending || !!proposal}
                     data-testid="button-submit-external-circuit-fix"
                   >
-                    Validate and stage correction
+                    {externalFixValidationPending ? 'Loading symbols and checking…' : 'Check and stage replacement'}
                   </button>
                   <p className="builder-chat__external-fix-note">Applying the staged correction saves a short lesson for similar issues. Structural checks do not prove electrical correctness or safety.</p>
                 </section>
@@ -3076,10 +3119,18 @@ export function CircuitBuilderChat({
                   onClick={applyProposal}
                   data-testid="button-apply-proposal"
                 >
-                  <Check aria-hidden="true" /> {proposalQualityReview.kind === 'loading' ? 'Reviewing…' : 'Apply to workbench'}
+                  <Check aria-hidden="true" /> {proposalQualityReview.kind === 'loading'
+                    ? 'Reviewing…'
+                    : isExternalCircuitFixProposal
+                      ? 'Replace workbench with correction'
+                      : 'Apply to workbench'}
                 </button>
               </div>
-              <p className="builder-chat__proposal-note">{proposalRepairLesson ? 'Applying this repair saves a reusable lesson for similar circuit issues. ' : ''}Applying sends this spec to your workbench; nothing changes before you choose. Structural and AI checks do not prove circuit behavior, component ratings, or safety.</p>
+              <p className="builder-chat__proposal-note">{isExternalCircuitFixProposal
+                ? 'Applying replaces the current workbench drawing with this corrected CircuitSpec. No AI repair runs; after you apply it, CircuitStudio may save a short lesson from the before-and-after changes. '
+                : proposalRepairLesson
+                  ? 'Applying this repair saves a reusable lesson for similar circuit issues. '
+                  : ''}Nothing changes before you choose. Structural and AI checks do not prove circuit behavior, component ratings, or safety.</p>
             </section>
           )}
 

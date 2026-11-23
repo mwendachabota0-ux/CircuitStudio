@@ -45,8 +45,6 @@ import type {
   CircuitReviewResponse,
   CircuitSpec,
   CircuitSymbolSearchResponse,
-  ExternalCircuitFixReviewInput,
-  ExternalCircuitFixReviewResponse,
   GetCircuitSymbolDataParams,
   HealthStatus,
   KicadSymbolData,
@@ -593,95 +591,6 @@ export const useChatWithCircuitBuilder = <TError = ErrorType<ApiError>,
         TContext
       > => {
       return useMutation(getChatWithCircuitBuilderMutationOptions(options));
-    }
-
-export const getReviewExternalCircuitFixUrl = () => {
-
-
-
-
-  return `/api/circuits/external-fix/review`
-}
-
-/**
- * Checks a candidate CircuitSpec against a rejected proposal and its reported problems. The response is an AI review, not proof of electrical correctness or safety.
- * @summary Review a user-pasted correction to a rejected circuit
- */
-export const reviewExternalCircuitFix = async (externalCircuitFixReviewInput: ExternalCircuitFixReviewInput, options?: Parameters<typeof customFetch>[1]): Promise<ExternalCircuitFixReviewResponse> => {
-
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return customFetch<ExternalCircuitFixReviewResponse>(getReviewExternalCircuitFixUrl(),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(externalCircuitFixReviewInput)
-  }
-);}
-
-
-
-
-
-export const getReviewExternalCircuitFixMutationKey = () => ['reviewExternalCircuitFix'] as const;
-
-export const getReviewExternalCircuitFixMutationOptions = <TError = ErrorType<ApiError>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewExternalCircuitFix>>, TError,ReviewExternalCircuitFixMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof reviewExternalCircuitFix>>, TError,ReviewExternalCircuitFixMutationVariables, TContext> => {
-
-const mutationKey = getReviewExternalCircuitFixMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewExternalCircuitFix>>, ReviewExternalCircuitFixMutationVariables> = (props) => {
-          const {data} = props ?? {};
-
-          return  reviewExternalCircuitFix(data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type ReviewExternalCircuitFixMutationResult = NonNullable<Awaited<ReturnType<typeof reviewExternalCircuitFix>>>
-    export type ReviewExternalCircuitFixMutationBody = BodyType<ExternalCircuitFixReviewInput>
-    export type ReviewExternalCircuitFixMutationError = ErrorType<ApiError>
-    export type ReviewExternalCircuitFixMutationVariables = {data: BodyType<ExternalCircuitFixReviewInput>}
-
-    /**
- * @summary Review a user-pasted correction to a rejected circuit
- */
-export const useReviewExternalCircuitFix = <TError = ErrorType<ApiError>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewExternalCircuitFix>>, TError,ReviewExternalCircuitFixMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof reviewExternalCircuitFix>>,
-        TError,
-        ReviewExternalCircuitFixMutationVariables,
-        TContext
-      > => {
-      return useMutation(getReviewExternalCircuitFixMutationOptions(options));
     }
 
 export const getListCircuitBuilderMemoriesUrl = () => {

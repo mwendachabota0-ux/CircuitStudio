@@ -734,56 +734,6 @@ export interface CircuitReviewRequest {
   spec: CircuitSpec;
 }
 
-/**
- * Untrusted snapshot of a rejected model proposal; intentionally permissive so invalid elements can be reviewed.
- */
-export interface RejectedCircuitSpec { [key: string]: unknown }
-
-export interface ExternalCircuitFixReviewInput {
-  rejectedSpec: RejectedCircuitSpec;
-  candidateSpec: CircuitSpec;
-  /**
-     * @minItems 1
-     * @maxItems 30
-     * @items.minLength 1
-     * @items.maxLength 1000
-     */
-  reportedProblems: string[];
-  /**
-     * @maxItems 30
-     * @items.minLength 1
-     * @items.maxLength 1000
-     */
-  advisoryWarnings?: string[];
-  /** @maxLength 6000 */
-  originalRequest?: string;
-  designBrief: CircuitDesignBrief;
-  /** @maxItems 8 */
-  history: CircuitBuildChatMessage[];
-}
-
-export interface ExternalCircuitFixReviewResponse {
-  /** Studio AI's review verdict; never a simulation or safety result. */
-  approved: boolean;
-  /**
-     * @minLength 1
-     * @maxLength 800
-     */
-  summary: string;
-  /**
-     * @maxItems 8
-     * @items.minLength 1
-     * @items.maxLength 500
-     */
-  concerns: string[];
-  /**
-     * Reusable lesson from the correction, if supported by the review evidence.
-     * @maxLength 300
-     * @nullable
-     */
-  repairLesson?: string | null;
-}
-
 export interface CircuitReviewResponse {
   review: string;
 }

@@ -948,7 +948,11 @@ async function fetchSymbolData(
       throw new Error(`Base symbol ${parsed.extendsName} is missing from the KiCad index.`);
     }
     const parentData = await fetchSymbolData(parentEntry.id, visited);
-    units = mergeInheritedKicadUnits(parentData.units, units);
+    units = mergeInheritedKicadUnits(
+      parentData.units,
+      units,
+      parsed.commonUnits,
+    );
   }
 
   if (!units.length) {

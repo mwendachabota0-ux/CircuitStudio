@@ -337,9 +337,6 @@ function ComponentLibraryCard({
     entry.shortDescription.trim() || entryDescription;
   const entryUsage = commonSymbolUses[entryId] ?? entryShortDescription;
   const entryLongDescription = entry.longDescription.trim() || entryUsage;
-  const entryKeywords = isKicadEntry
-    ? entry.keywords.trim()
-    : entry.keywords.join(', ');
   const needsReview =
     isKicadEntry && entry.researchStatus === 'needs_review';
   const entryCategory = isKicadEntry ? entry.library : entry.category;
@@ -375,7 +372,6 @@ function ComponentLibraryCard({
           aria-label={`Read the function and use of ${entryName}`}
           aria-expanded={usageOpen}
           aria-controls={usagePanelId}
-          title={entryUsage}
           onClick={() => onToggleUsage(entryId)}
           data-testid={`component-library-use-details-toggle-${entryId}`}
         >
@@ -402,7 +398,6 @@ function ComponentLibraryCard({
           className="component-library-dialog__item-description"
           type="button"
           data-component-library-usage-trigger
-          title={entryUsage}
           aria-label={`Read the function and use of ${entryName}`}
           aria-expanded={usageOpen}
           aria-controls={usagePanelId}
@@ -461,16 +456,6 @@ function ComponentLibraryCard({
         {needsReview && (
           <p className="component-library-dialog__usage-source">
             This description is unverified and may be based on a fallback match.
-          </p>
-        )}
-        {isKicadEntry && entryDescription !== entryUsage && (
-          <p className="component-library-dialog__usage-source">
-            KiCad description: {entryDescription}
-          </p>
-        )}
-        {entryKeywords && entryKeywords !== entryDescription && (
-          <p className="component-library-dialog__usage-keywords">
-            Related terms: {entryKeywords}
           </p>
         )}
       </div>

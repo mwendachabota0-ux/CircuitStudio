@@ -197,12 +197,16 @@ function parseGraphic(value: SExprList): KicadSymbolGraphic | undefined {
 
   if (type === "circle") {
     const center = point(value, "center");
+    const radius = childNumber(value, "radius");
     const edge = point(value, "end");
-    if (!center || !edge) return undefined;
+    if (!center || (radius === undefined && !edge)) return undefined;
     return {
       type: "circle",
       points: [toCanvasPoint(center)],
-      radius: Math.hypot(edge[0] - center[0], edge[1] - center[1]) * PIXELS_PER_MILLIMETER,
+      radius: radius === undefined
+        ? Math.hypot(edge![0] - center[0], edge![1] - center[1]) *
+          PIXELS_PER_MILLIMETER
+        : Math.abs(radius) * PIXELS_PER_MILLIMETER,
       strokeWidth: width,
       fillType: fill,
     };
@@ -279,6 +283,7 @@ function mergePins(...groups: KicadSymbolPin[][]): KicadSymbolPin[] {
 
 export type ParsedKicadSymbol = {
   extendsName?: string;
+  commonUnits?: Array<Pick<KicadSymbolUnit, "bodyStyle" | "pins" | "graphics">>;
   units: KicadSymbolUnit[];
 };
 
@@ -329,37 +334,69 @@ export function parseKicadSymbolSource(source: string): ParsedKicadSymbol {
     }
   }
 
-  const units = [...unitsByKey.values()].map((unit) => {
-    const common = commonByStyle.get(unit.bodyStyle);
-    if (!common) return unit;
-    return {
-      ...unit,
-      pins: mergePins(common.pins, unit.pins),
-      graphics: [...common.graphics, ...unit.graphics],
-    };
-  });
+  const commonUnits = [...commonByStyle.entries()].map(
+    ([bodyStyle, common]) => ({ bodyStyle, ...common }),
+  );
+  const parsedUnits = [...unitsByKey.values()];
+  let units: KicadSymbolUnit[];
 
-  return { ...(extendsName ? { extendsName } : {}), units };
+  if (extendsName) {
+    // Keep shared child geometry separate so it can be merged into every
+    // inherited unit, including parent units that the child does not repeat.
+    units = parsedUnits;
+  } else if (parsedUnits.length) {
+    units = parsedUnits.map((unit) => {
+      const common = commonByStyle.get(unit.bodyStyle);
+      if (!common) return unit;
+      return {
+        ...unit,
+        pins: mergePins(common.pins, unit.pins),
+        graphics: [...common.graphics, ...unit.graphics],
+      };
+    });
+  } else {
+    // KiCad also uses unit 0 for symbols with no numbered unit, such as
+    // generic switches and graphics-only annotation symbols.
+    units = commonUnits.map((common) => ({ unit: 1, ...common }));
+  }
+
+  return {
+    ...(extendsName ? { extendsName } : {}),
+    ...(extendsName && commonUnits.length ? { commonUnits } : {}),
+    units,
+  };
 }
 
 export function mergeInheritedKicadUnits(
   inherited: KicadSymbolUnit[],
   own: KicadSymbolUnit[],
+  commonUnits: Array<Pick<KicadSymbolUnit, "bodyStyle" | "pins" | "graphics">> = [],
 ): KicadSymbolUnit[] {
-  const byKey = new Map(
-    inherited.map((unit) => [`${unit.unit}:${unit.bodyStyle}`, unit]),
+  const commonByStyle = new Map(
+    commonUnits.map((unit) => [unit.bodyStyle, unit]),
   );
+  const byKey = new Map(inherited.map((unit) => {
+    const common = commonByStyle.get(unit.bodyStyle);
+    const merged = common
+      ? {
+        ...unit,
+        pins: mergePins(common.pins, unit.pins),
+        graphics: [...common.graphics, ...unit.graphics],
+      }
+      : unit;
+    return [`${unit.unit}:${unit.bodyStyle}`, merged];
+  }));
   for (const unit of own) {
     const key = `${unit.unit}:${unit.bodyStyle}`;
     const parent = byKey.get(key);
-    if (!parent) {
-      byKey.set(key, unit);
-      continue;
-    }
+    const common = commonByStyle.get(unit.bodyStyle);
     byKey.set(key, {
       ...unit,
-      pins: mergePins(parent.pins, unit.pins),
-      graphics: [...parent.graphics, ...unit.graphics],
+      pins: mergePins(parent?.pins ?? common?.pins ?? [], unit.pins),
+      graphics: [
+        ...(parent?.graphics ?? common?.graphics ?? []),
+        ...unit.graphics,
+      ],
     });
   }
   return [...byKey.values()].sort(

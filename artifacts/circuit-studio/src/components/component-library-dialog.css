@@ -1119,6 +1119,8 @@
 
 .component-library-dialog__item:has(.component-library-dialog__usage-toggle:hover),
 .component-library-dialog__item:has(.component-library-dialog__usage-toggle:focus-visible),
+.component-library-dialog__item:has(.component-library-dialog__item-description:hover),
+.component-library-dialog__item:has(.component-library-dialog__item-description:focus-visible),
 .component-library-dialog__item:has(.component-library-dialog__usage-panel.is-open) {
   z-index: 5;
 }
@@ -1191,8 +1193,10 @@
 }
 
 .component-library-dialog__item:has(.component-library-dialog__usage-toggle:hover) .component-library-dialog__usage-panel,
+.component-library-dialog__item:has(.component-library-dialog__item-description:hover) .component-library-dialog__usage-panel,
 .component-library-dialog__item:has(.component-library-dialog__usage-panel:hover) .component-library-dialog__usage-panel,
 .component-library-dialog__item:has(.component-library-dialog__usage-toggle:focus-visible) .component-library-dialog__usage-panel,
+.component-library-dialog__item:has(.component-library-dialog__item-description:focus-visible) .component-library-dialog__usage-panel,
 .component-library-dialog__usage-panel.is-open {
   display: block;
 }

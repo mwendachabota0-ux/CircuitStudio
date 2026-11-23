@@ -350,6 +350,35 @@ test("KiCad symbols without hydrated source data cannot be rendered as valid dra
   }), /Invalid circuit spec/);
 });
 
+test("graphics-only KiCad symbols render source artwork without inventing pins", () => {
+  const element = {
+    type: "kicad",
+    id: "X1",
+    symbolId: "Graphic:Annotation_Number",
+    at: [100, 100],
+    symbolData: {
+      id: "Graphic:Annotation_Number",
+      units: [{
+        unit: 1,
+        bodyStyle: 1,
+        pins: [],
+        graphics: [{
+          type: "circle",
+          points: [[0, 0]],
+          radius: 8.98,
+          strokeWidth: 1.27,
+          fillType: "background",
+        }],
+      }],
+    },
+  };
+  const spec = { title: "Graphic-only KiCad symbol", elements: [element] };
+
+  assert.deepEqual(Array.from(CircuitDraw.validate(spec).errors), []);
+  assert.deepEqual(CircuitGeometry.getCircuitPins(element), []);
+  assert.match(CircuitDraw.render(spec), /<circle cx="0" cy="0" r="8\.98"/);
+});
+
 test("the valid astable flasher passes after safe rail-tail cleanup", () => {
   const before = CircuitDraw.validate(astableFlasher);
   assert.equal(before.errors.length, 2);

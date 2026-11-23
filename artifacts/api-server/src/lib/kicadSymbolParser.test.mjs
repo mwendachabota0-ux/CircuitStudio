@@ -109,6 +109,98 @@ test("standard resistor leads meet the exact library body edges", () => {
   assert.ok(Math.abs(right.bodyPoint[1]) < 0.000001);
 });
 
+test("unit-zero-only symbols become a renderable unit with their original pins", () => {
+  const parsed = parseKicadSymbolSource(`
+    (kicad_symbol_lib (version 20231120)
+      (symbol "UnitZeroSwitch"
+        (symbol "UnitZeroSwitch_0_1"
+          (circle (center 0 0) (radius 2)
+            (stroke (width 0.254) (type default))
+            (fill (type none)))
+          (pin passive line (at -5.08 0 0) (length 2.54)
+            (name "1") (number "1"))
+          (pin passive line (at 5.08 0 180) (length 2.54)
+            (name "2") (number "2")))))`);
+
+  assert.equal(parsed.units.length, 1);
+  assert.equal(parsed.units[0].unit, 1);
+  assert.equal(parsed.units[0].bodyStyle, 1);
+  assert.deepEqual(parsed.units[0].pins.map(({ number }) => number), ["1", "2"]);
+  assert.ok(Math.abs(parsed.units[0].pins[0].point[0] + 50.8) < 0.000001);
+  assert.ok(Math.abs(parsed.units[0].pins[0].point[1]) < 0.000001);
+  assert.ok(Math.abs(parsed.units[0].pins[0].bodyPoint[0] + 25.4) < 0.000001);
+  assert.ok(Math.abs(parsed.units[0].pins[0].bodyPoint[1]) < 0.000001);
+  assert.ok(Math.abs(parsed.units[0].pins[1].point[0] - 50.8) < 0.000001);
+  assert.ok(Math.abs(parsed.units[0].pins[1].point[1]) < 0.000001);
+  assert.ok(Math.abs(parsed.units[0].pins[1].bodyPoint[0] - 25.4) < 0.000001);
+  assert.ok(Math.abs(parsed.units[0].pins[1].bodyPoint[1]) < 0.000001);
+  assert.equal(parsed.units[0].graphics[0].radius, 20);
+});
+
+test("graphics-only unit-zero symbols remain available for symbol previews", () => {
+  const parsed = parseKicadSymbolSource(`
+    (kicad_symbol_lib (version 20231120)
+      (symbol "Annotation"
+        (symbol "Annotation_0_1"
+          (circle (center 0 0) (radius 0.898)
+            (stroke (width 0.127) (type default))
+            (fill (type background))))))`);
+
+  assert.equal(parsed.units.length, 1);
+  assert.deepEqual(
+    {
+      unit: parsed.units[0].unit,
+      bodyStyle: parsed.units[0].bodyStyle,
+      pins: parsed.units[0].pins,
+      graphics: parsed.units[0].graphics,
+    },
+    {
+      unit: 1,
+      bodyStyle: 1,
+      pins: [],
+      graphics: [{
+        type: "circle",
+        points: [[0, 0]],
+        radius: 8.98,
+        strokeWidth: 1.27,
+        fillType: "background",
+      }],
+    },
+  );
+});
+
+test("shared unit-zero child geometry merges into every inherited unit", () => {
+  const parent = parseKicadSymbolSource(`
+    (kicad_symbol_lib (version 20231120)
+      (symbol "Base"
+        (symbol "Base_1_1"
+          (rectangle (start -2 -2) (end 2 2)
+            (stroke (width 0.254)) (fill (type none))))
+        (symbol "Base_2_1"
+          (rectangle (start -3 -3) (end 3 3)
+            (stroke (width 0.254)) (fill (type none))))))`);
+  const child = parseKicadSymbolSource(`
+    (kicad_symbol_lib (version 20231120)
+      (symbol "Child"
+        (extends "Base")
+        (symbol "Child_0_1"
+          (circle (center 0 0) (radius 1)
+            (stroke (width 0.254)) (fill (type none))))))`);
+
+  assert.equal(child.units.length, 0);
+  assert.ok(child.commonUnits);
+  const merged = mergeInheritedKicadUnits(
+    parent.units,
+    child.units,
+    child.commonUnits,
+  );
+  assert.equal(merged.length, 2);
+  for (const unit of merged) {
+    assert.equal(unit.graphics.length, 2);
+    assert.ok(unit.graphics.some((graphic) => graphic.type === "circle"));
+  }
+});
+
 test("merges inherited unit graphics and pins without dropping child definitions", () => {
   const parent = parseKicadSymbolSource(`
     (kicad_symbol_lib (version 20231120)

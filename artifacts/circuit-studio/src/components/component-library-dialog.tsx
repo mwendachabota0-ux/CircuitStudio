@@ -4,6 +4,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CircuitBoard,
+  Info,
   LoaderCircle,
   Search,
   X,
@@ -18,6 +19,7 @@ import {
 import type {
   CircuitSpec,
   CircuitSymbolSearchItem,
+  SearchCircuitSymbolsFamily,
 } from '@workspace/api-client-react';
 import {
   Dialog,
@@ -53,12 +55,93 @@ const previewOptions = {
   dotRadius: 2.5,
 };
 
+const commonSymbolUses: Record<string, string> = {
+  resistor:
+    'Limits current, sets voltage dividers, and provides bias or pull-up/down paths.',
+  'Device:R':
+    'Limits current, sets voltage dividers, and provides bias or pull-up/down paths.',
+  capacitor:
+    'Stores charge and is commonly used for filtering, decoupling, signal coupling, and timing.',
+  'Device:C':
+    'Stores charge and is commonly used for filtering, decoupling, signal coupling, and timing.',
+  'Device:C_Polarized':
+    'Stores charge for filtering and supply smoothing; its positive and negative leads must be oriented correctly.',
+  diode:
+    'Allows current mainly in one direction for rectification, reverse-polarity protection, and signal clamping.',
+  'Device:D':
+    'Allows current mainly in one direction for rectification, reverse-polarity protection, and signal clamping.',
+  led:
+    'Converts forward current to light; use a series resistor to limit its current.',
+  'Device:LED':
+    'Converts forward current to light; use a series resistor to limit its current.',
+  npn:
+    'Uses a small base current to control a larger collector-emitter current, often as a switch or amplifier.',
+  'Transistor_BJT:Q_NPN_BCE':
+    'Uses a small base current to control a larger collector-emitter current, often as a switch or amplifier.',
+  pnp:
+    'Provides a controllable high-side switch or amplifier; verify the emitter, base, and collector connections.',
+  'Transistor_BJT:Q_PNP_BCE':
+    'Provides a controllable high-side switch or amplifier; verify the emitter, base, and collector connections.',
+  nmos:
+    'Uses gate voltage to control current between drain and source, commonly as a low-side switch.',
+  'Transistor_FET:Q_NMOS_GDS':
+    'Uses gate voltage to control current between drain and source, commonly as a low-side switch.',
+  pmos:
+    'Uses gate voltage to control current between source and drain, commonly as a high-side switch.',
+  'Transistor_FET:Q_PMOS_GDS':
+    'Uses gate voltage to control current between source and drain, commonly as a high-side switch.',
+  'power:GND':
+    'Marks the shared ground/reference net so connected points use the same circuit reference.',
+  'Device:Battery':
+    'Represents a battery supplying direct-current energy to the circuit.',
+  'Device:Fuse':
+    'Opens the circuit when current exceeds its specified limit, helping protect downstream wiring and parts.',
+};
+
 type LibraryEntry = CircuitComponentLibraryEntry | CircuitSymbolSearchItem;
-const KICAD_PAGE_SIZE = 40;
+const KICAD_PAGE_SIZE = 100;
+const STUDIO_SYMBOL_KICAD_IDS: Record<string, string> = {
+  resistor: 'Device:R',
+  capacitor: 'Device:C',
+  electrolytic: 'Device:C_Polarized',
+  diode: 'Device:D',
+  led: 'Device:LED',
+  npn: 'Transistor_BJT:Q_NPN_BCE',
+  pnp: 'Transistor_BJT:Q_PNP_BCE',
+  nmos: 'Transistor_FET:Q_NMOS_GDS',
+  pmos: 'Transistor_FET:Q_PMOS_GDS',
+  battery: 'Device:Battery',
+  fuse: 'Device:Fuse',
+};
+
+function getUsagePanelId(entryId: string): string {
+  return `component-library-use-${entryId.replace(/[^a-z0-9_-]/gi, '-')}`;
+}
 
 function createBuiltinPreviewSpec(
   entry: CircuitComponentLibraryEntry,
 ): CircuitSpec {
+  if (entry.type === 'crossing') {
+    return {
+      title: `${entry.displayName} preview`,
+      elements: [
+        {
+          type: 'wire',
+          id: 'crossing-horizontal',
+          points: [[44, 100], [156, 100]],
+          open: true,
+        },
+        {
+          type: 'wire',
+          id: 'crossing-vertical',
+          points: [[100, 44], [100, 156]],
+          open: true,
+        },
+        { type: 'crossing', id: 'crossing-marker', at: [100, 100] },
+      ],
+    } as CircuitSpec;
+  }
+
   const required = new Set(entry.requiredProperties);
   const element: Record<string, unknown> = { type: entry.type };
 
@@ -100,7 +183,7 @@ function getPreviewSvg(spec: CircuitSpec): string {
   }
 }
 
-function CircuitSymbolPreview({
+function StudioSymbolPreview({
   entry,
 }: {
   entry: CircuitComponentLibraryEntry;
@@ -208,14 +291,37 @@ function KicadSymbolPreview({
   );
 }
 
+function CircuitSymbolPreview({
+  entry,
+  listRef,
+}: {
+  entry: CircuitComponentLibraryEntry;
+  listRef: RefObject<HTMLDivElement | null>;
+}) {
+  const symbolId = STUDIO_SYMBOL_KICAD_IDS[entry.type];
+  return symbolId ? (
+    <KicadSymbolPreview
+      symbolId={symbolId}
+      name={entry.displayName}
+      listRef={listRef}
+    />
+  ) : (
+    <StudioSymbolPreview entry={entry} />
+  );
+}
+
 function ComponentLibraryCard({
   entry,
   onSelect,
   listRef,
+  usageOpen,
+  onToggleUsage,
 }: {
   entry: LibraryEntry;
   onSelect: (entry: LibraryEntry) => void;
   listRef: RefObject<HTMLDivElement | null>;
+  usageOpen: boolean;
+  onToggleUsage: (entryId: string) => void;
 }) {
   const isKicadEntry = 'id' in entry;
   const isAnnotation = !isKicadEntry && entry.category === 'Drawing';
@@ -223,9 +329,21 @@ function ComponentLibraryCard({
   const entryName = isKicadEntry ? entry.name : entry.displayName;
   const entryType = isKicadEntry ? entry.id : entry.type;
   const entryDescription = isKicadEntry
-    ? entry.description || entry.keywords || 'KiCad schematic symbol'
+    ? entry.description.trim() ||
+      entry.keywords.trim() ||
+      `${entryName} schematic symbol from the ${entry.library} library.`
     : entry.description;
+  const entryShortDescription =
+    entry.shortDescription.trim() || entryDescription;
+  const entryUsage = commonSymbolUses[entryId] ?? entryShortDescription;
+  const entryLongDescription = entry.longDescription.trim() || entryUsage;
+  const entryKeywords = isKicadEntry
+    ? entry.keywords.trim()
+    : entry.keywords.join(', ');
+  const needsReview =
+    isKicadEntry && entry.researchStatus === 'needs_review';
   const entryCategory = isKicadEntry ? entry.library : entry.category;
+  const usagePanelId = getUsagePanelId(entryId);
   const pinSummary =
     entry.pinCount === null
       ? 'Variable pins'
@@ -250,6 +368,19 @@ function ComponentLibraryCard({
             </span>
           )}
         </div>
+        <button
+          className="component-library-dialog__usage-toggle"
+          type="button"
+          data-component-library-usage-trigger
+          aria-label={`Read the function and use of ${entryName}`}
+          aria-expanded={usageOpen}
+          aria-controls={usagePanelId}
+          title={entryUsage}
+          onClick={() => onToggleUsage(entryId)}
+          data-testid={`component-library-use-details-toggle-${entryId}`}
+        >
+          <Info aria-hidden="true" />
+        </button>
         <span
           className={`component-library-dialog__type${isKicadEntry ? ' is-kicad' : ''}`}
           title={entryType}
@@ -257,14 +388,29 @@ function ComponentLibraryCard({
           {isKicadEntry ? 'KiCad' : entryType}
         </span>
       </div>
+      {needsReview && (
+        <span
+          className="component-library-dialog__review-tag"
+          data-testid={`component-library-review-${entryId}`}
+        >
+          Needs review
+        </span>
+      )}
 
       <div className="component-library-dialog__item-content">
-        <p
+        <button
           className="component-library-dialog__item-description"
+          type="button"
+          data-component-library-usage-trigger
+          title={entryUsage}
+          aria-label={`Read the function and use of ${entryName}`}
+          aria-expanded={usageOpen}
+          aria-controls={usagePanelId}
+          onClick={() => onToggleUsage(entryId)}
           data-testid={`component-library-description-${entryId}`}
         >
-          {entryDescription}
-        </p>
+          {entryUsage}
+        </button>
 
         <div className="component-library-dialog__item-meta">
           <span data-testid={`component-library-entry-category-${entryId}`}>
@@ -301,7 +447,31 @@ function ComponentLibraryCard({
             listRef={listRef}
           />
         ) : (
-          <CircuitSymbolPreview entry={entry} />
+          <CircuitSymbolPreview entry={entry} listRef={listRef} />
+        )}
+      </div>
+      <div
+        id={usagePanelId}
+        className={`component-library-dialog__usage-panel${usageOpen ? ' is-open' : ''}`}
+        role="tooltip"
+        data-testid={`component-library-use-details-${entryId}`}
+      >
+        <strong>Function and use</strong>
+        <p>{entryLongDescription}</p>
+        {needsReview && (
+          <p className="component-library-dialog__usage-source">
+            This description is unverified and may be based on a fallback match.
+          </p>
+        )}
+        {isKicadEntry && entryDescription !== entryUsage && (
+          <p className="component-library-dialog__usage-source">
+            KiCad description: {entryDescription}
+          </p>
+        )}
+        {entryKeywords && entryKeywords !== entryDescription && (
+          <p className="component-library-dialog__usage-keywords">
+            Related terms: {entryKeywords}
+          </p>
         )}
       </div>
     </li>
@@ -313,12 +483,35 @@ export function ComponentLibraryDialog({
   onOpenChange,
   onSelect,
 }: ComponentLibraryDialogProps) {
-  const [source, setSource] = useState<'studio' | 'kicad'>('studio');
+  const [source, setSource] = useState<'studio' | 'kicad'>('kicad');
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('all');
+  const [kicadFamily, setKicadFamily] = useState<SearchCircuitSymbolsFamily | 'all'>('all');
   const [debouncedQuery, setDebouncedQuery] = useState('');
-  const [kicadPageIndex, setKicadPageIndex] = useState(0);
+  const [kicadPageIndex, setKicadPageIndex] = useState(-1);
+  const [openUsageId, setOpenUsageId] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!openUsageId) return;
+
+    const dismissOnOutsidePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+
+      const panel = document.getElementById(getUsagePanelId(openUsageId));
+      const clickedTrigger =
+        target instanceof Element &&
+        target.closest('[data-component-library-usage-trigger]');
+
+      if (panel?.contains(target) || clickedTrigger) return;
+      setOpenUsageId(null);
+    };
+
+    document.addEventListener('pointerdown', dismissOnOutsidePointerDown);
+    return () =>
+      document.removeEventListener('pointerdown', dismissOnOutsidePointerDown);
+  }, [openUsageId]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), 250);
@@ -327,13 +520,17 @@ export function ComponentLibraryDialog({
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: 0 });
-  }, [source, category, debouncedQuery, kicadPageIndex]);
+    setOpenUsageId(null);
+  }, [open, source, category, kicadFamily, debouncedQuery, kicadPageIndex]);
 
+  const featuredPage =
+    kicadPageIndex === -1 && !debouncedQuery && kicadFamily === 'all';
   const searchParams = {
     ...(debouncedQuery ? { q: debouncedQuery } : {}),
-    ...(category !== 'all' ? { library: category } : {}),
+    ...(kicadFamily !== 'all' ? { family: kicadFamily } : {}),
+    ...(featuredPage ? { featured: true } : {}),
     limit: KICAD_PAGE_SIZE,
-    offset: kicadPageIndex * KICAD_PAGE_SIZE,
+    offset: Math.max(0, kicadPageIndex) * KICAD_PAGE_SIZE,
   };
 
   const kicadSearch = useSearchCircuitSymbols(
@@ -358,6 +555,9 @@ export function ComponentLibraryDialog({
         entry.type,
         entry.category,
         entry.description,
+        entry.shortDescription,
+        entry.longDescription,
+        entry.keywords,
       ]
         .join(' ')
         .toLocaleLowerCase();
@@ -374,13 +574,18 @@ export function ComponentLibraryDialog({
   };
 
   const kicadEntries = kicadSearch.data?.results ?? [];
-  const kicadLibraries = kicadSearch.data?.libraries ?? [];
+  const kicadFamilies = kicadSearch.data?.families ?? [];
   const kicadTotal = kicadSearch.data?.total ?? 0;
   const kicadTotalPages = Math.max(1, Math.ceil(kicadTotal / KICAD_PAGE_SIZE));
+  const fullCatalogCount =
+    !debouncedQuery && kicadFamily === 'all' && kicadSearch.data
+      ? kicadSearch.data.catalogTotal
+      : null;
   const kicadResultStart = kicadEntries.length
-    ? kicadPageIndex * KICAD_PAGE_SIZE + 1
+    ? Math.max(0, kicadPageIndex) * KICAD_PAGE_SIZE + 1
     : 0;
-  const kicadResultEnd = kicadPageIndex * KICAD_PAGE_SIZE + kicadEntries.length;
+  const kicadResultEnd =
+    Math.max(0, kicadPageIndex) * KICAD_PAGE_SIZE + kicadEntries.length;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -421,6 +626,7 @@ export function ComponentLibraryDialog({
               onClick={() => {
                 setSource('studio');
                 setCategory('all');
+                setKicadFamily('all');
                 setKicadPageIndex(0);
               }}
               data-testid="component-library-source-studio"
@@ -438,12 +644,20 @@ export function ComponentLibraryDialog({
               onClick={() => {
                 setSource('kicad');
                 setCategory('all');
-                setKicadPageIndex(0);
+                setKicadFamily('all');
+                setKicadPageIndex(-1);
               }}
               data-testid="component-library-source-kicad"
             >
               <span className="component-library-dialog__source-name">KiCad</span>
-              <span className="component-library-dialog__source-count">22,911</span>
+              {fullCatalogCount !== null && (
+                <span
+                  className="component-library-dialog__source-count"
+                  data-testid="component-library-kicad-total"
+                >
+                  {fullCatalogCount.toLocaleString()}
+                </span>
+              )}
             </button>
           </div>
           <span className="component-library-dialog__catalog-hint">
@@ -461,10 +675,13 @@ export function ComponentLibraryDialog({
               type="search"
               value={query}
               onChange={(event) => {
-                setQuery(event.currentTarget.value);
-                setKicadPageIndex(0);
+                const nextQuery = event.currentTarget.value;
+                setQuery(nextQuery);
+                setKicadPageIndex(
+                  nextQuery.trim() || kicadFamily !== 'all' ? 0 : -1,
+                );
               }}
-              placeholder="Search by name, type, or description"
+              placeholder="Search part numbers, names, functions, or aliases"
               autoComplete="off"
               data-testid="component-library-search"
             />
@@ -474,7 +691,7 @@ export function ComponentLibraryDialog({
                 type="button"
                 onClick={() => {
                   setQuery('');
-                  setKicadPageIndex(0);
+                  setKicadPageIndex(kicadFamily === 'all' ? -1 : 0);
                 }}
                 aria-label="Clear search"
                 data-testid="component-library-clear-search"
@@ -485,17 +702,26 @@ export function ComponentLibraryDialog({
           </label>
 
           <label className="component-library-dialog__category">
-            <span>{source === 'kicad' ? 'Library' : 'Category'}</span>
+            <span>{source === 'kicad' ? 'Family' : 'Category'}</span>
             <select
-              value={category}
+              value={source === 'kicad' ? kicadFamily : category}
               onChange={(event) => {
-                setCategory(event.currentTarget.value);
-                setKicadPageIndex(0);
+                const nextValue = event.currentTarget.value;
+                if (source === 'kicad') {
+                  const nextFamily = nextValue as SearchCircuitSymbolsFamily | 'all';
+                  setKicadFamily(nextFamily);
+                  setKicadPageIndex(
+                    nextFamily === 'all' && !query.trim() ? -1 : 0,
+                  );
+                } else {
+                  setCategory(nextValue);
+                  setKicadPageIndex(0);
+                }
               }}
-              data-testid="component-library-category-filter"
+              data-testid="component-library-family-filter"
             >
-              <option value="all">{source === 'kicad' ? 'All libraries' : 'All categories'}</option>
-              {(source === 'kicad' ? kicadLibraries : categories).map((item) => (
+              <option value="all">{source === 'kicad' ? 'All families' : 'All categories'}</option>
+              {(source === 'kicad' ? kicadFamilies : categories).map((item) => (
                 <option key={item} value={item}>
                   {item}
                 </option>
@@ -516,12 +742,21 @@ export function ComponentLibraryDialog({
                 <strong>Loading KiCad symbols…</strong>
               ) : (
                 <>
-                  <strong>
-                    {kicadResultStart > 0
-                      ? `${kicadResultStart.toLocaleString()}–${kicadResultEnd.toLocaleString()}`
-                      : '0'}
-                  </strong>{' '}
-                  of {kicadTotal.toLocaleString()} symbols
+                  {featuredPage ? (
+                    <>
+                      <strong>{kicadEntries.length.toLocaleString()}</strong>{' '}
+                      common symbols
+                    </>
+                  ) : (
+                    <>
+                      <strong>
+                        {kicadResultStart > 0
+                          ? `${kicadResultStart.toLocaleString()}–${kicadResultEnd.toLocaleString()}`
+                          : '0'}
+                      </strong>{' '}
+                      of {kicadTotal.toLocaleString()} symbols
+                    </>
+                  )}
                 </>
               )
             ) : (
@@ -537,8 +772,9 @@ export function ComponentLibraryDialog({
               data-testid="component-library-source-version"
             >
               KiCad {kicadSearch.data.sourceVersion}
+              {kicadFamily !== 'all' && ` · ${kicadFamily}`}
             </span>
-          ) : category !== 'all' && (
+          ) : source === 'studio' && category !== 'all' && (
             <span
               className="component-library-dialog__active-filter"
               data-testid="component-library-active-filter"
@@ -569,6 +805,10 @@ export function ComponentLibraryDialog({
                   entry={entry}
                   onSelect={handleSelect}
                   listRef={listRef}
+                  usageOpen={openUsageId === ('id' in entry ? entry.id : entry.type)}
+                  onToggleUsage={(entryId) =>
+                    setOpenUsageId((current) => current === entryId ? null : entryId)
+                  }
                 />
               ))}
             </ul>
@@ -578,13 +818,16 @@ export function ComponentLibraryDialog({
               data-testid="component-library-empty-state"
             >
               <h3>{source === 'kicad' ? 'No matching KiCad symbols' : 'No matching symbols'}</h3>
-              <p>Try another search or reset filters.</p>
+              <p>
+                Try a part number, common name, or function. Aliases and small typos are supported.
+              </p>
               <button
                 type="button"
                 onClick={() => {
                   setQuery('');
                   setCategory('all');
-                  setKicadPageIndex(0);
+                  setKicadFamily('all');
+                  setKicadPageIndex(-1);
                 }}
                 data-testid="component-library-reset"
               >
@@ -602,8 +845,20 @@ export function ComponentLibraryDialog({
           >
             <button
               type="button"
-              onClick={() => setKicadPageIndex((page) => Math.max(0, page - 1))}
-              disabled={kicadPageIndex === 0 || kicadSearch.isLoading}
+              onClick={() =>
+                setKicadPageIndex((page) =>
+                  Math.max(
+                    !debouncedQuery && kicadFamily === 'all' ? -1 : 0,
+                    page - 1,
+                  ),
+                )
+              }
+              disabled={
+                featuredPage ||
+                (kicadPageIndex <= 0 &&
+                  (Boolean(debouncedQuery) || kicadFamily !== 'all')) ||
+                kicadSearch.isLoading
+              }
               aria-label="Previous page"
               data-testid="component-library-previous-page"
             >
@@ -611,12 +866,17 @@ export function ComponentLibraryDialog({
               Previous
             </button>
             <span data-testid="component-library-page-count">
-              Page {(kicadPageIndex + 1).toLocaleString()} of {kicadTotalPages.toLocaleString()}
+              {featuredPage
+                ? 'Page 0 · Common symbols'
+                : `Page ${(Math.max(0, kicadPageIndex) + 1).toLocaleString()} of ${kicadTotalPages.toLocaleString()}`}
             </span>
             <button
               type="button"
               onClick={() => setKicadPageIndex((page) => page + 1)}
-              disabled={!kicadSearch.data.hasMore || kicadSearch.isLoading}
+              disabled={
+                (!featuredPage && !kicadSearch.data.hasMore) ||
+                kicadSearch.isLoading
+              }
               aria-label="Next page"
               data-testid="component-library-next-page"
             >

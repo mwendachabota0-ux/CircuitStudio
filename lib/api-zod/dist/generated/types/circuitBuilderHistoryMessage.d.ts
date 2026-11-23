@@ -14,7 +14,6 @@ export interface CircuitBuilderHistoryMessage {
        */
     id: string;
     role: CircuitBuilderHistoryMessageRole;
-    /** @maxLength 6000 */
     content: string;
     /**
        * @minimum 0

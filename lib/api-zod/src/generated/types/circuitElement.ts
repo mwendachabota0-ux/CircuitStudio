@@ -5,7 +5,6 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { CircuitElementRotation } from './circuitElementRotation';
 import type { CircuitPoint } from './circuitPoint';
 import type { KicadSymbolData } from './kicadSymbolData';
 
@@ -23,7 +22,8 @@ export interface CircuitElement {
   unit?: number;
   /** @minimum 1 */
   bodyStyle?: number;
-  rotation?: CircuitElementRotation;
+  /** Any finite rotation angle in degrees, including fractional and negative angles. */
+  rotation?: number;
   symbolData?: KicadSymbolData;
   points?: CircuitPoint[];
   x?: number;

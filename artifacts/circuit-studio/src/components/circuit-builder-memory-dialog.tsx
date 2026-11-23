@@ -22,6 +22,7 @@ const categoryLabels: Record<CircuitBuilderMemory['category'], string> = {
   'design-decision': 'Circuit decision',
   'past-context': 'Project context',
   'repair-lesson': 'Repair lesson',
+  'design-feedback': 'Proposal feedback',
 };
 
 export type CircuitBuilderMemoryImportStatus = {
@@ -170,6 +171,7 @@ export function CircuitBuilderMemoryDialog({
               data-testid="memory-help"
             >
               <p>Memories save separately from chats. Checked repairs can save a lesson.</p>
+              <p>Proposal feedback is private to this account and may guide similar future requests. Edit or remove it here.</p>
               <p>
                 First import scans up to 12 recent sessions for reusable assumptions.
                 Chats are not saved or used to train Gemini.

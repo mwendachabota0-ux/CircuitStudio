@@ -45,16 +45,6 @@ export interface TutorImage {
  */
 export type CircuitPoint = number[];
 
-export type CircuitElementRotation = typeof CircuitElementRotation[keyof typeof CircuitElementRotation];
-
-
-export const CircuitElementRotation = {
-  NUMBER_0: 0,
-  NUMBER_90: 90,
-  NUMBER_180: 180,
-  NUMBER_270: 270,
-} as const;
-
 export interface KicadSymbolPin {
   number: string;
   name: string;
@@ -135,7 +125,8 @@ export interface CircuitElement {
   unit?: number;
   /** @minimum 1 */
   bodyStyle?: number;
-  rotation?: CircuitElementRotation;
+  /** Any finite rotation angle in degrees, including fractional and negative angles. */
+  rotation?: number;
   symbolData?: KicadSymbolData;
   points?: CircuitPoint[];
   x?: number;
@@ -237,10 +228,7 @@ export const CircuitBuildChatInputMode = {
 } as const;
 
 export interface CircuitBuildChatInput {
-  /**
-     * @minLength 1
-     * @maxLength 6000
-     */
+  /** @minLength 1 */
   message: string;
   mode: CircuitBuildChatInputMode;
   /** Indicates a retry for correcting a previously truncated or malformed model response. */
@@ -295,6 +283,7 @@ export const CircuitBuilderMemoryCategory = {
   'design-decision': 'design-decision',
   'past-context': 'past-context',
   'repair-lesson': 'repair-lesson',
+  'design-feedback': 'design-feedback',
 } as const;
 
 export interface CircuitBuilderMemorySuggestion {
@@ -337,6 +326,44 @@ export interface CircuitBuildChatResponse {
   repairLesson?: string | null;
   /** Server-set marker that the assistant asked permission before creating a schematic. */
   buildApprovalRequested?: boolean;
+}
+
+export type CircuitBuilderFeedbackInputVote = typeof CircuitBuilderFeedbackInputVote[keyof typeof CircuitBuilderFeedbackInputVote];
+
+
+export const CircuitBuilderFeedbackInputVote = {
+  up: 'up',
+  down: 'down',
+} as const;
+
+export type CircuitBuilderFeedbackInputReason = typeof CircuitBuilderFeedbackInputReason[keyof typeof CircuitBuilderFeedbackInputReason];
+
+
+export const CircuitBuilderFeedbackInputReason = {
+  overall: 'overall',
+  'incorrect-wiring': 'incorrect-wiring',
+  'wrong-parts-or-values': 'wrong-parts-or-values',
+  'poor-readability': 'poor-readability',
+  'missed-request': 'missed-request',
+  other: 'other',
+} as const;
+
+export interface CircuitBuilderFeedbackInput {
+  vote: CircuitBuilderFeedbackInputVote;
+  reason: CircuitBuilderFeedbackInputReason;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  circuitTitle: string;
+  /** @maxLength 600 */
+  requestSummary?: string;
+  /** @maxLength 500 */
+  details?: string;
+}
+
+export interface CircuitBuilderFeedbackResponse {
+  saved: boolean;
 }
 
 export interface CircuitBuilderMemory {
@@ -451,7 +478,6 @@ export interface CircuitBuilderHistoryMessage {
      */
   id: string;
   role: CircuitBuilderHistoryMessageRole;
-  /** @maxLength 6000 */
   content: string;
   /**
      * @minimum 0
@@ -530,12 +556,24 @@ export interface CircuitBuilderHistorySyncResponse {
   savedCount: number;
 }
 
+export type CircuitSymbolSearchItemResearchStatus = typeof CircuitSymbolSearchItemResearchStatus[keyof typeof CircuitSymbolSearchItemResearchStatus];
+
+
+export const CircuitSymbolSearchItemResearchStatus = {
+  catalog_reference: 'catalog_reference',
+  corrected: 'corrected',
+  needs_review: 'needs_review',
+} as const;
+
 export interface CircuitSymbolSearchItem {
   id: string;
   library: string;
   name: string;
   description: string;
+  shortDescription: string;
+  longDescription: string;
   keywords: string;
+  researchStatus: CircuitSymbolSearchItemResearchStatus;
   /** @nullable */
   pinCount: number | null;
   extends?: string;
@@ -543,9 +581,11 @@ export interface CircuitSymbolSearchItem {
 
 export interface CircuitSymbolSearchResponse {
   sourceVersion: string;
+  catalogTotal: number;
   total: number;
   hasMore: boolean;
   libraries: string[];
+  families: string[];
   results: CircuitSymbolSearchItem[];
 }
 
@@ -607,6 +647,37 @@ export interface CircuitReviewResponse {
   review: string;
 }
 
+export interface CircuitProposalReviewInput {
+  spec: CircuitSpec;
+  /**
+     * @minLength 1
+     * @maxLength 6000
+     */
+  originalRequest: string;
+  brief: CircuitDesignBrief;
+}
+
+export interface CircuitProposalReview {
+  /**
+     * @maxItems 5
+     * @items.minLength 1
+     * @items.maxLength 500
+     */
+  intentConcerns: string[];
+  /**
+     * @maxItems 5
+     * @items.minLength 1
+     * @items.maxLength 500
+     */
+  readabilityWarnings: string[];
+  /**
+     * @maxItems 5
+     * @items.minLength 1
+     * @items.maxLength 500
+     */
+  unknowns: string[];
+}
+
 export interface AiUsage {
   /** @minimum 0 */
   tokensUsed: number;
@@ -641,6 +712,8 @@ q?: string;
  * @maxLength 120
  */
 library?: string;
+family?: SearchCircuitSymbolsFamily;
+featured?: boolean;
 /**
  * @minimum 1
  * @maximum 100
@@ -652,6 +725,23 @@ limit?: number;
  */
 offset?: number;
 };
+
+export type SearchCircuitSymbolsFamily = typeof SearchCircuitSymbolsFamily[keyof typeof SearchCircuitSymbolsFamily];
+
+
+export const SearchCircuitSymbolsFamily = {
+  Passives: 'Passives',
+  Semiconductors: 'Semiconductors',
+  'Power_&_protection': 'Power & protection',
+  Connectors: 'Connectors',
+  'Analog_&_signal': 'Analog & signal',
+  'Digital_&_processors': 'Digital & processors',
+  Sensors: 'Sensors',
+  'Control_&_timing': 'Control & timing',
+  'Audio_&_display': 'Audio & display',
+  'Communications_&_RF': 'Communications & RF',
+  Other: 'Other',
+} as const;
 
 export type GetCircuitSymbolDataParams = {
 /**

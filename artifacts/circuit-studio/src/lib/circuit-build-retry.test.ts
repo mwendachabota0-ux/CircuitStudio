@@ -5,6 +5,7 @@ import type {
   CircuitDesignBrief,
 } from '@workspace/api-client-react';
 import {
+  buildLayoutRepairRequest,
   buildManualRetryRequest,
   buildOutputRepairRequest,
   buildRepairRequest,
@@ -13,8 +14,15 @@ import {
   buildWholeCircuitRetryRequest,
   classifyProposalValidation,
   CircuitBuildAttemptError,
+  EXTERNAL_REPAIR_REFERENCE_MARKER,
   getRetryRecoveryKind,
   getNonWireElementSignature,
+  getLayoutInvariantChanges,
+  getLayoutInvariantSignature,
+  getCircuitNetlistSignature,
+  getPinToNetSignature,
+  hasStablePinConnectivitySignature,
+  formatRepairAttemptSummary,
   getBuildRetryPolicy,
   getModeAfterFailedRequest,
   getProtectedCircuitChanges,
@@ -122,6 +130,156 @@ test('whole-circuit rebuild uses the original request and updated brief', () => 
   assert.equal(fresh.responseFormatRetry, false);
 });
 
+test('layout repair authorizes visual movement while preserving the complete CircuitSpec as source', () => {
+  const spec = {
+    title: 'Indicator',
+    width: 640,
+    height: 360,
+    elements: [
+      { type: 'resistor', id: 'R1', label: 'R1', value: '1k', from: [80, 120], to: [140, 120] },
+      { type: 'led', id: 'D1', label: 'D1', value: 'red', from: [200, 120], to: [240, 120] },
+      { type: 'wire', id: 'W1', points: [[140, 120], [200, 120]] },
+    ],
+  };
+  const repair = buildLayoutRepairRequest(baseRequest, brief, spec, [
+    'Visual layout issue: text for resistor R1 overlaps text for led D1.',
+  ]);
+
+  assert.equal(repair.mode, 'build');
+  assert.deepEqual(repair.currentSpec, spec);
+  assert.match(repair.message, /explicitly authorized layout-only change/);
+  assert.match(repair.message, /pin-to-pin netlist must remain exactly the same/);
+  assert.match(repair.message, /Visual layout issue/);
+  assert.equal(repair.history?.at(-1)?.content, baseRequest.message);
+});
+
+test('layout invariant signature allows position and routing changes but protects part details', () => {
+  const before = {
+    title: 'Indicator',
+    width: 640,
+    height: 360,
+    elements: [
+      { type: 'resistor', id: 'R1', label: 'R1', value: '1k', from: [80, 120], to: [140, 120] },
+      { type: 'label', id: 'L1', text: 'VCC', at: [80, 60] },
+      { type: 'wire', id: 'W1', points: [[140, 120], [200, 120]] },
+    ],
+  };
+  const moved = {
+    ...before,
+    width: 800,
+    height: 500,
+    elements: [
+      { type: 'resistor', id: 'R1', label: 'R1', value: '1k', from: [100, 200], to: [100, 260], rotation: 90 },
+      { type: 'label', id: 'L1', text: 'VCC', at: [130, 200] },
+      { type: 'wire', id: 'W2', points: [[100, 260], [180, 260], [180, 300]] },
+    ],
+  };
+  const changedValue = {
+    ...moved,
+    elements: moved.elements.map((element) =>
+      element.id === 'R1' ? { ...element, value: '2k' } : element,
+    ),
+  };
+
+  assert.equal(getLayoutInvariantSignature(before), getLayoutInvariantSignature(moved));
+  assert.notEqual(getLayoutInvariantSignature(before), getLayoutInvariantSignature(changedValue));
+});
+
+test('canonical netlist signature ignores auto-generated net names but preserves pin connectivity', () => {
+  const first = {
+    parts: [
+      { designator: 'R1', type: 'resistor', value: '1k' },
+      { designator: 'D1', type: 'led', value: 'red' },
+    ],
+    nets: [
+      { name: 'N1', pins: ['R1.2', 'D1.A'] },
+      { name: 'GND', pins: ['R1.1'] },
+      { name: 'N2', pins: ['D1.K'] },
+    ],
+  };
+  const sameWithDifferentGeneratedNames = {
+    parts: [...first.parts].reverse(),
+    nets: [
+      { name: 'N9', pins: ['D1.A', 'R1.2'] },
+      { name: 'GND', pins: ['R1.1'] },
+      { name: 'N10', pins: ['D1.K'] },
+    ],
+  };
+  const changedConnections = {
+    ...sameWithDifferentGeneratedNames,
+    nets: [
+      { name: 'N9', pins: ['D1.A', 'R1.1'] },
+      { name: 'GND', pins: ['R1.2'] },
+      { name: 'N10', pins: ['D1.K'] },
+    ],
+  };
+
+  assert.equal(
+    getCircuitNetlistSignature(first),
+    getCircuitNetlistSignature(sameWithDifferentGeneratedNames),
+  );
+  assert.notEqual(
+    getCircuitNetlistSignature(first),
+    getCircuitNetlistSignature(changedConnections),
+  );
+});
+
+test('pin-to-net signatures ignore generated names but preserve net membership and named nets', () => {
+  const first = {
+    parts: [],
+    nets: [
+      { name: 'N1', pins: ['Q1.B', 'R1.2'] },
+      { name: 'GND', pins: ['Q1.E'] },
+    ],
+  };
+  const sameMembership = {
+    parts: [],
+    nets: [
+      { name: 'N8', pins: ['R1.2', 'Q1.B'] },
+      { name: 'GND', pins: ['Q1.E'] },
+    ],
+  };
+  const changedMembership = {
+    parts: [],
+    nets: [
+      { name: 'N8', pins: ['R1.2', 'Q1.E'] },
+      { name: 'GND', pins: ['Q1.B'] },
+    ],
+  };
+
+  assert.equal(getPinToNetSignature(first), getPinToNetSignature(sameMembership));
+  assert.notEqual(getPinToNetSignature(first), getPinToNetSignature(changedMembership));
+  assert.equal(hasStablePinConnectivitySignature('same', 'same'), true);
+  assert.equal(hasStablePinConnectivitySignature('same', 'changed'), false);
+  assert.equal(hasStablePinConnectivitySignature(null, null), false);
+});
+
+test('repair attempt summaries report zero, one, multiple, and maximum attempts accurately', () => {
+  assert.equal(formatRepairAttemptSummary(0), 'No repair attempt could be made.');
+  assert.equal(formatRepairAttemptSummary(1), 'Repair stopped after 1 AI repair attempt.');
+  assert.equal(formatRepairAttemptSummary(2), 'Repair stopped after 2 AI repair attempts.');
+  assert.equal(
+    formatRepairAttemptSummary(MAX_AUTO_RETRIES),
+    `Repair stopped after ${MAX_AUTO_RETRIES} AI repair attempts.`,
+  );
+});
+
+test('automatic repair retries keep a user-supplied external reference attached', () => {
+  const externalReference = `${EXTERNAL_REPAIR_REFERENCE_MARKER}\n{"title":"Reference","elements":[]}`;
+  const originalRequest = {
+    ...baseRequest,
+    message: `Repair the current circuit.\n\n${externalReference}`,
+  };
+  const repairRequest = buildRepairRequest(
+    originalRequest,
+    brief,
+    ['A required pin is disconnected.'],
+  );
+
+  assert.match(repairRequest.message, /A required pin is disconnected/);
+  assert.ok(repairRequest.message.includes(externalReference));
+});
+
 test('rewiring starts without old routing elements and preserves the component set', () => {
   const rejectedProposal = {
     title: 'LED indicator',
@@ -182,6 +340,16 @@ test('chooses recovery only for exhausted repairs and matching blocker types', (
     wireFindings,
     rejectedProposal,
   ), null);
+  assert.equal(getRetryRecoveryKind(
+    [{ ...exhausted[0], attempt: 1, outcome: 'stopped' }],
+    wireFindings,
+    rejectedProposal,
+  ), null);
+  assert.equal(getRetryRecoveryKind(
+    [{ ...exhausted[0], outcome: 'stopped' }],
+    wireFindings,
+    rejectedProposal,
+  ), 'rewire');
   assert.equal(getRetryRecoveryKind(exhausted, wireFindings, rejectedProposal), 'rewire');
   assert.equal(getRetryRecoveryKind(
     exhausted,
@@ -324,6 +492,7 @@ test('repairs blocking wire faults without sending layout warnings as errors', a
   assert.notDeepEqual(requests[1].currentSpec, baseRequest.currentSpec);
   assert.equal(requests[1].history?.filter((item) => item.content === baseRequest.message).length, 1);
   assert.equal(result.response, repairedProposal);
+  assert.equal(result.repairAttemptCount, 1);
 });
 
 test('accepts a valid proposal with advisory warnings without retrying', async () => {
@@ -345,6 +514,166 @@ test('accepts a valid proposal with advisory warnings without retrying', async (
   assert.equal(result.response.proposal.spec, proposal);
   assert.deepEqual(result.proposalInspection?.validation.warnings, ['A wire segment is diagonal; this is a layout note.']);
   assert.equal(repairRequests, 0);
+  assert.equal(result.repairAttemptCount, 0);
+});
+
+test('failure after one or two repair calls reports the actual number of AI attempts', async () => {
+  for (const failedAfter of [1, 2]) {
+    let sends = 0;
+    let caught: unknown;
+    await assert.rejects(
+      runCircuitBuildAttempts({
+        initialRequest: baseRequest,
+        send: async () => {
+          sends += 1;
+          return { proposal: { spec: { id: sends } } };
+        },
+        getProposal: (response) => response.proposal.spec,
+        inspectProposal: () => ({
+          validation: { errors: ['A required wire is disconnected.'], warnings: [] },
+          canRepair: sends - 1 < failedAfter,
+        }),
+        makeRepairRequest: () => baseRequest,
+        wait: async () => {},
+      }),
+      (error: unknown) => {
+        caught = error;
+        return error instanceof CircuitBuildAttemptError;
+      },
+    );
+
+    assert.ok(caught instanceof CircuitBuildAttemptError);
+    assert.equal(caught.repairAttemptCount, failedAfter);
+    assert.equal(sends, failedAfter + 1);
+  }
+});
+
+test('an untrustworthy legacy baseline still sends incremental AI repair attempts', async () => {
+  let sends = 0;
+  let repairRequest: typeof baseRequest | undefined;
+  const baseline = { title: 'Ambiguous legacy drawing', elements: [] };
+  const result = await runCircuitBuildAttempts({
+    initialRequest: baseRequest,
+    initialProtectedSpec: baseline,
+    getConnectivitySignature: (proposal) =>
+      proposal.title === baseline.title ? null : 'repaired-pin-map',
+    send: async () => {
+      sends += 1;
+      return {
+        proposal: {
+          spec: {
+            title: sends === 1 ? 'First repair attempt' : 'Validated repair',
+            elements: [],
+          },
+        },
+      };
+    },
+    getProposal: (response) => response.proposal.spec,
+    inspectProposal: () => ({
+      validation: {
+        errors: sends === 1 ? ['An endpoint is disconnected.'] : [],
+        warnings: [],
+      },
+      canRepair: true,
+    }),
+    makeRepairRequest: (_response, findings) => {
+      repairRequest = { ...baseRequest, message: findings.join('\n') };
+      return repairRequest;
+    },
+    wait: async () => {},
+  });
+
+  assert.equal(result.repairAttemptCount, 2);
+  assert.equal(sends, 2);
+  assert.equal(repairRequest?.message, 'An endpoint is disconnected.');
+});
+
+test('route repair retries a candidate that changes trusted pin-to-net membership', async () => {
+  let sends = 0;
+  const findings = ['A known astable feedback connection is invalid.'];
+
+  const result = await runCircuitBuildAttempts({
+    initialRequest: baseRequest,
+    send: async () => {
+      sends += 1;
+      return {
+        proposal: {
+          spec: {
+            id: sends,
+            pinSignature: sends === 2
+              ? 'Q1.B|N1;Q2.B|N1'
+              : 'Q1.B|N1;Q2.B|N2',
+          },
+        },
+      };
+    },
+    getProposal: (response) => response.proposal.spec,
+    getConnectivitySignature: (proposal) => proposal.pinSignature,
+    inspectProposal: () => ({
+      validation: {
+        errors: sends === 1 ? findings : [],
+        warnings: [],
+      },
+      canRepair: true,
+    }),
+    makeRepairRequest: () => baseRequest,
+    wait: async () => {},
+  });
+
+  assert.equal(result.repairAttemptCount, 2);
+  assert.equal(result.response.proposal.spec.pinSignature, 'Q1.B|N1;Q2.B|N2');
+  assert.equal(sends, 3);
+});
+
+test('route repair retries a candidate whose connectivity cannot be established', async () => {
+  const baseline = { pinSignature: 'Q1.B|N1;Q2.B|N2' };
+  let sends = 0;
+  const result = await runCircuitBuildAttempts({
+    initialRequest: baseRequest,
+    initialProtectedSpec: baseline,
+    getConnectivitySignature: (proposal) => proposal.pinSignature,
+    send: async () => {
+      sends += 1;
+      return {
+        proposal: {
+          spec: {
+            pinSignature: sends === 1 ? null : baseline.pinSignature,
+          },
+        },
+      };
+    },
+    getProposal: (response) => response.proposal.spec,
+    inspectProposal: () => ({
+      validation: { errors: [], warnings: [] },
+      canRepair: true,
+    }),
+    makeRepairRequest: () => baseRequest,
+    wait: async () => {},
+  });
+
+  assert.equal(result.repairAttemptCount, 2);
+  assert.equal(result.response.proposal.spec.pinSignature, baseline.pinSignature);
+  assert.equal(sends, 2);
+});
+
+test('layout repair allows a different route when pin-to-net membership is unchanged', async () => {
+  const baseline = { route: 'original', pinSignature: 'Q1.B|N1;Q2.B|N2' };
+  const candidate = { route: 'rerouted', pinSignature: 'Q1.B|N1;Q2.B|N2' };
+  const result = await runCircuitBuildAttempts({
+    initialRequest: baseRequest,
+    initialProtectedSpec: baseline,
+    getConnectivitySignature: (proposal) => proposal.pinSignature,
+    send: async () => ({ proposal: { spec: candidate } }),
+    getProposal: (response) => response.proposal.spec,
+    inspectProposal: () => ({
+      validation: { errors: [], warnings: [] },
+      canRepair: true,
+    }),
+    makeRepairRequest: () => baseRequest,
+  });
+
+  assert.equal(result.response.proposal.spec.route, 'rerouted');
+  assert.equal(result.repairAttemptCount, 1);
 });
 
 test('each repair request uses the latest failing proposal, not the workbench draft', async () => {
@@ -494,6 +823,147 @@ test('restores the original component before validating a repair that moves it',
   assert.equal(result.repairDiagnostics[1].nonWireElementsModified, true);
 });
 
+test('every retry restores non-wire data from an immutable original snapshot', async () => {
+  const baseline = {
+    title: 'Baseline design',
+    width: 640,
+    height: 480,
+    elements: [
+      { type: 'npn', id: 'Q1', value: '2N3904', at: [100, 100] },
+      { type: 'label', id: 'LABEL1', text: 'Keep this note', at: [40, 40] },
+      { type: 'wire', id: 'W_OLD', points: [[70, 100], [75, 100]] },
+    ],
+  };
+  const originalBaseline = structuredClone(baseline);
+  const repairRequests: Array<NonNullable<CircuitBuildChatInput['currentSpec']>> = [];
+  let sends = 0;
+
+  const result = await runCircuitBuildAttempts({
+    initialRequest: baseRequest,
+    initialProtectedSpec: baseline,
+    send: async () => {
+      sends += 1;
+      return {
+        proposal: {
+          spec: {
+            title: `AI title ${sends}`,
+            width: 10,
+            height: 20,
+            elements: [
+              { type: 'npn', id: `Q${sends + 1}`, value: `changed-${sends}`, at: [200, 200] },
+              { type: 'wire', id: `W_RETRY_${sends}`, points: [[50, 50], [60 + sends, 50]] },
+            ],
+          },
+        },
+      };
+    },
+    getProposal: (response) => response.proposal.spec,
+    inspectProposal: () => ({
+      validation: {
+        errors: sends < 3 ? ['A wire endpoint remains disconnected.'] : [],
+        warnings: [],
+      },
+      canRepair: true,
+    }),
+    getProtectedCircuitSignature: (proposal) =>
+      getProtectedCircuitSignature(proposal as NonNullable<CircuitBuildChatInput['currentSpec']>),
+    getProtectedCircuitChanges: (protectedSpec, proposal) =>
+      getProtectedCircuitChanges(
+        protectedSpec as NonNullable<CircuitBuildChatInput['currentSpec']>,
+        proposal as NonNullable<CircuitBuildChatInput['currentSpec']>,
+      ),
+    restoreProtectedSpec: (response, protectedSpec) => {
+      assert.ok(Object.isFrozen(protectedSpec));
+      assert.ok(Object.isFrozen(protectedSpec.elements[0].at));
+      return {
+        ...response,
+        proposal: {
+          ...response.proposal,
+          spec: restoreProtectedNonWireElements(
+            protectedSpec as NonNullable<CircuitBuildChatInput['currentSpec']>,
+            response.proposal.spec as NonNullable<CircuitBuildChatInput['currentSpec']>,
+          ),
+        },
+      };
+    },
+    makeRepairRequest: (response) => {
+      repairRequests.push(response.proposal.spec);
+      return { ...baseRequest, currentSpec: response.proposal.spec };
+    },
+    wait: async () => {},
+  });
+
+  assert.equal(sends, 3);
+  assert.equal(result.repairAttemptCount, 3);
+  assert.deepEqual(baseline, originalBaseline);
+  assert.equal(result.response.proposal.spec.title, 'Baseline design');
+  assert.equal(result.response.proposal.spec.width, 640);
+  assert.equal(result.response.proposal.spec.elements[0].id, 'Q1');
+  assert.equal(result.response.proposal.spec.elements[0].value, '2N3904');
+  assert.equal(result.response.proposal.spec.elements[1].text, 'Keep this note');
+  assert.equal(repairRequests.length, 2);
+  for (const retrySpec of repairRequests) {
+    assert.equal(retrySpec.title, 'Baseline design');
+    assert.equal(retrySpec.elements[0].id, 'Q1');
+    assert.equal(retrySpec.elements[0].value, '2N3904');
+    assert.equal(retrySpec.elements[1].text, 'Keep this note');
+  }
+});
+
+test('layout-only repair keeps authorized component movement across automatic retries', async () => {
+  const initialSpec = {
+    title: 'Draft',
+    width: 300,
+    height: 240,
+    elements: [
+      { type: 'resistor', id: 'R1', value: '1k', from: [100, 100], to: [180, 100] },
+    ],
+  };
+  const movedSpec = {
+    title: 'Draft',
+    width: 360,
+    height: 280,
+    elements: [
+      { type: 'resistor', id: 'R1', value: '1k', from: [140, 120], to: [220, 120] },
+      { type: 'wire', id: 'W1', points: [[100, 120], [140, 120]] },
+    ],
+  };
+  let sends = 0;
+
+  const result = await runCircuitBuildAttempts({
+    initialRequest: baseRequest,
+    initialProtectedSpec: initialSpec,
+    send: async () => ({
+      answer: 'Adjusted the layout.',
+      nextMode: 'build' as const,
+      proposal: { spec: sends++ === 0 ? initialSpec : movedSpec },
+    }),
+    getProposal: (response) => response.proposal.spec,
+    inspectProposal: () => ({
+      validation: {
+        errors: sends === 1 ? ['Drawing-quality issue: symbols are too close.'] : [],
+        warnings: [],
+      },
+      canRepair: true,
+    }),
+    getProtectedCircuitSignature: (spec) =>
+      getLayoutInvariantSignature(spec as NonNullable<CircuitBuildChatInput['currentSpec']>),
+    getProtectedCircuitChanges: (protectedSpec, proposal) =>
+      getLayoutInvariantChanges(
+        protectedSpec as NonNullable<CircuitBuildChatInput['currentSpec']>,
+        proposal as NonNullable<CircuitBuildChatInput['currentSpec']>,
+      ),
+    makeRepairRequest: () => baseRequest,
+    wait: async () => {},
+  });
+
+  assert.equal(sends, 2);
+  assert.deepEqual(result.response.proposal.spec.elements[0].from, [140, 120]);
+  assert.deepEqual(result.response.proposal.spec.elements[0].to, [220, 120]);
+  assert.equal(result.response.proposal.spec.width, 360);
+  assert.equal(result.repairDiagnostics[1].nonWireElementsModified, false);
+});
+
 test('protects components while accepting rebuilt wires and routing markers', () => {
   const baseline = {
     title: 'LED indicator',
@@ -621,6 +1091,7 @@ test('stops after three repair retries and exposes a manual retry', async () => 
     (error: unknown) => {
       assert.ok(error instanceof CircuitBuildAttemptError);
       assert.equal(error.retryCount, MAX_AUTO_RETRIES);
+      assert.equal(error.repairAttemptCount, MAX_AUTO_RETRIES);
       assert.equal(error.canRetryManually, true);
       assert.deepEqual(error.validationFindings, findings);
       return true;
@@ -629,6 +1100,52 @@ test('stops after three repair retries and exposes a manual retry', async () => 
 
   assert.equal(sends, MAX_AUTO_RETRIES + 1);
   assert.equal(repairRequests, MAX_AUTO_RETRIES);
+});
+
+test('stops after the current repair attempt when requested and preserves its latest proposal', async () => {
+  const firstProposal = {
+    answer: 'Draft ready.',
+    nextMode: 'build' as const,
+    proposal: { spec: { title: 'First draft', elements: [] } },
+  };
+  const latestProposal = {
+    answer: 'Repair update.',
+    nextMode: 'build' as const,
+    proposal: { spec: { title: 'Latest repair', elements: [] } },
+  };
+  const findings = ['Wire W1 is not connected to anything.'];
+  let sends = 0;
+  let stopRequested = false;
+
+  await assert.rejects(
+    runCircuitBuildAttempts({
+      initialRequest: baseRequest,
+      send: async () => {
+        sends += 1;
+        if (sends === 2) stopRequested = true;
+        return sends === 1 ? firstProposal : latestProposal;
+      },
+      getProposal: (response) => response.proposal.spec,
+      inspectProposal: () => ({
+        validation: { errors: findings, warnings: [] },
+        canRepair: true,
+      }),
+      makeRepairRequest: () => baseRequest,
+      shouldStopRepair: () => stopRequested,
+      wait: async () => {},
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof CircuitBuildAttemptError);
+      assert.equal(error.stoppedByUser, true);
+      assert.equal(error.canRetryManually, true);
+      assert.deepEqual(error.rejectedProposal, latestProposal.proposal.spec);
+      assert.deepEqual(error.validationFindings, findings);
+      assert.equal(error.repairDiagnostics.at(-1)?.outcome, 'stopped');
+      return true;
+    },
+  );
+
+  assert.equal(sends, 2);
 });
 
 test('keeps the rejected proposal and validation findings when a repair request fails', async () => {

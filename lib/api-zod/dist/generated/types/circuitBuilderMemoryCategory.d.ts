@@ -11,5 +11,6 @@ export declare const CircuitBuilderMemoryCategory: {
     readonly 'design-decision': "design-decision";
     readonly 'past-context': "past-context";
     readonly 'repair-lesson': "repair-lesson";
+    readonly 'design-feedback': "design-feedback";
 };
 //# sourceMappingURL=circuitBuilderMemoryCategory.d.ts.map

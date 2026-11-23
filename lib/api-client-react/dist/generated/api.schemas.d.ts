@@ -37,13 +37,6 @@ export interface TutorImage {
  * @maxItems 2
  */
 export type CircuitPoint = number[];
-export type CircuitElementRotation = typeof CircuitElementRotation[keyof typeof CircuitElementRotation];
-export declare const CircuitElementRotation: {
-    readonly NUMBER_0: 0;
-    readonly NUMBER_90: 90;
-    readonly NUMBER_180: 180;
-    readonly NUMBER_270: 270;
-};
 export interface KicadSymbolPin {
     number: string;
     name: string;
@@ -114,7 +107,8 @@ export interface CircuitElement {
     unit?: number;
     /** @minimum 1 */
     bodyStyle?: number;
-    rotation?: CircuitElementRotation;
+    /** Any finite rotation angle in degrees, including fractional and negative angles. */
+    rotation?: number;
     symbolData?: KicadSymbolData;
     points?: CircuitPoint[];
     x?: number;
@@ -203,10 +197,7 @@ export declare const CircuitBuildChatInputMode: {
     readonly build: "build";
 };
 export interface CircuitBuildChatInput {
-    /**
-       * @minLength 1
-       * @maxLength 6000
-       */
+    /** @minLength 1 */
     message: string;
     mode: CircuitBuildChatInputMode;
     /** Indicates a retry for correcting a previously truncated or malformed model response. */
@@ -253,6 +244,7 @@ export declare const CircuitBuilderMemoryCategory: {
     readonly 'design-decision': "design-decision";
     readonly 'past-context': "past-context";
     readonly 'repair-lesson': "repair-lesson";
+    readonly 'design-feedback': "design-feedback";
 };
 export interface CircuitBuilderMemorySuggestion {
     /**
@@ -293,6 +285,36 @@ export interface CircuitBuildChatResponse {
     repairLesson?: string | null;
     /** Server-set marker that the assistant asked permission before creating a schematic. */
     buildApprovalRequested?: boolean;
+}
+export type CircuitBuilderFeedbackInputVote = typeof CircuitBuilderFeedbackInputVote[keyof typeof CircuitBuilderFeedbackInputVote];
+export declare const CircuitBuilderFeedbackInputVote: {
+    readonly up: "up";
+    readonly down: "down";
+};
+export type CircuitBuilderFeedbackInputReason = typeof CircuitBuilderFeedbackInputReason[keyof typeof CircuitBuilderFeedbackInputReason];
+export declare const CircuitBuilderFeedbackInputReason: {
+    readonly overall: "overall";
+    readonly 'incorrect-wiring': "incorrect-wiring";
+    readonly 'wrong-parts-or-values': "wrong-parts-or-values";
+    readonly 'poor-readability': "poor-readability";
+    readonly 'missed-request': "missed-request";
+    readonly other: "other";
+};
+export interface CircuitBuilderFeedbackInput {
+    vote: CircuitBuilderFeedbackInputVote;
+    reason: CircuitBuilderFeedbackInputReason;
+    /**
+       * @minLength 1
+       * @maxLength 120
+       */
+    circuitTitle: string;
+    /** @maxLength 600 */
+    requestSummary?: string;
+    /** @maxLength 500 */
+    details?: string;
+}
+export interface CircuitBuilderFeedbackResponse {
+    saved: boolean;
 }
 export interface CircuitBuilderMemory {
     /** @minimum 1 */
@@ -387,7 +409,6 @@ export interface CircuitBuilderHistoryMessage {
        */
     id: string;
     role: CircuitBuilderHistoryMessageRole;
-    /** @maxLength 6000 */
     content: string;
     /**
        * @minimum 0
@@ -457,21 +478,32 @@ export interface CircuitBuilderHistorySyncResponse {
     /** @minimum 0 */
     savedCount: number;
 }
+export type CircuitSymbolSearchItemResearchStatus = typeof CircuitSymbolSearchItemResearchStatus[keyof typeof CircuitSymbolSearchItemResearchStatus];
+export declare const CircuitSymbolSearchItemResearchStatus: {
+    readonly catalog_reference: "catalog_reference";
+    readonly corrected: "corrected";
+    readonly needs_review: "needs_review";
+};
 export interface CircuitSymbolSearchItem {
     id: string;
     library: string;
     name: string;
     description: string;
+    shortDescription: string;
+    longDescription: string;
     keywords: string;
+    researchStatus: CircuitSymbolSearchItemResearchStatus;
     /** @nullable */
     pinCount: number | null;
     extends?: string;
 }
 export interface CircuitSymbolSearchResponse {
     sourceVersion: string;
+    catalogTotal: number;
     total: number;
     hasMore: boolean;
     libraries: string[];
+    families: string[];
     results: CircuitSymbolSearchItem[];
 }
 export interface CircuitReviewRequest {
@@ -529,6 +561,35 @@ export interface ExternalCircuitFixReviewResponse {
 export interface CircuitReviewResponse {
     review: string;
 }
+export interface CircuitProposalReviewInput {
+    spec: CircuitSpec;
+    /**
+       * @minLength 1
+       * @maxLength 6000
+       */
+    originalRequest: string;
+    brief: CircuitDesignBrief;
+}
+export interface CircuitProposalReview {
+    /**
+       * @maxItems 5
+       * @items.minLength 1
+       * @items.maxLength 500
+       */
+    intentConcerns: string[];
+    /**
+       * @maxItems 5
+       * @items.minLength 1
+       * @items.maxLength 500
+       */
+    readabilityWarnings: string[];
+    /**
+       * @maxItems 5
+       * @items.minLength 1
+       * @items.maxLength 500
+       */
+    unknowns: string[];
+}
 export interface AiUsage {
     /** @minimum 0 */
     tokensUsed: number;
@@ -560,6 +621,8 @@ export type SearchCircuitSymbolsParams = {
      * @maxLength 120
      */
     library?: string;
+    family?: SearchCircuitSymbolsFamily;
+    featured?: boolean;
     /**
      * @minimum 1
      * @maximum 100
@@ -570,6 +633,20 @@ export type SearchCircuitSymbolsParams = {
      * @maximum 1000000
      */
     offset?: number;
+};
+export type SearchCircuitSymbolsFamily = typeof SearchCircuitSymbolsFamily[keyof typeof SearchCircuitSymbolsFamily];
+export declare const SearchCircuitSymbolsFamily: {
+    readonly Passives: "Passives";
+    readonly Semiconductors: "Semiconductors";
+    readonly 'Power_&_protection': "Power & protection";
+    readonly Connectors: "Connectors";
+    readonly 'Analog_&_signal': "Analog & signal";
+    readonly 'Digital_&_processors': "Digital & processors";
+    readonly Sensors: "Sensors";
+    readonly 'Control_&_timing': "Control & timing";
+    readonly 'Audio_&_display': "Audio & display";
+    readonly 'Communications_&_RF': "Communications & RF";
+    readonly Other: "Other";
 };
 export type GetCircuitSymbolDataParams = {
     /**

@@ -130,6 +130,24 @@ test("layout analysis detects wires crossing a component body", () => {
   assert.ok(warnings.some((warning) => warning.includes("W1") && warning.includes("symbol body")));
 });
 
+test("layout analysis detects a perpendicular wire crossing a resistor body", () => {
+  const spec = {
+    title: "Wire through resistor",
+    elements: [
+      { type: "resistor", id: "R1", from: [100, 100], to: [180, 100] },
+      { type: "wire", id: "W1", open: true, points: [[140, 80], [140, 120]] },
+    ],
+  };
+
+  const warnings = CircuitDraw.layoutWarnings(spec);
+  assert.ok(
+    warnings.some((warning) =>
+      warning.includes('wire "W1"') &&
+      warning.includes('symbol body for resistor "R1"'),
+    ),
+  );
+});
+
 test("layout analysis does not flag a lead wire ending before a component body", () => {
   const warnings = CircuitDraw.layoutWarnings({
     title: "Clear lead",

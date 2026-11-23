@@ -245,7 +245,12 @@ function inspectProposal(spec: CircuitBuildChatInput['currentSpec']): {
     };
   }
   try {
-    const validation = classifyProposalValidation(window.CircuitDraw.validate(spec));
+    const circuitValidation = window.CircuitDraw.validate(spec);
+    const layoutWarnings = window.CircuitDraw.layoutWarnings(spec);
+    const validation = classifyProposalValidation({
+      ...circuitValidation,
+      warnings: [...new Set([...circuitValidation.warnings, ...layoutWarnings])],
+    });
     if (validation.errors.length) return { svg: '', validation, canRepair: true };
     const svg = window.CircuitDraw.render(spec);
     if (!svg) {

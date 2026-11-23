@@ -53,12 +53,13 @@ const baseRequest: CircuitBuildChatInput = {
 
 const noProposal = { answer: 'Ready.', nextMode: 'chat' as const };
 
-test('requires AI proposals to route wires orthogonally while keeping advisory notes distinct', () => {
+test('requires AI proposals to route wires orthogonally and around symbols', () => {
   const result = classifyProposalValidation({
     errors: ['Required pin is not connected.'],
     warnings: [
       'wire "W1": segment (0,0)->(20,20) is diagonal; add an orthogonal corner point.',
       'wire "W2": has a zero-length segment at (10,10); remove the duplicate point.',
+      'Visual layout issue: wire "W3" crosses the symbol body for resistor "R1"; reroute the wire outside the symbol.',
       'relay "RL1".NC is intentionally unused.',
       'dcsource "V1": terminals are very close (50 px).',
     ],
@@ -68,6 +69,7 @@ test('requires AI proposals to route wires orthogonally while keeping advisory n
     'Required pin is not connected.',
     'Drawing-quality issue: wire "W1": segment (0,0)->(20,20) is diagonal; add an orthogonal corner point.',
     'Drawing-quality issue: wire "W2": has a zero-length segment at (10,10); remove the duplicate point.',
+    'Drawing-quality issue: Visual layout issue: wire "W3" crosses the symbol body for resistor "R1"; reroute the wire outside the symbol.',
   ]);
   assert.deepEqual(result.warnings, [
     'relay "RL1".NC is intentionally unused.',
@@ -540,6 +542,46 @@ test('accepts a valid proposal with advisory warnings without retrying', async (
   assert.deepEqual(result.proposalInspection?.validation.warnings, ['A wire segment is diagonal; this is a layout note.']);
   assert.equal(repairRequests, 0);
   assert.equal(result.repairAttemptCount, 0);
+});
+
+test('retries an AI proposal when layout analysis finds a wire through a component body', async () => {
+  const firstProposal = { title: 'Crossing wire', elements: [] };
+  const correctedProposal = { title: 'Rerouted wire', elements: [] };
+  const warning = 'Visual layout issue: wire "W1" crosses the symbol body for resistor "R1"; reroute the wire outside the symbol.';
+  const requests: CircuitBuildChatInput[] = [];
+  let sendCount = 0;
+
+  const result = await runCircuitBuildAttempts({
+    initialRequest: baseRequest,
+    send: async (request) => {
+      requests.push(request);
+      sendCount += 1;
+      return {
+        answer: 'Proposal ready.',
+        proposal: { spec: sendCount === 1 ? firstProposal : correctedProposal },
+      };
+    },
+    getProposal: (response) => response.proposal.spec,
+    inspectProposal: (proposal) => ({
+      validation: classifyProposalValidation({
+        errors: [],
+        warnings: proposal === firstProposal ? [warning] : [],
+      }),
+      canRepair: true,
+    }),
+    makeRepairRequest: (response, findings) => ({
+      ...baseRequest,
+      message: `${baseRequest.message}\n${findings.join('\n')}`,
+      currentSpec: response.proposal.spec,
+    }),
+    wait: async () => {},
+  });
+
+  assert.equal(requests.length, 2);
+  assert.match(requests[1].message, /crosses the symbol body for resistor "R1"/);
+  assert.equal(requests[1].currentSpec, firstProposal);
+  assert.equal(result.response.proposal.spec, correctedProposal);
+  assert.deepEqual(result.proposalInspection?.validation.errors, []);
 });
 
 test('failure after one or two repair calls reports the actual number of AI attempts', async () => {

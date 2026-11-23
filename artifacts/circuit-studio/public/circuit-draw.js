@@ -1598,6 +1598,14 @@
         });
       }
     });
+    // Body crossings are blocking-quality issues, so report them before lower-priority spacing notes.
+    WIRESEGS.forEach(function (segment) {
+      componentBoxes.forEach(function (component) {
+        if (!segmentEndsAtPin(segment, component.pins) && wireCrossesBody(segment, component.bounds)) {
+          addWarning('Visual layout issue: ' + (segment[2] || 'a wire') + ' crosses the symbol body for ' + component.owner + '; reroute the wire outside the symbol.');
+        }
+      });
+    });
     for (var bodyIndex = 0; bodyIndex < componentBoxes.length; bodyIndex++) {
       for (var otherIndex = bodyIndex + 1; otherIndex < componentBoxes.length; otherIndex++) {
         var firstBody = componentBoxes[bodyIndex], secondBody = componentBoxes[otherIndex];
@@ -1616,13 +1624,6 @@
         }
       }
     }
-    WIRESEGS.forEach(function (segment) {
-      componentBoxes.forEach(function (component) {
-        if (!segmentEndsAtPin(segment, component.pins) && wireCrossesBody(segment, component.bounds)) {
-          addWarning('Visual layout issue: ' + (segment[2] || 'a wire') + ' crosses the symbol body for ' + component.owner + '; reroute the wire outside the symbol.');
-        }
-      });
-    });
     for (var i = 0; i < boxes.length; i++) {
       for (var j = i + 1; j < boxes.length; j++) {
         var first = boxes[i], second = boxes[j];

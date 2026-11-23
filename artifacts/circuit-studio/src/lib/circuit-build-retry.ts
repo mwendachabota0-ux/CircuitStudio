@@ -22,7 +22,9 @@ export type BuildProposalInspection = {
 
 export function classifyProposalValidation(validation: BuildValidation): BuildValidation {
   const requiresLayoutRepair = (warning: string) =>
-    warning.includes('is diagonal;') || warning.includes('has a zero-length segment');
+    warning.includes('is diagonal;') ||
+    warning.includes('has a zero-length segment') ||
+    warning.includes('crosses the symbol body');
   const layoutFindings = validation.warnings.filter(requiresLayoutRepair);
   return {
     errors: [...validation.errors, ...layoutFindings.map((finding) => `Drawing-quality issue: ${finding}`)],

@@ -11,12 +11,11 @@ import type { CircuitDesignBrief } from './circuitDesignBrief';
 import type { CircuitSpec } from './circuitSpec';
 
 export interface CircuitBuildChatInput {
-  /**
-     * @minLength 1
-     * @maxLength 3000
-     */
+  /** @minLength 1 */
   message: string;
   mode: CircuitBuildChatInputMode;
+  /** Indicates a retry for correcting a previously truncated or malformed model response. */
+  responseFormatRetry?: boolean;
   currentSpec: CircuitSpec;
   /** @maxItems 8 */
   history?: CircuitBuildChatMessage[];

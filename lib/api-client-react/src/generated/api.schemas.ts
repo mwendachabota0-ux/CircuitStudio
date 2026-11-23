@@ -45,6 +45,72 @@ export interface TutorImage {
  */
 export type CircuitPoint = number[];
 
+export interface KicadSymbolPin {
+  number: string;
+  name: string;
+  electricalType: string;
+  shape: string;
+  point: CircuitPoint;
+  bodyPoint: CircuitPoint;
+  showName: boolean;
+  showNumber: boolean;
+}
+
+export type KicadSymbolGraphicType = typeof KicadSymbolGraphicType[keyof typeof KicadSymbolGraphicType];
+
+
+export const KicadSymbolGraphicType = {
+  polyline: 'polyline',
+  rectangle: 'rectangle',
+  circle: 'circle',
+  arc: 'arc',
+  bezier: 'bezier',
+  text: 'text',
+} as const;
+
+export type KicadSymbolGraphicFillType = typeof KicadSymbolGraphicFillType[keyof typeof KicadSymbolGraphicFillType];
+
+
+export const KicadSymbolGraphicFillType = {
+  none: 'none',
+  background: 'background',
+  outline: 'outline',
+} as const;
+
+export interface KicadSymbolGraphic {
+  type: KicadSymbolGraphicType;
+  points?: CircuitPoint[];
+  /** @minimum 0 */
+  radius?: number;
+  text?: string;
+  /** @minimum 0 */
+  fontSize?: number;
+  /** @minimum 0 */
+  strokeWidth?: number;
+  fillType?: KicadSymbolGraphicFillType;
+  closed?: boolean;
+}
+
+export interface KicadSymbolUnit {
+  /** @minimum 1 */
+  unit: number;
+  /** @minimum 1 */
+  bodyStyle: number;
+  /** @maxItems 512 */
+  pins: KicadSymbolPin[];
+  /** @maxItems 2048 */
+  graphics: KicadSymbolGraphic[];
+}
+
+export interface KicadSymbolData {
+  id: string;
+  /**
+     * @minItems 1
+     * @maxItems 256
+     */
+  units: KicadSymbolUnit[];
+}
+
 export interface CircuitElement {
   type: string;
   id?: string;
@@ -53,6 +119,15 @@ export interface CircuitElement {
   from?: CircuitPoint;
   to?: CircuitPoint;
   at?: CircuitPoint;
+  /** @pattern ^[^:\s]+:[^:\s]+$ */
+  symbolId?: string;
+  /** @minimum 1 */
+  unit?: number;
+  /** @minimum 1 */
+  bodyStyle?: number;
+  /** Any finite rotation angle in degrees, including fractional and negative angles. */
+  rotation?: number;
+  symbolData?: KicadSymbolData;
   points?: CircuitPoint[];
   x?: number;
   y?: number;
@@ -153,12 +228,11 @@ export const CircuitBuildChatInputMode = {
 } as const;
 
 export interface CircuitBuildChatInput {
-  /**
-     * @minLength 1
-     * @maxLength 3000
-     */
+  /** @minLength 1 */
   message: string;
   mode: CircuitBuildChatInputMode;
+  /** Indicates a retry for correcting a previously truncated or malformed model response. */
+  responseFormatRetry?: boolean;
   currentSpec: CircuitSpec;
   /** @maxItems 8 */
   history?: CircuitBuildChatMessage[];
@@ -174,6 +248,25 @@ export interface CircuitBuildProposal {
   spec: CircuitSpec;
 }
 
+export interface CircuitBuilderSuggestedAction {
+  /**
+     * @minLength 1
+     * @maxLength 90
+     */
+  label: string;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  prompt: string;
+  /**
+     * Exact assistant question this suggested reply answers.
+     * @minLength 1
+     * @maxLength 300
+     */
+  replyTo?: string;
+}
+
 export type CircuitBuildChatResponseNextMode = typeof CircuitBuildChatResponseNextMode[keyof typeof CircuitBuildChatResponseNextMode];
 
 
@@ -181,6 +274,31 @@ export const CircuitBuildChatResponseNextMode = {
   chat: 'chat',
   build: 'build',
 } as const;
+
+export type CircuitBuilderMemoryCategory = typeof CircuitBuilderMemoryCategory[keyof typeof CircuitBuilderMemoryCategory];
+
+
+export const CircuitBuilderMemoryCategory = {
+  'work-style': 'work-style',
+  'design-decision': 'design-decision',
+  'past-context': 'past-context',
+  'repair-lesson': 'repair-lesson',
+  'design-feedback': 'design-feedback',
+} as const;
+
+export interface CircuitBuilderMemorySuggestion {
+  /**
+     * Existing assumption to update; omit when adding a new one.
+     * @minimum 1
+     */
+  id?: number;
+  category: CircuitBuilderMemoryCategory;
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  content: string;
+}
 
 export interface CircuitBuildChatResponse {
   nextMode?: CircuitBuildChatResponseNextMode;
@@ -191,14 +309,373 @@ export interface CircuitBuildChatResponse {
   answer: string;
   brief: CircuitDesignBrief;
   proposal?: CircuitBuildProposal;
+  /** @maxItems 2 */
+  suggestedActions?: CircuitBuilderSuggestedAction[];
+  /** @maxItems 2 */
+  memoryUpdates?: CircuitBuilderMemorySuggestion[];
+  /**
+     * @maxItems 10
+     * @items.minimum 1
+     */
+  memoryRemovals?: number[];
+  /**
+     * Optional reusable lesson from a repair; save only after the corrected proposal passes checks and the user applies it.
+     * @maxLength 300
+     * @nullable
+     */
+  repairLesson?: string | null;
+  /** Server-set marker that the assistant asked permission before creating a schematic. */
+  buildApprovalRequested?: boolean;
+}
+
+export type CircuitBuilderFeedbackInputVote = typeof CircuitBuilderFeedbackInputVote[keyof typeof CircuitBuilderFeedbackInputVote];
+
+
+export const CircuitBuilderFeedbackInputVote = {
+  up: 'up',
+  down: 'down',
+} as const;
+
+export type CircuitBuilderFeedbackInputReason = typeof CircuitBuilderFeedbackInputReason[keyof typeof CircuitBuilderFeedbackInputReason];
+
+
+export const CircuitBuilderFeedbackInputReason = {
+  overall: 'overall',
+  'incorrect-wiring': 'incorrect-wiring',
+  'wrong-parts-or-values': 'wrong-parts-or-values',
+  'poor-readability': 'poor-readability',
+  'missed-request': 'missed-request',
+  other: 'other',
+} as const;
+
+export interface CircuitBuilderFeedbackInput {
+  vote: CircuitBuilderFeedbackInputVote;
+  reason: CircuitBuilderFeedbackInputReason;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  circuitTitle: string;
+  /** @maxLength 600 */
+  requestSummary?: string;
+  /** @maxLength 500 */
+  details?: string;
+}
+
+export interface CircuitBuilderFeedbackResponse {
+  saved: boolean;
+}
+
+export interface CircuitBuilderMemory {
+  /** @minimum 1 */
+  id: number;
+  category: CircuitBuilderMemoryCategory;
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  content: string;
+  updatedAt: string;
+}
+
+export interface CircuitBuilderMemoryInput {
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  content: string;
+}
+
+export interface CircuitBuilderHistoryExcerpt {
+  /** @maxLength 160 */
+  title: string;
+  /**
+     * @minLength 1
+     * @maxLength 3000
+     */
+  context: string;
+}
+
+export interface CircuitBuilderHistoryImportInput {
+  /**
+     * @minItems 1
+     * @maxItems 12
+     */
+  conversations: CircuitBuilderHistoryExcerpt[];
+}
+
+export interface CircuitBuilderMemoryLearningModelResponse {
+  /** @maxItems 12 */
+  memoryUpdates: CircuitBuilderMemorySuggestion[];
+}
+
+export interface CircuitBuilderHistoryImportResponse {
+  /** @minimum 0 */
+  learnedCount: number;
+}
+
+export type CircuitBuilderRepairLessonDirectInputKind = typeof CircuitBuilderRepairLessonDirectInputKind[keyof typeof CircuitBuilderRepairLessonDirectInputKind];
+
+
+export const CircuitBuilderRepairLessonDirectInputKind = {
+  save: 'save',
+} as const;
+
+export interface CircuitBuilderRepairLessonDirectInput {
+  kind: CircuitBuilderRepairLessonDirectInputKind;
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  content: string;
+}
+
+export type CircuitBuilderRepairLessonEvidenceInputKind = typeof CircuitBuilderRepairLessonEvidenceInputKind[keyof typeof CircuitBuilderRepairLessonEvidenceInputKind];
+
+
+export const CircuitBuilderRepairLessonEvidenceInputKind = {
+  learn: 'learn',
+} as const;
+
+export interface CircuitBuilderRepairLessonEvidenceInput {
+  kind: CircuitBuilderRepairLessonEvidenceInputKind;
+  beforeSpec: CircuitSpec;
+  afterSpec: CircuitSpec;
+  /**
+     * @minItems 1
+     * @maxItems 12
+     * @items.minLength 1
+     * @items.maxLength 700
+     */
+  findings: string[];
+  /** @maxLength 1600 */
+  context?: string;
+}
+
+export type CircuitBuilderRepairLessonInput = CircuitBuilderRepairLessonDirectInput | CircuitBuilderRepairLessonEvidenceInput;
+
+export interface CircuitBuilderRepairLessonResult {
+  saved: boolean;
+  /**
+     * @maxLength 300
+     * @nullable
+     */
+  lesson: string | null;
+}
+
+export type CircuitBuilderHistoryMessageRole = typeof CircuitBuilderHistoryMessageRole[keyof typeof CircuitBuilderHistoryMessageRole];
+
+
+export const CircuitBuilderHistoryMessageRole = {
+  user: 'user',
+  assistant: 'assistant',
+} as const;
+
+export interface CircuitBuilderHistoryMessage {
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  id: string;
+  role: CircuitBuilderHistoryMessageRole;
+  content: string;
+  /**
+     * @minimum 0
+     * @maximum 8640000000000000
+     */
+  createdAt: number;
+  /** @maxItems 2 */
+  suggestedActions?: CircuitBuilderSuggestedAction[];
+  buildApprovalRequest?: boolean;
+}
+
+export interface CircuitBuilderSavedState {
+  brief: CircuitDesignBrief;
+  aiBrief: CircuitDesignBrief;
+  /**
+     * @minItems 1
+     * @maxItems 60
+     */
+  messages: CircuitBuilderHistoryMessage[];
+}
+
+export type CircuitBuilderHistorySessionMode = typeof CircuitBuilderHistorySessionMode[keyof typeof CircuitBuilderHistorySessionMode];
+
+
+export const CircuitBuilderHistorySessionMode = {
+  chat: 'chat',
+  build: 'build',
+} as const;
+
+export interface CircuitBuilderHistorySession {
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  id: string;
+  /** @maxLength 64 */
+  title: string;
+  /**
+     * @minimum 0
+     * @maximum 8640000000000000
+     */
+  createdAt: number;
+  /**
+     * @minimum 0
+     * @maximum 8640000000000000
+     */
+  updatedAt: number;
+  mode: CircuitBuilderHistorySessionMode;
+  saved: CircuitBuilderSavedState;
+  currentSpec: CircuitSpec;
+}
+
+export interface CircuitBuilderHistoryDeletion {
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  sessionId: string;
+  /**
+     * @minimum 0
+     * @maximum 8640000000000000
+     */
+  deletedAt: number;
+}
+
+export interface CircuitBuilderHistorySyncInput {
+  /**
+     * @minItems 1
+     * @maxItems 10
+     */
+  sessions: CircuitBuilderHistorySession[];
+}
+
+export interface CircuitBuilderHistorySyncResponse {
+  /** @minimum 0 */
+  savedCount: number;
+}
+
+export type CircuitSymbolSearchItemResearchStatus = typeof CircuitSymbolSearchItemResearchStatus[keyof typeof CircuitSymbolSearchItemResearchStatus];
+
+
+export const CircuitSymbolSearchItemResearchStatus = {
+  catalog_reference: 'catalog_reference',
+  corrected: 'corrected',
+  needs_review: 'needs_review',
+} as const;
+
+export interface CircuitSymbolSearchItem {
+  id: string;
+  library: string;
+  name: string;
+  description: string;
+  shortDescription: string;
+  longDescription: string;
+  keywords: string;
+  researchStatus: CircuitSymbolSearchItemResearchStatus;
+  /** @nullable */
+  pinCount: number | null;
+  extends?: string;
+}
+
+export interface CircuitSymbolSearchResponse {
+  sourceVersion: string;
+  catalogTotal: number;
+  total: number;
+  hasMore: boolean;
+  libraries: string[];
+  families: string[];
+  results: CircuitSymbolSearchItem[];
 }
 
 export interface CircuitReviewRequest {
   spec: CircuitSpec;
 }
 
+/**
+ * Untrusted snapshot of a rejected model proposal; intentionally permissive so invalid elements can be reviewed.
+ */
+export interface RejectedCircuitSpec { [key: string]: unknown }
+
+export interface ExternalCircuitFixReviewInput {
+  rejectedSpec: RejectedCircuitSpec;
+  candidateSpec: CircuitSpec;
+  /**
+     * @minItems 1
+     * @maxItems 30
+     * @items.minLength 1
+     * @items.maxLength 1000
+     */
+  reportedProblems: string[];
+  /**
+     * @maxItems 30
+     * @items.minLength 1
+     * @items.maxLength 1000
+     */
+  advisoryWarnings?: string[];
+  /** @maxLength 6000 */
+  originalRequest?: string;
+  designBrief: CircuitDesignBrief;
+  /** @maxItems 8 */
+  history: CircuitBuildChatMessage[];
+}
+
+export interface ExternalCircuitFixReviewResponse {
+  /** Studio AI's review verdict; never a simulation or safety result. */
+  approved: boolean;
+  /**
+     * @minLength 1
+     * @maxLength 800
+     */
+  summary: string;
+  /**
+     * @maxItems 8
+     * @items.minLength 1
+     * @items.maxLength 500
+     */
+  concerns: string[];
+  /**
+     * Reusable lesson from the correction, if supported by the review evidence.
+     * @maxLength 300
+     * @nullable
+     */
+  repairLesson?: string | null;
+}
+
 export interface CircuitReviewResponse {
   review: string;
+}
+
+export interface CircuitProposalReviewInput {
+  spec: CircuitSpec;
+  /**
+     * @minLength 1
+     * @maxLength 6000
+     */
+  originalRequest: string;
+  brief: CircuitDesignBrief;
+}
+
+export interface CircuitProposalReview {
+  /**
+     * @maxItems 5
+     * @items.minLength 1
+     * @items.maxLength 500
+     */
+  intentConcerns: string[];
+  /**
+     * @maxItems 5
+     * @items.minLength 1
+     * @items.maxLength 500
+     */
+  readabilityWarnings: string[];
+  /**
+     * @maxItems 5
+     * @items.minLength 1
+     * @items.maxLength 500
+     */
+  unknowns: string[];
 }
 
 export interface AiUsage {
@@ -225,4 +702,622 @@ export interface AiKeySelectionRequest {
   /** @minimum 1 */
   keyNumber: number;
 }
+
+/**
+ * @minLength 1
+ * @maxLength 128
+ * @pattern .*\S.*
+ */
+export type CircuitDocumentV2SessionId = string;
+
+export interface CircuitDocumentV2GenerationInput {
+  /**
+     * @minLength 8
+     * @maxLength 3000
+     */
+  prompt: string;
+}
+
+export type CircuitDocumentV2GenerationDiagnosticCategory = typeof CircuitDocumentV2GenerationDiagnosticCategory[keyof typeof CircuitDocumentV2GenerationDiagnosticCategory];
+
+
+export const CircuitDocumentV2GenerationDiagnosticCategory = {
+  schema: 'schema',
+  electrical: 'electrical',
+  drawing: 'drawing',
+  'drawing-warning': 'drawing-warning',
+  'consistency-warning': 'consistency-warning',
+} as const;
+
+export type CircuitDocumentV2GenerationDiagnosticSeverity = typeof CircuitDocumentV2GenerationDiagnosticSeverity[keyof typeof CircuitDocumentV2GenerationDiagnosticSeverity];
+
+
+export const CircuitDocumentV2GenerationDiagnosticSeverity = {
+  error: 'error',
+  warning: 'warning',
+} as const;
+
+export interface CircuitDocumentV2GenerationDiagnostic {
+  category: CircuitDocumentV2GenerationDiagnosticCategory;
+  code: string;
+  severity: CircuitDocumentV2GenerationDiagnosticSeverity;
+  path: string;
+  message: string;
+}
+
+export type CircuitDocumentV2ElectricalGenerationResultStatus = typeof CircuitDocumentV2ElectricalGenerationResultStatus[keyof typeof CircuitDocumentV2ElectricalGenerationResultStatus];
+
+
+export const CircuitDocumentV2ElectricalGenerationResultStatus = {
+  proposed: 'proposed',
+} as const;
+
+export type CircuitDocumentV2ElectricalGenerationResultDesign = {
+  summary: string;
+  assumptions: string[];
+  uncertainties: string[];
+  questions: string[];
+};
+
+export type CircuitDocumentV2ElectricalGenerationResultValidationScope = typeof CircuitDocumentV2ElectricalGenerationResultValidationScope[keyof typeof CircuitDocumentV2ElectricalGenerationResultValidationScope];
+
+
+export const CircuitDocumentV2ElectricalGenerationResultValidationScope = {
+  'document-structure-only': 'document-structure-only',
+} as const;
+
+export type CircuitDocumentV2ElectricalGenerationResultValidation = {
+  scope: CircuitDocumentV2ElectricalGenerationResultValidationScope;
+  isValid: true;
+  diagnostics: CircuitDocumentV2GenerationDiagnostic[];
+};
+
+export type CircuitDocumentV2SchemaVersion = typeof CircuitDocumentV2SchemaVersion[keyof typeof CircuitDocumentV2SchemaVersion];
+
+
+export const CircuitDocumentV2SchemaVersion = {
+  NUMBER_2: 2,
+} as const;
+
+export interface CircuitDocumentV2PinDefinition {
+  /** @minLength 1 */
+  id: string;
+  /** @minLength 1 */
+  name: string;
+  number?: string;
+  /** @minimum 1 */
+  unit?: number;
+  /** @minimum 1 */
+  bodyStyle?: number;
+  /** @minimum 0 */
+  occurrence?: number;
+  electricalType?: string;
+}
+
+export type CircuitDocumentV2ComponentProperties = { [key: string]: unknown };
+
+export interface CircuitDocumentV2Component {
+  /** @minLength 1 */
+  id: string;
+  /** @minLength 1 */
+  type: string;
+  reference?: string;
+  value?: string;
+  properties: CircuitDocumentV2ComponentProperties;
+  pins: CircuitDocumentV2PinDefinition[];
+}
+
+export interface CircuitDocumentV2PinReference {
+  /** @minLength 1 */
+  componentId: string;
+  /** @minLength 1 */
+  pinId: string;
+}
+
+export type CircuitDocumentV2NetAttributes = { [key: string]: unknown };
+
+export interface CircuitDocumentV2Net {
+  /** @minLength 1 */
+  id: string;
+  name?: string;
+  attributes?: CircuitDocumentV2NetAttributes;
+  members: CircuitDocumentV2PinReference[];
+}
+
+export type CircuitDocumentV2DrawingUnits = typeof CircuitDocumentV2DrawingUnits[keyof typeof CircuitDocumentV2DrawingUnits];
+
+
+export const CircuitDocumentV2DrawingUnits = {
+  px: 'px',
+} as const;
+
+export type CircuitDocumentV2PlacementLegacyGeometry = {
+  from?: CircuitPoint;
+  to?: CircuitPoint;
+  at?: CircuitPoint;
+};
+
+export type CircuitDocumentV2PlacementProperties = { [key: string]: unknown };
+
+export interface CircuitDocumentV2Placement {
+  /** @minLength 1 */
+  componentId: string;
+  position: CircuitPoint;
+  rotation: number;
+  flip: boolean;
+  legacyGeometry?: CircuitDocumentV2PlacementLegacyGeometry;
+  properties: CircuitDocumentV2PlacementProperties;
+}
+
+export type CircuitDocumentV2RouteProperties = { [key: string]: unknown };
+
+export interface CircuitDocumentV2Route {
+  /** @minLength 1 */
+  id: string;
+  /** @minLength 1 */
+  netId: string;
+  /** @minItems 2 */
+  points: CircuitPoint[];
+  open?: boolean;
+  properties: CircuitDocumentV2RouteProperties;
+}
+
+export type CircuitDocumentV2JunctionProperties = { [key: string]: unknown };
+
+export interface CircuitDocumentV2Junction {
+  /** @minLength 1 */
+  id: string;
+  at: CircuitPoint;
+  /** @items.minLength 1 */
+  routeIds: string[];
+  properties: CircuitDocumentV2JunctionProperties;
+}
+
+export type CircuitDocumentV2CrossingOrientation = typeof CircuitDocumentV2CrossingOrientation[keyof typeof CircuitDocumentV2CrossingOrientation];
+
+
+export const CircuitDocumentV2CrossingOrientation = {
+  horizontal: 'horizontal',
+  vertical: 'vertical',
+} as const;
+
+export type CircuitDocumentV2CrossingProperties = { [key: string]: unknown };
+
+export interface CircuitDocumentV2Crossing {
+  /** @minLength 1 */
+  id: string;
+  at: CircuitPoint;
+  orientation?: CircuitDocumentV2CrossingOrientation;
+  /** @items.minLength 1 */
+  routeIds: string[];
+  properties: CircuitDocumentV2CrossingProperties;
+}
+
+export type CircuitDocumentV2Annotation = {
+  /** @minLength 1 */
+  id: string;
+  type: 'label';
+  at: CircuitPoint;
+  text: string;
+  properties: { [key: string]: unknown };
+} | {
+  /** @minLength 1 */
+  id: string;
+  type: 'box';
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  properties: { [key: string]: unknown };
+};
+
+export type CircuitDocumentV2LegacyImportSourceFormat = typeof CircuitDocumentV2LegacyImportSourceFormat[keyof typeof CircuitDocumentV2LegacyImportSourceFormat];
+
+
+export const CircuitDocumentV2LegacyImportSourceFormat = {
+  CircuitSpec: 'CircuitSpec',
+} as const;
+
+export type CircuitDocumentV2LegacyImportGroundSemantics = typeof CircuitDocumentV2LegacyImportGroundSemantics[keyof typeof CircuitDocumentV2LegacyImportGroundSemantics];
+
+
+export const CircuitDocumentV2LegacyImportGroundSemantics = {
+  'global-ground': 'global-ground',
+} as const;
+
+export type CircuitDocumentV2LegacyImportTerminalLabelSemantics = typeof CircuitDocumentV2LegacyImportTerminalLabelSemantics[keyof typeof CircuitDocumentV2LegacyImportTerminalLabelSemantics];
+
+
+export const CircuitDocumentV2LegacyImportTerminalLabelSemantics = {
+  'local-labels-do-not-merge': 'local-labels-do-not-merge',
+} as const;
+
+export type CircuitDocumentV2Electrical = {
+  components: CircuitDocumentV2Component[];
+  nets: CircuitDocumentV2Net[];
+  noConnects: CircuitDocumentV2PinReference[];
+  unassignedPins: CircuitDocumentV2PinReference[];
+};
+
+export type CircuitDocumentV2DrawingCanvas = {
+  /** @exclusiveMinimum 0 */
+  width?: number;
+  /** @exclusiveMinimum 0 */
+  height?: number;
+};
+
+export type CircuitDocumentV2Drawing = {
+  units: CircuitDocumentV2DrawingUnits;
+  canvas: CircuitDocumentV2DrawingCanvas;
+  placements: CircuitDocumentV2Placement[];
+  routes: CircuitDocumentV2Route[];
+  junctions: CircuitDocumentV2Junction[];
+  crossings: CircuitDocumentV2Crossing[];
+  annotations: CircuitDocumentV2Annotation[];
+};
+
+export type CircuitDocumentV2LegacyImportSourceMetadata = { [key: string]: unknown };
+
+export type CircuitDocumentV2LegacyImport = {
+  sourceFormat: CircuitDocumentV2LegacyImportSourceFormat;
+  groundSemantics: CircuitDocumentV2LegacyImportGroundSemantics;
+  terminalLabelSemantics: CircuitDocumentV2LegacyImportTerminalLabelSemantics;
+  sourceMetadata: CircuitDocumentV2LegacyImportSourceMetadata;
+};
+
+export type CircuitDocumentV2Metadata = { [key: string]: unknown };
+
+export interface CircuitDocumentV2 {
+  schemaVersion: CircuitDocumentV2SchemaVersion;
+  /** @minLength 1 */
+  id: string;
+  title?: string;
+  electrical: CircuitDocumentV2Electrical;
+  drawing: CircuitDocumentV2Drawing;
+  legacyImport?: CircuitDocumentV2LegacyImport;
+  metadata?: CircuitDocumentV2Metadata;
+}
+
+export type CircuitDocumentV2DrawingPreparationStatus = typeof CircuitDocumentV2DrawingPreparationStatus[keyof typeof CircuitDocumentV2DrawingPreparationStatus];
+
+
+export const CircuitDocumentV2DrawingPreparationStatus = {
+  ready: 'ready',
+  partial: 'partial',
+  blocked: 'blocked',
+} as const;
+
+export type CircuitDocumentV2DrawingPreparationPipelineStatus = typeof CircuitDocumentV2DrawingPreparationPipelineStatus[keyof typeof CircuitDocumentV2DrawingPreparationPipelineStatus];
+
+
+export const CircuitDocumentV2DrawingPreparationPipelineStatus = {
+  complete: 'complete',
+  partial: 'partial',
+  'placement-blocked': 'placement-blocked',
+  'routing-blocked': 'routing-blocked',
+  'invalid-input': 'invalid-input',
+} as const;
+
+export type CircuitDocumentV2DrawingPreparationAlgorithmVersion = typeof CircuitDocumentV2DrawingPreparationAlgorithmVersion[keyof typeof CircuitDocumentV2DrawingPreparationAlgorithmVersion];
+
+
+export const CircuitDocumentV2DrawingPreparationAlgorithmVersion = {
+  'circuit-drawing-preparation/1': 'circuit-drawing-preparation/1',
+} as const;
+
+export type CircuitDocumentV2DrawingPreparationStagesPlacement = typeof CircuitDocumentV2DrawingPreparationStagesPlacement[keyof typeof CircuitDocumentV2DrawingPreparationStagesPlacement];
+
+
+export const CircuitDocumentV2DrawingPreparationStagesPlacement = {
+  complete: 'complete',
+  blocked: 'blocked',
+  'not-run': 'not-run',
+} as const;
+
+export type CircuitDocumentV2DrawingPreparationStagesRouting = typeof CircuitDocumentV2DrawingPreparationStagesRouting[keyof typeof CircuitDocumentV2DrawingPreparationStagesRouting];
+
+
+export const CircuitDocumentV2DrawingPreparationStagesRouting = {
+  complete: 'complete',
+  incomplete: 'incomplete',
+  blocked: 'blocked',
+  'not-run': 'not-run',
+} as const;
+
+export type CircuitDocumentV2DrawingPreparationDiagnosticSeverity = typeof CircuitDocumentV2DrawingPreparationDiagnosticSeverity[keyof typeof CircuitDocumentV2DrawingPreparationDiagnosticSeverity];
+
+
+export const CircuitDocumentV2DrawingPreparationDiagnosticSeverity = {
+  error: 'error',
+  warning: 'warning',
+} as const;
+
+export interface CircuitDocumentV2DrawingPreparationDiagnostic {
+  code: string;
+  severity: CircuitDocumentV2DrawingPreparationDiagnosticSeverity;
+  path: string;
+  message: string;
+}
+
+export type CircuitDocumentV2DrawingPreparationMetricsPlacementLayoutBounds = {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+};
+
+export type CircuitDocumentV2DrawingPreparationMetricsPlacementEstimatedRouteComplexity = {
+  /** @minimum 0 */
+  netsWithMoreThanTwoPins: number;
+  /** @minimum 0 */
+  excessFanout: number;
+  /** @minimum 0 */
+  feedbackGroups: number;
+  /** @minimum 0 */
+  blockedPinAccessCount: number;
+};
+
+export type CircuitDocumentV2DrawingPreparationMetricsPlacement = {
+  /** @minimum 0 */
+  componentCount: number;
+  /** @minimum 0 */
+  unplacedBefore: number;
+  /** @minimum 0 */
+  movedExisting: number;
+  /** @minimum 0 */
+  connectedSubcircuitCount: number;
+  /** @minimum 0 */
+  bodyOverlapCount: number;
+  /** @minimum 0 */
+  minimumClearanceViolationCount: number;
+  /** @minimum 0 */
+  textCollisionCount: number;
+  /** @minimum 0 */
+  canvasOverflowCount: number;
+  layoutBounds?: CircuitDocumentV2DrawingPreparationMetricsPlacementLayoutBounds;
+  estimatedRouteComplexity: CircuitDocumentV2DrawingPreparationMetricsPlacementEstimatedRouteComplexity;
+};
+
+export type CircuitDocumentV2DrawingPreparationMetricsRouting = {
+  /** @minimum 0 */
+  routedNetCount: number;
+  /** @minimum 0 */
+  skippedNetCount: number;
+  /** @minimum 0 */
+  blockedNetCount: number;
+};
+
+export interface CircuitDocumentV2DrawingPreparationMetrics {
+  placement?: CircuitDocumentV2DrawingPreparationMetricsPlacement;
+  routing?: CircuitDocumentV2DrawingPreparationMetricsRouting;
+}
+
+export type CircuitDocumentV2DrawingPreparationStages = {
+  placement: CircuitDocumentV2DrawingPreparationStagesPlacement;
+  routing: CircuitDocumentV2DrawingPreparationStagesRouting;
+};
+
+export interface CircuitDocumentV2DrawingPreparation {
+  status: CircuitDocumentV2DrawingPreparationStatus;
+  pipelineStatus: CircuitDocumentV2DrawingPreparationPipelineStatus;
+  algorithmVersion: CircuitDocumentV2DrawingPreparationAlgorithmVersion;
+  stages: CircuitDocumentV2DrawingPreparationStages;
+  diagnostics: CircuitDocumentV2DrawingPreparationDiagnostic[];
+  metrics?: CircuitDocumentV2DrawingPreparationMetrics;
+  routedNetIds: string[];
+  skippedNetIds: string[];
+  blockedNetIds: string[];
+}
+
+export interface CircuitDocumentV2ElectricalGenerationResult {
+  status: CircuitDocumentV2ElectricalGenerationResultStatus;
+  document: CircuitDocumentV2;
+  design: CircuitDocumentV2ElectricalGenerationResultDesign;
+  validation: CircuitDocumentV2ElectricalGenerationResultValidation;
+  drawingPreparation: CircuitDocumentV2DrawingPreparation;
+}
+
+export interface CircuitDocumentV2GenerationErrorDiagnostic {
+  code: string;
+  path: string;
+  message: string;
+}
+
+export interface CircuitDocumentV2GenerationError {
+  code: string;
+  error: string;
+  diagnostics: CircuitDocumentV2GenerationErrorDiagnostic[];
+}
+
+export type CircuitDocumentV2DraftEnvelopeFormat = typeof CircuitDocumentV2DraftEnvelopeFormat[keyof typeof CircuitDocumentV2DraftEnvelopeFormat];
+
+
+export const CircuitDocumentV2DraftEnvelopeFormat = {
+  'circuit-studio-draft': 'circuit-studio-draft',
+} as const;
+
+export type CircuitDocumentV2DraftEnvelopeEnvelopeVersion = typeof CircuitDocumentV2DraftEnvelopeEnvelopeVersion[keyof typeof CircuitDocumentV2DraftEnvelopeEnvelopeVersion];
+
+
+export const CircuitDocumentV2DraftEnvelopeEnvelopeVersion = {
+  NUMBER_1: 1,
+} as const;
+
+export type CircuitDocumentV2DraftEnvelopeRepresentation = typeof CircuitDocumentV2DraftEnvelopeRepresentation[keyof typeof CircuitDocumentV2DraftEnvelopeRepresentation];
+
+
+export const CircuitDocumentV2DraftEnvelopeRepresentation = {
+  'circuit-document-v2': 'circuit-document-v2',
+} as const;
+
+export interface CircuitDocumentV2DraftEnvelope {
+  format: CircuitDocumentV2DraftEnvelopeFormat;
+  envelopeVersion: CircuitDocumentV2DraftEnvelopeEnvelopeVersion;
+  representation: CircuitDocumentV2DraftEnvelopeRepresentation;
+  document: CircuitDocumentV2;
+}
+
+export interface CircuitDocumentV2DraftWriteInput {
+  /**
+     * Use 0 only for a new document; otherwise use the revision most recently loaded.
+     * @minimum 0
+     * @maximum 2147483646
+     */
+  expectedRevision: number;
+  draft: CircuitDocumentV2DraftEnvelope;
+}
+
+export type CircuitDocumentV2DraftLoadedResponseStatus = typeof CircuitDocumentV2DraftLoadedResponseStatus[keyof typeof CircuitDocumentV2DraftLoadedResponseStatus];
+
+
+export const CircuitDocumentV2DraftLoadedResponseStatus = {
+  loaded: 'loaded',
+} as const;
+
+export type CircuitDocumentV2DraftLoadedResponseRepresentation = typeof CircuitDocumentV2DraftLoadedResponseRepresentation[keyof typeof CircuitDocumentV2DraftLoadedResponseRepresentation];
+
+
+export const CircuitDocumentV2DraftLoadedResponseRepresentation = {
+  'circuit-document-v2': 'circuit-document-v2',
+} as const;
+
+export type CircuitDocumentV2DraftLoadedResponseSchemaVersion = typeof CircuitDocumentV2DraftLoadedResponseSchemaVersion[keyof typeof CircuitDocumentV2DraftLoadedResponseSchemaVersion];
+
+
+export const CircuitDocumentV2DraftLoadedResponseSchemaVersion = {
+  NUMBER_2: 2,
+} as const;
+
+export interface CircuitDocumentV2DraftLoadedResponse {
+  status: CircuitDocumentV2DraftLoadedResponseStatus;
+  representation: CircuitDocumentV2DraftLoadedResponseRepresentation;
+  schemaVersion: CircuitDocumentV2DraftLoadedResponseSchemaVersion;
+  /** @minimum 1 */
+  revision: number;
+  updatedAt: string;
+  draft: CircuitDocumentV2DraftEnvelope;
+}
+
+export type CircuitDocumentV2DraftEmptyResponseStatus = typeof CircuitDocumentV2DraftEmptyResponseStatus[keyof typeof CircuitDocumentV2DraftEmptyResponseStatus];
+
+
+export const CircuitDocumentV2DraftEmptyResponseStatus = {
+  empty: 'empty',
+} as const;
+
+export interface CircuitDocumentV2DraftEmptyResponse {
+  status: CircuitDocumentV2DraftEmptyResponseStatus;
+}
+
+export type CircuitDocumentV2DraftSavedResponseStatus = typeof CircuitDocumentV2DraftSavedResponseStatus[keyof typeof CircuitDocumentV2DraftSavedResponseStatus];
+
+
+export const CircuitDocumentV2DraftSavedResponseStatus = {
+  saved: 'saved',
+} as const;
+
+export type CircuitDocumentV2DraftSavedResponseRepresentation = typeof CircuitDocumentV2DraftSavedResponseRepresentation[keyof typeof CircuitDocumentV2DraftSavedResponseRepresentation];
+
+
+export const CircuitDocumentV2DraftSavedResponseRepresentation = {
+  'circuit-document-v2': 'circuit-document-v2',
+} as const;
+
+export type CircuitDocumentV2DraftSavedResponseSchemaVersion = typeof CircuitDocumentV2DraftSavedResponseSchemaVersion[keyof typeof CircuitDocumentV2DraftSavedResponseSchemaVersion];
+
+
+export const CircuitDocumentV2DraftSavedResponseSchemaVersion = {
+  NUMBER_2: 2,
+} as const;
+
+export interface CircuitDocumentV2DraftSavedResponse {
+  status: CircuitDocumentV2DraftSavedResponseStatus;
+  representation: CircuitDocumentV2DraftSavedResponseRepresentation;
+  schemaVersion: CircuitDocumentV2DraftSavedResponseSchemaVersion;
+  /** @minimum 1 */
+  revision: number;
+  updatedAt: string;
+  draft: CircuitDocumentV2DraftEnvelope;
+}
+
+export type CircuitDocumentV2DraftErrorCode = typeof CircuitDocumentV2DraftErrorCode[keyof typeof CircuitDocumentV2DraftErrorCode];
+
+
+export const CircuitDocumentV2DraftErrorCode = {
+  'authentication-required': 'authentication-required',
+  'invalid-session-id': 'invalid-session-id',
+  'invalid-request': 'invalid-request',
+  'invalid-scope': 'invalid-scope',
+  'invalid-revision': 'invalid-revision',
+  'malformed-envelope': 'malformed-envelope',
+  'unsupported-envelope-version': 'unsupported-envelope-version',
+  'unsupported-representation': 'unsupported-representation',
+  'unsupported-schema-version': 'unsupported-schema-version',
+  'mixed-representations': 'mixed-representations',
+  'invalid-document': 'invalid-document',
+  'wrong-representation': 'wrong-representation',
+  'schema-version-mismatch': 'schema-version-mismatch',
+  'revision-conflict': 'revision-conflict',
+  'storage-failed': 'storage-failed',
+} as const;
+
+export type CircuitDocumentV2DraftErrorDiagnosticsItem = {
+  path: string;
+  message: string;
+};
+
+export interface CircuitDocumentV2DraftError {
+  code: CircuitDocumentV2DraftErrorCode;
+  message: string;
+  diagnostics: CircuitDocumentV2DraftErrorDiagnosticsItem[];
+}
+
+export type SearchCircuitSymbolsParams = {
+/**
+ * @maxLength 120
+ */
+q?: string;
+/**
+ * @maxLength 120
+ */
+library?: string;
+family?: SearchCircuitSymbolsFamily;
+featured?: boolean;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+limit?: number;
+/**
+ * @minimum 0
+ * @maximum 1000000
+ */
+offset?: number;
+};
+
+export type SearchCircuitSymbolsFamily = typeof SearchCircuitSymbolsFamily[keyof typeof SearchCircuitSymbolsFamily];
+
+
+export const SearchCircuitSymbolsFamily = {
+  Passives: 'Passives',
+  Semiconductors: 'Semiconductors',
+  'Power_&_protection': 'Power & protection',
+  Connectors: 'Connectors',
+  'Analog_&_signal': 'Analog & signal',
+  'Digital_&_processors': 'Digital & processors',
+  Sensors: 'Sensors',
+  'Control_&_timing': 'Control & timing',
+  'Audio_&_display': 'Audio & display',
+  'Communications_&_RF': 'Communications & RF',
+  Other: 'Other',
+} as const;
+
+export type GetCircuitSymbolDataParams = {
+/**
+ * @minLength 3
+ * @maxLength 160
+ * @pattern ^[^:\s]+:[^:\s]+$
+ */
+symbolId: string;
+};
 

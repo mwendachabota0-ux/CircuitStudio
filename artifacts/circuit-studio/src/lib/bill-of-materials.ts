@@ -52,8 +52,33 @@ const COMPONENT_NAMES: Record<string, { commonName: string; technicalName: strin
   lamp: { commonName: "Lamp", technicalName: "Electrical lamp" },
   acsource: { commonName: "AC source", technicalName: "Alternating-current source" },
   crystal: { commonName: "Crystal", technicalName: "Crystal resonator, type unspecified" },
+  fuse: { commonName: "Fuse", technicalName: "Fuse, rating unspecified" },
+  thermistor: { commonName: "Thermistor", technicalName: "Temperature-dependent resistor" },
+  photoresistor: { commonName: "Photoresistor", technicalName: "Light-dependent resistor" },
+  varistor: { commonName: "Varistor", technicalName: "Voltage-dependent resistor, rating unspecified" },
+  photodiode: { commonName: "Photodiode", technicalName: "Photodiode, type unspecified" },
+  schottky: { commonName: "Schottky diode", technicalName: "Schottky barrier diode, rating unspecified" },
+  dcsource: { commonName: "DC voltage source", technicalName: "DC voltage source, rating unspecified" },
+  currentsource: { commonName: "Current source", technicalName: "Current source, rating unspecified" },
+  motor: { commonName: "DC motor", technicalName: "DC motor, type unspecified" },
+  buzzer: { commonName: "Buzzer", technicalName: "Buzzer, drive requirements unspecified" },
+  solarcell: { commonName: "Solar cell", technicalName: "Photovoltaic cell, rating unspecified" },
   npn: { commonName: "NPN transistor", technicalName: "NPN bipolar junction transistor (BJT)" },
   pnp: { commonName: "PNP transistor", technicalName: "PNP bipolar junction transistor (BJT)" },
+  nmos: { commonName: "N-channel MOSFET", technicalName: "N-channel MOSFET, rating unspecified" },
+  pmos: { commonName: "P-channel MOSFET", technicalName: "P-channel MOSFET, rating unspecified" },
+  mosfet: { commonName: "MOSFET", technicalName: "MOSFET, channel and rating unspecified" },
+  njfet: { commonName: "N-channel JFET", technicalName: "N-channel junction field-effect transistor" },
+  pjfet: { commonName: "P-channel JFET", technicalName: "P-channel junction field-effect transistor" },
+  potentiometer: { commonName: "Potentiometer", technicalName: "Three-terminal adjustable resistor" },
+  regulator: { commonName: "Voltage regulator", technicalName: "Voltage regulator, type and rating unspecified" },
+  comparator: { commonName: "Comparator", technicalName: "Comparator, type unspecified" },
+  transformer: { commonName: "Transformer", technicalName: "Transformer, ratio and insulation rating unspecified" },
+  relay: { commonName: "Relay", technicalName: "Electromechanical relay, coil rating unspecified" },
+  bridge: { commonName: "Bridge rectifier", technicalName: "Bridge rectifier, rating unspecified" },
+  opto: { commonName: "Optocoupler", technicalName: "Optocoupler, transfer and isolation ratings unspecified" },
+  ic: { commonName: "Integrated circuit", technicalName: "Integrated circuit, part number unspecified" },
+  connector: { commonName: "Connector", technicalName: "Connector, mechanical specification unspecified" },
   opamp: { commonName: "Op-amp", technicalName: "Operational amplifier" },
   antenna: { commonName: "Antenna", technicalName: "Wire antenna" },
 };
@@ -274,7 +299,7 @@ export function buildTechnicalDocumentHtml({
     td small { display:block; color:#9a5d3f; margin-top:3px; }
     .notice { margin-top:14px; padding:11px 13px; background:#f8f3e9; border-left:3px solid #c07a50; color:#5e5142; font-size:12px; }
     pre { white-space:pre-wrap; overflow-wrap:anywhere; padding:14px; background:#f5f6f2; border:1px solid #e0e3dc; font:11px/1.5 ui-monospace,monospace; }
-    .print-action { position:fixed; right:22px; top:18px; padding:9px 13px; border:0; border-radius:5px; background:#176b55; color:white; font-weight:700; cursor:pointer; }
+    .print-action { position:fixed; right:22px; top:18px; padding:9px 13px; border:0; border-radius:3.75px; background:#176b55; color:white; font-weight:700; cursor:pointer; }
     @page { size:A4 landscape; margin:12mm; }
     @media print {
       body { max-width:none; padding:0; font-size:10px; }

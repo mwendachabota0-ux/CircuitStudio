@@ -175,36 +175,34 @@ test('layout repair rejects a junction that merges two previously separate cross
   const merged = structuredClone(baseline);
   merged.elements = merged.elements.filter((element) => element.type !== 'crossing');
   merged.elements.push({ type: 'junction', id: 'J_MERGE', x: 50, y: 50 });
-  let caught;
+  let sends = 0;
 
-  await assert.rejects(
-    runCircuitBuildAttempts({
-      initialRequest: {},
-      initialProtectedSpec: baseline,
-      getConnectivitySignature: connectivitySignature,
-      send: async () => ({ spec: merged }),
-      getProposal: (response) => response.spec,
-      inspectProposal: (spec) => {
-        const report = CircuitDraw.validate(spec);
-        return {
-          validation: {
-            errors: Array.from(report.errors),
-            warnings: Array.from(report.warnings),
-          },
-          canRepair: true,
-        };
-      },
-      makeRepairRequest: () => ({}),
-    }),
-    (error) => {
-      caught = error;
-      return error instanceof CircuitBuildAttemptError &&
-        error.failureKind === 'repair-blocked';
+  const result = await runCircuitBuildAttempts({
+    initialRequest: {},
+    initialProtectedSpec: baseline,
+    getConnectivitySignature: connectivitySignature,
+    send: async () => {
+      sends += 1;
+      return { spec: sends === 1 ? merged : baseline };
     },
-  );
+    getProposal: (response) => response.spec,
+    inspectProposal: (spec) => {
+      const report = CircuitDraw.validate(spec);
+      return {
+        validation: {
+          errors: Array.from(report.errors),
+          warnings: Array.from(report.warnings),
+        },
+        canRepair: true,
+      };
+    },
+    makeRepairRequest: () => ({}),
+    wait: async () => {},
+  });
 
-  assert.ok(caught instanceof CircuitBuildAttemptError);
-  assert.equal(caught.repairAttemptCount, 1);
+  assert.equal(result.response.spec, baseline);
+  assert.equal(result.repairAttemptCount, 2);
+  assert.equal(sends, 2);
   assert.equal(connectivitySignature(baseline) === connectivitySignature(merged), false);
   assertSameNet(baseline, ['B_HL.+', 'B_HR.+']);
   assert.notEqual(netSignatureForPin(baseline, 'B_HL.+'), netSignatureForPin(baseline, 'B_VT.+'));

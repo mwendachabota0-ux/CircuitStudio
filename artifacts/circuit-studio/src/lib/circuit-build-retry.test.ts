@@ -14,6 +14,7 @@ import {
   buildWholeCircuitRetryRequest,
   classifyProposalValidation,
   CircuitBuildAttemptError,
+  EXTERNAL_REPAIR_REFERENCE_MARKER,
   getRetryRecoveryKind,
   getNonWireElementSignature,
   getLayoutInvariantChanges,
@@ -254,13 +255,29 @@ test('pin-to-net signatures ignore generated names but preserve net membership a
 });
 
 test('repair attempt summaries report zero, one, multiple, and maximum attempts accurately', () => {
-  assert.equal(formatRepairAttemptSummary(0), 'Repair was blocked before any AI repair attempt.');
+  assert.equal(formatRepairAttemptSummary(0), 'No repair attempt could be made.');
   assert.equal(formatRepairAttemptSummary(1), 'Repair stopped after 1 AI repair attempt.');
   assert.equal(formatRepairAttemptSummary(2), 'Repair stopped after 2 AI repair attempts.');
   assert.equal(
     formatRepairAttemptSummary(MAX_AUTO_RETRIES),
     `Repair stopped after ${MAX_AUTO_RETRIES} AI repair attempts.`,
   );
+});
+
+test('automatic repair retries keep a user-supplied external reference attached', () => {
+  const externalReference = `${EXTERNAL_REPAIR_REFERENCE_MARKER}\n{"title":"Reference","elements":[]}`;
+  const originalRequest = {
+    ...baseRequest,
+    message: `Repair the current circuit.\n\n${externalReference}`,
+  };
+  const repairRequest = buildRepairRequest(
+    originalRequest,
+    brief,
+    ['A required pin is disconnected.'],
+  );
+
+  assert.match(repairRequest.message, /A required pin is disconnected/);
+  assert.ok(repairRequest.message.includes(externalReference));
 });
 
 test('rewiring starts without old routing elements and preserves the component set', () => {
@@ -521,113 +538,112 @@ test('failure after one or two repair calls reports the actual number of AI atte
   }
 });
 
-test('an untrustworthy repair baseline is blocked before sending an AI repair', async () => {
+test('an untrustworthy legacy baseline still sends incremental AI repair attempts', async () => {
   let sends = 0;
+  let repairRequest: typeof baseRequest | undefined;
   const baseline = { title: 'Ambiguous legacy drawing', elements: [] };
-  let caught: unknown;
-
-  await assert.rejects(
-    runCircuitBuildAttempts({
-      initialRequest: baseRequest,
-      initialProtectedSpec: baseline,
-      getConnectivitySignature: () => null,
-      send: async () => {
-        sends += 1;
-        return { proposal: { spec: baseline } };
-      },
-      getProposal: (response) => response.proposal.spec,
-      inspectProposal: () => ({
-        validation: { errors: ['An endpoint is disconnected.'], warnings: [] },
-        canRepair: true,
-      }),
-      makeRepairRequest: () => baseRequest,
-    }),
-    (error: unknown) => {
-      caught = error;
-      return error instanceof CircuitBuildAttemptError &&
-        error.failureKind === 'repair-blocked';
+  const result = await runCircuitBuildAttempts({
+    initialRequest: baseRequest,
+    initialProtectedSpec: baseline,
+    getConnectivitySignature: (proposal) =>
+      proposal.title === baseline.title ? null : 'repaired-pin-map',
+    send: async () => {
+      sends += 1;
+      return {
+        proposal: {
+          spec: {
+            title: sends === 1 ? 'First repair attempt' : 'Validated repair',
+            elements: [],
+          },
+        },
+      };
     },
-  );
+    getProposal: (response) => response.proposal.spec,
+    inspectProposal: () => ({
+      validation: {
+        errors: sends === 1 ? ['An endpoint is disconnected.'] : [],
+        warnings: [],
+      },
+      canRepair: true,
+    }),
+    makeRepairRequest: (_response, findings) => {
+      repairRequest = { ...baseRequest, message: findings.join('\n') };
+      return repairRequest;
+    },
+    wait: async () => {},
+  });
 
-  assert.ok(caught instanceof CircuitBuildAttemptError);
-  assert.equal(caught.repairAttemptCount, 0);
-  assert.match((caught.cause as Error).message, /intended connectivity cannot be established/i);
-  assert.equal(sends, 0);
+  assert.equal(result.repairAttemptCount, 2);
+  assert.equal(sends, 2);
+  assert.equal(repairRequest?.message, 'An endpoint is disconnected.');
 });
 
-test('route repair rejects a candidate that changes trusted pin-to-net membership', async () => {
+test('route repair retries a candidate that changes trusted pin-to-net membership', async () => {
   let sends = 0;
-  let caught: unknown;
   const findings = ['A known astable feedback connection is invalid.'];
 
-  await assert.rejects(
-    runCircuitBuildAttempts({
-      initialRequest: baseRequest,
-      send: async () => {
-        sends += 1;
-        return {
-          proposal: {
-            spec: {
-              id: sends,
-              pinSignature: sends === 1 ? 'Q1.B|N1;Q2.B|N2' : 'Q1.B|N1;Q2.B|N1',
-            },
+  const result = await runCircuitBuildAttempts({
+    initialRequest: baseRequest,
+    send: async () => {
+      sends += 1;
+      return {
+        proposal: {
+          spec: {
+            id: sends,
+            pinSignature: sends === 2
+              ? 'Q1.B|N1;Q2.B|N1'
+              : 'Q1.B|N1;Q2.B|N2',
           },
-        };
-      },
-      getProposal: (response) => response.proposal.spec,
-      getConnectivitySignature: (proposal) => proposal.pinSignature,
-      inspectProposal: () => ({
-        validation: {
-          errors: sends === 1 ? findings : [],
-          warnings: [],
         },
-        canRepair: true,
-      }),
-      makeRepairRequest: () => baseRequest,
-      wait: async () => {},
-    }),
-    (error: unknown) => {
-      caught = error;
-      return error instanceof CircuitBuildAttemptError &&
-        error.failureKind === 'repair-blocked';
+      };
     },
-  );
+    getProposal: (response) => response.proposal.spec,
+    getConnectivitySignature: (proposal) => proposal.pinSignature,
+    inspectProposal: () => ({
+      validation: {
+        errors: sends === 1 ? findings : [],
+        warnings: [],
+      },
+      canRepair: true,
+    }),
+    makeRepairRequest: () => baseRequest,
+    wait: async () => {},
+  });
 
-  assert.ok(caught instanceof CircuitBuildAttemptError);
-  assert.equal(caught.repairAttemptCount, 1);
-  assert.equal(caught.repairDiagnostics[0].outcome, 'rejected');
-  assert.match(caught.validationFindings.at(-1) ?? '', /changed component-pin connectivity/);
-  assert.equal(sends, 2);
+  assert.equal(result.repairAttemptCount, 2);
+  assert.equal(result.response.proposal.spec.pinSignature, 'Q1.B|N1;Q2.B|N2');
+  assert.equal(sends, 3);
 });
 
-test('route repair rejects a candidate whose connectivity cannot be established', async () => {
+test('route repair retries a candidate whose connectivity cannot be established', async () => {
   const baseline = { pinSignature: 'Q1.B|N1;Q2.B|N2' };
-  let caught: unknown;
-
-  await assert.rejects(
-    runCircuitBuildAttempts({
-      initialRequest: baseRequest,
-      initialProtectedSpec: baseline,
-      getConnectivitySignature: (proposal) => proposal.pinSignature,
-      send: async () => ({ proposal: { spec: { pinSignature: null } } }),
-      getProposal: (response) => response.proposal.spec,
-      inspectProposal: () => ({
-        validation: { errors: [], warnings: [] },
-        canRepair: true,
-      }),
-      makeRepairRequest: () => baseRequest,
-    }),
-    (error: unknown) => {
-      caught = error;
-      return error instanceof CircuitBuildAttemptError &&
-        error.failureKind === 'repair-blocked';
+  let sends = 0;
+  const result = await runCircuitBuildAttempts({
+    initialRequest: baseRequest,
+    initialProtectedSpec: baseline,
+    getConnectivitySignature: (proposal) => proposal.pinSignature,
+    send: async () => {
+      sends += 1;
+      return {
+        proposal: {
+          spec: {
+            pinSignature: sends === 1 ? null : baseline.pinSignature,
+          },
+        },
+      };
     },
-  );
+    getProposal: (response) => response.proposal.spec,
+    inspectProposal: () => ({
+      validation: { errors: [], warnings: [] },
+      canRepair: true,
+    }),
+    makeRepairRequest: () => baseRequest,
+    wait: async () => {},
+  });
 
-  assert.ok(caught instanceof CircuitBuildAttemptError);
-  assert.equal(caught.repairAttemptCount, 1);
-  assert.match(caught.validationFindings.at(-1) ?? '', /connectivity could not be established/);
-  assert.equal(caught.repairDiagnostics[0].outcome, 'rejected');
+  assert.equal(result.repairAttemptCount, 2);
+  assert.equal(result.response.proposal.spec.pinSignature, baseline.pinSignature);
+  assert.equal(sends, 2);
 });
 
 test('layout repair allows a different route when pin-to-net membership is unchanged', async () => {

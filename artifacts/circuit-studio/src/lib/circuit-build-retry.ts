@@ -36,7 +36,7 @@ export function classifyProposalValidation(validation: BuildValidation): BuildVa
   };
 }
 
-export type BuildAttemptFailureKind = 'generation' | 'validation' | 'output' | 'repair-blocked';
+export type BuildAttemptFailureKind = 'generation' | 'validation' | 'output';
 export type CircuitBuildMode = CircuitBuildChatInput['mode'];
 export type RepairAttemptOutcome = 'reconstructed' | 'validated' | 'rejected' | 'exhausted';
 const MAX_HISTORY_CONTENT_LENGTH = 3_000;
@@ -509,7 +509,7 @@ export function hasStablePinConnectivitySignature(
 }
 
 export function formatRepairAttemptSummary(attemptCount: number): string {
-  if (attemptCount <= 0) return 'Repair was blocked before any AI repair attempt.';
+  if (attemptCount <= 0) return 'No repair attempt could be made.';
   return `Repair stopped after ${attemptCount} AI repair attempt${attemptCount === 1 ? '' : 's'}.`;
 }
 
@@ -870,46 +870,27 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
     }
 
     const proposalInspection = options.inspectProposal(proposal);
-    // Warnings are advisory layout notes. Only blocking validation errors
-    // should consume automatic repair attempts or prevent a proposal staging.
+    // Warnings are advisory layout notes. Structural and connectivity findings
+    // consume repair attempts and must be cleared before a proposal is staged.
     let findings = proposalInspection.validation.errors;
-    if (options.getConnectivitySignature && !options.allowConnectivityChange) {
+    if (options.getConnectivitySignature) {
       const candidateConnectivitySignature = options.getConnectivitySignature(proposal);
-      if (
+      if (candidateConnectivitySignature === null) {
+        findings = [
+          ...findings,
+          'The proposed circuit pin-to-net connectivity could not be established. Repair its connections and return a complete, readable CircuitSpec.',
+        ];
+      } else if (
+        !options.allowConnectivityChange &&
         protectedConnectivitySignature !== undefined &&
         protectedConnectivitySignature !== null &&
-        (
-          candidateConnectivitySignature === null ||
-          candidateConnectivitySignature !== protectedConnectivitySignature
-        )
+        candidateConnectivitySignature !== protectedConnectivitySignature
       ) {
-        const integrityFinding = candidateConnectivitySignature === null
-          ? 'Repair candidate connectivity could not be established; route/layout repair must preserve the trusted original pin-to-net connections.'
-          : 'Repair candidate changed component-pin connectivity; route/layout repair must preserve the original pin-to-net connections.';
-        const diagnostic: RepairAttemptDiagnostic | undefined = isRepairAttempt
-          ? {
-              attempt: repairAttemptCount,
-              outcome: 'rejected',
-              nonWireElementsModified: protectedChanges.nonWireElementsModified,
-              metadataModified: protectedChanges.metadataModified,
-              validationErrors: [...findings, integrityFinding],
-              validationWarnings: proposalInspection.validation.warnings,
-            }
-          : undefined;
-        if (diagnostic) repairDiagnostics.push(diagnostic);
-        throw new CircuitBuildAttemptError({
-          retryCount: retries,
-          canRetryManually: true,
-          failureKind: 'repair-blocked',
-          cause: new Error(integrityFinding),
-          validationFindings: [...findings, integrityFinding],
-          validationWarnings: proposalInspection.validation.warnings,
-          repairAttemptCount,
-          repairDiagnostics,
-          rejectedProposal: lastInvalidProposal ?? protectedSpec ?? proposal,
-        });
+        findings = [
+          ...findings,
+          'Repair candidate changed component-pin connectivity; route/layout repair must preserve the trusted original pin-to-net connections.',
+        ];
       }
-
     }
 
     lastInvalidFindings = findings;

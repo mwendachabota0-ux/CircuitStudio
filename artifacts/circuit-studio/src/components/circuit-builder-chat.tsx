@@ -2936,7 +2936,7 @@ export function CircuitBuilderChat({
                     disabled={repairStopRequested}
                     data-testid="button-stop-repair-after-current-attempt"
                   >
-                    {repairStopRequested ? 'Stopping after this attempt…' : 'Stop after this repair attempt'}
+                    {repairStopRequested ? 'Stopping after this attempt…' : 'Stop after this attempt'}
                   </button>
                 )}
               </div>

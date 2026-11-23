@@ -892,8 +892,8 @@ export const LearnFromCircuitBuilderHistoryResponse = zod.object({
 
 
 /**
- * Stores a repair lesson after a corrected proposal passes checks and the user applies it, or learns from a manual correction after it passes checks.
- * @summary Save a lesson from a corrected circuit
+ * Stores account-specific guidance and shares only a generalized, non-identifying lesson when a meaningful correction can teach other users.
+ * @summary Learn from a corrected circuit
  */
 export const saveCircuitBuilderRepairLessonBodyOneContentMax = 300;
 
@@ -987,6 +987,7 @@ export const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemLabelAtMa
 
 export const saveCircuitBuilderRepairLessonBodyTwoFindingsItemMax = 700;
 
+export const saveCircuitBuilderRepairLessonBodyTwoFindingsMin = 0;
 export const saveCircuitBuilderRepairLessonBodyTwoFindingsMax = 12;
 
 export const saveCircuitBuilderRepairLessonBodyTwoContextMax = 1600;
@@ -1130,7 +1131,7 @@ export const SaveCircuitBuilderRepairLessonBody = zod.union([zod.object({
   "muted": zod.boolean().optional()
 }))
 }),
-  "findings": zod.array(zod.string().min(1).max(saveCircuitBuilderRepairLessonBodyTwoFindingsItemMax)).min(1).max(saveCircuitBuilderRepairLessonBodyTwoFindingsMax),
+  "findings": zod.array(zod.string().min(1).max(saveCircuitBuilderRepairLessonBodyTwoFindingsItemMax)).min(saveCircuitBuilderRepairLessonBodyTwoFindingsMin).max(saveCircuitBuilderRepairLessonBodyTwoFindingsMax),
   "context": zod.string().max(saveCircuitBuilderRepairLessonBodyTwoContextMax).optional()
 })])
 
@@ -1140,6 +1141,7 @@ export const saveCircuitBuilderRepairLessonResponseLessonMax = 300;
 
 export const SaveCircuitBuilderRepairLessonResponse = zod.object({
   "saved": zod.boolean(),
+  "shared": zod.boolean(),
   "lesson": zod.string().max(saveCircuitBuilderRepairLessonResponseLessonMax).nullable()
 })
 

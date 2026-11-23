@@ -215,8 +215,8 @@ export declare const useLearnFromCircuitBuilderHistory: <TError = ErrorType<ApiE
 }) => UseMutationResult<Awaited<ReturnType<typeof learnFromCircuitBuilderHistory>>, TError, LearnFromCircuitBuilderHistoryMutationVariables, TContext>;
 export declare const getSaveCircuitBuilderRepairLessonUrl: () => string;
 /**
- * Stores a repair lesson after a corrected proposal passes checks and the user applies it, or learns from a manual correction after it passes checks.
- * @summary Save a lesson from a corrected circuit
+ * Stores account-specific guidance and shares only a generalized, non-identifying lesson when a meaningful correction can teach other users.
+ * @summary Learn from a corrected circuit
  */
 export declare const saveCircuitBuilderRepairLesson: (circuitBuilderRepairLessonInput: CircuitBuilderRepairLessonInput, options?: Parameters<typeof customFetch>[1]) => Promise<CircuitBuilderRepairLessonResult>;
 export declare const getSaveCircuitBuilderRepairLessonMutationKey: () => readonly ["saveCircuitBuilderRepairLesson"];
@@ -231,7 +231,7 @@ export type SaveCircuitBuilderRepairLessonMutationVariables = {
     data: BodyType<CircuitBuilderRepairLessonInput>;
 };
 /**
-* @summary Save a lesson from a corrected circuit
+* @summary Learn from a corrected circuit
 */
 export declare const useSaveCircuitBuilderRepairLesson: <TError = ErrorType<ApiError>, TContext = unknown>(options?: {
     mutation?: UseMutationOptions<Awaited<ReturnType<typeof saveCircuitBuilderRepairLesson>>, TError, SaveCircuitBuilderRepairLessonMutationVariables, TContext>;

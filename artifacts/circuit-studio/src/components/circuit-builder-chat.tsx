@@ -85,7 +85,6 @@ import {
   hydrateExternalCircuitFixSymbols,
   getExternalCircuitFixContextKey,
   partitionExternalCircuitFixFindings,
-  shouldShowExternalCircuitFixPaste,
   type ExternalCircuitFixContext,
 } from '../lib/circuit-external-fix';
 import {
@@ -778,6 +777,8 @@ export function CircuitBuilderChat({
   const proposalRepairLesson = repairState.proposalRepairLesson ?? null;
   const rejectedProposalSpec = repairState.rejectedProposalSpec ?? null;
   const externalFixDraft = repairState.externalFixDraft;
+  const externalFixDraftRef = useRef(externalFixDraft);
+  externalFixDraftRef.current = externalFixDraft;
   const composerDraft = repairState.composerDraft;
   const lastRequest = repairState.lastRequest ?? null;
   const lastProtectedElementsBaseSpec = repairState.lastProtectedElementsBaseSpec ?? null;
@@ -924,7 +925,7 @@ export function CircuitBuilderChat({
       });
     }
   }, [historySyncMutation.mutateAsync]);
-  const saveRepairLesson = useCallback(async (draft: ProposalRepairLesson) => {
+  const saveRepairLesson = useCallback(async (draft: ProposalRepairLesson): Promise<boolean> => {
     setRepairLessonNotice({ kind: 'saving', message: 'Saving repair lesson…' });
     const useEvidence = !draft.content?.trim();
     const data: CircuitBuilderRepairLessonInput = useEvidence
@@ -946,7 +947,12 @@ export function CircuitBuilderChat({
         void queryClient.invalidateQueries({ queryKey: getGetAiUsageQueryKey() });
       }
       setRepairLessonNotice(
-        result.lesson
+        result.shared
+          ? {
+              kind: result.saved ? 'saved' : 'known',
+              message: 'A generalized repair lesson is available to all Circuit Studio users.',
+            }
+          : result.lesson
           ? {
               kind: result.saved ? 'saved' : 'known',
               message: result.saved
@@ -958,11 +964,13 @@ export function CircuitBuilderChat({
               message: 'No reusable repair lesson found.',
             },
       );
+      return true;
     } catch (error) {
       setRepairLessonNotice({
         kind: 'error',
         message: 'Circuit applied, but its repair lesson could not be saved.',
       });
+      return false;
     }
   }, [queryClient, repairLessonMutation.mutateAsync]);
 
@@ -1671,10 +1679,7 @@ export function CircuitBuilderChat({
     : '';
   const externalFixContextKeyRef = useRef(externalFixContextKey);
   externalFixContextKeyRef.current = externalFixContextKey;
-  const showExternalFixPaste = shouldShowExternalCircuitFixPaste(
-    externalFixCopiedContextKey,
-    externalFixContextKey,
-  );
+  const showExternalFixPaste = !!externalFixContext;
 
   useEffect(() => {
     if (!externalFixContextKey) {
@@ -1727,11 +1732,14 @@ export function CircuitBuilderChat({
     }
   };
 
-  const submitExternalCircuitFix = async () => {
+  const submitExternalCircuitFix = async (
+    draftValue = externalFixDraft,
+    learnBeforeApply = false,
+  ) => {
     if (
       !externalFixContext ||
       !showExternalFixPaste ||
-      !externalFixDraft.trim() ||
+      !draftValue.trim() ||
       proposal ||
       externalFixValidationPending ||
       externalFixValidationRef.current ||
@@ -1744,7 +1752,7 @@ export function CircuitBuilderChat({
     try {
       candidate = buildExternalCircuitFixProposal(
         externalFixContext.rejectedSpec,
-        externalFixDraft,
+        draftValue,
       );
     } catch (error) {
       setExternalFixFeedback(
@@ -1768,7 +1776,8 @@ export function CircuitBuilderChat({
       );
       if (
         activeSessionIdRef.current !== sessionIdAtStart ||
-        externalFixContextKeyRef.current !== contextKeyAtStart
+        externalFixContextKeyRef.current !== contextKeyAtStart ||
+        (learnBeforeApply && externalFixDraftRef.current.trim() !== draftValue.trim())
       ) return;
       const inspection = inspectProposal(correctedSpec);
       const lessonFindings = getExternalCircuitFixLessonFindings(externalFixContext);
@@ -1786,19 +1795,24 @@ export function CircuitBuilderChat({
           ? 'blocking-findings'
           : 'external-correction',
       });
+      const repairLesson = inspection.validation.errors.length ||
+        !candidate.diff.hasElementChanges
+        ? null
+        : {
+            beforeSpec: externalFixContext.rejectedSpec,
+            afterSpec: correctedSpec,
+            findings: lessonFindings,
+            context: 'Applied external CircuitSpec correction.',
+            content: null,
+          };
       setProposalRepairLesson(
-        inspection.validation.errors.length ||
-          !candidate.diff.hasElementChanges ||
-          !lessonFindings.length
-          ? null
-          : {
-              beforeSpec: externalFixContext.rejectedSpec,
-              afterSpec: correctedSpec,
-              findings: lessonFindings,
-              context: 'Applied external CircuitSpec correction.',
-              content: null,
-            },
+        repairLesson,
       );
+      if (learnBeforeApply && repairLesson) {
+        void saveRepairLesson(repairLesson).then((saved) => {
+          if (saved) setProposalRepairLesson(null);
+        });
+      }
       updateRepairState({ repairDiagnostics: [], retryAttempt: 0, retryKind: undefined });
     } catch (error) {
       if (
@@ -3057,7 +3071,7 @@ export function CircuitBuilderChat({
                   data-testid="panel-external-circuit-fix"
                 >
                   <h3>Paste the corrected CircuitSpec</h3>
-                  <p>Paste the complete corrected CircuitSpec here. CircuitStudio checks and stages it as a full replacement; it will not ask AI to repair or regenerate it.</p>
+                  <p>Paste a complete correction to check it automatically. A generalized drawing lesson may be shared with all Circuit Studio users; your raw circuit and chat stay private. The drawing changes only if you apply the staged replacement.</p>
                   <label htmlFor="external-circuit-fix-json">Corrected CircuitSpec JSON</label>
                   <textarea
                     id="external-circuit-fix-json"
@@ -3066,6 +3080,18 @@ export function CircuitBuilderChat({
                     onChange={(event) => {
                       setExternalFixDraft(event.target.value);
                       setExternalFixFeedback('');
+                    }}
+                    onPaste={(event) => {
+                      const pastedText = event.clipboardData.getData('text');
+                      if (pastedText.trim()) {
+                        const target = event.currentTarget;
+                        window.setTimeout(() => {
+                          const completeDraft = target.value.slice(0, 50000);
+                          if (completeDraft.trim()) {
+                            void submitExternalCircuitFix(completeDraft, true);
+                          }
+                        }, 0);
+                      }
                     }}
                     disabled={chatMutation.isPending || requestCycleActive || externalFixValidationPending}
                     spellCheck={false}
@@ -3081,13 +3107,13 @@ export function CircuitBuilderChat({
                   <button
                     type="button"
                     className="builder-chat__external-fix-submit"
-                    onClick={submitExternalCircuitFix}
+                    onClick={() => void submitExternalCircuitFix()}
                     disabled={!externalFixDraft.trim() || chatMutation.isPending || requestCycleActive || externalFixValidationPending || !!proposal}
                     data-testid="button-submit-external-circuit-fix"
                   >
-                    {externalFixValidationPending ? 'Loading symbols and checking…' : 'Check and stage replacement'}
+                    {externalFixValidationPending ? 'Checking pasted correction…' : 'Check replacement now'}
                   </button>
-                  <p className="builder-chat__external-fix-note">Applying the staged correction saves a short lesson for similar issues. Structural checks do not prove electrical correctness or safety.</p>
+                  <p className="builder-chat__external-fix-note">The app learns only from a meaningful correction that passes its drawing checks. Structural checks do not prove electrical correctness or safety.</p>
                 </section>
               )}
             </>
@@ -3246,7 +3272,7 @@ export function CircuitBuilderChat({
                 <button
                   type="button"
                   className="builder-chat__apply"
-                  disabled={!proposalSvg || !!proposalValidation?.errors.length || proposalQualityReview.kind === 'loading'}
+                  disabled={!proposalSvg || !!proposalValidation?.errors.length || proposalQualityReview.kind === 'loading' || repairLessonMutation.isPending}
                   onClick={applyProposal}
                   data-testid="button-apply-proposal"
                 >
@@ -3258,10 +3284,10 @@ export function CircuitBuilderChat({
                 </button>
               </div>
               <p className="builder-chat__proposal-note">{isExternalCircuitFixProposal
-                ? 'Applying replaces the current workbench drawing with this corrected CircuitSpec. No AI repair runs; after you apply it, CircuitStudio may save a short lesson from the before-and-after changes. '
+                ? 'Applying replaces the current workbench drawing with this corrected CircuitSpec. No AI repair runs; a generalized lesson may already be available to all users. '
                 : proposalRepairLesson
-                  ? 'Applying this repair saves a reusable lesson for similar circuit issues. '
-                  : ''}Nothing changes before you choose. Structural and AI checks do not prove circuit behavior, component ratings, or safety.</p>
+                  ? 'Applying this repair saves a reusable, generalized lesson when the correction can help other users. '
+                  : ''}The workbench drawing stays unchanged until you choose. Structural and AI checks do not prove circuit behavior, component ratings, or safety.</p>
             </section>
           )}
 

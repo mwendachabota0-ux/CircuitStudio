@@ -359,8 +359,8 @@ paths:
     post:
       operationId: saveCircuitBuilderRepairLesson
       tags: [account]
-      summary: Save a lesson from a corrected circuit
-      description: Stores a repair lesson after a corrected proposal passes checks and the user applies it, or learns from a manual correction after it passes checks.
+      summary: Learn from a corrected circuit
+      description: Stores account-specific guidance and shares only a generalized, non-identifying lesson when a meaningful correction can teach other users.
       requestBody:
         required: true
         content:
@@ -1109,7 +1109,7 @@ components:
           $ref: "#/components/schemas/CircuitSpec"
         findings:
           type: array
-          minItems: 1
+          minItems: 0
           maxItems: 12
           items:
             type: string
@@ -1129,10 +1129,12 @@ components:
       properties:
         saved:
           type: boolean
+        shared:
+          type: boolean
         lesson:
           type: ["string", "null"]
           maxLength: 300
-      required: [saved, lesson]
+      required: [saved, shared, lesson]
       additionalProperties: false
     CircuitBuilderHistoryMessage:
       type: object

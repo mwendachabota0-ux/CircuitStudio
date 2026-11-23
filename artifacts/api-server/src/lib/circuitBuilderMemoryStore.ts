@@ -1,5 +1,9 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
-import { circuitBuilderMemories, db } from "@workspace/db";
+import { and, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
+import {
+  circuitBuilderMemories,
+  circuitBuilderSharedRepairLessons,
+  db,
+} from "@workspace/db";
 import {
   normalizeCircuitBuilderMemoryContent,
   type CircuitBuilderMemoryRecord,
@@ -7,6 +11,7 @@ import {
 } from "./circuitBuilderMemory";
 
 const MAX_SAVED_MEMORIES = 30;
+const MAX_SHARED_REPAIR_LESSONS = 500;
 
 export async function listUserCircuitBuilderMemories(
   userId: string,
@@ -26,6 +31,58 @@ export async function listUserCircuitBuilderMemories(
     ...memory,
     category: memory.category as CircuitBuilderMemoryRecord["category"],
   }));
+}
+
+export async function listSharedCircuitBuilderRepairLessons(): Promise<string[]> {
+  const rows = await db
+    .select({ content: circuitBuilderSharedRepairLessons.content })
+    .from(circuitBuilderSharedRepairLessons)
+    .orderBy(
+      desc(circuitBuilderSharedRepairLessons.occurrenceCount),
+      desc(circuitBuilderSharedRepairLessons.updatedAt),
+    )
+    .limit(MAX_SHARED_REPAIR_LESSONS);
+  return rows.map((row) => row.content);
+}
+
+export async function saveSharedCircuitBuilderRepairLesson(
+  content: string,
+): Promise<boolean> {
+  const normalized = normalizeCircuitBuilderMemoryContent(content);
+  if (!normalized) return false;
+  const contentKey = normalized.toLocaleLowerCase();
+
+  await db.transaction(async (tx) => {
+    await tx
+      .insert(circuitBuilderSharedRepairLessons)
+      .values({ content: normalized, contentKey })
+      .onConflictDoUpdate({
+        target: circuitBuilderSharedRepairLessons.contentKey,
+        set: {
+          occurrenceCount: sql`LEAST(${circuitBuilderSharedRepairLessons.occurrenceCount} + 1, 100)`,
+          updatedAt: new Date(),
+        },
+      });
+
+    const retained = await tx
+      .select({ id: circuitBuilderSharedRepairLessons.id })
+      .from(circuitBuilderSharedRepairLessons)
+      .orderBy(
+        desc(circuitBuilderSharedRepairLessons.occurrenceCount),
+        desc(circuitBuilderSharedRepairLessons.updatedAt),
+      )
+      .limit(MAX_SHARED_REPAIR_LESSONS);
+    if (retained.length) {
+      await tx
+        .delete(circuitBuilderSharedRepairLessons)
+        .where(notInArray(
+          circuitBuilderSharedRepairLessons.id,
+          retained.map((lesson) => lesson.id),
+        ));
+    }
+  });
+
+  return true;
 }
 
 export async function applyGeneratedCircuitBuilderMemoryChanges(

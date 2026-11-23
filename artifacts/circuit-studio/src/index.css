@@ -226,6 +226,7 @@ a { color: inherit; text-decoration: none; }
 .safety-note { margin:0 18px 15px;padding:11px 13px;border:1px solid #e3e9df;border-left:3px solid #a3b79f;border-radius:8px;background:#f2f5ef;color:#65746a;font-size:10px;line-height:1.65; }
 .safety-note strong { color:#496251; }
 .json-editor { display:block;width:100%;min-height:226px;resize:vertical;border:0;outline:0;padding:14px 16px;background:#f8f7f1;color:#40514c;font:11px/1.65 var(--app-font-mono);tab-size:2; }
+.json-learning-note { margin:0;padding:8px 13px;border-top:1px solid #e9e6dd;color:#75827a;font-size:10px;line-height:1.55; }
 .editor-footer { display:flex;justify-content:flex-end;align-items:center;flex-wrap:wrap;padding:9px 13px;border-top:1px solid #e6e2d9;gap:10px; }
 .editor-status { flex:1;min-width:160px;color:#85908a;font:10px/1.5 var(--app-font-mono); }
 .editor-status.is-pending { color:#966a49; }

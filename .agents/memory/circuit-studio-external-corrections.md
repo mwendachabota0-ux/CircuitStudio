@@ -3,10 +3,10 @@ name: External correction workflow
 description: How CircuitStudio should handle a complete CircuitSpec corrected outside the app.
 ---
 
-Treat a pasted corrected CircuitSpec as the user's completed replacement, not as a request for CircuitStudio to repair or regenerate it. Validate and stage that exact candidate, then replace the entire workbench drawing only after the user chooses to apply it. Hydrate missing KiCad geometry from the verified catalog and keep deterministic drawing checks in place.
+Treat a pasted corrected CircuitSpec as the user's completed replacement, not as a request for CircuitStudio to repair or regenerate it. Check a pasted correction automatically and compare it with the rejected draft; learning does not wait for the user to apply the staged replacement. Direct edits to the editable CircuitSpec should also be compared with the previous valid draft after a short pause.
 
-After the user applies a meaningful correction, save a concise, deduplicated, account-specific lesson from the rejected drawing, accepted replacement, and concrete findings. Use only a compact structured diff and relevant findings for lesson generation. Do not create lessons for invalid, unapplied, or non-informative changes, and never describe drawing checks or lessons as proof of electrical correctness or safety.
+Store account-specific guidance privately, and share only a generalized, non-identifying drawing lesson across all users. Never put raw CircuitSpecs, titles, values, prompts, or account identifiers in the shared store. Keep exact pasted corrections unchanged and allow the user to apply them separately after checks pass.
 
-**Why:** The user clarified that external corrections are already fixed code to install as a replacement; AI repair is unnecessary, while learning from applied corrections remains useful.
+**Why:** The user explicitly requires pasting an external correction or editing the CircuitSpec to be enough to teach the app, with reusable knowledge shared across all users.
 
-**How to apply:** Keep paste handling local and deterministic, preserve the rejected version for comparison until apply, and trigger lesson creation only after the replacement is applied.
+**How to apply:** Compare before/after specs plus drawing-check findings, save only reusable generalized advice, and inject relevant shared lessons into future Build requests as advisory context. Never run AI repair or review on a complete externally corrected replacement.

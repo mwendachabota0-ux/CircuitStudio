@@ -842,8 +842,8 @@ export const getSaveCircuitBuilderRepairLessonUrl = () => {
 }
 
 /**
- * Stores a repair lesson after a corrected proposal passes checks and the user applies it, or learns from a manual correction after it passes checks.
- * @summary Save a lesson from a corrected circuit
+ * Stores account-specific guidance and shares only a generalized, non-identifying lesson when a meaningful correction can teach other users.
+ * @summary Learn from a corrected circuit
  */
 export const saveCircuitBuilderRepairLesson = async (circuitBuilderRepairLessonInput: CircuitBuilderRepairLessonInput, options?: Parameters<typeof customFetch>[1]): Promise<CircuitBuilderRepairLessonResult> => {
 
@@ -909,7 +909,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type SaveCircuitBuilderRepairLessonMutationVariables = {data: BodyType<CircuitBuilderRepairLessonInput>}
 
     /**
- * @summary Save a lesson from a corrected circuit
+ * @summary Learn from a corrected circuit
  */
 export const useSaveCircuitBuilderRepairLesson = <TError = ErrorType<ApiError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveCircuitBuilderRepairLesson>>, TError,SaveCircuitBuilderRepairLessonMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}

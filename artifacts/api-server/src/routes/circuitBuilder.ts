@@ -38,10 +38,12 @@ import {
 import { getSafeErrorType } from "../lib/providerErrorDiagnostics";
 import {
   formatCircuitBuilderMemoryContext,
+  selectRelevantSharedCircuitBuilderRepairLessons,
   selectRelevantCircuitBuilderMemories,
 } from "../lib/circuitBuilderMemory";
 import {
   applyGeneratedCircuitBuilderMemoryChanges,
+  listSharedCircuitBuilderRepairLessons,
   listUserCircuitBuilderMemories,
 } from "../lib/circuitBuilderMemoryStore";
 
@@ -222,17 +224,34 @@ router.post(
         "Saved Circuit Studio assumptions could not be loaded",
       );
     }
+    const memoryMatchContext = [
+      parsed.data.message,
+      brief.goal,
+      ...brief.requirements,
+      ...brief.assumptions,
+      ...history.map((message) => message.content),
+    ].join(" ");
     const relevantMemories = selectRelevantCircuitBuilderMemories(
       existingMemories,
-      [
-        parsed.data.message,
-        brief.goal,
-        ...brief.requirements,
-        ...brief.assumptions,
-      ].join(" "),
+      memoryMatchContext,
     );
+    let relevantSharedRepairLessons: string[] = [];
+    if (parsed.data.mode === "build") {
+      try {
+        relevantSharedRepairLessons = selectRelevantSharedCircuitBuilderRepairLessons(
+          await listSharedCircuitBuilderRepairLessons(),
+          memoryMatchContext,
+        );
+      } catch (error) {
+        req.log.warn(
+          { errorType: getSafeErrorType(error) },
+          "Shared Circuit Studio repair lessons could not be loaded",
+        );
+      }
+    }
     const savedMemoryContext = formatCircuitBuilderMemoryContext(
       relevantMemories,
+      relevantSharedRepairLessons,
     );
     let kicadDefinitions = "";
     let studioComponentResearchContext = "";

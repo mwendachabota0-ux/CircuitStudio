@@ -442,7 +442,7 @@ export interface CircuitBuilderRepairLessonEvidenceInput {
   beforeSpec: CircuitSpec;
   afterSpec: CircuitSpec;
   /**
-     * @minItems 1
+     * @minItems 0
      * @maxItems 12
      * @items.minLength 1
      * @items.maxLength 700
@@ -456,6 +456,7 @@ export type CircuitBuilderRepairLessonInput = CircuitBuilderRepairLessonDirectIn
 
 export interface CircuitBuilderRepairLessonResult {
   saved: boolean;
+  shared: boolean;
   /**
      * @maxLength 300
      * @nullable

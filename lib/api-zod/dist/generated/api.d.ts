@@ -3836,8 +3836,8 @@ export declare const LearnFromCircuitBuilderHistoryResponse: zod.ZodObject<{
     learnedCount: number;
 }>;
 /**
- * Stores a repair lesson after a corrected proposal passes checks and the user applies it, or learns from a manual correction after it passes checks.
- * @summary Save a lesson from a corrected circuit
+ * Stores account-specific guidance and shares only a generalized, non-identifying lesson when a meaningful correction can teach other users.
+ * @summary Learn from a corrected circuit
  */
 export declare const saveCircuitBuilderRepairLessonBodyOneContentMax = 300;
 export declare const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemFromMin = 2;
@@ -3891,6 +3891,7 @@ export declare const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemL
 export declare const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemLabelAtMin = 2;
 export declare const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemLabelAtMax = 2;
 export declare const saveCircuitBuilderRepairLessonBodyTwoFindingsItemMax = 700;
+export declare const saveCircuitBuilderRepairLessonBodyTwoFindingsMin = 0;
 export declare const saveCircuitBuilderRepairLessonBodyTwoFindingsMax = 12;
 export declare const saveCircuitBuilderRepairLessonBodyTwoContextMax = 1600;
 export declare const SaveCircuitBuilderRepairLessonBody: zod.ZodUnion<[zod.ZodObject<{
@@ -5082,12 +5083,15 @@ export declare const SaveCircuitBuilderRepairLessonBody: zod.ZodUnion<[zod.ZodOb
 export declare const saveCircuitBuilderRepairLessonResponseLessonMax = 300;
 export declare const SaveCircuitBuilderRepairLessonResponse: zod.ZodObject<{
     saved: zod.ZodBoolean;
+    shared: zod.ZodBoolean;
     lesson: zod.ZodNullable<zod.ZodString>;
 }, "strip", zod.ZodTypeAny, {
     saved: boolean;
+    shared: boolean;
     lesson: string | null;
 }, {
     saved: boolean;
+    shared: boolean;
     lesson: string | null;
 }>;
 /**

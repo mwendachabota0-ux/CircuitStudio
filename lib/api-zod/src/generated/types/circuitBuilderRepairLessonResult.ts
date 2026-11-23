@@ -8,6 +8,7 @@
 
 export interface CircuitBuilderRepairLessonResult {
   saved: boolean;
+  shared: boolean;
   /**
      * @maxLength 300
      * @nullable

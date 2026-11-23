@@ -12,7 +12,7 @@ export interface CircuitBuilderRepairLessonEvidenceInput {
     beforeSpec: CircuitSpec;
     afterSpec: CircuitSpec;
     /**
-       * @minItems 1
+       * @minItems 0
        * @maxItems 12
        * @items.minLength 1
        * @items.maxLength 700

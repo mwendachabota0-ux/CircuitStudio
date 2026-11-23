@@ -8,7 +8,8 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
   getAskCircuitTutorMutationKey, getGenerateCircuitMutationKey, getGetAiStatusQueryKey,
-  getGetAiUsageQueryKey, getReviewCircuitMutationKey, reviewCircuit, useAskCircuitTutor,
+  getGetAiUsageQueryKey, getListCircuitBuilderMemoriesQueryKey, getReviewCircuitMutationKey,
+  reviewCircuit, useAskCircuitTutor, useSaveCircuitBuilderRepairLesson,
   useGetAiStatus, useGetAiUsage, useReviewCircuit, useSetAiKeySelection,
 } from '@workspace/api-client-react';
 import type { AiUsage, CircuitSpec as ApiCircuitSpec, TutorImageMimeType, TutorResponse } from '@workspace/api-client-react';
@@ -712,6 +713,11 @@ function SchematicViewer({ svg, onFullscreenError }: { svg: string; onFullscreen
 function Studio({ userId }: { userId: string }) {
   const [spec, setSpec] = useState<CircuitSpec>(() => readDraft(userId));
   const [jsonText, setJsonText] = useState(() => JSON.stringify(readDraft(userId), null, 2));
+  const specRef = useRef(spec);
+  specRef.current = spec;
+  const jsonDraftTextRef = useRef(jsonText);
+  const repairLessonTimerRef = useRef<number | null>(null);
+  const learnedSpecPairsRef = useRef(new Set<string>());
   const [jsonError, setJsonError] = useState('');
   const [jsonEditorDirty, setJsonEditorDirty] = useState(false);
   const [jsonRepairRequest, setJsonRepairRequest] = useState<JsonRepairRequest | null>(null);
@@ -736,6 +742,7 @@ function Studio({ userId }: { userId: string }) {
     },
   });
   const queryClient = useQueryClient();
+  const repairLessonMutation = useSaveCircuitBuilderRepairLesson();
   const reviewDraftRef = useRef('');
   const hasEditedDraftRef = useRef(false);
   const [draftReview, setDraftReview] = useState<{ signature: string; text: string; state: 'idle' | 'loading' | 'error' | 'cancelled' }>({ signature: '', text: '', state: 'idle' });
@@ -866,10 +873,50 @@ function Studio({ userId }: { userId: string }) {
   }, [spec, report, libraryReady]);
   const elementCount = spec.elements?.length ?? 0;
 
+  const shareCircuitSpecLearning = (
+    beforeSpec: CircuitSpec,
+    afterSpec: CircuitSpec,
+    findings: string[],
+  ) => {
+    if (JSON.stringify(beforeSpec.elements) === JSON.stringify(afterSpec.elements)) return;
+    if (!areCircuitSpecsEqual(specRef.current, beforeSpec)) return;
+    const signature = JSON.stringify([beforeSpec, afterSpec]);
+    if (learnedSpecPairsRef.current.has(signature)) return;
+    learnedSpecPairsRef.current.add(signature);
+
+    void repairLessonMutation.mutateAsync({
+      data: {
+        kind: 'learn',
+        beforeSpec,
+        afterSpec,
+        findings: findings.slice(0, 12),
+        context: 'The user intentionally edited a CircuitSpec. Compare the visible change for a reusable drawing lesson.',
+      },
+    }).then(async (result) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: getListCircuitBuilderMemoriesQueryKey() }),
+        queryClient.invalidateQueries({ queryKey: getGetAiUsageQueryKey() }),
+      ]);
+      setToast(result.shared
+        ? 'A generalized correction lesson is now available to all Circuit Studio users.'
+        : result.saved
+          ? 'A reusable repair lesson was saved to your account.'
+          : 'CircuitSpec edit received. No reusable repair lesson was identified.');
+    }).catch(() => {
+      learnedSpecPairsRef.current.delete(signature);
+      setToast('CircuitSpec edit received, but its repair lesson could not be saved.');
+    });
+  };
+
   const acceptSpec = (next: CircuitSpec) => {
     hasEditedDraftRef.current = true;
+    jsonDraftTextRef.current = JSON.stringify(next, null, 2);
+    if (repairLessonTimerRef.current !== null) {
+      window.clearTimeout(repairLessonTimerRef.current);
+      repairLessonTimerRef.current = null;
+    }
     setSpec(next);
-    setJsonText(JSON.stringify(next, null, 2));
+    setJsonText(jsonDraftTextRef.current);
     setJsonError('');
     setJsonEditorDirty(false);
   };
@@ -889,10 +936,39 @@ function Studio({ userId }: { userId: string }) {
   };
 
   const onJsonChange = (value: string) => {
+    jsonDraftTextRef.current = value;
+    if (repairLessonTimerRef.current !== null) {
+      window.clearTimeout(repairLessonTimerRef.current);
+      repairLessonTimerRef.current = null;
+    }
     setJsonText(value);
     const result = parseCircuitSpecJson(value);
     setJsonError(result.ok ? '' : result.error);
     setJsonEditorDirty(!result.ok || !areCircuitSpecsEqual(result.spec, spec));
+    if (!result.ok || !window.CircuitDraw || areCircuitSpecsEqual(result.spec, spec)) return;
+
+    let validation: ValidationReport;
+    try {
+      validation = window.CircuitDraw.validate(result.spec, { requireConnectedWireEnds: true });
+    } catch {
+      return;
+    }
+    if (validation.errors.length) return;
+
+    const beforeSpec = spec;
+    const afterSpec = result.spec;
+    const findings = report.errors.slice(0, 12);
+    repairLessonTimerRef.current = window.setTimeout(() => {
+      repairLessonTimerRef.current = null;
+      const latest = parseCircuitSpecJson(jsonDraftTextRef.current);
+      if (
+        latest.ok &&
+        areCircuitSpecsEqual(latest.spec, afterSpec) &&
+        areCircuitSpecsEqual(specRef.current, beforeSpec)
+      ) {
+        shareCircuitSpecLearning(beforeSpec, afterSpec, findings);
+      }
+    }, 900);
   };
   const applyJsonEdit = () => {
     const parsed = parseCircuitSpecJson(jsonText);
@@ -920,6 +996,8 @@ function Studio({ userId }: { userId: string }) {
     }
 
     const repairBaseSpec = getBuilderCompatibleSpec(parsed.spec, spec);
+    const beforeSpec = spec;
+    const changed = !areCircuitSpecsEqual(beforeSpec, parsed.spec);
     acceptSpec(parsed.spec);
     if (validation.errors.length) {
       setJsonRepairRequest({
@@ -933,7 +1011,13 @@ function Studio({ userId }: { userId: string }) {
       return;
     }
 
-    setToast('CircuitSpec edit applied. The preview and Studio AI now use this draft.');
+    if (!changed) {
+      setToast('CircuitSpec edit applied. The preview and Studio AI now use this draft.');
+      return;
+    }
+
+    setToast('CircuitSpec edit applied. Checking it for reusable shared guidance…');
+    shareCircuitSpecLearning(beforeSpec, parsed.spec, report.errors);
   };
 
   const download = (filename: string, content: BlobPart, type: string) => {
@@ -1210,6 +1294,7 @@ function Studio({ userId }: { userId: string }) {
           <div className="panel details-panel">
             <div className="panel-heading"><h2 className="section-title"><span className="section-icon"><Code2 /></span>Editable CircuitSpec</h2><span className="count-badge">JSON</span></div>
             <textarea className="json-editor" data-testid="input-circuit-json" aria-label="Editable CircuitSpec JSON" spellCheck={false} value={jsonText} disabled={!!jsonRepairRequest || hasStagedBuilderProposal} onChange={(event) => onJsonChange(event.target.value)} />
+            <p className="json-learning-note">Meaningful edits that pass drawing checks may contribute a generalized lesson to all users. Your raw circuit and chat are not shared.</p>
             <div className="editor-footer">
               {(hasStagedBuilderProposal || jsonRepairRequest || jsonError || jsonEditorDirty) && (
                 <span className={`editor-status${jsonError || jsonEditorDirty ? ' is-pending' : ''}`} data-testid="status-json">

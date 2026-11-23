@@ -70,6 +70,7 @@ test('history sessions preserve circuit snapshots and upsert newest first withou
   const result = upsertBuilderHistorySession(original, updated);
 
   assert.deepEqual(result.map((session) => session.id), ['first', 'second']);
+  assert.equal(result[0].mode, 'build');
   assert.equal(result[0].currentSpec.title, '24V motor driver');
   assert.equal(result[0].title, 'Build a 24V motor driver.');
   assert.deepEqual(original.map((session) => session.id), ['first', 'second']);

@@ -728,7 +728,7 @@ export function CircuitBuilderChat({
   const [sessions, setSessions] = useState<BuilderHistoryEntry[]>(historyBootstrap.sessions);
   const [activeSessionId, setActiveSessionId] = useState(historyBootstrap.active.id);
   const [saved, setSaved] = useState<SavedState>(historyBootstrap.active.saved);
-  const [mode, setMode] = useState<ChatMode>('chat');
+  const [mode, setMode] = useState<ChatMode>(historyBootstrap.active.mode);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyDeleteTarget, setHistoryDeleteTarget] = useState<BuilderHistoryEntry | null>(null);
   const [historyDeleteError, setHistoryDeleteError] = useState('');
@@ -1420,7 +1420,7 @@ export function CircuitBuilderChat({
     setSessions(availableSessions);
     setActiveSessionId(restoredSession.id);
     setSaved(restoredSession.saved);
-    setMode('chat');
+    setMode(restoredSession.mode);
     if (accountSessions.length) historyImportAttemptedForUser.current = userId;
 
     try {
@@ -1956,7 +1956,6 @@ export function CircuitBuilderChat({
           !!response.proposal &&
           !!proposalInspection;
 
-        if (nextMode === 'chat') setMode('chat');
         const previousMessage = saved.messages.at(-1);
         const approvalWasPending =
           previousMessage?.role === 'assistant' &&
@@ -2460,7 +2459,7 @@ export function CircuitBuilderChat({
     clearTransientConversationState();
     setActiveSessionId(session.id);
     setSaved(session.saved);
-    setMode('chat');
+    setMode(session.mode);
     onApplySpec(session.currentSpec, 'history');
     setHistoryOpen(false);
   };

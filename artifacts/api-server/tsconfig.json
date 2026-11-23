@@ -11,9 +11,6 @@
   "include": ["src"],
   "references": [
     {
-      "path": "../../lib/circuit-document"
-    },
-    {
       "path": "../../lib/circuit-geometry"
     },
     {

@@ -1686,7 +1686,7 @@
     ic: 'Integrated circuit', connector: 'Connector', kicad: 'KiCad library symbol',
     opamp: 'Op-amp', antenna: 'Antenna (a plain wire)' };
 
-  function netlist(spec, allowStructuralErrors, includeMembership) {
+  function netlist(spec, allowStructuralErrors) {
     var rep = analyse(spec);
     if (rep.errors.length && !allowStructuralErrors) throw new Error('Invalid circuit spec:\n- ' + rep.errors.join('\n- '));
     var parent = {};
@@ -1694,7 +1694,7 @@
     function union(a, b) { a = find(a); b = find(b); if (a !== b) parent[a] = b; }
 
     var segs = [], wirePts = [], pins = [], junctions = [], parts = [], auto = 0;
-    spec.elements.forEach(function (el, elementIndex) {
+    spec.elements.forEach(function (el) {
       if (el.type === 'wire') {
         el.points.forEach(function (p) { wirePts.push(p); });
         for (var i = 0; i < el.points.length - 1; i++) segs.push([el.points[i], el.points[i + 1]]);
@@ -1706,7 +1706,7 @@
         if (isPart && !des) des = el.type.toUpperCase().slice(0, 1) + '?' + (++auto);
         pinsOf(el).forEach(function (pin, idx) {
           var pn = pin.n === 'at' ? String(idx + 1) : pin.n;
-          pins.push({ el: el, des: des, pin: pn, p: pin.p, elementIndex: elementIndex, pinIndex: idx });
+          pins.push({ el: el, des: des, pin: pn, p: pin.p });
         });
         if (isPart) parts.push({
           des: des,
@@ -1730,9 +1730,8 @@
     var groups = {}, order = [];
     pins.forEach(function (q) {
       var r = find(key(q.p[0], q.p[1]));
-      if (!groups[r]) { groups[r] = { pins: [], members: [], names: [], hasGnd: false, hasPlus: false }; order.push(r); }
+      if (!groups[r]) { groups[r] = { pins: [], names: [], hasGnd: false, hasPlus: false }; order.push(r); }
       var g = groups[r];
-      g.members.push(q);
       if (q.el.type === 'ground') g.hasGnd = true;
       else if (q.el.type === 'terminal' && q.el.label) g.names.push(q.el.label);
       else if (q.el.type === 'battery' && q.pin === '+') g.hasPlus = true;
@@ -1740,16 +1739,7 @@
     });
 
     var used = {}, n = 0, nets = [];
-    var netByRoot = {}, pinMembership = [], routeMembership = [];
     function clean(t) { return String(t).replace(/[^A-Za-z0-9]/g, '_').replace(/^_+|_+$/g, '') || 'NET'; }
-    function isPinConnected(pin) {
-      var pinKey = key(pin.p[0], pin.p[1]);
-      if (wirePts.some(function (point) { return key(point[0], point[1]) === pinKey; })) return true;
-      if (segs.some(function (segment) { return onSegInterior(pin.p[0], pin.p[1], segment[0], segment[1]); })) return true;
-      return pins.some(function (other) {
-        return other !== pin && key(other.p[0], other.p[1]) === pinKey;
-      });
-    }
     order.forEach(function (r) {
       var g = groups[r], name;
       if (g.hasGnd) name = 'GND';
@@ -1759,8 +1749,6 @@
       }
       else if (g.hasPlus && !used.VCC) name = 'VCC';
       else name = 'N' + (++n);
-      var netKey = g.hasGnd ? 'legacy:GND' : 'legacy:' + r;
-      netByRoot[r] = { key: netKey, name: name };
       if (name === 'GND') {
         var ex = nets.filter(function (x) { return x.name === 'GND'; })[0];
         if (ex) { ex.pins = ex.pins.concat(g.pins); return; }
@@ -1768,47 +1756,12 @@
       used[name] = 1;
       if (g.pins.length) nets.push({ name: name, pins: g.pins });
     });
-    if (includeMembership) {
-      order.forEach(function (r) {
-        var g = groups[r], net = netByRoot[r];
-        g.members.forEach(function (member) {
-          pinMembership.push({
-            elementIndex: member.elementIndex,
-            pinIndex: member.pinIndex,
-            pinName: member.pin,
-            netKey: net.key,
-            netName: net.name,
-            connected: isPinConnected(member)
-          });
-        });
-      });
-      spec.elements.forEach(function (el, elementIndex) {
-        if (el.type !== 'wire' || !Array.isArray(el.points) || el.points.length < 2) return;
-        var root = find(key(el.points[0][0], el.points[0][1]));
-        if (!netByRoot[root]) {
-          var name = 'N' + (++n);
-          while (used[name]) name = 'N' + (++n);
-          used[name] = 1;
-          netByRoot[root] = { key: 'legacy:' + root, name: name };
-        }
-        routeMembership.push({
-          elementIndex: elementIndex,
-          netKey: netByRoot[root].key,
-          netName: netByRoot[root].name
-        });
-      });
-    }
     // fixed order: GND first, VCC second, then the rest
     nets.sort(function (a, b) { var w = function (x) { return x === 'GND' ? 0 : x === 'VCC' ? 1 : 2; }; return w(a.name) - w(b.name); });
     parts.sort(function (a, b) {
       return a.des.replace(/\d+/g, '').localeCompare(b.des.replace(/\d+/g, '')) || (parseInt(a.des.replace(/\D/g, ''), 10) || 0) - (parseInt(b.des.replace(/\D/g, ''), 10) || 0);
     });
-    var result = { parts: parts.map(function (x) { return { designator: x.des, type: x.type, value: x.value }; }), nets: nets };
-    if (includeMembership) {
-      result.pinMembership = pinMembership;
-      result.routeMembership = routeMembership;
-    }
-    return result;
+    return { parts: parts.map(function (x) { return { designator: x.des, type: x.type, value: x.value }; }), nets: nets };
   }
 
   function buildSheet(spec) {
@@ -1828,9 +1781,6 @@
     layoutWarnings: layoutWarnings,
     autoFix: autoFix,
     netlist: netlist,
-    netlistWithMembership: function (spec, allowStructuralErrors) {
-      return netlist(spec, allowStructuralErrors, true);
-    },
     buildSheet: buildSheet,
     types: CircuitGeometry.CIRCUIT_SUPPORTED_ELEMENT_TYPES.slice(),
     defaults: DEFAULT_THEME

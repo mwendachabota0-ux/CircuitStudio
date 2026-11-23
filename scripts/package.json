@@ -5,8 +5,6 @@
   "type": "module",
   "scripts": {
     "hello": "tsx ./src/hello.ts",
-    "build:kicad-symbol-index": "node ./src/build-kicad-symbol-index.mjs",
-    "build:library-resource": "node ./src/build-library-resource.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {

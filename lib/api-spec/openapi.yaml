@@ -97,6 +97,29 @@ paths:
           schema:
             type: string
             maxLength: 120
+        - name: family
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - Passives
+              - Semiconductors
+              - Power & protection
+              - Connectors
+              - Analog & signal
+              - Digital & processors
+              - Sensors
+              - Control & timing
+              - Audio & display
+              - Communications & RF
+              - Other
+        - name: featured
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
         - name: limit
           in: query
           required: false
@@ -104,7 +127,15 @@ paths:
             type: integer
             minimum: 1
             maximum: 100
-            default: 40
+            default: 100
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 1000000
+            default: 0
       responses:
         "200":
           description: Matching symbols from the official KiCad library
@@ -114,6 +145,45 @@ paths:
                 $ref: "#/components/schemas/CircuitSymbolSearchResponse"
         "401":
           description: Authentication is required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /circuits/library/symbol-data:
+    get:
+      operationId: getCircuitSymbolData
+      tags: [circuits]
+      summary: Get source geometry for a KiCad symbol preview
+      parameters:
+        - name: symbolId
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 3
+            maxLength: 160
+            pattern: "^[^:\\s]+:[^:\\s]+$"
+      responses:
+        "200":
+          description: Exact symbol units, pins, and drawing primitives
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KicadSymbolData"
+        "400":
+          description: Invalid symbol ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Authentication is required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "503":
+          description: KiCad source geometry is unavailable
           content:
             application/json:
               schema:
@@ -209,6 +279,55 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+  /circuits/external-fix/review:
+    post:
+      operationId: reviewExternalCircuitFix
+      tags: [tutor]
+      summary: Review a user-pasted correction to a rejected circuit
+      description: Checks a candidate CircuitSpec against a rejected proposal and its reported problems. The response is an AI review, not proof of electrical correctness or safety.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExternalCircuitFixReviewInput"
+      responses:
+        "200":
+          description: AI review verdict and reasons
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExternalCircuitFixReviewResponse"
+        "400":
+          description: Invalid or unsupported candidate CircuitSpec
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Authentication is required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "429":
+          description: Review rate limit reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "502":
+          description: Studio AI could not produce a usable review
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "503":
+          description: AI usage could not be recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
   /circuit-builder/memories:
     get:
       operationId: listCircuitBuilderMemories
@@ -281,6 +400,199 @@ paths:
                 $ref: "#/components/schemas/ApiError"
         "503":
           description: AI usage could not be recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /circuit-builder/memories/repair-lessons:
+    post:
+      operationId: saveCircuitBuilderRepairLesson
+      tags: [account]
+      summary: Save a lesson from a corrected circuit
+      description: Stores a repair lesson after a corrected proposal passes checks and the user applies it, or learns from a manual correction after it passes checks.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CircuitBuilderRepairLessonInput"
+      responses:
+        "200":
+          description: Repair lesson saved, already known, or not generalizable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CircuitBuilderRepairLessonResult"
+        "400":
+          description: Invalid repair lesson or circuit evidence
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Authentication is required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "429":
+          description: Repair lesson generation limit reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "502":
+          description: A reusable repair lesson could not be generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "503":
+          description: Repair lesson could not be saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /circuit-builder/memories/feedback:
+    post:
+      operationId: saveCircuitBuilderFeedback
+      tags: [account]
+      summary: Save feedback on a Circuit Studio proposal
+      description: Saves concise, account-owned feedback that can guide future similar circuit requests. The user can edit or remove it with saved memories.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CircuitBuilderFeedbackInput"
+      responses:
+        "200":
+          description: Feedback was saved or was already present
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CircuitBuilderFeedbackResponse"
+        "400":
+          description: Invalid feedback
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Authentication is required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "429":
+          description: Feedback rate limit reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "503":
+          description: Feedback could not be saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /circuit-builder/history:
+    get:
+      operationId: listCircuitBuilderHistory
+      tags: [account]
+      summary: List saved Circuit Studio conversations
+      description: Returns the signed-in user's complete chat and build history.
+      responses:
+        "200":
+          description: Saved conversations and circuit snapshots
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CircuitBuilderHistorySession"
+        "401":
+          description: Authentication is required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    put:
+      operationId: syncCircuitBuilderHistory
+      tags: [account]
+      summary: Save Circuit Studio conversations
+      description: Saves or updates account-owned sessions, including unfinished chats and circuit snapshots.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CircuitBuilderHistorySyncInput"
+      responses:
+        "200":
+          description: Number of saved conversations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CircuitBuilderHistorySyncResponse"
+        "400":
+          description: Invalid conversation history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Authentication is required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /circuit-builder/history/deletions:
+    get:
+      operationId: listDeletedCircuitBuilderHistory
+      tags: [account]
+      summary: List deleted Circuit Studio conversations
+      description: Returns account-owned conversation deletion markers so older device copies cannot restore deleted sessions.
+      responses:
+        "200":
+          description: Deleted conversation identifiers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CircuitBuilderHistoryDeletion"
+        "401":
+          description: Authentication is required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /circuit-builder/history/{sessionId}:
+    parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+    delete:
+      operationId: deleteCircuitBuilderHistory
+      tags: [account]
+      summary: Delete a saved Circuit Studio conversation
+      description: Deletes one conversation owned by the signed-in user.
+      responses:
+        "204":
+          description: Conversation deleted, or no matching conversation exists
+        "400":
+          description: Invalid conversation identifier
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Authentication is required
           content:
             application/json:
               schema:
@@ -374,6 +686,55 @@ paths:
                 $ref: "#/components/schemas/ApiError"
         "401":
           description: Authentication is required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /circuits/proposal-review:
+    post:
+      operationId: reviewCircuitProposal
+      tags: [tutor]
+      summary: Review a staged circuit proposal for intent and readability
+      description: Returns advisory concerns about request fit and schematic readability. It does not verify electrical behavior, correctness, ratings, or safety, and never overrides deterministic blocking checks.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CircuitProposalReviewInput"
+      responses:
+        "200":
+          description: Advisory review of the staged proposal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CircuitProposalReview"
+        "400":
+          description: Invalid circuit proposal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Authentication is required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "429":
+          description: Review rate limit reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "502":
+          description: Studio AI could not produce a usable review
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "503":
+          description: AI usage could not be recorded
           content:
             application/json:
               schema:
@@ -575,7 +936,6 @@ components:
         message:
           type: string
           minLength: 1
-          maxLength: 6000
         mode:
           type: string
           enum: [chat, build]
@@ -652,6 +1012,10 @@ components:
           items:
             type: integer
             minimum: 1
+        repairLesson:
+          type: ["string", "null"]
+          maxLength: 300
+          description: Optional reusable lesson from a repair; save only after the corrected proposal passes checks and the user applies it.
         buildApprovalRequested:
           type: boolean
           description: Server-set marker that the assistant asked permission before creating a schematic.
@@ -659,7 +1023,35 @@ components:
       additionalProperties: false
     CircuitBuilderMemoryCategory:
       type: string
-      enum: [work-style, design-decision, past-context]
+      enum: [work-style, design-decision, past-context, repair-lesson, design-feedback]
+    CircuitBuilderFeedbackInput:
+      type: object
+      properties:
+        vote:
+          type: string
+          enum: [up, down]
+        reason:
+          type: string
+          enum: [overall, incorrect-wiring, wrong-parts-or-values, poor-readability, missed-request, other]
+        circuitTitle:
+          type: string
+          minLength: 1
+          maxLength: 120
+        requestSummary:
+          type: string
+          maxLength: 600
+        details:
+          type: string
+          maxLength: 500
+      required: [vote, reason, circuitTitle]
+      additionalProperties: false
+    CircuitBuilderFeedbackResponse:
+      type: object
+      properties:
+        saved:
+          type: boolean
+      required: [saved]
+      additionalProperties: false
     CircuitBuilderMemory:
       type: object
       properties:
@@ -742,6 +1134,154 @@ components:
           minimum: 0
       required: [learnedCount]
       additionalProperties: false
+    CircuitBuilderRepairLessonDirectInput:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum: [save]
+        content:
+          type: string
+          minLength: 1
+          maxLength: 300
+      required: [kind, content]
+      additionalProperties: false
+    CircuitBuilderRepairLessonEvidenceInput:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum: [learn]
+        beforeSpec:
+          $ref: "#/components/schemas/CircuitSpec"
+        afterSpec:
+          $ref: "#/components/schemas/CircuitSpec"
+        findings:
+          type: array
+          minItems: 1
+          maxItems: 12
+          items:
+            type: string
+            minLength: 1
+            maxLength: 700
+        context:
+          type: string
+          maxLength: 1600
+      required: [kind, beforeSpec, afterSpec, findings]
+      additionalProperties: false
+    CircuitBuilderRepairLessonInput:
+      oneOf:
+        - $ref: "#/components/schemas/CircuitBuilderRepairLessonDirectInput"
+        - $ref: "#/components/schemas/CircuitBuilderRepairLessonEvidenceInput"
+    CircuitBuilderRepairLessonResult:
+      type: object
+      properties:
+        saved:
+          type: boolean
+        lesson:
+          type: ["string", "null"]
+          maxLength: 300
+      required: [saved, lesson]
+      additionalProperties: false
+    CircuitBuilderHistoryMessage:
+      type: object
+      properties:
+        id:
+          type: string
+          minLength: 1
+          maxLength: 128
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+        createdAt:
+          type: integer
+          minimum: 0
+          maximum: 8640000000000000
+        suggestedActions:
+          type: array
+          maxItems: 2
+          items:
+            $ref: "#/components/schemas/CircuitBuilderSuggestedAction"
+        buildApprovalRequest:
+          type: boolean
+      required: [id, role, content, createdAt]
+      additionalProperties: false
+    CircuitBuilderSavedState:
+      type: object
+      properties:
+        brief:
+          $ref: "#/components/schemas/CircuitDesignBrief"
+        aiBrief:
+          $ref: "#/components/schemas/CircuitDesignBrief"
+        messages:
+          type: array
+          minItems: 1
+          maxItems: 60
+          items:
+            $ref: "#/components/schemas/CircuitBuilderHistoryMessage"
+      required: [brief, aiBrief, messages]
+      additionalProperties: false
+    CircuitBuilderHistorySession:
+      type: object
+      properties:
+        id:
+          type: string
+          minLength: 1
+          maxLength: 128
+        title:
+          type: string
+          maxLength: 64
+        createdAt:
+          type: integer
+          minimum: 0
+          maximum: 8640000000000000
+        updatedAt:
+          type: integer
+          minimum: 0
+          maximum: 8640000000000000
+        mode:
+          type: string
+          enum: [chat, build]
+        saved:
+          $ref: "#/components/schemas/CircuitBuilderSavedState"
+        currentSpec:
+          $ref: "#/components/schemas/CircuitSpec"
+      required: [id, title, createdAt, updatedAt, mode, saved, currentSpec]
+      additionalProperties: false
+    CircuitBuilderHistoryDeletion:
+      type: object
+      properties:
+        sessionId:
+          type: string
+          minLength: 1
+          maxLength: 128
+        deletedAt:
+          type: integer
+          minimum: 0
+          maximum: 8640000000000000
+      required: [sessionId, deletedAt]
+      additionalProperties: false
+    CircuitBuilderHistorySyncInput:
+      type: object
+      properties:
+        sessions:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items:
+            $ref: "#/components/schemas/CircuitBuilderHistorySession"
+      required: [sessions]
+      additionalProperties: false
+    CircuitBuilderHistorySyncResponse:
+      type: object
+      properties:
+        savedCount:
+          type: integer
+          minimum: 0
+      required: [savedCount]
+      additionalProperties: false
     CircuitSymbolSearchItem:
       type: object
       properties:
@@ -753,19 +1293,28 @@ components:
           type: string
         description:
           type: string
+        shortDescription:
+          type: string
+        longDescription:
+          type: string
         keywords:
           type: string
+        researchStatus:
+          type: string
+          enum: [catalog_reference, corrected, needs_review]
         pinCount:
           type: [integer, "null"]
         extends:
           type: string
-      required: [id, library, name, description, keywords, pinCount]
+      required: [id, library, name, description, shortDescription, longDescription, keywords, researchStatus, pinCount]
       additionalProperties: false
     CircuitSymbolSearchResponse:
       type: object
       properties:
         sourceVersion:
           type: string
+        catalogTotal:
+          type: integer
         total:
           type: integer
         hasMore:
@@ -774,11 +1323,15 @@ components:
           type: array
           items:
             type: string
+        families:
+          type: array
+          items:
+            type: string
         results:
           type: array
           items:
             $ref: "#/components/schemas/CircuitSymbolSearchItem"
-      required: [sourceVersion, total, hasMore, libraries, results]
+      required: [sourceVersion, catalogTotal, total, hasMore, libraries, families, results]
       additionalProperties: false
     CircuitReviewRequest:
       type: object
@@ -787,12 +1340,108 @@ components:
           $ref: "#/components/schemas/CircuitSpec"
       required: [spec]
       additionalProperties: false
+    ExternalCircuitFixReviewInput:
+      type: object
+      properties:
+        rejectedSpec:
+          $ref: "#/components/schemas/RejectedCircuitSpec"
+        candidateSpec:
+          $ref: "#/components/schemas/CircuitSpec"
+        reportedProblems:
+          type: array
+          minItems: 1
+          maxItems: 30
+          items:
+            type: string
+            minLength: 1
+            maxLength: 1000
+        advisoryWarnings:
+          type: array
+          maxItems: 30
+          items:
+            type: string
+            minLength: 1
+            maxLength: 1000
+        originalRequest:
+          type: string
+          maxLength: 6000
+        designBrief:
+          $ref: "#/components/schemas/CircuitDesignBrief"
+        history:
+          type: array
+          maxItems: 8
+          items:
+            $ref: "#/components/schemas/CircuitBuildChatMessage"
+      required: [rejectedSpec, candidateSpec, reportedProblems, designBrief, history]
+      additionalProperties: false
+    ExternalCircuitFixReviewResponse:
+      type: object
+      properties:
+        approved:
+          type: boolean
+          description: Studio AI's review verdict; never a simulation or safety result.
+        summary:
+          type: string
+          minLength: 1
+          maxLength: 800
+        concerns:
+          type: array
+          maxItems: 8
+          items:
+            type: string
+            minLength: 1
+            maxLength: 500
+        repairLesson:
+          type: ["string", "null"]
+          maxLength: 300
+          description: Reusable lesson from the correction, if supported by the review evidence.
+      required: [approved, summary, concerns]
+      additionalProperties: false
     CircuitReviewResponse:
       type: object
       properties:
         review:
           type: string
       required: [review]
+      additionalProperties: false
+    CircuitProposalReviewInput:
+      type: object
+      properties:
+        spec:
+          $ref: "#/components/schemas/CircuitSpec"
+        originalRequest:
+          type: string
+          minLength: 1
+          maxLength: 6000
+        brief:
+          $ref: "#/components/schemas/CircuitDesignBrief"
+      required: [spec, originalRequest, brief]
+      additionalProperties: false
+    CircuitProposalReview:
+      type: object
+      properties:
+        intentConcerns:
+          type: array
+          maxItems: 5
+          items:
+            type: string
+            minLength: 1
+            maxLength: 500
+        readabilityWarnings:
+          type: array
+          maxItems: 5
+          items:
+            type: string
+            minLength: 1
+            maxLength: 500
+        unknowns:
+          type: array
+          maxItems: 5
+          items:
+            type: string
+            minLength: 1
+            maxLength: 500
+      required: [intentConcerns, readabilityWarnings, unknowns]
       additionalProperties: false
     AiUsage:
       type: object
@@ -959,8 +1608,9 @@ components:
           type: integer
           minimum: 1
         rotation:
-          type: integer
-          enum: [0, 90, 180, 270]
+          type: number
+          format: double
+          description: Any finite rotation angle in degrees, including fractional and negative angles.
         symbolData:
           $ref: "#/components/schemas/KicadSymbolData"
         points:
@@ -1026,5 +1676,9 @@ components:
       required:
         - title
         - elements
+      additionalProperties: true
+    RejectedCircuitSpec:
+      type: object
+      description: Untrusted snapshot of a rejected model proposal; intentionally permissive so invalid elements can be reviewed.
       additionalProperties: true
 

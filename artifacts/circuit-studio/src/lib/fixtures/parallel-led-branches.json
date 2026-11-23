@@ -1,0 +1,22 @@
+{
+  "title": "Two parallel LED branches",
+  "elements": [
+    { "type": "battery", "id": "B1", "value": "9V", "from": [80, 100], "to": [80, 300] },
+    { "type": "resistor", "id": "R1", "value": "330 ohm", "from": [180, 150], "to": [180, 210] },
+    { "type": "led", "id": "D1", "value": "red", "from": [180, 250], "to": [180, 280] },
+    { "type": "resistor", "id": "R2", "value": "330 ohm", "from": [400, 150], "to": [400, 210] },
+    { "type": "led", "id": "D2", "value": "green", "from": [400, 250], "to": [400, 280] },
+    { "type": "wire", "id": "W_POSITIVE_RAIL", "points": [[80, 100], [400, 100]] },
+    { "type": "wire", "id": "W_RETURN_RAIL", "points": [[80, 300], [400, 300]] },
+    { "type": "wire", "id": "W_R1_FEED", "points": [[180, 100], [180, 150]] },
+    { "type": "wire", "id": "W_R1_D1", "points": [[180, 210], [180, 250]] },
+    { "type": "wire", "id": "W_D1_RETURN", "points": [[180, 280], [180, 300]] },
+    { "type": "wire", "id": "W_R2_FEED", "points": [[400, 100], [400, 150]] },
+    { "type": "wire", "id": "W_R2_D2", "points": [[400, 210], [400, 250]] },
+    { "type": "wire", "id": "W_D2_RETURN", "points": [[400, 280], [400, 300]] },
+    { "type": "junction", "id": "J_POS_1", "x": 180, "y": 100 },
+    { "type": "junction", "id": "J_POS_2", "x": 400, "y": 100 },
+    { "type": "junction", "id": "J_RETURN_1", "x": 180, "y": 300 },
+    { "type": "junction", "id": "J_RETURN_2", "x": 400, "y": 300 }
+  ]
+}

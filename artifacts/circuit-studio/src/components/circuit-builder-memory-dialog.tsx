@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   getListCircuitBuilderMemoriesQueryKey,
@@ -11,26 +11,38 @@ import type { CircuitBuilderMemory } from '@workspace/api-client-react';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { CircleHelp } from 'lucide-react';
 
 const categoryLabels: Record<CircuitBuilderMemory['category'], string> = {
   'work-style': 'How you like to work',
   'design-decision': 'Circuit decision',
   'past-context': 'Project context',
+  'repair-lesson': 'Repair lesson',
+  'design-feedback': 'Proposal feedback',
+};
+
+export type CircuitBuilderMemoryImportStatus = {
+  kind: 'idle' | 'loading' | 'done' | 'error';
+  learnedCount?: number;
+  conversationCount?: number;
 };
 
 type CircuitBuilderMemoryDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  historyImportStatus: CircuitBuilderMemoryImportStatus;
+  onRetryHistoryImport: () => void;
 };
 
 export function CircuitBuilderMemoryDialog({
   open,
   onOpenChange,
+  historyImportStatus,
+  onRetryHistoryImport,
 }: CircuitBuilderMemoryDialogProps) {
   const queryClient = useQueryClient();
   const memoriesQuery = useListCircuitBuilderMemories({
@@ -45,6 +57,35 @@ export function CircuitBuilderMemoryDialog({
   const [drafts, setDrafts] = useState<Record<number, string>>({});
   const [confirmClear, setConfirmClear] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [helpOpen, setHelpOpen] = useState(false);
+  const helpTriggerRef = useRef<HTMLButtonElement>(null);
+  const helpContentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!helpOpen) return;
+
+    const closeHelpWhenClickingOutside = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (
+        helpContentRef.current?.contains(target) ||
+        helpTriggerRef.current?.contains(target)
+      ) {
+        return;
+      }
+
+      setHelpOpen(false);
+    };
+
+    document.addEventListener('pointerdown', closeHelpWhenClickingOutside);
+    return () =>
+      document.removeEventListener('pointerdown', closeHelpWhenClickingOutside);
+  }, [helpOpen]);
+
+  const handleDialogOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) setHelpOpen(false);
+    onOpenChange(nextOpen);
+  };
 
   const refreshMemories = async () => {
     await queryClient.invalidateQueries({
@@ -65,7 +106,7 @@ export function CircuitBuilderMemoryDialog({
       });
       await refreshMemories();
     } catch {
-      setActionError('Could not save that assumption. Please try again.');
+      setActionError('Could not save memory. Try again.');
     }
   };
 
@@ -80,7 +121,7 @@ export function CircuitBuilderMemoryDialog({
       });
       await refreshMemories();
     } catch {
-      setActionError('Could not remove that assumption. Please try again.');
+      setActionError('Could not remove memory. Try again.');
     }
   };
 
@@ -92,7 +133,7 @@ export function CircuitBuilderMemoryDialog({
       setConfirmClear(false);
       await refreshMemories();
     } catch {
-      setActionError('Could not clear saved assumptions. Please try again.');
+      setActionError('Could not clear memories. Try again.');
     }
   };
 
@@ -102,30 +143,81 @@ export function CircuitBuilderMemoryDialog({
     clearMutation.isPending;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent className="builder-memory-dialog">
         <DialogHeader>
-          <DialogTitle>What I remember</DialogTitle>
-          <DialogDescription>
-            These are short assumptions, not saved chat transcripts. New chats
-            use only relevant items, and treat them as tentative. Correct them
-            in chat or edit them here.
-          </DialogDescription>
+          <div className="builder-memory-dialog__title-row">
+            <DialogTitle>Saved memories</DialogTitle>
+            <button
+              type="button"
+              className="builder-memory-dialog__help-trigger"
+              ref={helpTriggerRef}
+              aria-label="About saved memories"
+              aria-expanded={helpOpen}
+              aria-controls="builder-memory-help"
+              onClick={() => setHelpOpen((isOpen) => !isOpen)}
+              data-testid="button-memory-help"
+            >
+              <CircleHelp aria-hidden="true" />
+            </button>
+          </div>
+          {helpOpen && (
+            <div
+              id="builder-memory-help"
+              className="builder-memory-dialog__help-content"
+              ref={helpContentRef}
+              role="note"
+              aria-label="Saved memory details"
+              data-testid="memory-help"
+            >
+              <p>Memories save separately from chats. Checked repairs can save a lesson.</p>
+              <p>Proposal feedback is private to this account and may guide similar future requests. Edit or remove it here.</p>
+              <p>
+                First import scans up to 12 recent sessions for reusable assumptions.
+                Chats are not saved or used to train Gemini.
+              </p>
+            </div>
+          )}
         </DialogHeader>
+
+        {historyImportStatus.kind === 'loading' && (
+          <p className="builder-memory-dialog__empty" role="status">
+            Updating memories…
+          </p>
+        )}
+        {historyImportStatus.kind === 'done' && (
+          <p className="builder-memory-dialog__empty" role="status">
+            {historyImportStatus.learnedCount === undefined
+              ? 'Memories are up to date.'
+              : historyImportStatus.learnedCount === 0
+                ? 'No new memories.'
+                : `Added ${historyImportStatus.learnedCount} memor${historyImportStatus.learnedCount === 1 ? 'y' : 'ies'}.`}
+          </p>
+        )}
+        {historyImportStatus.kind === 'error' && (
+          <p className="builder-memory-dialog__error" role="alert">
+            Could not update memories. Your saved memories are unchanged.{' '}
+            <button
+              type="button"
+              onClick={onRetryHistoryImport}
+            >
+              Try again
+            </button>
+          </p>
+        )}
 
         {actionError && <p className="builder-memory-dialog__error" role="alert">{actionError}</p>}
         {memoriesQuery.isLoading && (
-          <p className="builder-memory-dialog__empty" role="status">Loading saved assumptions…</p>
+          <p className="builder-memory-dialog__empty" role="status">Loading memories…</p>
         )}
         {memoriesQuery.isError && (
           <p className="builder-memory-dialog__error" role="alert">
-            Saved assumptions could not be loaded. Please try closing and reopening this panel.
+            Could not load memories. Reopen to try again.
           </p>
         )}
         {memoriesQuery.data?.length === 0 && !memoriesQuery.isLoading && (
           <p className="builder-memory-dialog__empty">
-            No assumptions saved yet. As you chat, Circuit Studio will keep only
-            useful, reusable context—not every old conversation.
+            No saved memories yet.
           </p>
         )}
 
@@ -137,14 +229,10 @@ export function CircuitBuilderMemoryDialog({
               return (
                 <article className="builder-memory-dialog__item" key={memory.id}>
                   <div className="builder-memory-dialog__item-heading">
-                    <span>Assumption</span>
                     <span>{categoryLabels[memory.category]}</span>
                   </div>
-                  <label className="builder-memory-dialog__label" htmlFor={`builder-memory-${memory.id}`}>
-                    Edit this assumption
-                  </label>
                   <textarea
-                    id={`builder-memory-${memory.id}`}
+                    aria-label={`Edit ${categoryLabels[memory.category].toLowerCase()}`}
                     value={draft}
                     maxLength={300}
                     rows={3}
@@ -181,7 +269,7 @@ export function CircuitBuilderMemoryDialog({
           {memoriesQuery.data && memoriesQuery.data.length > 0 && (
             confirmClear ? (
               <div className="builder-memory-dialog__clear-confirm" role="alert">
-                <span>This removes every saved assumption.</span>
+                <span>Delete all saved memories?</span>
                 <button type="button" className="is-danger" onClick={() => void removeAllMemories()} disabled={busy}>
                   Delete all
                 </button>
@@ -196,7 +284,7 @@ export function CircuitBuilderMemoryDialog({
                 onClick={() => setConfirmClear(true)}
                 disabled={busy}
               >
-                Clear all assumptions
+                Clear all memories
               </button>
             )
           )}

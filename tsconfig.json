@@ -7,6 +7,9 @@
       "path": "./lib/circuit-geometry"
     },
     {
+      "path": "./lib/circuit-document"
+    },
+    {
       "path": "./lib/db"
     },
     {

@@ -59,6 +59,101 @@ test("canonical pin definitions are shared by generation, validation, and render
   assert.match(CircuitDraw.render(CircuitDraw.autoFix(astableFlasher).spec), /<svg/);
 });
 
+test("layout analysis detects overlapping Studio labels", () => {
+  const warnings = CircuitDraw.layoutWarnings({
+    title: "Label overlap",
+    elements: [
+      { type: "label", id: "Label1", text: "Power input", at: [100, 100] },
+      { type: "label", id: "Label2", text: "Main supply", at: [112, 100] },
+    ],
+  });
+
+  assert.ok(warnings.some((warning) => warning.includes("overlaps text")));
+});
+
+test("layout analysis detects wires that cross readable text", () => {
+  const warnings = CircuitDraw.layoutWarnings({
+    title: "Wire through text",
+    elements: [
+      { type: "label", id: "Label1", text: "Power", at: [100, 100] },
+      {
+        type: "wire",
+        id: "W1",
+        open: true,
+        points: [[80, 90], [180, 90]],
+      },
+    ],
+  });
+
+  assert.ok(warnings.some((warning) => warning.includes("crosses text")));
+});
+
+test("layout analysis allows separated labels and clear wire routes", () => {
+  const warnings = CircuitDraw.layoutWarnings({
+    title: "Clear layout",
+    elements: [
+      { type: "label", id: "Label1", text: "Power", at: [100, 100] },
+      { type: "label", id: "Label2", text: "Output", at: [250, 100] },
+      {
+        type: "wire",
+        id: "W1",
+        open: true,
+        points: [[80, 130], [280, 130]],
+      },
+    ],
+  });
+
+  assert.deepEqual(Array.from(warnings), []);
+});
+
+test("layout analysis detects overlapping component bodies", () => {
+  const warnings = CircuitDraw.layoutWarnings({
+    title: "Crowded components",
+    elements: [
+      { type: "resistor", id: "R1", from: [100, 100], to: [180, 100] },
+      { type: "led", id: "LED1", from: [140, 100], to: [200, 100] },
+    ],
+  });
+
+  assert.ok(warnings.some((warning) => warning.includes("symbol bodies") && warning.includes("overlap")));
+});
+
+test("layout analysis detects wires crossing a component body", () => {
+  const warnings = CircuitDraw.layoutWarnings({
+    title: "Wire through component",
+    elements: [
+      { type: "resistor", id: "R1", from: [100, 100], to: [180, 100] },
+      { type: "wire", id: "W1", open: true, points: [[120, 100], [160, 100]] },
+    ],
+  });
+
+  assert.ok(warnings.some((warning) => warning.includes("W1") && warning.includes("symbol body")));
+});
+
+test("layout analysis does not flag a lead wire ending before a component body", () => {
+  const warnings = CircuitDraw.layoutWarnings({
+    title: "Clear lead",
+    elements: [
+      { type: "resistor", id: "R1", from: [100, 100], to: [180, 100] },
+      { type: "wire", id: "W1", open: true, points: [[80, 100], [100, 100]] },
+    ],
+  });
+
+  assert.deepEqual(Array.from(warnings), []);
+});
+
+test("layout analysis treats a wire ending at a component pin as a connection", () => {
+  const warnings = CircuitDraw.layoutWarnings({
+    title: "Connected transistor pin",
+    elements: [
+      { type: "npn", id: "Q1", at: [100, 100] },
+      { type: "wire", id: "W1", open: true, points: [[125, 56], [125, 90]] },
+    ],
+  });
+
+  assert.ok(!warnings.some((warning) => warning.includes("W1") && warning.includes("symbol body")));
+});
+
 test("KiCad symbols render source geometry, exact pin labels, and world-space pins", () => {
   const symbolData = {
     id: "Timer:NE555",
@@ -170,6 +265,66 @@ test("KiCad symbols render source geometry, exact pin labels, and world-space pi
   assert.match(buildSheet, /\| U1 \| Timer:NE555 \| NE555 \|/);
   assert.match(buildSheet, /U1\.2/);
   assert.match(buildSheet, /U1\.3/);
+});
+
+test("KiCad symbols accept and render arbitrary fractional rotation angles", () => {
+  const symbolData = {
+    id: "Device:R",
+    units: [{
+      unit: 1,
+      bodyStyle: 1,
+      pins: [
+        {
+          number: "1",
+          name: "A",
+          electricalType: "passive",
+          shape: "line",
+          point: [-30, 0],
+          bodyPoint: [-12, 0],
+          showName: true,
+          showNumber: true,
+        },
+        {
+          number: "2",
+          name: "B",
+          electricalType: "passive",
+          shape: "line",
+          point: [30, 0],
+          bodyPoint: [12, 0],
+          showName: true,
+          showNumber: true,
+        },
+      ],
+      graphics: [{
+        type: "rectangle",
+        points: [[-12, -16], [12, 16]],
+        strokeWidth: 2,
+        fillType: "background",
+      }],
+    }],
+  };
+  const spec = {
+    title: "Fractionally rotated KiCad symbol",
+    elements: [{
+      type: "kicad",
+      id: "R1",
+      symbolId: "Device:R",
+      at: [200, 150],
+      rotation: 37.5,
+      symbolData,
+    }],
+  };
+
+  const validation = CircuitDraw.validate(spec);
+  assert.deepEqual(Array.from(validation.errors), []);
+  assert.deepEqual(
+    CircuitGeometry.getCircuitPins(spec.elements[0]),
+    [
+      { name: "1", point: [176.2, 131.74] },
+      { name: "2", point: [223.8, 168.26] },
+    ],
+  );
+  assert.match(CircuitDraw.render(spec), /translate\(200 150\) rotate\(37\.5\) scale\(1 1\)/);
 });
 
 test("KiCad symbols without hydrated source data cannot be rendered as valid drafts", () => {

@@ -27,6 +27,7 @@ type CircuitBuilderComposerProps = {
   activeKeyNumber?: number;
   retryAttempt: number;
   retryKind: BuildRetryKind | null;
+  isHistoryLoading: boolean;
   onSubmitMessage: (content: string, draftRevisionAtStart: number) => void | Promise<void>;
 };
 
@@ -42,17 +43,18 @@ const CircuitBuilderComposer = forwardRef<
   activeKeyNumber,
   retryAttempt,
   retryKind,
+  isHistoryLoading,
   onSubmitMessage,
 }, ref) {
   const [draft, setDraft] = useState('');
   const draftRevisionRef = useRef(0);
-  const canSend = draft.trim().length > 0 && !isWorking && !hasProposal && !briefEditing && !hasUnappliedJsonEdits;
+  const canSend = draft.trim().length > 0 && !isWorking && !isHistoryLoading && !hasProposal && !briefEditing && !hasUnappliedJsonEdits;
 
   useImperativeHandle(ref, () => ({
     getDraftRevision: () => draftRevisionRef.current,
     setDraft: (value) => {
       draftRevisionRef.current += 1;
-      setDraft(value.slice(0, 3000));
+      setDraft(value);
     },
     clearDraftIfUnchanged: (revisionAtStart, submittedText) => {
       setDraft((current) =>
@@ -84,19 +86,23 @@ const CircuitBuilderComposer = forwardRef<
     }
   };
 
-  const composerHint = isWorking
-    ? 'You can draft a follow-up while the AI works'
+  const composerHint = isHistoryLoading
+    ? 'Loading history…'
+    : isWorking
+    ? 'Draft a follow-up while Studio works'
     : briefEditing
-      ? 'Save or cancel your notes before sending'
+      ? 'Save or cancel notes first'
       : hasProposal
-        ? 'Apply or discard the staged proposal before sending another request'
+        ? 'Review or discard the proposal first'
         : hasUnappliedJsonEdits
-          ? 'Apply your JSON edit before sending it to Studio AI'
+          ? 'Apply your JSON edit first'
         : mode === 'chat'
-          ? 'Enter to send · Shift + Enter for a new line'
-          : 'A proposal is staged for your review, never applied automatically';
+          ? 'Enter to send · Shift+Enter for newline'
+          : 'Review the proposal; it won’t apply itself.';
 
-  const sendLabel = isWorking
+  const sendLabel = isHistoryLoading
+    ? 'Loading'
+    : isWorking
     ? retryAttempt > 0
       ? retryKind === 'repair' ? 'Repairing' : 'Retrying'
       : 'Thinking'
@@ -110,12 +116,11 @@ const CircuitBuilderComposer = forwardRef<
         value={draft}
         onChange={(event) => {
           draftRevisionRef.current += 1;
-          setDraft(event.target.value.slice(0, 3000));
+          setDraft(event.target.value);
         }}
         onKeyDown={handleKeyDown}
         placeholder={mode === 'chat' ? 'Describe what you are trying to make…' : 'What should we add or change?'}
         rows={2}
-        maxLength={3000}
         autoComplete="off"
         data-testid="input-builder-message"
       />

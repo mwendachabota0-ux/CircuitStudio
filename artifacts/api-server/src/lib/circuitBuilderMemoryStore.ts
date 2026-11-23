@@ -33,11 +33,12 @@ export async function applyGeneratedCircuitBuilderMemoryChanges(
   existingMemories: CircuitBuilderMemoryRecord[],
   updates: CircuitBuilderMemorySuggestion[],
   removals: number[],
-): Promise<void> {
+): Promise<number> {
   const existingById = new Map(existingMemories.map((memory) => [memory.id, memory]));
   const validRemovals = [...new Set(removals)].filter((id) =>
     existingById.has(id),
   );
+  let changedCount = 0;
 
   await db.transaction(async (tx) => {
     if (validRemovals.length > 0) {
@@ -52,7 +53,7 @@ export async function applyGeneratedCircuitBuilderMemoryChanges(
     }
 
     const removedIds = new Set(validRemovals);
-    const stillAvailable = existingMemories.filter(
+    const workingMemories = existingMemories.filter(
       (memory) => !removedIds.has(memory.id),
     );
 
@@ -61,12 +62,12 @@ export async function applyGeneratedCircuitBuilderMemoryChanges(
       if (!content) continue;
 
       if (suggestion.id !== undefined) {
-        const existing = stillAvailable.find(
+        const existing = workingMemories.find(
           (memory) => memory.id === suggestion.id,
         );
         if (!existing) continue;
 
-        const duplicate = stillAvailable.find(
+        const duplicate = workingMemories.find(
           (memory) =>
             memory.id !== existing.id &&
             memory.category === suggestion.category &&
@@ -85,12 +86,20 @@ export async function applyGeneratedCircuitBuilderMemoryChanges(
           continue;
         }
 
+        if (
+          existing.category === suggestion.category &&
+          normalizeCircuitBuilderMemoryContent(existing.content) === content
+        ) {
+          continue;
+        }
+
+        const updatedAt = new Date();
         await tx
           .update(circuitBuilderMemories)
           .set({
             category: suggestion.category,
             content,
-            updatedAt: new Date(),
+            updatedAt,
           })
           .where(
             and(
@@ -98,10 +107,16 @@ export async function applyGeneratedCircuitBuilderMemoryChanges(
               eq(circuitBuilderMemories.id, existing.id),
             ),
           );
+        Object.assign(existing, {
+          category: suggestion.category,
+          content,
+          updatedAt,
+        });
+        changedCount += 1;
         continue;
       }
 
-      const duplicate = stillAvailable.find(
+      const duplicate = workingMemories.find(
         (memory) =>
           memory.category === suggestion.category &&
           normalizeCircuitBuilderMemoryContent(memory.content).toLowerCase() ===
@@ -109,11 +124,22 @@ export async function applyGeneratedCircuitBuilderMemoryChanges(
       );
       if (duplicate) continue;
 
-      await tx.insert(circuitBuilderMemories).values({
-        userId,
-        category: suggestion.category,
-        content,
-      });
+      const [inserted] = await tx
+        .insert(circuitBuilderMemories)
+        .values({ userId, category: suggestion.category, content })
+        .returning({
+          id: circuitBuilderMemories.id,
+          category: circuitBuilderMemories.category,
+          content: circuitBuilderMemories.content,
+          updatedAt: circuitBuilderMemories.updatedAt,
+        });
+      if (inserted) {
+        workingMemories.push({
+          ...inserted,
+          category: inserted.category as CircuitBuilderMemoryRecord["category"],
+        });
+        changedCount += 1;
+      }
     }
 
     const saved = await tx
@@ -133,4 +159,6 @@ export async function applyGeneratedCircuitBuilderMemoryChanges(
         );
     }
   });
+
+  return changedCount;
 }

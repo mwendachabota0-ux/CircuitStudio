@@ -13,4 +13,6 @@ export const CircuitBuilderMemoryCategory = {
   'work-style': 'work-style',
   'design-decision': 'design-decision',
   'past-context': 'past-context',
+  'repair-lesson': 'repair-lesson',
+  'design-feedback': 'design-feedback',
 } as const;

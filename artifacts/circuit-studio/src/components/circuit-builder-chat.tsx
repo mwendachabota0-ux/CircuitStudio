@@ -72,6 +72,7 @@ import {
 } from '../lib/circuit-builder-repair-session';
 import { getLocalBuilderModeIntent } from '../lib/circuit-build-intent';
 import {
+  enforceBuilderResponseMode,
   isExplicitBuildApproval,
   isExplicitBuildRequest,
 } from '../lib/circuit-build-authorization';
@@ -704,6 +705,7 @@ export function CircuitBuilderChat({
     useState<string | null>(null);
   const [rejectedProposalSvg, setRejectedProposalSvg] = useState('');
   const [rejectedPreviewOpen, setRejectedPreviewOpen] = useState(false);
+  const [proposalPreviewOpen, setProposalPreviewOpen] = useState(false);
   const [rejectedSpecCopyState, setRejectedSpecCopyState] = useState<RejectedSpecCopyState>('idle');
   const [externalFixCopiedContextKey, setExternalFixCopiedContextKey] = useState<string | null>(null);
   const [externalFixCopyState, setExternalFixCopyState] = useState<RejectedSpecCopyState>('idle');
@@ -740,6 +742,7 @@ export function CircuitBuilderChat({
   };
   const setRepairStatus = (status: RepairState['status']) => updateRepairState({ status });
   const setProposal = (value: RepairState['proposal'] | null) => {
+    if (!value) setProposalPreviewOpen(false);
     setSaved((current) => ({
       ...current,
       repair: updateRepairRecoveryState(current.repair, {
@@ -922,6 +925,7 @@ export function CircuitBuilderChat({
   }, [repairLessonNotice]);
 
   const clearProposalQualityReview = () => {
+    setProposalPreviewOpen(false);
     proposalReviewRunIdRef.current += 1;
     proposalReviewAbortControllerRef.current?.abort();
     proposalReviewAbortControllerRef.current = null;
@@ -1803,7 +1807,7 @@ export function CircuitBuilderChat({
     let latestBrief = safeRequest.brief ?? emptyBrief();
     try {
       const {
-        response,
+        response: rawResponse,
         proposalInspection,
         request: completedRequest,
         repairDiagnostics: completedRepairDiagnostics,
@@ -1816,17 +1820,18 @@ export function CircuitBuilderChat({
         getProposal: (result) => result.proposal?.spec ?? null,
         inspectProposal,
         prepareResponse: (result) => {
-          if (!result.proposal?.spec || !window.CircuitDraw) return result;
-          const beforeConnectivity = getConnectivitySignature(result.proposal.spec, true);
-          const autoFixed = window.CircuitDraw.autoFix(result.proposal.spec);
+          const authorizedResult = enforceBuilderResponseMode(result, safeRequest.mode);
+          if (!authorizedResult.proposal?.spec || !window.CircuitDraw) return authorizedResult;
+          const beforeConnectivity = getConnectivitySignature(authorizedResult.proposal.spec, true);
+          const autoFixed = window.CircuitDraw.autoFix(authorizedResult.proposal.spec);
           const afterConnectivity = getConnectivitySignature(autoFixed.spec, true);
           if (
             autoFixed.changes.length &&
             !hasStablePinConnectivitySignature(beforeConnectivity, afterConnectivity)
-          ) return result;
+          ) return authorizedResult;
           return autoFixed.changes.length
-            ? { ...result, proposal: { ...result.proposal, spec: autoFixed.spec } }
-            : result;
+            ? { ...authorizedResult, proposal: { ...authorizedResult.proposal, spec: autoFixed.spec } }
+            : authorizedResult;
         },
         getConnectivitySignature: (candidate) =>
           getConnectivitySignature(candidate as CircuitSpec),
@@ -1868,6 +1873,7 @@ export function CircuitBuilderChat({
         },
         shouldStopRepair: () => stopRepairAfterAttemptRef.current,
       });
+        const response = enforceBuilderResponseMode(rawResponse, safeRequest.mode);
         const nextMode = response.nextMode ?? completedRequest.mode;
         const nextBrief = response.brief ?? latestBrief;
         latestBrief = nextBrief;
@@ -2452,6 +2458,7 @@ export function CircuitBuilderChat({
   };
 
   const discardProposal = () => {
+    setProposalPreviewOpen(false);
     setSaved((current) => ({
       ...current,
       repair: discardStagedRepairProposal(current.repair),
@@ -2531,6 +2538,7 @@ export function CircuitBuilderChat({
     });
     onApplySpec(proposal.spec);
     if (proposalRepairLesson) void saveRepairLesson(proposalRepairLesson);
+    setProposalPreviewOpen(false);
     setSaved((current) => ({
       ...current,
       repair: clearAppliedRepairRecovery(current.repair),
@@ -3006,6 +3014,22 @@ export function CircuitBuilderChat({
                   <X aria-hidden="true" />
                 </button>
               </div>
+              <div className="builder-chat__preview-toolbar">
+                <span>Schematic preview</span>
+                {proposalSvg && (
+                  <button
+                    type="button"
+                    className="builder-chat__rejected-preview-toggle builder-chat__preview-expand"
+                    aria-haspopup="dialog"
+                    aria-controls="dialog-builder-proposal-preview"
+                    onClick={() => setProposalPreviewOpen(true)}
+                    data-testid="button-expand-builder-proposal-preview"
+                  >
+                    <Maximize2 aria-hidden="true" />
+                    Expand preview
+                  </button>
+                )}
+              </div>
               <div className="builder-chat__preview" data-testid="preview-builder-proposal">
                 {proposalSvg
                   ? <div className="builder-chat__svg" dangerouslySetInnerHTML={{ __html: proposalSvg }} />
@@ -3052,11 +3076,13 @@ export function CircuitBuilderChat({
                     <p role="status">{layoutRepairNotice || 'Studio is checking how well the draft matches your request and whether it is readable…'}</p>
                     <button
                       type="button"
-                      className="builder-chat__text-link"
+                      className="builder-chat__cancel-review"
                       onClick={stopProposalQualityReview}
+                      aria-label="Cancel drawing review"
+                      title="Cancel drawing review"
                       data-testid="button-stop-proposal-review"
                     >
-                      Stop review
+                      Cancel review
                     </button>
                   </div>
                 )}
@@ -3289,6 +3315,37 @@ export function CircuitBuilderChat({
             <div className="easyeda-sheet-footer builder-chat__rejected-preview-modal-footer">
               <span>Needs repair · preview only</span>
               <button type="button" className="quiet-button" onClick={() => setRejectedPreviewOpen(false)}>
+                Close preview
+              </button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+      {proposal && proposalSvg && (
+        <Dialog open={proposalPreviewOpen} onOpenChange={setProposalPreviewOpen}>
+          <DialogContent
+            id="dialog-builder-proposal-preview"
+            className="easyeda-sheet-dialog builder-chat__proposal-preview-dialog"
+            data-testid="dialog-builder-proposal-preview"
+          >
+            <DialogHeader className="easyeda-sheet-header">
+              <DialogTitle className="easyeda-sheet-title">{proposal.summary}</DialogTitle>
+              <DialogDescription className="easyeda-sheet-description">
+                Expanded view of the staged proposal. Nothing changes until you apply it.
+              </DialogDescription>
+            </DialogHeader>
+            <div
+              className="easyeda-sheet-body builder-chat__rejected-preview-modal-body builder-chat__proposal-preview-modal-body"
+              role="region"
+              aria-label="Expanded schematic preview"
+              tabIndex={0}
+              data-testid="preview-expanded-builder-proposal"
+            >
+              <div className="builder-chat__svg" dangerouslySetInnerHTML={{ __html: proposalSvg }} />
+            </div>
+            <div className="easyeda-sheet-footer builder-chat__rejected-preview-modal-footer">
+              <span>Staged proposal · not applied</span>
+              <button type="button" className="quiet-button" onClick={() => setProposalPreviewOpen(false)}>
                 Close preview
               </button>
             </div>

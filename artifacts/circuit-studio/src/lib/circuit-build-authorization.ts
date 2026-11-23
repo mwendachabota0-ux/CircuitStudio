@@ -45,3 +45,15 @@ export function isExplicitBuildApproval(
   return /^(?:yes|yeah|yep|sure|okay|ok|sounds good|that works|go ahead|please do|do it|build it|create it|draw it|generate it|draft it|let's do it|lets do it)\b/.test(message) ||
     isExplicitBuildRequest(message);
 }
+
+export function enforceBuilderResponseMode<
+  T extends { nextMode?: 'chat' | 'build'; proposal?: unknown },
+>(
+  response: T,
+  requestedMode: 'chat' | 'build',
+): T {
+  if (requestedMode === 'build') return response;
+  const guardedResponse = { ...response, nextMode: 'chat' as const } as T;
+  delete (guardedResponse as { proposal?: unknown }).proposal;
+  return guardedResponse;
+}

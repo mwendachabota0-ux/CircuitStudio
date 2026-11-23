@@ -824,6 +824,557 @@
     return findings;
   }
 
+  var WIRE_ROUTE_CLEARANCE = 8;
+  var ROUTE_CONTACT_CLEARANCE = 5;
+
+  function pointInsideBounds(point, bounds) {
+    return point[0] > bounds.x0 + 0.001 && point[0] < bounds.x1 - 0.001 &&
+      point[1] > bounds.y0 + 0.001 && point[1] < bounds.y1 - 0.001;
+  }
+
+  function segmentIntersectsBounds(start, end, bounds) {
+    var dx = end[0] - start[0], dy = end[1] - start[1];
+    var minX = bounds.x0 + 0.01, maxX = bounds.x1 - 0.01;
+    var minY = bounds.y0 + 0.01, maxY = bounds.y1 - 0.01;
+    var enter = 0, leave = 1;
+
+    function clip(p, q) {
+      if (Math.abs(p) < 0.000001) return q >= 0;
+      var ratio = q / p;
+      if (p < 0) {
+        if (ratio > leave) return false;
+        if (ratio > enter) enter = ratio;
+      } else {
+        if (ratio < enter) return false;
+        if (ratio < leave) leave = ratio;
+      }
+      return true;
+    }
+
+    if (!clip(-dx, start[0] - minX) ||
+        !clip(dx, maxX - start[0]) ||
+        !clip(-dy, start[1] - minY) ||
+        !clip(dy, maxY - start[1])) return false;
+    return leave - enter > 0.0001 &&
+      Math.sqrt(dx * dx + dy * dy) * (leave - enter) > 0.5;
+  }
+
+  function samePoint(left, right) {
+    return isPt(left) && isPt(right) && key(left[0], left[1]) === key(right[0], right[1]);
+  }
+
+  function expandedBounds(bounds, amount) {
+    return {
+      x0: bounds.x0 - amount,
+      y0: bounds.y0 - amount,
+      x1: bounds.x1 + amount,
+      y1: bounds.y1 + amount
+    };
+  }
+
+  function routeBodies(spec) {
+    var bodies = [];
+    spec.elements.forEach(function (element, index) {
+      var bounds = componentBodyBounds(element, index);
+      if (!bounds) return;
+      bodies.push({
+        element: element,
+        index: index,
+        bounds: bounds,
+        expanded: expandedBounds(bounds, WIRE_ROUTE_CLEARANCE),
+        pins: pinsOf(element).map(function (pin) {
+          return { name: pin.n, point: pin.p };
+        })
+      });
+    });
+    return bodies;
+  }
+
+  function routeTapPoints(spec, currentWireIndex, start, end) {
+    var points = [];
+    function add(point) {
+      if (!isPt(point) || samePoint(point, start) || samePoint(point, end)) return;
+      if (!points.some(function (existing) { return samePoint(existing, point); })) points.push(point);
+    }
+
+    spec.elements.forEach(function (element, index) {
+      if (!element || typeof element !== 'object') return;
+      if (element.type === 'wire' && Array.isArray(element.points)) {
+        if (index !== currentWireIndex) element.points.forEach(add);
+        return;
+      }
+      if (element.type === 'junction' && isNum(element.x) && isNum(element.y)) {
+        add([element.x, element.y]);
+        return;
+      }
+      if (element.type === 'label' || element.type === 'box') return;
+      try {
+        pinsOf(element).forEach(function (pin) { add(pin.p); });
+      } catch (_error) {}
+    });
+    return points;
+  }
+
+  function routeWireSegments(spec, currentWireIndex) {
+    var segments = [];
+    spec.elements.forEach(function (element, index) {
+      if (!element || element.type !== 'wire' || !Array.isArray(element.points)) return;
+      for (var i = 0; i < element.points.length - 1; i++) {
+        if (index === currentWireIndex) continue;
+        segments.push({ start: element.points[i], end: element.points[i + 1] });
+      }
+    });
+    return segments;
+  }
+
+  function routePointOnWire(point, segments) {
+    return segments.some(function (segment) {
+      return onSegInterior(point[0], point[1], segment.start, segment.end);
+    });
+  }
+
+  function routePointParameter(point, start, end) {
+    var dx = end[0] - start[0], dy = end[1] - start[1];
+    var lengthSquared = dx * dx + dy * dy;
+    return lengthSquared
+      ? ((point[0] - start[0]) * dx + (point[1] - start[1]) * dy) / lengthSquared
+      : 0;
+  }
+
+  function pointOnRouteSegment(point, start, end) {
+    var dx = end[0] - start[0], dy = end[1] - start[1];
+    var cross = dx * (point[1] - start[1]) - dy * (point[0] - start[0]);
+    if (Math.abs(cross) > 0.01) return false;
+    var parameter = routePointParameter(point, start, end);
+    return parameter > 0.0001 && parameter < 0.9999;
+  }
+
+  function sortRoutePoints(points, start, end) {
+    return points.sort(function (left, right) {
+      return routePointParameter(left, start, end) - routePointParameter(right, start, end);
+    });
+  }
+
+  function pinOutwardDirection(body, point, target) {
+    var element = body.element, dx = 0, dy = 0;
+    if (element.type === 'kicad') {
+      var unit = kicadUnitOf(element);
+      (unit && unit.pins || []).some(function (pin) {
+        if (!isPt(pin.point) || !samePoint(transformKicadPoint(pin.point, element), point)) return false;
+        if (isPt(pin.bodyPoint)) {
+          var bodyPoint = transformKicadPoint(pin.bodyPoint, element);
+          dx = point[0] - bodyPoint[0];
+          dy = point[1] - bodyPoint[1];
+        } else {
+          dx = point[0] - element.at[0];
+          dy = point[1] - element.at[1];
+        }
+        return true;
+      });
+    } else if (TWO[element.type]) {
+      var twoPins = pinsOf(element);
+      if (twoPins.length >= 2) {
+        dx = point[0] - (twoPins[0].p[0] + twoPins[1].p[0]) / 2;
+        dy = point[1] - (twoPins[0].p[1] + twoPins[1].p[1]) / 2;
+      }
+    } else if (isPt(element.at)) {
+      dx = point[0] - element.at[0];
+      dy = point[1] - element.at[1];
+    }
+
+    if (Math.abs(dx) < 0.001 && Math.abs(dy) < 0.001) {
+      dx = target[0] - point[0];
+      dy = target[1] - point[1];
+    }
+    if (Math.abs(dx) >= Math.abs(dy) && Math.abs(dx) > 0.001) return [dx > 0 ? 1 : -1, 0];
+    if (Math.abs(dy) > 0.001) return [0, dy > 0 ? 1 : -1];
+    return null;
+  }
+
+  function routeEndpointEscape(point, target, bodies) {
+    var colliding = bodies.filter(function (body) {
+      return pointInsideBounds(point, body.expanded);
+    });
+    if (!colliding.length) return [point[0], point[1]];
+
+    var owners = colliding.filter(function (body) {
+      return body.pins.some(function (pin) { return samePoint(pin.point, point); });
+    });
+    if (owners.length !== 1) return null;
+    var owner = owners[0], direction = pinOutwardDirection(owner, point, target);
+    if (!direction) return null;
+    var escape = [point[0], point[1]];
+    if (direction[0] < 0) escape[0] = owner.expanded.x0;
+    else if (direction[0] > 0) escape[0] = owner.expanded.x1;
+    else if (direction[1] < 0) escape[1] = owner.expanded.y0;
+    else escape[1] = owner.expanded.y1;
+
+    var leavesOtherBody = bodies.some(function (body) {
+      return body !== owner && segmentIntersectsBounds(point, escape, body.expanded);
+    });
+    return leavesOtherBody ? null : escape;
+  }
+
+  function pushRouteHeap(heap, item) {
+    var index = heap.length;
+    heap.push(item);
+    while (index > 0) {
+      var parent = Math.floor((index - 1) / 2);
+      if (heap[parent].cost <= item.cost) break;
+      heap[index] = heap[parent];
+      index = parent;
+    }
+    heap[index] = item;
+  }
+
+  function popRouteHeap(heap) {
+    if (!heap.length) return null;
+    var first = heap[0], last = heap.pop();
+    if (heap.length) {
+      var index = 0;
+      while (true) {
+        var left = index * 2 + 1, right = left + 1, child = left;
+        if (left >= heap.length) break;
+        if (right < heap.length && heap[right].cost < heap[left].cost) child = right;
+        if (heap[child].cost >= last.cost) break;
+        heap[index] = heap[child];
+        index = child;
+      }
+      heap[index] = last;
+    }
+    return first;
+  }
+
+  function routeCoordinates(values) {
+    values.sort(function (left, right) { return left - right; });
+    var unique = [];
+    values.forEach(function (value) {
+      if (!isNum(value)) return;
+      if (!unique.length || Math.abs(unique[unique.length - 1] - value) > 0.01) unique.push(value);
+    });
+    return unique;
+  }
+
+  function routeSegmentOverlapsWire(start, end, wireSegments) {
+    return wireSegments.some(function (segment) {
+      var a = segment.start, b = segment.end;
+      if (Math.abs(start[1] - end[1]) < 0.001 &&
+          Math.abs(a[1] - b[1]) < 0.001 &&
+          Math.abs(start[1] - a[1]) < 0.001) {
+        return Math.min(Math.max(start[0], end[0]), Math.max(a[0], b[0])) -
+          Math.max(Math.min(start[0], end[0]), Math.min(a[0], b[0])) > 0.5;
+      }
+      if (Math.abs(start[0] - end[0]) < 0.001 &&
+          Math.abs(a[0] - b[0]) < 0.001 &&
+          Math.abs(start[0] - a[0]) < 0.001) {
+        return Math.min(Math.max(start[1], end[1]), Math.max(a[1], b[1])) -
+          Math.max(Math.min(start[1], end[1]), Math.min(a[1], b[1])) > 0.5;
+      }
+      return false;
+    });
+  }
+
+  function routeEdgeIsClear(start, end, obstacles, tapPoints, wireSegments) {
+    if (Math.abs(start[0] - end[0]) > 0.001 &&
+        Math.abs(start[1] - end[1]) > 0.001) return false;
+    if (obstacles.some(function (obstacle) {
+      return segmentIntersectsBounds(start, end, obstacle);
+    })) return false;
+    if (tapPoints.some(function (point) {
+      return pointOnRouteSegment(point, start, end);
+    })) return false;
+    return !routeSegmentOverlapsWire(start, end, wireSegments);
+  }
+
+  function findOrthogonalRoute(start, end, bodies, tapPoints, wireSegments) {
+    var expandedBodies = bodies.map(function (body) { return body.expanded; });
+    var startEscape = routeEndpointEscape(start, end, bodies);
+    var endEscape = routeEndpointEscape(end, start, bodies);
+    if (!startEscape || !endEscape) return null;
+
+    var baseMinX = Math.min(startEscape[0], endEscape[0]) - 160;
+    var baseMaxX = Math.max(startEscape[0], endEscape[0]) + 160;
+    var baseMinY = Math.min(startEscape[1], endEscape[1]) - 160;
+    var baseMaxY = Math.max(startEscape[1], endEscape[1]) + 160;
+    var localObstacles = expandedBodies.filter(function (bounds) {
+      return bounds.x1 >= baseMinX && bounds.x0 <= baseMaxX &&
+        bounds.y1 >= baseMinY && bounds.y0 <= baseMaxY;
+    });
+    var localTaps = tapPoints.filter(function (point) {
+      return point[0] >= baseMinX && point[0] <= baseMaxX &&
+        point[1] >= baseMinY && point[1] <= baseMaxY &&
+        !samePoint(point, startEscape) && !samePoint(point, endEscape);
+    });
+    var obstacles = localObstacles.slice();
+    localTaps.forEach(function (point) {
+      obstacles.push({
+        x0: point[0] - ROUTE_CONTACT_CLEARANCE,
+        y0: point[1] - ROUTE_CONTACT_CLEARANCE,
+        x1: point[0] + ROUTE_CONTACT_CLEARANCE,
+        y1: point[1] + ROUTE_CONTACT_CLEARANCE
+      });
+    });
+
+    var xs = [startEscape[0], endEscape[0]];
+    var ys = [startEscape[1], endEscape[1]];
+    obstacles.forEach(function (bounds) {
+      xs.push(bounds.x0, bounds.x1);
+      ys.push(bounds.y0, bounds.y1);
+    });
+    var minX = Math.min.apply(Math, xs), maxX = Math.max.apply(Math, xs);
+    var minY = Math.min.apply(Math, ys), maxY = Math.max.apply(Math, ys);
+    xs.push(minX - 24, maxX + 24);
+    ys.push(minY - 24, maxY + 24);
+    xs = routeCoordinates(xs);
+    ys = routeCoordinates(ys);
+    if (xs.length * ys.length > 16000) return null;
+
+    var nodes = [], nodeByKey = Object.create(null), rows = [], columns = [];
+    ys.forEach(function (y) {
+      var row = [];
+      xs.forEach(function (x) {
+        var point = [x, y];
+        if (obstacles.some(function (bounds) { return pointInsideBounds(point, bounds); })) return;
+        var endpoint = samePoint(point, startEscape) || samePoint(point, endEscape);
+        if (!endpoint && routePointOnWire(point, wireSegments)) return;
+        var nodeIndex = nodes.length;
+        nodes.push(point);
+        nodeByKey[key(x, y)] = nodeIndex;
+        row.push(nodeIndex);
+      });
+      rows.push(row);
+    });
+    xs.forEach(function (x) {
+      var column = [];
+      ys.forEach(function (y) {
+        var nodeIndex = nodeByKey[key(x, y)];
+        if (nodeIndex !== undefined) column.push(nodeIndex);
+      });
+      columns.push(column);
+    });
+    var startIndex = nodeByKey[key(startEscape[0], startEscape[1])];
+    var endIndex = nodeByKey[key(endEscape[0], endEscape[1])];
+    if (startIndex === undefined || endIndex === undefined) return null;
+    var adjacency = nodes.map(function () { return []; });
+
+    function connectLine(indices) {
+      for (var i = 0; i < indices.length - 1; i++) {
+        var first = indices[i], second = indices[i + 1];
+        if (!routeEdgeIsClear(nodes[first], nodes[second], obstacles, tapPoints, wireSegments)) continue;
+        var direction = Math.abs(nodes[first][1] - nodes[second][1]) < 0.001 ? 1 : 2;
+        adjacency[first].push({ index: second, direction: direction });
+        adjacency[second].push({ index: first, direction: direction });
+      }
+    }
+    rows.forEach(connectLine);
+    columns.forEach(connectLine);
+
+    var stateCount = nodes.length * 3;
+    var distance = new Array(stateCount), previous = new Array(stateCount);
+    for (var stateIndex = 0; stateIndex < stateCount; stateIndex++) distance[stateIndex] = Infinity;
+    var startState = startIndex * 3;
+    distance[startState] = 0;
+    var heap = [];
+    pushRouteHeap(heap, { state: startState, cost: 0 });
+    var goalState = -1;
+    while (heap.length) {
+      var current = popRouteHeap(heap);
+      if (current.cost !== distance[current.state]) continue;
+      var currentNode = Math.floor(current.state / 3);
+      var previousDirection = current.state % 3;
+      if (currentNode === endIndex) {
+        goalState = current.state;
+        break;
+      }
+      adjacency[currentNode].forEach(function (edge) {
+        var edgeDistance = Math.abs(nodes[currentNode][0] - nodes[edge.index][0]) +
+          Math.abs(nodes[currentNode][1] - nodes[edge.index][1]);
+        var cost = current.cost + edgeDistance +
+          (previousDirection && previousDirection !== edge.direction ? 14 : 0);
+        var nextState = edge.index * 3 + edge.direction;
+        if (cost >= distance[nextState]) return;
+        distance[nextState] = cost;
+        previous[nextState] = current.state;
+        pushRouteHeap(heap, { state: nextState, cost: cost });
+      });
+    }
+    if (goalState < 0) return null;
+
+    var route = [];
+    var routeState = goalState;
+    while (routeState !== startState) {
+      route.push(nodes[Math.floor(routeState / 3)]);
+      routeState = previous[routeState];
+      if (routeState === undefined) return null;
+    }
+    route.push(nodes[startIndex]);
+    route.reverse();
+    var complete = [[start[0], start[1]]];
+    if (!samePoint(start, startEscape)) complete.push(startEscape);
+    route.slice(1, -1).forEach(function (point) { complete.push(point); });
+    if (!samePoint(end, endEscape)) complete.push(endEscape);
+    complete.push([end[0], end[1]]);
+    return complete;
+  }
+
+  function routeConnectivitySignature(spec) {
+    try {
+      var memberships = netlist(spec, true, true);
+      var groups = Object.create(null);
+      function addGroup(netKey, member) {
+        if (!groups[netKey]) groups[netKey] = [];
+        groups[netKey].push(member);
+      }
+      memberships.pinMembership.forEach(function (member) {
+        addGroup(member.netKey, 'P:' + member.elementIndex + ':' + member.pinIndex + ':' + (member.connected ? 1 : 0));
+      });
+      memberships.routeMembership.forEach(function (member) {
+        addGroup(member.netKey, 'W:' + member.elementIndex);
+      });
+      return JSON.stringify(Object.keys(groups).map(function (netKey) {
+        return groups[netKey].sort();
+      }).sort(function (left, right) {
+        return JSON.stringify(left).localeCompare(JSON.stringify(right));
+      }));
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  function crossingMarkerStatuses(spec) {
+    var wires = [];
+    spec.elements.forEach(function (element, wireIndex) {
+      if (!element || element.type !== 'wire' || !Array.isArray(element.points)) return;
+      for (var i = 0; i < element.points.length - 1; i++) {
+        wires.push({
+          wireIndex: wireIndex,
+          start: element.points[i],
+          end: element.points[i + 1]
+        });
+      }
+    });
+    var junctionKeys = {};
+    spec.elements.forEach(function (element) {
+      if (element && element.type === 'junction') junctionKeys[key(element.x, element.y)] = true;
+    });
+    return spec.elements.map(function (element, index) {
+      if (!element || element.type !== 'crossing' || !isPt(element.at)) return null;
+      var horizontal = [], vertical = [];
+      wires.forEach(function (wire) {
+        if (!pointOnRouteSegment(element.at, wire.start, wire.end)) return;
+        if (Math.abs(wire.start[1] - wire.end[1]) < 0.001) horizontal.push(wire);
+        if (Math.abs(wire.start[0] - wire.end[0]) < 0.001) vertical.push(wire);
+      });
+      return index + ':' + (horizontal.length === 1 && vertical.length === 1 &&
+        horizontal[0].wireIndex !== vertical[0].wireIndex && !junctionKeys[key(element.at[0], element.at[1])] ? '1' : '0');
+    }).filter(Boolean).sort().join('|');
+  }
+
+  function simplifyRoutePoints(points, protectedPoints) {
+    var result = [];
+    points.forEach(function (point) {
+      if (!isPt(point)) return;
+      var copy = [point[0], point[1]];
+      if (result.length && samePoint(result[result.length - 1], copy)) return;
+      while (result.length >= 2) {
+        var first = result[result.length - 2], middle = result[result.length - 1];
+        var collinear = Math.abs(
+          (middle[0] - first[0]) * (copy[1] - middle[1]) -
+          (middle[1] - first[1]) * (copy[0] - middle[0])
+        ) < 0.01;
+        var protectedMiddle = protectedPoints.some(function (point) {
+          return samePoint(point, middle);
+        });
+        if (!collinear || protectedMiddle) break;
+        result.pop();
+      }
+      result.push(copy);
+    });
+    return result;
+  }
+
+  function autoRouteWiresAroundBodies(spec) {
+    var fixed = JSON.parse(JSON.stringify(spec));
+    var changes = [];
+    var bodies = routeBodies(fixed);
+    if (!bodies.length) return { spec: fixed, changes: changes };
+
+    fixed.elements.forEach(function (wire, wireIndex) {
+      if (!wire || wire.type !== 'wire' || !Array.isArray(wire.points) || wire.points.length < 2) return;
+      var originalPoints = wire.points.map(function (point) { return [point[0], point[1]]; });
+      var candidatePoints = [originalPoints[0]];
+      var changed = false;
+      var wireSegments = routeWireSegments(fixed, wireIndex);
+      var tapPoints = routeTapPoints(fixed, wireIndex, originalPoints[0], originalPoints[originalPoints.length - 1]);
+
+      for (var segmentIndex = 0; segmentIndex < originalPoints.length - 1; segmentIndex++) {
+        var start = originalPoints[segmentIndex], end = originalPoints[segmentIndex + 1];
+        var interiorPoints = tapPoints.filter(function (point) {
+          return pointOnRouteSegment(point, start, end);
+        });
+        interiorPoints = sortRoutePoints(interiorPoints, start, end);
+        var markers = fixed.elements.filter(function (element) {
+          return element && element.type === 'crossing' && isPt(element.at) &&
+            pointOnRouteSegment(element.at, start, end);
+        }).map(function (element) { return element.at; });
+        markers.forEach(function (point) {
+          if (!interiorPoints.some(function (existing) { return samePoint(existing, point); })) {
+            interiorPoints.push(point);
+          }
+        });
+        interiorPoints = sortRoutePoints(interiorPoints, start, end);
+        var waypoints = [start].concat(interiorPoints, [end]);
+
+        for (var pointIndex = 0; pointIndex < waypoints.length - 1; pointIndex++) {
+          var from = waypoints[pointIndex], to = waypoints[pointIndex + 1];
+          var intersectingBody = bodies.some(function (body) {
+            return segmentIntersectsBounds(from, to, body.bounds);
+          });
+          if (!intersectingBody) {
+            candidatePoints.push(to);
+            continue;
+          }
+          var route = findOrthogonalRoute(
+            from,
+            to,
+            bodies,
+            tapPoints.filter(function (point) {
+              return !samePoint(point, from) && !samePoint(point, to);
+            }),
+            wireSegments,
+          );
+          if (!route) {
+            candidatePoints = originalPoints;
+            changed = false;
+            return;
+          }
+          route.slice(1).forEach(function (point) { candidatePoints.push(point); });
+          changed = true;
+        }
+      }
+
+      if (!changed) return;
+      var protectedPoints = tapPoints.concat(originalPoints.slice(1, -1));
+      var routedPoints = simplifyRoutePoints(candidatePoints, protectedPoints);
+      var candidate = JSON.parse(JSON.stringify(fixed));
+      candidate.elements[wireIndex].points = routedPoints;
+      var beforeConnectivity = routeConnectivitySignature(fixed);
+      var afterConnectivity = routeConnectivitySignature(candidate);
+      if (
+        beforeConnectivity === null ||
+        beforeConnectivity !== afterConnectivity ||
+        crossingMarkerStatuses(fixed) !== crossingMarkerStatuses(candidate)
+      ) return;
+
+      fixed.elements[wireIndex].points = routedPoints;
+      changes.push('Rerouted ' + elementName(wire, wireIndex) + ' around component bodies.');
+      wire = fixed.elements[wireIndex];
+      wireSegments = routeWireSegments(fixed, wireIndex);
+      tapPoints = routeTapPoints(fixed, wireIndex, routedPoints[0], routedPoints[routedPoints.length - 1]);
+    });
+    return { spec: fixed, changes: changes };
+  }
+
   function autoFix(spec) {
     if (!spec || typeof spec !== 'object' || !Array.isArray(spec.elements)) {
       return { spec: spec, changes: [] };
@@ -931,6 +1482,9 @@
       changes.push('Trimmed a dangling power/ground rail tail from (' + original[0] + ',' + original[1] + ') to (' + target.point[0] + ',' + target.point[1] + ').');
     });
 
+    var routed = autoRouteWiresAroundBodies(fixed);
+    fixed = routed.spec;
+    changes = changes.concat(routed.changes);
     return { spec: fixed, changes: changes };
   }
 

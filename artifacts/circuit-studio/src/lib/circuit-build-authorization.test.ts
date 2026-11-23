@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
+  enforceBuilderResponseMode,
   isBuildApprovalDeclined,
   isExplicitBuildApproval,
   isExplicitBuildRequest,
 } from './circuit-build-authorization.ts';
+
+const proposal = { summary: 'Test proposal', spec: { title: 'Test', elements: [] } };
 
 test('only direct build instructions count as build approval', () => {
   for (const message of [
@@ -38,6 +41,24 @@ test('only an affirmative reply to a pending approval grants permission', () => 
   assert.equal(isExplicitBuildApproval('Sounds good, build it.', true), true);
   assert.equal(isExplicitBuildApproval('Yes, but not yet.', true), false);
   assert.equal(isExplicitBuildApproval('Yes', false), false);
+});
+
+test('a Chat response cannot switch to Build or stage a proposal', () => {
+  const response = {
+    nextMode: 'build' as const,
+    answer: 'Here is the draft.',
+    proposal,
+  };
+  const guarded = enforceBuilderResponseMode(response, 'chat');
+
+  assert.equal(guarded.nextMode, 'chat');
+  assert.equal(guarded.proposal, undefined);
+  assert.equal(guarded.answer, response.answer);
+});
+
+test('an explicitly authorized Build response is preserved', () => {
+  const response = { nextMode: 'build' as const, answer: 'Draft ready.', proposal };
+  assert.equal(enforceBuilderResponseMode(response, 'build'), response);
 });
 
 test('identifies a clear decline without treating it as approval', () => {

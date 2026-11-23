@@ -10,6 +10,26 @@ runInNewContext(source, { module: moduleStub, CircuitGeometry });
 const CircuitDraw = moduleStub.exports;
 const astableFlasher = JSON.parse(readFileSync(new URL("./fixtures/astable-flasher.json", import.meta.url), "utf8"));
 
+function connectivitySignature(spec) {
+  const membership = CircuitDraw.netlistWithMembership(spec, true);
+  const groups = new Map();
+  for (const pin of membership.pinMembership) {
+    const members = groups.get(pin.netKey) ?? [];
+    members.push(`P:${pin.elementIndex}:${pin.pinIndex}:${pin.connected ? 1 : 0}`);
+    groups.set(pin.netKey, members);
+  }
+  for (const wire of membership.routeMembership) {
+    const members = groups.get(wire.netKey) ?? [];
+    members.push(`W:${wire.elementIndex}`);
+    groups.set(wire.netKey, members);
+  }
+  return JSON.stringify(
+    [...groups.values()]
+      .map((members) => members.sort())
+      .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right))),
+  );
+}
+
 const minimumLengths = {
   resistor: 50,
   capacitor: 12,
@@ -648,6 +668,87 @@ test("wire crossing a component is a blocking short-circuit error", () => {
       error.includes('directly shorting it'),
     ),
   );
+});
+
+test("auto-fix routes a wire around a symbol without changing its connections", () => {
+  const spec = {
+    title: "Wire around resistor",
+    elements: [
+      { type: "resistor", id: "R1", from: [100, 100], to: [200, 100] },
+      { type: "wire", id: "W1", points: [[100, 100], [200, 100]] },
+    ],
+  };
+
+  const beforeConnectivity = connectivitySignature(spec);
+  const fixed = CircuitDraw.autoFix(spec);
+  const wire = fixed.spec.elements.find((element) => element.id === "W1");
+
+  assert.ok(fixed.changes.some((change) => change.includes('Rerouted wire "W1"')));
+  assert.deepEqual(Array.from(wire.points[0]), [100, 100]);
+  assert.deepEqual(Array.from(wire.points.at(-1)), [200, 100]);
+  assert.ok(wire.points.some((point) => point[1] < 90 || point[1] > 110));
+  assert.equal(
+    CircuitDraw.validate(fixed.spec).errors.some((error) => error.includes("passes through resistor")),
+    false,
+  );
+  assert.equal(
+    CircuitDraw.layoutWarnings(fixed.spec).some((warning) => warning.includes("crosses the symbol body")),
+    false,
+  );
+  assert.equal(connectivitySignature(fixed.spec), beforeConnectivity);
+});
+
+test("auto-fix keeps separate wire crossings and connected junction dots", () => {
+  const spec = {
+    title: "Crossings remain intentional",
+    elements: [
+      { type: "resistor", id: "R1", from: [100, 100], to: [200, 100] },
+      { type: "wire", id: "W_R1", points: [[100, 100], [200, 100]] },
+      {
+        type: "kicad",
+        id: "G1",
+        symbolId: "Graphic:RoutingObstacle",
+        at: [150, 75],
+        symbolData: {
+          id: "Graphic:RoutingObstacle",
+          units: [{
+            unit: 1,
+            bodyStyle: 1,
+            pins: [],
+            graphics: [{
+              type: "rectangle",
+              points: [[-10, -5], [10, 5]],
+              strokeWidth: 1,
+              fillType: "none",
+            }],
+          }],
+        },
+      },
+      { type: "wire", id: "W_PASSING", open: true, points: [[150, 110], [150, 160]] },
+      { type: "wire", id: "W_SEPARATE_H", open: true, points: [[250, 50], [350, 50]] },
+      { type: "wire", id: "W_SEPARATE_V", open: true, points: [[300, 0], [300, 100]] },
+      { type: "crossing", id: "NC1", at: [300, 50] },
+      { type: "wire", id: "W_JOINED_H", open: true, points: [[450, 50], [550, 50]] },
+      { type: "wire", id: "W_JOINED_V", open: true, points: [[500, 0], [500, 100]] },
+      { type: "junction", id: "J1", x: 500, y: 50 },
+    ],
+  };
+
+  const beforeConnectivity = connectivitySignature(spec);
+  const fixed = CircuitDraw.autoFix(spec);
+  const svg = CircuitDraw.render(fixed.spec);
+  const reroutedWire = fixed.spec.elements.find((element) => element.id === "W_R1");
+
+  assert.ok(fixed.changes.some((change) => change.includes('Rerouted wire "W_R1"')));
+  assert.ok(reroutedWire.points.some((point, index) => {
+    const next = reroutedWire.points[index + 1];
+    return point[1] === 118 && next?.[1] === 118 &&
+      Math.min(point[0], next[0]) < 150 && Math.max(point[0], next[0]) > 150;
+  }));
+  assert.equal(connectivitySignature(fixed.spec), beforeConnectivity);
+  assert.doesNotMatch(svg, /<circle cx="300" cy="50"/);
+  assert.match(svg, /<circle cx="500" cy="50"/);
+  assert.doesNotMatch(svg, /<circle cx="150" cy="118"/);
 });
 
 test("astable validation requires a resistor from each base to the positive supply", () => {

@@ -38,7 +38,7 @@ export function classifyProposalValidation(validation: BuildValidation): BuildVa
 
 export type BuildAttemptFailureKind = 'generation' | 'validation' | 'output';
 export type CircuitBuildMode = CircuitBuildChatInput['mode'];
-export type RepairAttemptOutcome = 'reconstructed' | 'validated' | 'rejected' | 'exhausted';
+export type RepairAttemptOutcome = 'reconstructed' | 'validated' | 'rejected' | 'exhausted' | 'stopped';
 const MAX_HISTORY_CONTENT_LENGTH = 3_000;
 const MAX_HISTORY_ITEMS = 8;
 
@@ -72,6 +72,7 @@ export class CircuitBuildAttemptError extends Error {
   readonly repairAttemptCount: number;
   readonly repairDiagnostics: RepairAttemptDiagnostic[];
   readonly rejectedProposal: unknown;
+  readonly stoppedByUser: boolean;
   readonly cause: unknown;
 
   constructor(options: {
@@ -84,6 +85,7 @@ export class CircuitBuildAttemptError extends Error {
     repairAttemptCount?: number;
     repairDiagnostics?: RepairAttemptDiagnostic[];
     rejectedProposal?: unknown;
+    stoppedByUser?: boolean;
   }) {
     super('Circuit build attempts did not produce a usable result.');
     this.name = 'CircuitBuildAttemptError';
@@ -95,6 +97,7 @@ export class CircuitBuildAttemptError extends Error {
     this.repairAttemptCount = options.repairAttemptCount ?? 0;
     this.repairDiagnostics = options.repairDiagnostics ?? [];
     this.rejectedProposal = options.rejectedProposal;
+    this.stoppedByUser = options.stoppedByUser ?? false;
     this.cause = options.cause;
   }
 }
@@ -341,7 +344,9 @@ export function getRetryRecoveryKind(
   if (
     !rejectedProposal ||
     validationFindings.length === 0 ||
-    !diagnostics.some((diagnostic) => diagnostic.outcome === 'exhausted')
+    !diagnostics.some((diagnostic) =>
+      diagnostic.outcome === 'exhausted' || diagnostic.outcome === 'stopped',
+    )
   ) return null;
 
   if (validationFindings.some(indicatesCircuitCompositionFailure)) return 'rebuild';
@@ -622,6 +627,7 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
     onResponse?: (response: TResponse) => void;
     onRetry?: (attempt: number, kind: BuildRetryKind) => void;
     wait?: (attempt: number, providerDelayMs?: number) => Promise<void>;
+    shouldStopRepair?: () => boolean;
   },
 ): Promise<{
   response: TResponse;
@@ -653,12 +659,47 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
   let repairAttemptCount = 0;
   const repairDiagnostics: RepairAttemptDiagnostic[] = [];
 
+  const throwRepairStopped = (cause?: unknown): never => {
+    const latestDiagnostic = repairDiagnostics[repairDiagnostics.length - 1];
+    if (repairAttemptCount > 0 && latestDiagnostic?.attempt === repairAttemptCount) {
+      latestDiagnostic.outcome = 'stopped';
+    } else if (repairAttemptCount > 0) {
+      repairDiagnostics.push({
+        attempt: repairAttemptCount,
+        outcome: 'stopped',
+        nonWireElementsModified: false,
+        metadataModified: false,
+        validationErrors: [...lastInvalidFindings],
+        validationWarnings: [...lastInvalidWarnings],
+      });
+    }
+    throw new CircuitBuildAttemptError({
+      retryCount: retries,
+      canRetryManually: true,
+      failureKind: cause ? 'generation' : 'validation',
+      ...(cause !== undefined ? { cause } : {}),
+      validationFindings: [...lastInvalidFindings],
+      validationWarnings: [...lastInvalidWarnings],
+      repairAttemptCount,
+      repairDiagnostics: [...repairDiagnostics],
+      rejectedProposal: lastInvalidProposal ?? undefined,
+      stoppedByUser: true,
+    });
+  };
+
   while (true) {
+    if (isRepairAttempt && options.shouldStopRepair?.()) {
+      throwRepairStopped();
+    }
+
     let response: TResponse;
     try {
       if (isRepairAttempt) repairAttemptCount += 1;
       response = await options.send(workingRequest);
     } catch (cause) {
+      if (isRepairAttempt && options.shouldStopRepair?.()) {
+        throwRepairStopped(cause);
+      }
       if (isInvalidModelOutput(cause)) {
         if (
           !outputRepairAttempted &&
@@ -731,6 +772,11 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
 
     let proposal = options.getProposal(response);
     if (proposal == null) {
+      if (isRepairAttempt && options.shouldStopRepair?.()) {
+        throwRepairStopped(
+          new Error('The repair response did not include a corrected CircuitSpec.'),
+        );
+      }
       if (isRepairAttempt) {
         repairDiagnostics.push({
           attempt: repairAttemptCount,
@@ -923,6 +969,10 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
       };
     }
     lastInvalidProposal = proposal;
+
+    if (isRepairAttempt && options.shouldStopRepair?.()) {
+      throwRepairStopped();
+    }
 
     if (!proposalInspection.canRepair) {
       if (diagnostic) diagnostic.outcome = 'rejected';

@@ -649,6 +649,8 @@ export function CircuitBuilderChat({
   const [lastProtectedElementsBaseSpec, setLastProtectedElementsBaseSpec] =
     useState<NonNullable<CircuitBuildChatInput['currentSpec']> | null>(null);
   const [requestCycleActive, setRequestCycleActive] = useState(false);
+  const [repairStopAvailable, setRepairStopAvailable] = useState(false);
+  const [repairStopRequested, setRepairStopRequested] = useState(false);
   const [retryAttempt, setRetryAttempt] = useState(0);
   const [retryKind, setRetryKind] = useState<BuildRetryKind | null>(null);
   const [retryFeedback, setRetryFeedback] = useState<RetryFeedback | null>(null);
@@ -662,6 +664,7 @@ export function CircuitBuilderChat({
   } | null>(null);
   const applyingProposalSpecRef = useRef<string | null>(null);
   const proposalReviewRunIdRef = useRef(0);
+  const stopRepairAfterAttemptRef = useRef(false);
   const pendingRestoreRef = useRef<{
     sessionId: string;
     specSignature: string;
@@ -1457,6 +1460,9 @@ export function CircuitBuilderChat({
     allowConnectivityChange = false,
   ) => {
     const safeRequest = normalizeCircuitBuildRequest(request);
+    stopRepairAfterAttemptRef.current = false;
+    setRepairStopRequested(false);
+    setRepairStopAvailable(Boolean(preserveRejectedProposal || protectedElementsBaseSpec));
     if (rememberForRetry) setLastRequest(safeRequest);
     if (preserveRejectedProposal && preservedRejectedProposalOverride) {
       setRejectedProposalSpec(preservedRejectedProposalOverride);
@@ -1540,7 +1546,9 @@ export function CircuitBuilderChat({
         onRetry: (attempt, kind) => {
           setRetryAttempt(attempt);
           setRetryKind(kind);
+          if (kind === 'repair') setRepairStopAvailable(true);
         },
+        shouldStopRepair: () => stopRepairAfterAttemptRef.current,
       });
         const nextMode = response.nextMode ?? completedRequest.mode;
         const nextBrief = response.brief ?? latestBrief;
@@ -1676,6 +1684,11 @@ export function CircuitBuilderChat({
             ? `The request failed after ${error.retryCount} automatic retr${error.retryCount === 1 ? 'y' : 'ies'}. ${causeMessage}`
             : causeMessage;
         }
+        if (error.stoppedByUser) {
+          message = rejectedSpec
+            ? 'Repair stopped after the current attempt. The latest proposal and its findings are available below; you can continue the repair manually.'
+            : 'Repair stopped after the current attempt. Your existing circuit and repair reference are still available.';
+        }
         if (preserveRejectedProposal && rejectedSpec && error.failureKind !== 'validation') {
           message = `${message} The previous proposal is preserved below for another repair attempt.`;
         }
@@ -1705,6 +1718,9 @@ export function CircuitBuilderChat({
     } finally {
       composerRef.current?.clearDraftIfUnchanged(draftRevisionAtStart, safeRequest.message);
       setRequestCycleActive(false);
+      setRepairStopAvailable(false);
+      setRepairStopRequested(false);
+      stopRepairAfterAttemptRef.current = false;
       setRetryAttempt(0);
       setRetryKind(null);
     }
@@ -2469,6 +2485,20 @@ export function CircuitBuilderChat({
                     ? `Repairing proposal · retry ${retryAttempt} of ${MAX_AUTO_RETRIES}`
                     : `Automatic retry ${retryAttempt} of ${MAX_AUTO_RETRIES}`
                   : mode === 'build' ? 'Working through a draft' : 'Thinking it through'}</small>
+                {repairStopAvailable && (
+                  <button
+                    type="button"
+                    className="builder-chat__text-link"
+                    onClick={() => {
+                      stopRepairAfterAttemptRef.current = true;
+                      setRepairStopRequested(true);
+                    }}
+                    disabled={repairStopRequested}
+                    data-testid="button-stop-repair-after-current-attempt"
+                  >
+                    {repairStopRequested ? 'Stopping after this attempt…' : 'Stop after this repair attempt'}
+                  </button>
+                )}
               </div>
             )}
           </div>

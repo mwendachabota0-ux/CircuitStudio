@@ -1092,6 +1092,52 @@ test('stops after three repair retries and exposes a manual retry', async () => 
   assert.equal(repairRequests, MAX_AUTO_RETRIES);
 });
 
+test('stops after the current repair attempt when requested and preserves its latest proposal', async () => {
+  const firstProposal = {
+    answer: 'Draft ready.',
+    nextMode: 'build' as const,
+    proposal: { spec: { title: 'First draft', elements: [] } },
+  };
+  const latestProposal = {
+    answer: 'Repair update.',
+    nextMode: 'build' as const,
+    proposal: { spec: { title: 'Latest repair', elements: [] } },
+  };
+  const findings = ['Wire W1 is not connected to anything.'];
+  let sends = 0;
+  let stopRequested = false;
+
+  await assert.rejects(
+    runCircuitBuildAttempts({
+      initialRequest: baseRequest,
+      send: async () => {
+        sends += 1;
+        if (sends === 2) stopRequested = true;
+        return sends === 1 ? firstProposal : latestProposal;
+      },
+      getProposal: (response) => response.proposal.spec,
+      inspectProposal: () => ({
+        validation: { errors: findings, warnings: [] },
+        canRepair: true,
+      }),
+      makeRepairRequest: () => baseRequest,
+      shouldStopRepair: () => stopRequested,
+      wait: async () => {},
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof CircuitBuildAttemptError);
+      assert.equal(error.stoppedByUser, true);
+      assert.equal(error.canRetryManually, true);
+      assert.deepEqual(error.rejectedProposal, latestProposal.proposal.spec);
+      assert.deepEqual(error.validationFindings, findings);
+      assert.equal(error.repairDiagnostics.at(-1)?.outcome, 'stopped');
+      return true;
+    },
+  );
+
+  assert.equal(sends, 2);
+});
+
 test('keeps the rejected proposal and validation findings when a repair request fails', async () => {
   const rejectedProposal = { title: 'Partially wired flasher', elements: [] };
   const initialResponse = {

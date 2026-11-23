@@ -42,6 +42,31 @@ const seriesModelText = JSON.stringify({
   questions: [],
 });
 
+const singleNetModelText = JSON.stringify({
+  title: "Source-to-resistor study",
+  summary: "One source connection is routed and remaining pins are left explicit.",
+  components: [
+    { id: "V1", type: "battery", value: "9 V", properties: {} },
+    { id: "R1", type: "resistor", value: "330 ohm", properties: {} },
+  ],
+  nets: [{
+    id: "supply",
+    name: "VCC",
+    members: [
+      { componentId: "V1", pinName: "+" },
+      { componentId: "R1", pinName: "1" },
+    ],
+  }],
+  noConnects: [],
+  unassignedPins: [
+    { componentId: "V1", pinName: "-" },
+    { componentId: "R1", pinName: "2" },
+  ],
+  assumptions: [],
+  uncertainties: [],
+  questions: [],
+});
+
 const partialTransistorModelText = JSON.stringify({
   title: "Single transistor switch",
   summary: "A transistor controls a load with a resistor input and return.",
@@ -193,12 +218,11 @@ test("returns a staged proposal with its simple component placed", async () => {
   });
 });
 
-test("generates, places, and routes a series LED proposal without changing its electrical model", async () => {
-  let electricalBeforePreparation;
+test("generates and returns a fully placed and routed single-net proposal", async () => {
   await withApi(async ({ url }) => {
     const response = await request(
       url,
-      { prompt: "Create a simple low-voltage series LED circuit." },
+      { prompt: "Create a low-voltage source-to-resistor connection." },
       "user-a",
     );
     const result = await response.json();
@@ -211,8 +235,37 @@ test("generates, places, and routes a series LED proposal without changing its e
       placement: "complete",
       routing: "complete",
     });
+    assert.equal(result.document.drawing.placements.length, 2);
+    assert.equal(result.document.drawing.routes.length, 1);
+    assert.deepEqual(result.drawingPreparation.routedNetIds, ["supply"]);
+    assert.deepEqual(result.drawingPreparation.blockedNetIds, []);
+  }, { generateModel: async () => ({ text: singleNetModelText }) });
+});
+
+test("returns an accurately partial routed series LED proposal without changing its electrical model", async () => {
+  let electricalBeforePreparation;
+  await withApi(async ({ url }) => {
+    const response = await request(
+      url,
+      { prompt: "Create a simple low-voltage series LED circuit." },
+      "user-a",
+    );
+    const result = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(result.status, "proposed");
+    assert.equal(result.drawingPreparation.status, "partial");
+    assert.equal(result.drawingPreparation.pipelineStatus, "partial");
+    assert.deepEqual(result.drawingPreparation.stages, {
+      placement: "complete",
+      routing: "incomplete",
+    });
     assert.equal(result.document.drawing.placements.length, 3);
-    assert.ok(result.document.drawing.routes.length > 0);
+    assert.equal(result.document.drawing.routes.length, 2);
+    assert.deepEqual(result.drawingPreparation.blockedNetIds, ["return"]);
+    assert.ok(result.drawingPreparation.diagnostics.some((entry) =>
+      entry.code === "route-net-touch-ambiguous"
+    ));
     assert.deepEqual(result.document.electrical, electricalBeforePreparation);
   }, {
     generateModel: async () => ({ text: seriesModelText }),

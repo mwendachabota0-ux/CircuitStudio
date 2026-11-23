@@ -2,7 +2,7 @@
 
 **Audit date:** 2026-11-23
 
-**Original audit scope:** Read-only review of the local workspace, tests, builds, and application wiring. This file also records implementation and verification checkpoints through Batch 11 Phase 4A below.
+**Original audit scope:** Read-only review of the local workspace, tests, builds, and application wiring. This file also records implementation and verification checkpoints through Batch 12 Phase 4B below.
 
 ## Workspace snapshot and provenance
 
@@ -22,8 +22,8 @@
 | Authenticated V2 document API | **IMPLEMENTED** | Separate Clerk-authenticated read/write endpoints use atomic storage revisions and generated contracts. |
 | Isolated V2 Draft Lab | **IMPLEMENTED** | Opt-in authenticated route supports trusted copy creation, read-only summary/preview, and separate local save/restore. |
 | Optional V2 server sync | **IMPLEMENTED / BLOCKED BY DATABASE VERIFICATION** | Existing authenticated GET/PUT API is integrated behind a second opt-in flag; runtime readiness remains hard-disabled. |
-| V2 electrical-generation API | **IMPLEMENTED / VERIFIED** | Separate authenticated endpoint returns a staged, structurally validated electrical proposal with an empty drawing; it does not save or apply it. |
-| Deterministic V2 placement and routing | **IMPLEMENTED AS LIBRARIES** | Placement, routing, and drawing-preparation operations exist, but are not called by the live workbench. |
+| V2 electrical-generation API | **IMPLEMENTED / VERIFIED THROUGH PHASE 4B** | Separate authenticated endpoint returns an unsaved electrical proposal with a deterministically prepared drawing and ready/partial/blocked diagnostics. |
+| Deterministic V2 placement and routing | **REUSED BY V2 GENERATION API** | The existing preparation pipeline composes placement and routing; the ordinary workbench remains on legacy `CircuitSpec`. |
 | Ordinary workbench V2 integration | **NOT STARTED** | Normal generation, editing, history, drawing, and exports still use legacy `CircuitSpec`. |
 | Native V2 rendering and workbench integration | **NOT STARTED** | The ordinary workbench still renders and edits legacy `CircuitSpec`. |
 
@@ -83,7 +83,7 @@ stopped at Drizzle's AWS Data API configuration validation (`database` was missi
 The current application remains legacy-first:
 
 - `artifacts/api-server/src/routes/circuits.ts` generates legacy `CircuitSpec` output. `artifacts/api-server/src/routes/circuitBuilder.ts` accepts and returns legacy circuit proposals.
-- `artifacts/api-server/src/routes/circuitDocumentV2Generation.ts` separately exposes `POST /api/circuit-documents/v2/generate`; it returns an authenticated staged V2 electrical proposal and does not save or apply it.
+- `artifacts/api-server/src/routes/circuitDocumentV2Generation.ts` separately exposes `POST /api/circuit-documents/v2/generate`; it returns an authenticated staged V2 proposal with deterministic drawing preparation and does not save or apply it.
 - `artifacts/circuit-studio/src/App.tsx` uses `CircuitDraw.render`, validation, netlist, and sheet-building functions with `CircuitSpec`. The workbench draft remains in the legacy `circuit-studio-draft-v1:${userId}` local-storage slot.
 - Builder proposals are staged for review and only replace the draft after the user applies them. Account history stores legacy `currentSpec` snapshots and restores them through the same legacy path.
 - The V2 persistence service is exposed through authenticated read/write API routes, but those routes are not called by the workbench. V2 browser storage is not the live draft store.
@@ -95,10 +95,10 @@ The current application remains legacy-first:
 
 Status is stated per item:
 
-- **Deterministic component placement:** implemented as an isolated V2 library operation. Legacy generation still supplies coordinates, and the live workbench does not call the V2 placer.
-- **Automatic wire routing/pathfinding:** implemented as an isolated V2 router and preparation pipeline. Legacy generation still supplies route coordinates, and the live workbench does not call the V2 pipeline.
+- **Deterministic component placement:** implemented as a V2 library operation and reused by the V2 generation API. Legacy generation still supplies coordinates, and the live workbench does not call the V2 placer.
+- **Automatic wire routing/pathfinding:** implemented as a V2 router and preparation pipeline reused by the V2 generation API. Legacy generation still supplies route coordinates, and the live workbench does not call the V2 pipeline.
 - **Collision avoidance and route optimization:** V2 placement/routing apply deterministic collision and route-impact checks, but the bounded router can return blocked or partial results; legacy diagnostics remain advisory.
-- **V2-aware generation and rendering:** a separate staged electrical-generation API is implemented. Native V2 rendering and ordinary workbench integration are not started.
+- **V2-aware generation and rendering:** the separate staged generation API now composes electrical generation with deterministic drawing preparation. Native V2 rendering and ordinary workbench integration are not started.
 - **General electrical rule checking:** there are targeted topology and structural checks, including astable-flasher checks, but no general-purpose ERC.
 - **Circuit simulation:** none found.
 - **Direct canvas editing:** none found beyond viewport controls.
@@ -561,3 +561,34 @@ Current focused recheck: `node --experimental-strip-types --test lib/circuit-doc
 - The generated document is not laid out or routed in this batch. A later isolated V2 flow may pass it to `prepareCircuitDocumentDrawing` for a separate user-reviewed drawing proposal.
 - The existing ordinary workbench and legacy `CircuitSpec` generation, storage, rendering, and history remain unchanged.
 - No GitHub, remote repository, database, or production service was accessed.
+
+## Batch 12 — Phase 4B V2 generation and drawing preparation
+
+**Status:** The service composition was already present in the local workspace. This batch verified the boundary and added focused regressions for ready, partial, and blocked outcomes; no generator, placement engine, or router was rewritten.
+
+### Endpoint flow and behavior
+
+`POST /api/circuit-documents/v2/generate` authenticates and validates the prompt, parses the mocked-or-provider electrical-only model output, derives canonical pins from the shared catalog, and builds a V2 document. The service snapshots canonical electrical data before calling `prepareCircuitDocumentDrawing`, which uses the existing protected `place-unplaced` mode and router. It compares electrical data afterward and fails closed if preparation changes it. The endpoint returns an unsaved, unapplied proposal with preparation stage statuses, diagnostics, metrics, and routed/skipped/blocked net IDs.
+
+- Complete preparation maps to `ready`; incomplete but valid preparation maps to `partial`; invalid or blocked stages map to `blocked`. Preparation exceptions and electrical-model changes return internal diagnostics instead of success.
+- A generated three-part series LED example is correctly `partial`: placement succeeds, two nets route, and the return net is blocked by `route-net-touch-ambiguous`. The valid electrical proposal is preserved; the existing router was not modified.
+- Geometry remains forbidden in model output, including compound component-property names. Canonical pin identities continue to come from `getCircuitPinDefinitions`.
+- The legacy `CircuitSpec` generation route, workbench, storage, history, rendering, exports, and V2 Lab UI were not changed. No live Gemini call, database change, remote access, or persistence was performed.
+
+### Changed files
+
+- `artifacts/api-server/src/lib/circuitDocumentV2Generation.test.mjs` — added explicit placement/routing-blocked and thrown-preparation regressions; corrected the generated series LED expectation to `partial`.
+- `artifacts/api-server/src/routes/circuitDocumentV2Generation.test.mjs` — covered a fully prepared routed proposal and an accurately partial series LED proposal through the endpoint.
+- `docs/IMPLEMENTATION_HANDOFF.md` — updated the current wiring status and this checkpoint.
+
+### Verification
+
+| Check | Result |
+| --- | --- |
+| `pnpm --filter @workspace/api-server test` | **PASS** — 105 tests |
+| `pnpm --filter @workspace/circuit-document test` | **PASS** — 105 tests |
+| `pnpm run typecheck` | **PASS** — shared libraries, API server, Studio, sandbox, and scripts |
+
+### Limitations and next safe task
+
+The deterministic router can return partial or blocked results for some generated topologies; the API preserves the electrical proposal and reports the affected nets rather than claiming the drawing is complete. This endpoint remains a separate proposal flow with no persistence or workbench application. The next safe task is an isolated V2 preview and explicit approval flow that displays preparation diagnostics without changing the legacy workbench.

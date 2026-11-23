@@ -102,7 +102,7 @@ function singleTransistorProposal() {
   });
 }
 
-test("prepares a catalog-pinned series LED proposal with placement and routes", async () => {
+test("prepares a series LED proposal and reports its blocked return route", async () => {
   let electricalBeforePreparation;
   const result = await generate(seriesLedProposal(), {
     prepareDrawing: (request) => {
@@ -113,14 +113,18 @@ test("prepares a catalog-pinned series LED proposal with placement and routes", 
 
   assert.equal(result.status, "proposed");
   assert.equal(result.document.id, "document-v2-test");
-  assert.equal(result.drawingPreparation.status, "ready");
-  assert.equal(result.drawingPreparation.pipelineStatus, "complete");
+  assert.equal(result.drawingPreparation.status, "partial");
+  assert.equal(result.drawingPreparation.pipelineStatus, "partial");
   assert.deepEqual(result.drawingPreparation.stages, {
     placement: "complete",
-    routing: "complete",
+    routing: "incomplete",
   });
   assert.equal(result.document.drawing.placements.length, 3);
-  assert.ok(result.document.drawing.routes.length > 0);
+  assert.equal(result.document.drawing.routes.length, 2);
+  assert.deepEqual(result.drawingPreparation.blockedNetIds, ["return"]);
+  assert.ok(result.drawingPreparation.diagnostics.some((entry) =>
+    entry.code === "route-net-touch-ambiguous"
+  ));
   assert.deepEqual(result.document.electrical, electricalBeforePreparation);
   assert.deepEqual(
     result.document.electrical.components.map(({ id, pins }) => [
@@ -208,6 +212,70 @@ test("rejects a prepared result if drawing preparation changes the electrical mo
     (error) => error instanceof CircuitDocumentV2PreparationInvariantError &&
       error.code === "prepared-electrical-model-changed" &&
       error.diagnostics[0].path === "document.electrical",
+  );
+});
+
+test("placement and routing blockers stay blocked and preserve the electrical proposal", async () => {
+  const cases = [
+    {
+      status: "placement-blocked",
+      stages: { placement: "blocked", routing: "not-run" },
+      diagnosticCode: "placement-no-feasible-layout",
+      blockedNetIds: [],
+    },
+    {
+      status: "routing-blocked",
+      stages: { placement: "complete", routing: "blocked" },
+      diagnosticCode: "route-no-feasible-path",
+      blockedNetIds: ["return"],
+    },
+  ];
+
+  for (const preparationCase of cases) {
+    let electricalBeforePreparation;
+    const result = await generate(seriesLedProposal(), {
+      prepareDrawing: ({ document }) => {
+        electricalBeforePreparation = structuredClone(document.electrical);
+        return {
+          ...preparationCase,
+          document,
+          diagnostics: [{
+            code: preparationCase.diagnosticCode,
+            severity: "error",
+            path: "drawing",
+            message: "Deterministic preparation could not complete this stage.",
+          }],
+          routedNetIds: [],
+          skippedNetIds: [],
+          algorithmVersion: CIRCUIT_DRAWING_PREPARATION_ALGORITHM_VERSION,
+        };
+      },
+    });
+
+    assert.equal(result.status, "proposed");
+    assert.equal(result.drawingPreparation.status, "blocked");
+    assert.equal(result.drawingPreparation.pipelineStatus, preparationCase.status);
+    assert.deepEqual(result.drawingPreparation.stages, preparationCase.stages);
+    assert.deepEqual(result.drawingPreparation.blockedNetIds, preparationCase.blockedNetIds);
+    assert.equal(
+      result.drawingPreparation.diagnostics[0].code,
+      preparationCase.diagnosticCode,
+    );
+    assert.deepEqual(result.document.electrical, electricalBeforePreparation);
+  }
+});
+
+test("rejects a thrown drawing-preparation failure instead of returning success", async () => {
+  await assert.rejects(
+    generate(seriesLedProposal(), {
+      prepareDrawing: () => {
+        throw new Error("private placement failure details");
+      },
+    }),
+    (error) => error instanceof CircuitDocumentV2PreparationInvariantError &&
+      error.code === "drawing-preparation-failed" &&
+      error.diagnostics[0].path === "drawingPreparation" &&
+      !error.message.includes("private placement failure details"),
   );
 });
 

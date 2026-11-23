@@ -3,6 +3,10 @@ import express from "express";
 import { once } from "node:events";
 import { test } from "node:test";
 import { createCircuitDocumentV2GenerationRouter } from "./circuitDocumentV2Generation.ts";
+import {
+  CIRCUIT_DRAWING_PREPARATION_ALGORITHM_VERSION,
+  prepareCircuitDocumentDrawing,
+} from "../../../../lib/circuit-document/src/index.ts";
 
 const modelText = JSON.stringify({
   title: "Unconnected DC source study",
@@ -16,6 +20,68 @@ const modelText = JSON.stringify({
   assumptions: [],
   uncertainties: ["The return connection is not specified."],
   questions: ["What should connect to the negative terminal?"],
+});
+
+const seriesModelText = JSON.stringify({
+  title: "Series LED",
+  summary: "A battery powers one LED through a current-limiting resistor.",
+  components: [
+    { id: "V1", type: "battery", reference: "B1", value: "9 V", properties: {} },
+    { id: "R1", type: "resistor", reference: "R1", value: "330 ohm", properties: {} },
+    { id: "D1", type: "led", reference: "D1", value: "red", properties: {} },
+  ],
+  nets: [
+    { id: "positive", name: "VCC", members: [{ componentId: "V1", pinName: "+" }, { componentId: "R1", pinName: "1" }] },
+    { id: "led-feed", name: "LED", members: [{ componentId: "R1", pinName: "2" }, { componentId: "D1", pinName: "A" }] },
+    { id: "return", name: "GND", members: [{ componentId: "D1", pinName: "K" }, { componentId: "V1", pinName: "-" }] },
+  ],
+  noConnects: [],
+  unassignedPins: [],
+  assumptions: [],
+  uncertainties: [],
+  questions: [],
+});
+
+const partialTransistorModelText = JSON.stringify({
+  title: "Single transistor switch",
+  summary: "A transistor controls a load with a resistor input and return.",
+  components: [
+    { id: "V1", type: "dcsource", value: "9V", properties: {} },
+    { id: "Q1", type: "npn", value: "2N3904", properties: {} },
+    { id: "R_INPUT", type: "resistor", value: "10 kohm", properties: {} },
+    { id: "R_PULLDOWN", type: "resistor", value: "100 kohm", properties: {} },
+    { id: "GND1", type: "ground", properties: {} },
+  ],
+  nets: [
+    {
+      id: "control",
+      name: "CONTROL",
+      members: [
+        { componentId: "R_INPUT", pinName: "2" },
+        { componentId: "Q1", pinName: "B" },
+        { componentId: "R_PULLDOWN", pinName: "1" },
+      ],
+    },
+    {
+      id: "return",
+      name: "GND",
+      members: [
+        { componentId: "Q1", pinName: "E" },
+        { componentId: "R_PULLDOWN", pinName: "2" },
+        { componentId: "GND1", pinName: "at" },
+        { componentId: "V1", pinName: "-" },
+      ],
+    },
+    { id: "supply", name: "VCC", members: [{ componentId: "V1", pinName: "+" }] },
+  ],
+  noConnects: [],
+  unassignedPins: [
+    { componentId: "Q1", pinName: "C" },
+    { componentId: "R_INPUT", pinName: "1" },
+  ],
+  assumptions: [],
+  uncertainties: [],
+  questions: [],
 });
 
 async function withApi(run, options = {}) {
@@ -35,6 +101,7 @@ async function withApi(run, options = {}) {
     createCircuitDocumentV2GenerationRouter({
       resolveUserId: (request) => request.header("x-test-user"),
       createDocumentId: () => "staged-document-id",
+      ...(options.prepareDrawing ? { prepareDrawing: options.prepareDrawing } : {}),
       ...(options.generateWithAccountUsage
         ? { generateWithAccountUsage: options.generateWithAccountUsage }
         : {
@@ -99,7 +166,7 @@ test("validates prompt input and blocks unsafe mains-side charger requests", asy
   });
 });
 
-test("returns a staged proposal without saving or drawing the circuit", async () => {
+test("returns a staged proposal with its simple component placed", async () => {
   await withApi(async (api) => {
     const response = await request(
       api.url,
@@ -112,7 +179,9 @@ test("returns a staged proposal without saving or drawing the circuit", async ()
     assert.equal(api.modelCalls, 1);
     assert.equal(result.status, "proposed");
     assert.equal(result.document.id, "staged-document-id");
-    assert.deepEqual(result.document.drawing.placements, []);
+    assert.equal(result.drawingPreparation.status, "ready");
+    assert.equal(result.drawingPreparation.pipelineStatus, "complete");
+    assert.equal(result.document.drawing.placements.length, 1);
     assert.deepEqual(result.document.drawing.routes, []);
     assert.deepEqual(result.document.electrical.unassignedPins, [
       { componentId: "V1", pinId: "-" },
@@ -121,6 +190,124 @@ test("returns a staged proposal without saving or drawing the circuit", async ()
       "What should connect to the negative terminal?",
     ]);
     assert.equal(result.validation.scope, "document-structure-only");
+  });
+});
+
+test("generates, places, and routes a series LED proposal without changing its electrical model", async () => {
+  let electricalBeforePreparation;
+  await withApi(async ({ url }) => {
+    const response = await request(
+      url,
+      { prompt: "Create a simple low-voltage series LED circuit." },
+      "user-a",
+    );
+    const result = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(result.status, "proposed");
+    assert.equal(result.drawingPreparation.status, "ready");
+    assert.equal(result.drawingPreparation.pipelineStatus, "complete");
+    assert.deepEqual(result.drawingPreparation.stages, {
+      placement: "complete",
+      routing: "complete",
+    });
+    assert.equal(result.document.drawing.placements.length, 3);
+    assert.ok(result.document.drawing.routes.length > 0);
+    assert.deepEqual(result.document.electrical, electricalBeforePreparation);
+  }, {
+    generateModel: async () => ({ text: seriesModelText }),
+    prepareDrawing: (request) => {
+      electricalBeforePreparation = structuredClone(request.document.electrical);
+      return prepareCircuitDocumentDrawing(request);
+    },
+  });
+});
+
+test("returns partial routing status and identifies blocked nets", async () => {
+  await withApi(async ({ url }) => {
+    const response = await request(
+      url,
+      { prompt: "Create a low-voltage transistor switch." },
+      "user-a",
+    );
+    const result = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(result.drawingPreparation.status, "partial");
+    assert.equal(result.drawingPreparation.pipelineStatus, "partial");
+    assert.deepEqual(result.drawingPreparation.stages, {
+      placement: "complete",
+      routing: "incomplete",
+    });
+    assert.deepEqual(result.drawingPreparation.blockedNetIds, ["return"]);
+    assert.ok(result.drawingPreparation.diagnostics.some((entry) =>
+      entry.code === "route-collinear-overlap"
+    ));
+    assert.deepEqual(result.document.electrical.unassignedPins, [
+      { componentId: "Q1", pinId: "C" },
+      { componentId: "R_INPUT", pinId: "1" },
+    ]);
+  }, { generateModel: async () => ({ text: partialTransistorModelText }) });
+});
+
+test("returns a blocked preparation with diagnostics and retains the electrical proposal", async () => {
+  await withApi(async ({ url }) => {
+    const response = await request(
+      url,
+      { prompt: "Create a small LED circuit." },
+      "user-a",
+    );
+    const result = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(result.status, "proposed");
+    assert.equal(result.drawingPreparation.status, "blocked");
+    assert.equal(result.drawingPreparation.pipelineStatus, "invalid-input");
+    assert.deepEqual(result.document.drawing.placements, []);
+    assert.deepEqual(result.document.electrical.unassignedPins, [
+      { componentId: "V1", pinId: "-" },
+    ]);
+    assert.equal(
+      result.drawingPreparation.diagnostics[0].code,
+      "drawing-preparation-version-unsupported",
+    );
+  }, {
+    prepareDrawing: () => ({
+      status: "invalid-input",
+      diagnostics: [{
+        code: "drawing-preparation-version-unsupported",
+        severity: "error",
+        path: "algorithmVersion",
+        message: "Drawing preparation could not start.",
+      }],
+      stages: { placement: "not-run", routing: "not-run" },
+      routedNetIds: [],
+      skippedNetIds: [],
+      blockedNetIds: [],
+      algorithmVersion: CIRCUIT_DRAWING_PREPARATION_ALGORITHM_VERSION,
+    }),
+  });
+});
+
+test("returns an internal diagnostic instead of accepting changed electrical data", async () => {
+  await withApi(async ({ url }) => {
+    const response = await request(
+      url,
+      { prompt: "Create a simple low-voltage series LED circuit." },
+      "user-a",
+    );
+    const result = await response.json();
+
+    assert.equal(response.status, 500);
+    assert.equal(result.code, "prepared-electrical-model-changed");
+    assert.equal(result.diagnostics[0].path, "document.electrical");
+  }, {
+    generateModel: async () => ({ text: seriesModelText }),
+    prepareDrawing: (request) => {
+      const result = prepareCircuitDocumentDrawing(request);
+      result.document.electrical.nets[0].name = "unexpectedly changed";
+      return result;
+    },
   });
 });
 

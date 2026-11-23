@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { CircuitDocumentV2 } from './circuitDocumentV2';
+import type { CircuitDocumentV2DrawingPreparation } from './circuitDocumentV2DrawingPreparation';
 import type { CircuitDocumentV2ElectricalGenerationResultDesign } from './circuitDocumentV2ElectricalGenerationResultDesign';
 import type { CircuitDocumentV2ElectricalGenerationResultStatus } from './circuitDocumentV2ElectricalGenerationResultStatus';
 import type { CircuitDocumentV2ElectricalGenerationResultValidation } from './circuitDocumentV2ElectricalGenerationResultValidation';
@@ -15,4 +16,5 @@ export interface CircuitDocumentV2ElectricalGenerationResult {
   document: CircuitDocumentV2;
   design: CircuitDocumentV2ElectricalGenerationResultDesign;
   validation: CircuitDocumentV2ElectricalGenerationResultValidation;
+  drawingPreparation: CircuitDocumentV2DrawingPreparation;
 }

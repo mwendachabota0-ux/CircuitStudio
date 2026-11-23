@@ -2,9 +2,14 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   CircuitDocumentV2GenerationError,
+  CircuitDocumentV2PreparationInvariantError,
   buildCircuitDocumentV2GenerationPrompt,
   generateCircuitDocumentV2ElectricalProposal,
 } from "./circuitDocumentV2Generation.ts";
+import {
+  CIRCUIT_DRAWING_PREPARATION_ALGORITHM_VERSION,
+  prepareCircuitDocumentDrawing,
+} from "../../../../lib/circuit-document/src/index.ts";
 import { GenerateCircuitResponse } from "../../../../lib/api-zod/src/generated/api.ts";
 
 const pin = (componentId, pinName) => ({ componentId, pinName });
@@ -33,11 +38,16 @@ function rawProposal({
   };
 }
 
-async function generate(raw, { id = "document-v2-test", text } = {}) {
+async function generate(raw, {
+  id = "document-v2-test",
+  text,
+  prepareDrawing,
+} = {}) {
   return generateCircuitDocumentV2ElectricalProposal({
     userId: "user-test",
     prompt: "Create a low-voltage test circuit.",
     createDocumentId: () => id,
+    ...(prepareDrawing ? { prepareDrawing } : {}),
     generateModel: async () => ({
       text: text ?? JSON.stringify(raw),
       metadata: { finishReason: "STOP" },
@@ -60,11 +70,58 @@ function seriesLedProposal() {
   });
 }
 
-test("builds a catalog-pinned series LED proposal with an empty drawing", async () => {
-  const result = await generate(seriesLedProposal());
+function singleTransistorProposal() {
+  return rawProposal({
+    title: "Single transistor switch",
+    components: [
+      { id: "V1", type: "dcsource", value: "9V", properties: {} },
+      { id: "Q1", type: "npn", value: "2N3904", properties: {} },
+      { id: "R_INPUT", type: "resistor", value: "10 kohm", properties: {} },
+      { id: "R_PULLDOWN", type: "resistor", value: "100 kohm", properties: {} },
+      { id: "GND1", type: "ground", properties: {} },
+    ],
+    nets: [
+      {
+        id: "control",
+        name: "CONTROL",
+        members: [pin("R_INPUT", "2"), pin("Q1", "B"), pin("R_PULLDOWN", "1")],
+      },
+      {
+        id: "return",
+        name: "GND",
+        members: [
+          pin("Q1", "E"),
+          pin("R_PULLDOWN", "2"),
+          pin("GND1", "at"),
+          pin("V1", "-"),
+        ],
+      },
+      { id: "supply", name: "VCC", members: [pin("V1", "+")] },
+    ],
+    unassignedPins: [pin("Q1", "C"), pin("R_INPUT", "1")],
+  });
+}
+
+test("prepares a catalog-pinned series LED proposal with placement and routes", async () => {
+  let electricalBeforePreparation;
+  const result = await generate(seriesLedProposal(), {
+    prepareDrawing: (request) => {
+      electricalBeforePreparation = structuredClone(request.document.electrical);
+      return prepareCircuitDocumentDrawing(request);
+    },
+  });
 
   assert.equal(result.status, "proposed");
   assert.equal(result.document.id, "document-v2-test");
+  assert.equal(result.drawingPreparation.status, "ready");
+  assert.equal(result.drawingPreparation.pipelineStatus, "complete");
+  assert.deepEqual(result.drawingPreparation.stages, {
+    placement: "complete",
+    routing: "complete",
+  });
+  assert.equal(result.document.drawing.placements.length, 3);
+  assert.ok(result.document.drawing.routes.length > 0);
+  assert.deepEqual(result.document.electrical, electricalBeforePreparation);
   assert.deepEqual(
     result.document.electrical.components.map(({ id, pins }) => [
       id,
@@ -76,17 +133,82 @@ test("builds a catalog-pinned series LED proposal with an empty drawing", async 
       ["D1", [["A", "A"], ["K", "K"]]],
     ],
   );
-  assert.deepEqual(result.document.drawing, {
-    units: "px",
-    canvas: {},
-    placements: [],
-    routes: [],
-    junctions: [],
-    crossings: [],
-    annotations: [],
-  });
   assert.equal(result.validation.scope, "document-structure-only");
   assert.equal(result.validation.isValid, true);
+});
+
+test("returns partial drawing status and blocked net details without losing the electrical proposal", async () => {
+  const result = await generate(singleTransistorProposal());
+
+  assert.equal(result.drawingPreparation.status, "partial");
+  assert.equal(result.drawingPreparation.pipelineStatus, "partial");
+  assert.deepEqual(result.drawingPreparation.stages, {
+    placement: "complete",
+    routing: "incomplete",
+  });
+  assert.deepEqual(result.drawingPreparation.blockedNetIds, ["return"]);
+  assert.ok(result.drawingPreparation.diagnostics.some((entry) =>
+    entry.code === "route-collinear-overlap"
+  ));
+  assert.deepEqual(
+    result.document.electrical.components.map(({ id, type }) => [id, type]),
+    [
+      ["V1", "dcsource"],
+      ["Q1", "npn"],
+      ["R_INPUT", "resistor"],
+      ["R_PULLDOWN", "resistor"],
+      ["GND1", "ground"],
+    ],
+  );
+});
+
+test("reports blocked preparation while preserving the valid electrical proposal", async () => {
+  let electricalBeforePreparation;
+  const result = await generate(seriesLedProposal(), {
+    prepareDrawing: ({ document }) => {
+      electricalBeforePreparation = structuredClone(document.electrical);
+      return {
+        status: "invalid-input",
+        diagnostics: [{
+          code: "drawing-preparation-version-unsupported",
+          severity: "error",
+          path: "algorithmVersion",
+          message: "The pipeline version is unsupported.",
+        }],
+        stages: { placement: "not-run", routing: "not-run" },
+        routedNetIds: [],
+        skippedNetIds: [],
+        blockedNetIds: [],
+        algorithmVersion: CIRCUIT_DRAWING_PREPARATION_ALGORITHM_VERSION,
+      };
+    },
+  });
+
+  assert.equal(result.status, "proposed");
+  assert.equal(result.drawingPreparation.status, "blocked");
+  assert.equal(result.drawingPreparation.pipelineStatus, "invalid-input");
+  assert.deepEqual(result.document.drawing.placements, []);
+  assert.deepEqual(result.document.drawing.routes, []);
+  assert.deepEqual(result.document.electrical, electricalBeforePreparation);
+  assert.equal(
+    result.drawingPreparation.diagnostics[0].code,
+    "drawing-preparation-version-unsupported",
+  );
+});
+
+test("rejects a prepared result if drawing preparation changes the electrical model", async () => {
+  await assert.rejects(
+    generate(seriesLedProposal(), {
+      prepareDrawing: (request) => {
+        const prepared = prepareCircuitDocumentDrawing(request);
+        prepared.document.electrical.nets[0].name = "unexpectedly changed";
+        return prepared;
+      },
+    }),
+    (error) => error instanceof CircuitDocumentV2PreparationInvariantError &&
+      error.code === "prepared-electrical-model-changed" &&
+      error.diagnostics[0].path === "document.electrical",
+  );
 });
 
 test("keeps parallel branches on shared supply and return nets", async () => {

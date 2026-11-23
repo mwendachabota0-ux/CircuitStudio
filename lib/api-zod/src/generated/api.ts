@@ -1962,6 +1962,36 @@ export const generateCircuitDocumentV2ResponseDocumentDrawingAnnotationsItemOneA
 export const generateCircuitDocumentV2ResponseDocumentDrawingAnnotationsItemOneAtMax = 2;
 
 
+export const generateCircuitDocumentV2ResponseDrawingPreparationMetricsPlacementComponentCountMin = 0;
+
+export const generateCircuitDocumentV2ResponseDrawingPreparationMetricsPlacementUnplacedBeforeMin = 0;
+
+export const generateCircuitDocumentV2ResponseDrawingPreparationMetricsPlacementMovedExistingMin = 0;
+
+export const generateCircuitDocumentV2ResponseDrawingPreparationMetricsPlacementConnectedSubcircuitCountMin = 0;
+
+export const generateCircuitDocumentV2ResponseDrawingPreparationMetricsPlacementBodyOverlapCountMin = 0;
+
+export const generateCircuitDocumentV2ResponseDrawingPreparationMetricsPlacementMinimumClearanceViolationCountMin = 0;
+
+export const generateCircuitDocumentV2ResponseDrawingPreparationMetricsPlacementTextCollisionCountMin = 0;
+
+export const generateCircuitDocumentV2ResponseDrawingPreparationMetricsPlacementCanvasOverflowCountMin = 0;
+
+export const generateCircuitDocumentV2ResponseDrawingPreparationMetricsPlacementEstimatedRouteComplexityNetsWithMoreThanTwoPinsMin = 0;
+
+export const generateCircuitDocumentV2ResponseDrawingPreparationMetricsPlacementEstimatedRouteComplexityExcessFanoutMin = 0;
+
+export const generateCircuitDocumentV2ResponseDrawingPreparationMetricsPlacementEstimatedRouteComplexityFeedbackGroupsMin = 0;
+
+export const generateCircuitDocumentV2ResponseDrawingPreparationMetricsPlacementEstimatedRouteComplexityBlockedPinAccessCountMin = 0;
+
+export const generateCircuitDocumentV2ResponseDrawingPreparationMetricsRoutingRoutedNetCountMin = 0;
+
+export const generateCircuitDocumentV2ResponseDrawingPreparationMetricsRoutingSkippedNetCountMin = 0;
+
+export const generateCircuitDocumentV2ResponseDrawingPreparationMetricsRoutingBlockedNetCountMin = 0;
+
 
 
 export const GenerateCircuitDocumentV2Response = zod.object({
@@ -2083,6 +2113,53 @@ export const GenerateCircuitDocumentV2Response = zod.object({
   "path": zod.string(),
   "message": zod.string()
 }))
+}),
+  "drawingPreparation": zod.object({
+  "status": zod.enum(['ready', 'partial', 'blocked']),
+  "pipelineStatus": zod.enum(['complete', 'partial', 'placement-blocked', 'routing-blocked', 'invalid-input']),
+  "algorithmVersion": zod.enum(['circuit-drawing-preparation/1']),
+  "stages": zod.object({
+  "placement": zod.enum(['complete', 'blocked', 'not-run']),
+  "routing": zod.enum(['complete', 'incomplete', 'blocked', 'not-run'])
+}),
+  "diagnostics": zod.array(zod.object({
+  "code": zod.string(),
+  "severity": zod.enum(['error', 'warning']),
+  "path": zod.string(),
+  "message": zod.string()
+})),
+  "metrics": zod.object({
+  "placement": zod.object({
+  "componentCount": zod.number().int().min(generateCircuitDocumentV2ResponseDrawingPreparationMetricsPlacementComponentCountMin),
+  "unplacedBefore": zod.number().int().min(generateCircuitDocumentV2ResponseDrawingPreparationMetricsPlacementUnplacedBeforeMin),
+  "movedExisting": zod.number().int().min(generateCircuitDocumentV2ResponseDrawingPreparationMetricsPlacementMovedExistingMin),
+  "connectedSubcircuitCount": zod.number().int().min(generateCircuitDocumentV2ResponseDrawingPreparationMetricsPlacementConnectedSubcircuitCountMin),
+  "bodyOverlapCount": zod.number().int().min(generateCircuitDocumentV2ResponseDrawingPreparationMetricsPlacementBodyOverlapCountMin),
+  "minimumClearanceViolationCount": zod.number().int().min(generateCircuitDocumentV2ResponseDrawingPreparationMetricsPlacementMinimumClearanceViolationCountMin),
+  "textCollisionCount": zod.number().int().min(generateCircuitDocumentV2ResponseDrawingPreparationMetricsPlacementTextCollisionCountMin),
+  "canvasOverflowCount": zod.number().int().min(generateCircuitDocumentV2ResponseDrawingPreparationMetricsPlacementCanvasOverflowCountMin),
+  "layoutBounds": zod.object({
+  "x0": zod.number(),
+  "y0": zod.number(),
+  "x1": zod.number(),
+  "y1": zod.number()
+}).optional(),
+  "estimatedRouteComplexity": zod.object({
+  "netsWithMoreThanTwoPins": zod.number().int().min(generateCircuitDocumentV2ResponseDrawingPreparationMetricsPlacementEstimatedRouteComplexityNetsWithMoreThanTwoPinsMin),
+  "excessFanout": zod.number().int().min(generateCircuitDocumentV2ResponseDrawingPreparationMetricsPlacementEstimatedRouteComplexityExcessFanoutMin),
+  "feedbackGroups": zod.number().int().min(generateCircuitDocumentV2ResponseDrawingPreparationMetricsPlacementEstimatedRouteComplexityFeedbackGroupsMin),
+  "blockedPinAccessCount": zod.number().int().min(generateCircuitDocumentV2ResponseDrawingPreparationMetricsPlacementEstimatedRouteComplexityBlockedPinAccessCountMin)
+})
+}).optional(),
+  "routing": zod.object({
+  "routedNetCount": zod.number().int().min(generateCircuitDocumentV2ResponseDrawingPreparationMetricsRoutingRoutedNetCountMin),
+  "skippedNetCount": zod.number().int().min(generateCircuitDocumentV2ResponseDrawingPreparationMetricsRoutingSkippedNetCountMin),
+  "blockedNetCount": zod.number().int().min(generateCircuitDocumentV2ResponseDrawingPreparationMetricsRoutingBlockedNetCountMin)
+}).optional()
+}).optional(),
+  "routedNetIds": zod.array(zod.string()),
+  "skippedNetIds": zod.array(zod.string()),
+  "blockedNetIds": zod.array(zod.string())
 })
 })
 

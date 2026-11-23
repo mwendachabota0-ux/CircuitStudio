@@ -849,11 +849,117 @@ export interface CircuitDocumentV2 {
     legacyImport?: CircuitDocumentV2LegacyImport;
     metadata?: CircuitDocumentV2Metadata;
 }
+export type CircuitDocumentV2DrawingPreparationStatus = typeof CircuitDocumentV2DrawingPreparationStatus[keyof typeof CircuitDocumentV2DrawingPreparationStatus];
+export declare const CircuitDocumentV2DrawingPreparationStatus: {
+    readonly ready: "ready";
+    readonly partial: "partial";
+    readonly blocked: "blocked";
+};
+export type CircuitDocumentV2DrawingPreparationPipelineStatus = typeof CircuitDocumentV2DrawingPreparationPipelineStatus[keyof typeof CircuitDocumentV2DrawingPreparationPipelineStatus];
+export declare const CircuitDocumentV2DrawingPreparationPipelineStatus: {
+    readonly complete: "complete";
+    readonly partial: "partial";
+    readonly 'placement-blocked': "placement-blocked";
+    readonly 'routing-blocked': "routing-blocked";
+    readonly 'invalid-input': "invalid-input";
+};
+export type CircuitDocumentV2DrawingPreparationAlgorithmVersion = typeof CircuitDocumentV2DrawingPreparationAlgorithmVersion[keyof typeof CircuitDocumentV2DrawingPreparationAlgorithmVersion];
+export declare const CircuitDocumentV2DrawingPreparationAlgorithmVersion: {
+    readonly 'circuit-drawing-preparation/1': "circuit-drawing-preparation/1";
+};
+export type CircuitDocumentV2DrawingPreparationStagesPlacement = typeof CircuitDocumentV2DrawingPreparationStagesPlacement[keyof typeof CircuitDocumentV2DrawingPreparationStagesPlacement];
+export declare const CircuitDocumentV2DrawingPreparationStagesPlacement: {
+    readonly complete: "complete";
+    readonly blocked: "blocked";
+    readonly 'not-run': "not-run";
+};
+export type CircuitDocumentV2DrawingPreparationStagesRouting = typeof CircuitDocumentV2DrawingPreparationStagesRouting[keyof typeof CircuitDocumentV2DrawingPreparationStagesRouting];
+export declare const CircuitDocumentV2DrawingPreparationStagesRouting: {
+    readonly complete: "complete";
+    readonly incomplete: "incomplete";
+    readonly blocked: "blocked";
+    readonly 'not-run': "not-run";
+};
+export type CircuitDocumentV2DrawingPreparationDiagnosticSeverity = typeof CircuitDocumentV2DrawingPreparationDiagnosticSeverity[keyof typeof CircuitDocumentV2DrawingPreparationDiagnosticSeverity];
+export declare const CircuitDocumentV2DrawingPreparationDiagnosticSeverity: {
+    readonly error: "error";
+    readonly warning: "warning";
+};
+export interface CircuitDocumentV2DrawingPreparationDiagnostic {
+    code: string;
+    severity: CircuitDocumentV2DrawingPreparationDiagnosticSeverity;
+    path: string;
+    message: string;
+}
+export type CircuitDocumentV2DrawingPreparationMetricsPlacementLayoutBounds = {
+    x0: number;
+    y0: number;
+    x1: number;
+    y1: number;
+};
+export type CircuitDocumentV2DrawingPreparationMetricsPlacementEstimatedRouteComplexity = {
+    /** @minimum 0 */
+    netsWithMoreThanTwoPins: number;
+    /** @minimum 0 */
+    excessFanout: number;
+    /** @minimum 0 */
+    feedbackGroups: number;
+    /** @minimum 0 */
+    blockedPinAccessCount: number;
+};
+export type CircuitDocumentV2DrawingPreparationMetricsPlacement = {
+    /** @minimum 0 */
+    componentCount: number;
+    /** @minimum 0 */
+    unplacedBefore: number;
+    /** @minimum 0 */
+    movedExisting: number;
+    /** @minimum 0 */
+    connectedSubcircuitCount: number;
+    /** @minimum 0 */
+    bodyOverlapCount: number;
+    /** @minimum 0 */
+    minimumClearanceViolationCount: number;
+    /** @minimum 0 */
+    textCollisionCount: number;
+    /** @minimum 0 */
+    canvasOverflowCount: number;
+    layoutBounds?: CircuitDocumentV2DrawingPreparationMetricsPlacementLayoutBounds;
+    estimatedRouteComplexity: CircuitDocumentV2DrawingPreparationMetricsPlacementEstimatedRouteComplexity;
+};
+export type CircuitDocumentV2DrawingPreparationMetricsRouting = {
+    /** @minimum 0 */
+    routedNetCount: number;
+    /** @minimum 0 */
+    skippedNetCount: number;
+    /** @minimum 0 */
+    blockedNetCount: number;
+};
+export interface CircuitDocumentV2DrawingPreparationMetrics {
+    placement?: CircuitDocumentV2DrawingPreparationMetricsPlacement;
+    routing?: CircuitDocumentV2DrawingPreparationMetricsRouting;
+}
+export type CircuitDocumentV2DrawingPreparationStages = {
+    placement: CircuitDocumentV2DrawingPreparationStagesPlacement;
+    routing: CircuitDocumentV2DrawingPreparationStagesRouting;
+};
+export interface CircuitDocumentV2DrawingPreparation {
+    status: CircuitDocumentV2DrawingPreparationStatus;
+    pipelineStatus: CircuitDocumentV2DrawingPreparationPipelineStatus;
+    algorithmVersion: CircuitDocumentV2DrawingPreparationAlgorithmVersion;
+    stages: CircuitDocumentV2DrawingPreparationStages;
+    diagnostics: CircuitDocumentV2DrawingPreparationDiagnostic[];
+    metrics?: CircuitDocumentV2DrawingPreparationMetrics;
+    routedNetIds: string[];
+    skippedNetIds: string[];
+    blockedNetIds: string[];
+}
 export interface CircuitDocumentV2ElectricalGenerationResult {
     status: CircuitDocumentV2ElectricalGenerationResultStatus;
     document: CircuitDocumentV2;
     design: CircuitDocumentV2ElectricalGenerationResultDesign;
     validation: CircuitDocumentV2ElectricalGenerationResultValidation;
+    drawingPreparation: CircuitDocumentV2DrawingPreparation;
 }
 export interface CircuitDocumentV2GenerationErrorDiagnostic {
     code: string;

@@ -1,10 +1,15 @@
 import { randomUUID } from "node:crypto";
 import {
+  CIRCUIT_DRAWING_PREPARATION_ALGORITHM_VERSION,
   CIRCUIT_DOCUMENT_DRAWING_TYPES,
   CircuitDocumentV2Schema,
   getCircuitPinDefinitions,
   isCircuitDocumentComponentType,
+  prepareCircuitDocumentDrawing,
   validateCircuitDocumentV2,
+  type CircuitDrawingPreparationMetrics,
+  type CircuitDrawingPreparationRequest,
+  type CircuitDrawingPreparationResult,
   type CircuitDocumentDiagnostic,
   type CircuitDocumentV2,
 } from "@workspace/circuit-document";
@@ -95,6 +100,19 @@ export type CircuitDocumentV2ElectricalGenerationResult = {
     isValid: true;
     diagnostics: CircuitDocumentV2GenerationDiagnostic[];
   };
+  drawingPreparation: CircuitDocumentV2DrawingPreparationSummary;
+};
+
+export type CircuitDocumentV2DrawingPreparationSummary = {
+  status: "ready" | "partial" | "blocked";
+  pipelineStatus: CircuitDrawingPreparationResult["status"];
+  algorithmVersion: typeof CIRCUIT_DRAWING_PREPARATION_ALGORITHM_VERSION;
+  stages: CircuitDrawingPreparationResult["stages"];
+  diagnostics: CircuitDocumentDiagnostic[];
+  metrics?: CircuitDrawingPreparationMetrics;
+  routedNetIds: string[];
+  skippedNetIds: string[];
+  blockedNetIds: string[];
 };
 
 export type CircuitDocumentV2GenerationFailureDiagnostic = {
@@ -119,6 +137,22 @@ export class CircuitDocumentV2GenerationError extends Error {
   }
 }
 
+export class CircuitDocumentV2PreparationInvariantError extends Error {
+  readonly code: string;
+  readonly diagnostics: CircuitDocumentV2GenerationFailureDiagnostic[];
+
+  constructor(
+    code: string,
+    message: string,
+    diagnostics: CircuitDocumentV2GenerationFailureDiagnostic[],
+  ) {
+    super(message);
+    this.code = code;
+    this.diagnostics = diagnostics;
+    this.name = "CircuitDocumentV2PreparationInvariantError";
+  }
+}
+
 export type CircuitDocumentV2ModelResponse = {
   text: string;
   metadata?: Record<string, number | string>;
@@ -134,6 +168,10 @@ export type CircuitDocumentV2ModelRequest = {
 export type GenerateCircuitDocumentV2Model = (
   request: CircuitDocumentV2ModelRequest,
 ) => Promise<CircuitDocumentV2ModelResponse>;
+
+export type CircuitDocumentV2DrawingPreparer = (
+  request: CircuitDrawingPreparationRequest,
+) => CircuitDrawingPreparationResult;
 
 type ModelComponent = {
   id: string;
@@ -166,6 +204,20 @@ type ModelProposal = {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function canonicalJson(value: unknown): string {
+  const canonicalize = (entry: unknown): unknown => {
+    if (Array.isArray(entry)) return entry.map(canonicalize);
+    if (!isRecord(entry)) return entry;
+    const sortedEntries = Object.entries(entry).sort(([left], [right]) =>
+      left < right ? -1 : left > right ? 1 : 0
+    );
+    return Object.fromEntries(
+      sortedEntries.map(([key, nested]) => [key, canonicalize(nested)]),
+    );
+  };
+  return JSON.stringify(canonicalize(value));
 }
 
 function fail(
@@ -584,6 +636,7 @@ export async function generateCircuitDocumentV2ElectricalProposal(
     prompt: string;
     generateModel: GenerateCircuitDocumentV2Model;
     createDocumentId?: () => string;
+    prepareDrawing?: CircuitDocumentV2DrawingPreparer;
   },
 ): Promise<CircuitDocumentV2ElectricalGenerationResult> {
   const systemInstruction = buildCircuitDocumentV2GenerationPrompt(input.prompt);
@@ -603,11 +656,55 @@ export async function generateCircuitDocumentV2ElectricalProposal(
     fail("malformed-model-json", "Gemini returned malformed JSON.", "response");
   }
   const proposal = parseProposal(decoded);
-  const document = buildCircuitDocument(
+  const electricalDocument = buildCircuitDocument(
     proposal,
     input.createDocumentId?.() ?? randomUUID(),
   );
+  const electricalSignature = canonicalJson(electricalDocument.electrical);
+  let preparation: CircuitDrawingPreparationResult;
+  try {
+    preparation = (input.prepareDrawing ?? prepareCircuitDocumentDrawing)({
+      document: electricalDocument,
+      algorithmVersion: CIRCUIT_DRAWING_PREPARATION_ALGORITHM_VERSION,
+    });
+  } catch {
+    throw new CircuitDocumentV2PreparationInvariantError(
+      "drawing-preparation-failed",
+      "The deterministic drawing-preparation pipeline failed; the electrical proposal was not returned.",
+      [{
+        code: "drawing-preparation-failed",
+        path: "drawingPreparation",
+        message: "The drawing-preparation pipeline failed before producing a proposal.",
+      }],
+    );
+  }
+
+  const document = preparation.document ?? electricalDocument;
+  if (canonicalJson(document.electrical) !== electricalSignature) {
+    throw new CircuitDocumentV2PreparationInvariantError(
+      "prepared-electrical-model-changed",
+      "The prepared drawing changed the electrical model; the proposal was rejected.",
+      [{
+        code: "prepared-electrical-model-changed",
+        path: "document.electrical",
+        message: "Drawing preparation must preserve components, pins, properties, nets, no-connects, and unassigned pins exactly.",
+      }],
+    );
+  }
+
   const validation = validateCircuitDocumentV2(document);
+  const validationErrors = [
+    ...validation.schemaErrors,
+    ...validation.electricalErrors,
+    ...validation.drawingErrors,
+  ];
+  if (validationErrors.length > 0) {
+    throw new CircuitDocumentV2PreparationInvariantError(
+      "prepared-document-invalid",
+      "The drawing-preparation pipeline returned a structurally invalid V2 document; the proposal was rejected.",
+      validationErrors.map(({ code, path, message }) => ({ code, path, message })),
+    );
+  }
   const diagnostics = [
     ...validation.schemaErrors.map((item) => diagnostic("schema", item)),
     ...validation.electricalErrors.map((item) => diagnostic("electrical", item)),
@@ -630,6 +727,21 @@ export async function generateCircuitDocumentV2ElectricalProposal(
       scope: "document-structure-only",
       isValid: true,
       diagnostics,
+    },
+    drawingPreparation: {
+      status: preparation.status === "complete"
+        ? "ready"
+        : preparation.status === "partial"
+        ? "partial"
+        : "blocked",
+      pipelineStatus: preparation.status,
+      algorithmVersion: preparation.algorithmVersion,
+      stages: preparation.stages,
+      diagnostics: preparation.diagnostics,
+      ...(preparation.metrics ? { metrics: preparation.metrics } : {}),
+      routedNetIds: preparation.routedNetIds,
+      skippedNetIds: preparation.skippedNetIds,
+      blockedNetIds: preparation.blockedNetIds,
     },
   };
 }

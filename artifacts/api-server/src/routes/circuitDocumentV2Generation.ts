@@ -9,7 +9,9 @@ import { Router, type IRouter, type Request, type RequestHandler } from "express
 import {
   CIRCUIT_DOCUMENT_V2_GENERATION_MODEL,
   CircuitDocumentV2GenerationError,
+  CircuitDocumentV2PreparationInvariantError,
   generateCircuitDocumentV2ElectricalProposal,
+  type CircuitDocumentV2DrawingPreparer,
   type CircuitDocumentV2ModelRequest,
   type CircuitDocumentV2ModelResponse,
 } from "../lib/circuitDocumentV2Generation.ts";
@@ -29,6 +31,7 @@ type GenerationRouterOptions = {
   ) => Promise<CircuitDocumentV2ModelResponse>;
   createDocumentId?: () => string;
   generateWithAccountUsage?: GenerateWithAccountUsage;
+  prepareDrawing?: CircuitDocumentV2DrawingPreparer;
 };
 
 function buildContinuationContents(prompt: string, partialOutput: string): string {
@@ -167,6 +170,7 @@ export function createCircuitDocumentV2GenerationRouter(
           userId,
           prompt,
           createDocumentId: options.createDocumentId,
+          prepareDrawing: options.prepareDrawing,
           generateModel: async (modelRequest) => {
             const result = await generateModel({
               ...modelRequest,
@@ -219,6 +223,21 @@ export function createCircuitDocumentV2GenerationRouter(
         );
         response.json(validatedResponse.data);
       } catch (error) {
+        if (error instanceof CircuitDocumentV2PreparationInvariantError) {
+          request.log.error(
+            {
+              code: error.code,
+              diagnosticCount: error.diagnostics.length,
+            },
+            "V2 drawing preparation violated a document invariant",
+          );
+          response.status(500).json({
+            code: error.code,
+            error: error.message,
+            diagnostics: error.diagnostics,
+          });
+          return;
+        }
         if (
           error instanceof Error &&
           error.name === "CircuitAiError" &&

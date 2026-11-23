@@ -628,6 +628,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+        "500":
+          description: Drawing preparation violated a V2 document invariant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CircuitDocumentV2GenerationError"
         "502":
           description: The model response was malformed or failed V2 validation
           content:
@@ -1898,7 +1904,143 @@ components:
                 $ref: "#/components/schemas/CircuitDocumentV2GenerationDiagnostic"
           required: [scope, isValid, diagnostics]
           additionalProperties: false
-      required: [status, document, design, validation]
+        drawingPreparation:
+          $ref: "#/components/schemas/CircuitDocumentV2DrawingPreparation"
+      required: [status, document, design, validation, drawingPreparation]
+      additionalProperties: false
+    CircuitDocumentV2DrawingPreparationDiagnostic:
+      type: object
+      properties:
+        code:
+          type: string
+        severity:
+          type: string
+          enum: [error, warning]
+        path:
+          type: string
+        message:
+          type: string
+      required: [code, severity, path, message]
+      additionalProperties: false
+    CircuitDocumentV2DrawingPreparationMetrics:
+      type: object
+      properties:
+        placement:
+          type: object
+          properties:
+            componentCount:
+              type: integer
+              minimum: 0
+            unplacedBefore:
+              type: integer
+              minimum: 0
+            movedExisting:
+              type: integer
+              minimum: 0
+            connectedSubcircuitCount:
+              type: integer
+              minimum: 0
+            bodyOverlapCount:
+              type: integer
+              minimum: 0
+            minimumClearanceViolationCount:
+              type: integer
+              minimum: 0
+            textCollisionCount:
+              type: integer
+              minimum: 0
+            canvasOverflowCount:
+              type: integer
+              minimum: 0
+            layoutBounds:
+              type: object
+              properties:
+                x0:
+                  type: number
+                y0:
+                  type: number
+                x1:
+                  type: number
+                y1:
+                  type: number
+              required: [x0, y0, x1, y1]
+              additionalProperties: false
+            estimatedRouteComplexity:
+              type: object
+              properties:
+                netsWithMoreThanTwoPins:
+                  type: integer
+                  minimum: 0
+                excessFanout:
+                  type: integer
+                  minimum: 0
+                feedbackGroups:
+                  type: integer
+                  minimum: 0
+                blockedPinAccessCount:
+                  type: integer
+                  minimum: 0
+              required: [netsWithMoreThanTwoPins, excessFanout, feedbackGroups, blockedPinAccessCount]
+              additionalProperties: false
+          required: [componentCount, unplacedBefore, movedExisting, connectedSubcircuitCount, bodyOverlapCount, minimumClearanceViolationCount, textCollisionCount, canvasOverflowCount, estimatedRouteComplexity]
+          additionalProperties: false
+        routing:
+          type: object
+          properties:
+            routedNetCount:
+              type: integer
+              minimum: 0
+            skippedNetCount:
+              type: integer
+              minimum: 0
+            blockedNetCount:
+              type: integer
+              minimum: 0
+          required: [routedNetCount, skippedNetCount, blockedNetCount]
+          additionalProperties: false
+      additionalProperties: false
+    CircuitDocumentV2DrawingPreparation:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ready, partial, blocked]
+        pipelineStatus:
+          type: string
+          enum: [complete, partial, placement-blocked, routing-blocked, invalid-input]
+        algorithmVersion:
+          type: string
+          enum: [circuit-drawing-preparation/1]
+        stages:
+          type: object
+          properties:
+            placement:
+              type: string
+              enum: [complete, blocked, not-run]
+            routing:
+              type: string
+              enum: [complete, incomplete, blocked, not-run]
+          required: [placement, routing]
+          additionalProperties: false
+        diagnostics:
+          type: array
+          items:
+            $ref: "#/components/schemas/CircuitDocumentV2DrawingPreparationDiagnostic"
+        metrics:
+          $ref: "#/components/schemas/CircuitDocumentV2DrawingPreparationMetrics"
+        routedNetIds:
+          type: array
+          items:
+            type: string
+        skippedNetIds:
+          type: array
+          items:
+            type: string
+        blockedNetIds:
+          type: array
+          items:
+            type: string
+      required: [status, pipelineStatus, algorithmVersion, stages, diagnostics, routedNetIds, skippedNetIds, blockedNetIds]
       additionalProperties: false
     CircuitDocumentV2GenerationErrorDiagnostic:
       type: object

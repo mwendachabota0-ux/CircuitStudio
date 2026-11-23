@@ -9272,6 +9272,21 @@ export declare const generateCircuitDocumentV2ResponseDocumentDrawingCrossingsIt
 export declare const generateCircuitDocumentV2ResponseDocumentDrawingCrossingsItemAtMax = 2;
 export declare const generateCircuitDocumentV2ResponseDocumentDrawingAnnotationsItemOneAtMin = 2;
 export declare const generateCircuitDocumentV2ResponseDocumentDrawingAnnotationsItemOneAtMax = 2;
+export declare const generateCircuitDocumentV2ResponseDrawingPreparationMetricsPlacementComponentCountMin = 0;
+export declare const generateCircuitDocumentV2ResponseDrawingPreparationMetricsPlacementUnplacedBeforeMin = 0;
+export declare const generateCircuitDocumentV2ResponseDrawingPreparationMetricsPlacementMovedExistingMin = 0;
+export declare const generateCircuitDocumentV2ResponseDrawingPreparationMetricsPlacementConnectedSubcircuitCountMin = 0;
+export declare const generateCircuitDocumentV2ResponseDrawingPreparationMetricsPlacementBodyOverlapCountMin = 0;
+export declare const generateCircuitDocumentV2ResponseDrawingPreparationMetricsPlacementMinimumClearanceViolationCountMin = 0;
+export declare const generateCircuitDocumentV2ResponseDrawingPreparationMetricsPlacementTextCollisionCountMin = 0;
+export declare const generateCircuitDocumentV2ResponseDrawingPreparationMetricsPlacementCanvasOverflowCountMin = 0;
+export declare const generateCircuitDocumentV2ResponseDrawingPreparationMetricsPlacementEstimatedRouteComplexityNetsWithMoreThanTwoPinsMin = 0;
+export declare const generateCircuitDocumentV2ResponseDrawingPreparationMetricsPlacementEstimatedRouteComplexityExcessFanoutMin = 0;
+export declare const generateCircuitDocumentV2ResponseDrawingPreparationMetricsPlacementEstimatedRouteComplexityFeedbackGroupsMin = 0;
+export declare const generateCircuitDocumentV2ResponseDrawingPreparationMetricsPlacementEstimatedRouteComplexityBlockedPinAccessCountMin = 0;
+export declare const generateCircuitDocumentV2ResponseDrawingPreparationMetricsRoutingRoutedNetCountMin = 0;
+export declare const generateCircuitDocumentV2ResponseDrawingPreparationMetricsRoutingSkippedNetCountMin = 0;
+export declare const generateCircuitDocumentV2ResponseDrawingPreparationMetricsRoutingBlockedNetCountMin = 0;
 export declare const GenerateCircuitDocumentV2Response: zod.ZodObject<{
     status: zod.ZodEnum<["proposed"]>;
     document: zod.ZodObject<{
@@ -9996,6 +10011,287 @@ export declare const GenerateCircuitDocumentV2Response: zod.ZodObject<{
             severity: "error" | "warning";
         }[];
     }>;
+    drawingPreparation: zod.ZodObject<{
+        status: zod.ZodEnum<["ready", "partial", "blocked"]>;
+        pipelineStatus: zod.ZodEnum<["complete", "partial", "placement-blocked", "routing-blocked", "invalid-input"]>;
+        algorithmVersion: zod.ZodEnum<["circuit-drawing-preparation/1"]>;
+        stages: zod.ZodObject<{
+            placement: zod.ZodEnum<["complete", "blocked", "not-run"]>;
+            routing: zod.ZodEnum<["complete", "incomplete", "blocked", "not-run"]>;
+        }, "strip", zod.ZodTypeAny, {
+            placement: "blocked" | "complete" | "not-run";
+            routing: "blocked" | "complete" | "not-run" | "incomplete";
+        }, {
+            placement: "blocked" | "complete" | "not-run";
+            routing: "blocked" | "complete" | "not-run" | "incomplete";
+        }>;
+        diagnostics: zod.ZodArray<zod.ZodObject<{
+            code: zod.ZodString;
+            severity: zod.ZodEnum<["error", "warning"]>;
+            path: zod.ZodString;
+            message: zod.ZodString;
+        }, "strip", zod.ZodTypeAny, {
+            code: string;
+            path: string;
+            message: string;
+            severity: "error" | "warning";
+        }, {
+            code: string;
+            path: string;
+            message: string;
+            severity: "error" | "warning";
+        }>, "many">;
+        metrics: zod.ZodOptional<zod.ZodObject<{
+            placement: zod.ZodOptional<zod.ZodObject<{
+                componentCount: zod.ZodNumber;
+                unplacedBefore: zod.ZodNumber;
+                movedExisting: zod.ZodNumber;
+                connectedSubcircuitCount: zod.ZodNumber;
+                bodyOverlapCount: zod.ZodNumber;
+                minimumClearanceViolationCount: zod.ZodNumber;
+                textCollisionCount: zod.ZodNumber;
+                canvasOverflowCount: zod.ZodNumber;
+                layoutBounds: zod.ZodOptional<zod.ZodObject<{
+                    x0: zod.ZodNumber;
+                    y0: zod.ZodNumber;
+                    x1: zod.ZodNumber;
+                    y1: zod.ZodNumber;
+                }, "strip", zod.ZodTypeAny, {
+                    x0: number;
+                    y0: number;
+                    x1: number;
+                    y1: number;
+                }, {
+                    x0: number;
+                    y0: number;
+                    x1: number;
+                    y1: number;
+                }>>;
+                estimatedRouteComplexity: zod.ZodObject<{
+                    netsWithMoreThanTwoPins: zod.ZodNumber;
+                    excessFanout: zod.ZodNumber;
+                    feedbackGroups: zod.ZodNumber;
+                    blockedPinAccessCount: zod.ZodNumber;
+                }, "strip", zod.ZodTypeAny, {
+                    netsWithMoreThanTwoPins: number;
+                    excessFanout: number;
+                    feedbackGroups: number;
+                    blockedPinAccessCount: number;
+                }, {
+                    netsWithMoreThanTwoPins: number;
+                    excessFanout: number;
+                    feedbackGroups: number;
+                    blockedPinAccessCount: number;
+                }>;
+            }, "strip", zod.ZodTypeAny, {
+                componentCount: number;
+                unplacedBefore: number;
+                movedExisting: number;
+                connectedSubcircuitCount: number;
+                bodyOverlapCount: number;
+                minimumClearanceViolationCount: number;
+                textCollisionCount: number;
+                canvasOverflowCount: number;
+                estimatedRouteComplexity: {
+                    netsWithMoreThanTwoPins: number;
+                    excessFanout: number;
+                    feedbackGroups: number;
+                    blockedPinAccessCount: number;
+                };
+                layoutBounds?: {
+                    x0: number;
+                    y0: number;
+                    x1: number;
+                    y1: number;
+                } | undefined;
+            }, {
+                componentCount: number;
+                unplacedBefore: number;
+                movedExisting: number;
+                connectedSubcircuitCount: number;
+                bodyOverlapCount: number;
+                minimumClearanceViolationCount: number;
+                textCollisionCount: number;
+                canvasOverflowCount: number;
+                estimatedRouteComplexity: {
+                    netsWithMoreThanTwoPins: number;
+                    excessFanout: number;
+                    feedbackGroups: number;
+                    blockedPinAccessCount: number;
+                };
+                layoutBounds?: {
+                    x0: number;
+                    y0: number;
+                    x1: number;
+                    y1: number;
+                } | undefined;
+            }>>;
+            routing: zod.ZodOptional<zod.ZodObject<{
+                routedNetCount: zod.ZodNumber;
+                skippedNetCount: zod.ZodNumber;
+                blockedNetCount: zod.ZodNumber;
+            }, "strip", zod.ZodTypeAny, {
+                routedNetCount: number;
+                skippedNetCount: number;
+                blockedNetCount: number;
+            }, {
+                routedNetCount: number;
+                skippedNetCount: number;
+                blockedNetCount: number;
+            }>>;
+        }, "strip", zod.ZodTypeAny, {
+            placement?: {
+                componentCount: number;
+                unplacedBefore: number;
+                movedExisting: number;
+                connectedSubcircuitCount: number;
+                bodyOverlapCount: number;
+                minimumClearanceViolationCount: number;
+                textCollisionCount: number;
+                canvasOverflowCount: number;
+                estimatedRouteComplexity: {
+                    netsWithMoreThanTwoPins: number;
+                    excessFanout: number;
+                    feedbackGroups: number;
+                    blockedPinAccessCount: number;
+                };
+                layoutBounds?: {
+                    x0: number;
+                    y0: number;
+                    x1: number;
+                    y1: number;
+                } | undefined;
+            } | undefined;
+            routing?: {
+                routedNetCount: number;
+                skippedNetCount: number;
+                blockedNetCount: number;
+            } | undefined;
+        }, {
+            placement?: {
+                componentCount: number;
+                unplacedBefore: number;
+                movedExisting: number;
+                connectedSubcircuitCount: number;
+                bodyOverlapCount: number;
+                minimumClearanceViolationCount: number;
+                textCollisionCount: number;
+                canvasOverflowCount: number;
+                estimatedRouteComplexity: {
+                    netsWithMoreThanTwoPins: number;
+                    excessFanout: number;
+                    feedbackGroups: number;
+                    blockedPinAccessCount: number;
+                };
+                layoutBounds?: {
+                    x0: number;
+                    y0: number;
+                    x1: number;
+                    y1: number;
+                } | undefined;
+            } | undefined;
+            routing?: {
+                routedNetCount: number;
+                skippedNetCount: number;
+                blockedNetCount: number;
+            } | undefined;
+        }>>;
+        routedNetIds: zod.ZodArray<zod.ZodString, "many">;
+        skippedNetIds: zod.ZodArray<zod.ZodString, "many">;
+        blockedNetIds: zod.ZodArray<zod.ZodString, "many">;
+    }, "strip", zod.ZodTypeAny, {
+        status: "ready" | "partial" | "blocked";
+        diagnostics: {
+            code: string;
+            path: string;
+            message: string;
+            severity: "error" | "warning";
+        }[];
+        pipelineStatus: "partial" | "complete" | "placement-blocked" | "routing-blocked" | "invalid-input";
+        algorithmVersion: "circuit-drawing-preparation/1";
+        stages: {
+            placement: "blocked" | "complete" | "not-run";
+            routing: "blocked" | "complete" | "not-run" | "incomplete";
+        };
+        routedNetIds: string[];
+        skippedNetIds: string[];
+        blockedNetIds: string[];
+        metrics?: {
+            placement?: {
+                componentCount: number;
+                unplacedBefore: number;
+                movedExisting: number;
+                connectedSubcircuitCount: number;
+                bodyOverlapCount: number;
+                minimumClearanceViolationCount: number;
+                textCollisionCount: number;
+                canvasOverflowCount: number;
+                estimatedRouteComplexity: {
+                    netsWithMoreThanTwoPins: number;
+                    excessFanout: number;
+                    feedbackGroups: number;
+                    blockedPinAccessCount: number;
+                };
+                layoutBounds?: {
+                    x0: number;
+                    y0: number;
+                    x1: number;
+                    y1: number;
+                } | undefined;
+            } | undefined;
+            routing?: {
+                routedNetCount: number;
+                skippedNetCount: number;
+                blockedNetCount: number;
+            } | undefined;
+        } | undefined;
+    }, {
+        status: "ready" | "partial" | "blocked";
+        diagnostics: {
+            code: string;
+            path: string;
+            message: string;
+            severity: "error" | "warning";
+        }[];
+        pipelineStatus: "partial" | "complete" | "placement-blocked" | "routing-blocked" | "invalid-input";
+        algorithmVersion: "circuit-drawing-preparation/1";
+        stages: {
+            placement: "blocked" | "complete" | "not-run";
+            routing: "blocked" | "complete" | "not-run" | "incomplete";
+        };
+        routedNetIds: string[];
+        skippedNetIds: string[];
+        blockedNetIds: string[];
+        metrics?: {
+            placement?: {
+                componentCount: number;
+                unplacedBefore: number;
+                movedExisting: number;
+                connectedSubcircuitCount: number;
+                bodyOverlapCount: number;
+                minimumClearanceViolationCount: number;
+                textCollisionCount: number;
+                canvasOverflowCount: number;
+                estimatedRouteComplexity: {
+                    netsWithMoreThanTwoPins: number;
+                    excessFanout: number;
+                    feedbackGroups: number;
+                    blockedPinAccessCount: number;
+                };
+                layoutBounds?: {
+                    x0: number;
+                    y0: number;
+                    x1: number;
+                    y1: number;
+                } | undefined;
+            } | undefined;
+            routing?: {
+                routedNetCount: number;
+                skippedNetCount: number;
+                blockedNetCount: number;
+            } | undefined;
+        } | undefined;
+    }>;
 }, "strip", zod.ZodTypeAny, {
     status: "proposed";
     validation: {
@@ -10116,6 +10412,53 @@ export declare const GenerateCircuitDocumentV2Response: zod.ZodObject<{
         uncertainties: string[];
         questions: string[];
     };
+    drawingPreparation: {
+        status: "ready" | "partial" | "blocked";
+        diagnostics: {
+            code: string;
+            path: string;
+            message: string;
+            severity: "error" | "warning";
+        }[];
+        pipelineStatus: "partial" | "complete" | "placement-blocked" | "routing-blocked" | "invalid-input";
+        algorithmVersion: "circuit-drawing-preparation/1";
+        stages: {
+            placement: "blocked" | "complete" | "not-run";
+            routing: "blocked" | "complete" | "not-run" | "incomplete";
+        };
+        routedNetIds: string[];
+        skippedNetIds: string[];
+        blockedNetIds: string[];
+        metrics?: {
+            placement?: {
+                componentCount: number;
+                unplacedBefore: number;
+                movedExisting: number;
+                connectedSubcircuitCount: number;
+                bodyOverlapCount: number;
+                minimumClearanceViolationCount: number;
+                textCollisionCount: number;
+                canvasOverflowCount: number;
+                estimatedRouteComplexity: {
+                    netsWithMoreThanTwoPins: number;
+                    excessFanout: number;
+                    feedbackGroups: number;
+                    blockedPinAccessCount: number;
+                };
+                layoutBounds?: {
+                    x0: number;
+                    y0: number;
+                    x1: number;
+                    y1: number;
+                } | undefined;
+            } | undefined;
+            routing?: {
+                routedNetCount: number;
+                skippedNetCount: number;
+                blockedNetCount: number;
+            } | undefined;
+        } | undefined;
+    };
 }, {
     status: "proposed";
     validation: {
@@ -10235,6 +10578,53 @@ export declare const GenerateCircuitDocumentV2Response: zod.ZodObject<{
         assumptions: string[];
         uncertainties: string[];
         questions: string[];
+    };
+    drawingPreparation: {
+        status: "ready" | "partial" | "blocked";
+        diagnostics: {
+            code: string;
+            path: string;
+            message: string;
+            severity: "error" | "warning";
+        }[];
+        pipelineStatus: "partial" | "complete" | "placement-blocked" | "routing-blocked" | "invalid-input";
+        algorithmVersion: "circuit-drawing-preparation/1";
+        stages: {
+            placement: "blocked" | "complete" | "not-run";
+            routing: "blocked" | "complete" | "not-run" | "incomplete";
+        };
+        routedNetIds: string[];
+        skippedNetIds: string[];
+        blockedNetIds: string[];
+        metrics?: {
+            placement?: {
+                componentCount: number;
+                unplacedBefore: number;
+                movedExisting: number;
+                connectedSubcircuitCount: number;
+                bodyOverlapCount: number;
+                minimumClearanceViolationCount: number;
+                textCollisionCount: number;
+                canvasOverflowCount: number;
+                estimatedRouteComplexity: {
+                    netsWithMoreThanTwoPins: number;
+                    excessFanout: number;
+                    feedbackGroups: number;
+                    blockedPinAccessCount: number;
+                };
+                layoutBounds?: {
+                    x0: number;
+                    y0: number;
+                    x1: number;
+                    y1: number;
+                } | undefined;
+            } | undefined;
+            routing?: {
+                routedNetCount: number;
+                skippedNetCount: number;
+                blockedNetCount: number;
+            } | undefined;
+        } | undefined;
     };
 }>;
 /**

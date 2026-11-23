@@ -621,3 +621,31 @@ The deterministic router can return partial or blocked results for some generate
 | `artifacts/circuit-studio: web` workflow | **RUNNING** after restart |
 
 Automated preview capture showed the existing disabled-feature fallback at `/studio/v2-drafts`; the route remains opt-in and authenticated, so the signed-in Lab UI was not visually verified. No auth bypass was used. No GitHub, remote repository, database write, or live Gemini request was used.
+
+## Batch 14 — Phase 4D V2 Lab end-to-end verification
+
+**Status:** Signed-in UI verification is blocked; available local checks pass. No concrete defect was established, so no application code was changed.
+
+### Verification performed
+
+- Inspected this handoff and the existing V2 Lab route, proposal review, approval/rejection handlers, and local persistence tests before testing.
+- Ran a temporary local Vite preview with `VITE_ENABLE_CIRCUIT_DOCUMENT_V2_LAB=true` and server sync explicitly off. No feature-gate default, authentication, or ownership logic was changed. The route returned the app, but a fresh unauthenticated browser was redirected to the public home/sign-in page.
+- Signed-in visual verification could not proceed: no real signed-in browser session was available, and the workspace currently has no registered artifacts or configured workflows. No sign-in bypass or user credentials were used.
+- No live Gemini generation request was made. Thus the rendered proposal preview, electrical details, diagnostics, approval/rejection UI actions, reload persistence, and visible partial/blocked status remain unverified in an actual signed-in browser.
+- Existing local tests cover the decision, storage-failure, draft-preservation, and status gates; generation tests exercise ready/partial/blocked API results. These checks do not replace the requested UI workflow.
+
+### Checks
+
+| Check | Result |
+| --- | --- |
+| `pnpm --filter @workspace/circuit-studio test` | **PASS** — 126 tests |
+| Focused V2 generation library and route tests | **PASS** — 28 tests |
+| `pnpm run typecheck` | **PASS** |
+| Vite production build with the temporary Lab flag enabled and sync off | **PASS** — non-blocking main-chunk size warning |
+| Local anonymous route capture | **BLOCKED for Lab UI** — redirected to public home/sign-in as expected |
+
+### Changed files and next action
+
+- `docs/IMPLEMENTATION_HANDOFF.md` — recorded the verification evidence, exact UI blocker, and remaining checks.
+- No application source, tests, authentication, feature-gate defaults, server sync, database, or migrations were changed.
+- **Next action:** repeat the proposal review and approve/reject/save-failure/reload checks in a real signed-in preview once the V2 Lab preview is available with an authenticated session. Keep the feature flag temporary and server sync off.

@@ -592,3 +592,32 @@ Current focused recheck: `node --experimental-strip-types --test lib/circuit-doc
 ### Limitations and next safe task
 
 The deterministic router can return partial or blocked results for some generated topologies; the API preserves the electrical proposal and reports the affected nets rather than claiming the drawing is complete. This endpoint remains a separate proposal flow with no persistence or workbench application. The next safe task is an isolated V2 preview and explicit approval flow that displays preparation diagnostics without changing the legacy workbench.
+
+## Batch 13 — Phase 4C V2 Lab proposal review and approval
+
+**Status:** Implemented and locally verified. The V2 Lab connects the existing authenticated generator to a staged preview and explicit approve/reject flow.
+
+- Generation keeps the current V2 draft unchanged and stages the result for review.
+- Review shows the generated electrical model, assumptions, placement/routing status, blocked nets, validation and drawing diagnostics, and a preview from the existing legacy-compatible renderer.
+- `ready`, `partial`, and `blocked` remain distinct. Existing validation gates approval; blocked or invalid proposals cannot be approved.
+- Approval prepares the existing V2 session and saves locally before replacing the current draft. A failed local save retains the existing draft and staged proposal. Rejection discards only the staged proposal.
+- The legacy workbench, generator pipeline, server sync, API routes, and database are unchanged.
+
+### Changed files
+
+- `artifacts/circuit-studio/src/components/circuit-document-v2-lab.tsx` — connected generation, staged preview, approval, and rejection.
+- `artifacts/circuit-studio/src/components/circuit-document-v2-lab.css` — styled the prompt and proposal review.
+- `docs/IMPLEMENTATION_HANDOFF.md` — recorded this checkpoint.
+
+### Verification
+
+| Check | Result |
+| --- | --- |
+| `pnpm run typecheck` | **PASS** — shared libraries, API server, Studio, sandbox, and scripts |
+| `pnpm --filter @workspace/circuit-studio test` | **PASS** — 126 tests, including existing approval/rejection, status, draft-preservation, and save-failure coverage |
+| `pnpm --filter @workspace/api-server test` | **PASS** — 105 tests, including V2 generation and preparation |
+| `PORT=26043 BASE_PATH=/ pnpm --filter @workspace/circuit-studio run build` | **PASS** |
+| `git diff --check` | **PASS** |
+| `artifacts/circuit-studio: web` workflow | **RUNNING** after restart |
+
+Automated preview capture showed the existing disabled-feature fallback at `/studio/v2-drafts`; the route remains opt-in and authenticated, so the signed-in Lab UI was not visually verified. No auth bypass was used. No GitHub, remote repository, database write, or live Gemini request was used.

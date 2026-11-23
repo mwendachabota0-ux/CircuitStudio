@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -8,11 +9,14 @@ import {
   RefreshCw,
   Save,
   ShieldCheck,
+  Sparkles,
 } from "lucide-react";
 import {
+  useGenerateCircuitDocumentV2,
   useLoadCircuitDocumentV2Draft,
   useSaveCircuitDocumentV2Draft,
 } from "@workspace/api-client-react";
+import type { CircuitDocumentV2ElectricalGenerationResult } from "@workspace/api-client-react";
 import { validateCircuitDocumentV2 } from "@workspace/circuit-document";
 import type {
   CircuitDocumentV2,
@@ -24,16 +28,32 @@ import type {
   LegacyCircuitTools,
 } from "@workspace/circuit-document";
 import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
   canAccessCircuitDocumentV2Lab,
   createCircuitDocumentV2Copy,
+  getCircuitDocumentV2ProposalApprovalBlockReason,
   getCircuitDocumentV2DocumentSessionId,
   loadCircuitDocumentV2LocalDraft,
   loadCircuitDocumentV2SessionId,
+  prepareCircuitDocumentV2ProposalForApproval,
   projectCircuitDocumentToLegacy,
   reconcileCircuitDraftCopies,
+  resolveCircuitDocumentV2ProposalDecision,
   saveCircuitDocumentV2LocalFirst,
   type CircuitDocumentV2FeatureFlags,
 } from "@/lib/circuit-document-v2-lab";
+import {
+  CircuitDocumentV2ProposalReview,
+  type CircuitDocumentV2PreviewProjection,
+} from "./circuit-document-v2-proposal-review";
 import "./circuit-document-v2-lab.css";
 
 type CircuitDrawWithMembership = NonNullable<typeof window.CircuitDraw> & {
@@ -125,6 +145,38 @@ function diagnosticsFor(document: CircuitDocumentV2): CircuitDocumentDiagnostic[
   ];
 }
 
+function previewProjectionFor(
+  document: CircuitDocumentV2 | null,
+  circuitDrawReady: boolean,
+): CircuitDocumentV2PreviewProjection {
+  if (!document || !circuitDrawReady) return null;
+  const runtime = circuitDrawTools();
+  if (!runtime) return null;
+  const projected = projectCircuitDocumentToLegacy(document, runtime.tools);
+  if (projected.status !== "representable" || !projected.spec) {
+    return {
+      status: "not-representable",
+      message:
+        projected.diagnostics.map((item) => item.message).join(" ") ||
+        "This V2 document contains information the legacy preview cannot preserve.",
+    };
+  }
+  const report = runtime.tools.validate(projected.spec);
+  if (report.errors.length > 0) {
+    return {
+      status: "not-representable",
+      message: report.errors.join(" "),
+    };
+  }
+  return {
+    status: "representable",
+    svg: runtime.draw.render(
+      projected.spec as unknown as Parameters<typeof runtime.draw.render>[0],
+    ),
+    message: "",
+  };
+}
+
 export default function CircuitDocumentV2Lab({
   userId,
   isSignedIn,
@@ -162,9 +214,16 @@ export default function CircuitDocumentV2Lab({
   >([]);
   const [statusMessage, setStatusMessage] = useState("");
   const [actionBusy, setActionBusy] = useState(false);
+  const [proposal, setProposal] =
+    useState<CircuitDocumentV2ElectricalGenerationResult | null>(null);
+  const [generationError, setGenerationError] = useState("");
   const [syncState, setSyncState] = useState<SyncState>(() =>
     featureFlags.serverSyncEnabled ? { kind: "checking" } : { kind: "disabled" },
   );
+  const generationForm = useForm<{ prompt: string }>({
+    defaultValues: { prompt: "" },
+  });
+  const generationPrompt = generationForm.watch("prompt");
 
   const sessionForQuery = sessionId ?? "v2-session-unavailable";
   const serverQuery = useLoadCircuitDocumentV2Draft(sessionForQuery, {
@@ -175,6 +234,7 @@ export default function CircuitDocumentV2Lab({
     },
   });
   const remoteSave = useSaveCircuitDocumentV2Draft();
+  const generateProposal = useGenerateCircuitDocumentV2();
 
   useEffect(() => {
     if (!featureFlags.serverSyncEnabled) {
@@ -250,34 +310,63 @@ export default function CircuitDocumentV2Lab({
   ]);
 
   const diagnostics = document ? diagnosticsFor(document) : [];
-  const projection = useMemo(() => {
-    if (!document || !circuitDrawReady) return null;
-    const runtime = circuitDrawTools();
-    if (!runtime) return null;
-    const projected = projectCircuitDocumentToLegacy(document, runtime.tools);
-    if (projected.status !== "representable" || !projected.spec) {
-      return {
-        status: "not-representable" as const,
-        message:
-          projected.diagnostics.map((item) => item.message).join(" ") ||
-          "This V2 document contains information the legacy preview cannot preserve.",
-      };
-    }
-    const report = runtime.tools.validate(projected.spec);
-    if (report.errors.length > 0) {
-      return {
-        status: "not-representable" as const,
-        message: report.errors.join(" "),
-      };
-    }
-    return {
-      status: "representable" as const,
-      svg: runtime.draw.render(
-        projected.spec as unknown as Parameters<typeof runtime.draw.render>[0],
+  const projection = useMemo(
+    () => previewProjectionFor(document, circuitDrawReady),
+    [document, circuitDrawReady],
+  );
+  // The generated API type narrows component types to its enum; the V2 package
+  // uses the same runtime document shape with a wider string type.
+  const proposalDocument = useMemo<CircuitDocumentV2 | null>(
+    () =>
+      proposal
+        ? (proposal.document as unknown as CircuitDocumentV2)
+        : null,
+    [proposal],
+  );
+  const proposalProjection = useMemo(
+    () => previewProjectionFor(proposalDocument, circuitDrawReady),
+    [proposalDocument, circuitDrawReady],
+  );
+  const proposalValidation = useMemo(
+    () => (proposalDocument ? validateCircuitDocumentV2(proposalDocument) : null),
+    [proposalDocument],
+  );
+  const proposalDiagnostics = useMemo<CircuitDocumentDiagnostic[]>(() => {
+    if (!proposal || !proposalValidation) return [];
+    const items: CircuitDocumentDiagnostic[] = [
+      ...proposal.validation.diagnostics.map(
+        ({ code, severity, path, message }) => ({
+          code,
+          severity,
+          path,
+          message,
+        }),
       ),
-      message: "",
-    };
-  }, [document, circuitDrawReady]);
+      ...proposal.drawingPreparation.diagnostics,
+      ...proposalValidation.schemaErrors,
+      ...proposalValidation.electricalErrors,
+      ...proposalValidation.drawingErrors,
+      ...proposalValidation.drawingWarnings,
+      ...proposalValidation.consistencyWarnings,
+    ];
+    const unique = new Map<string, CircuitDocumentDiagnostic>();
+    for (const item of items) {
+      unique.set(
+        `${item.severity}\u0000${item.code}\u0000${item.path}\u0000${item.message}`,
+        item,
+      );
+    }
+    return [...unique.values()];
+  }, [proposal, proposalValidation]);
+  const proposalApprovalBlockReason =
+    proposal && proposalValidation
+      ? getCircuitDocumentV2ProposalApprovalBlockReason({
+          status: proposal.drawingPreparation.status,
+          isValid: proposal.validation.isValid && proposalValidation.isValid,
+          diagnostics: proposalDiagnostics,
+          currentDraftQuarantined: localState.status === "quarantined",
+        })
+      : null;
 
   const saveLocally = async (
     targetDocument: CircuitDocumentV2,
@@ -379,6 +468,74 @@ export default function CircuitDocumentV2Lab({
     }
     setActionBusy(false);
     return result;
+  };
+
+  const submitGeneration = async ({ prompt }: { prompt: string }) => {
+    if (proposal || actionBusy || generateProposal.isPending) return;
+    setGenerationError("");
+    setStatusMessage("");
+    try {
+      const generated = await generateProposal.mutateAsync({
+        data: { prompt: prompt.trim() },
+      });
+      setProposal(generated);
+      setStatusMessage(
+        "Proposal generated for review. It has not changed the current V2 draft.",
+      );
+    } catch (error) {
+      setGenerationError(
+        error instanceof Error
+          ? error.message
+          : "Circuit Studio could not generate this V2 proposal. Please try again.",
+      );
+    }
+  };
+
+  const approveProposal = async () => {
+    if (!proposal || !proposalDocument || proposalApprovalBlockReason || actionBusy) return;
+    try {
+      const prepared = prepareCircuitDocumentV2ProposalForApproval(
+        proposalDocument,
+        sessionId,
+      );
+      const decision = resolveCircuitDocumentV2ProposalDecision(
+        document,
+        prepared.document,
+        "approve",
+      );
+      if (!decision.currentDocument) return;
+      const saved = await saveLocally(
+        decision.currentDocument,
+        prepared.sessionId,
+        false,
+        0,
+      );
+      if (saved.status !== "local-save-failed") {
+        setProposal(decision.proposedDocument);
+        setStatusMessage(
+          "Proposal approved and saved locally as the current V2 draft. The legacy workbench is unchanged.",
+        );
+      }
+    } catch (error) {
+      setStatusMessage(
+        error instanceof Error
+          ? `Proposal was not approved: ${error.message}`
+          : "Proposal was not approved. The current V2 draft is unchanged.",
+      );
+    }
+  };
+
+  const rejectProposal = () => {
+    if (!proposal) return;
+    const decision = resolveCircuitDocumentV2ProposalDecision(
+      document,
+      proposal.document,
+      "reject",
+    );
+    setProposal(decision.proposedDocument);
+    setStatusMessage(
+      "Proposal rejected. The current V2 draft was left unchanged.",
+    );
   };
 
   const createFromLegacy = async () => {
@@ -522,7 +679,7 @@ export default function CircuitDocumentV2Lab({
             <p className="eyebrow">Separate from the legacy workbench</p>
             <h1>V2 Draft Workspace</h1>
             <p className="subheading">
-              Create an explicit, read-only V2 copy. The original CircuitSpec stays unchanged.
+              Generate or import an explicit V2 draft. The original CircuitSpec stays unchanged.
             </p>
           </div>
           <div className={`v2-local-status is-${localSaveState}`} role="status">
@@ -568,8 +725,98 @@ export default function CircuitDocumentV2Lab({
           )}
         </section>
 
+        <section className="panel v2-generation-panel" aria-labelledby="v2-generation-title">
+          <div className="v2-generation-heading">
+            <span className="v2-generation-icon"><Sparkles aria-hidden="true" /></span>
+            <div>
+              <p className="eyebrow">V2 proposal generator</p>
+              <h2 id="v2-generation-title">Describe the circuit you need.</h2>
+              <p>
+                Generation stages an electrical model and drawing for review. It does not replace the current V2 draft until you approve it.
+              </p>
+            </div>
+          </div>
+          <Form {...generationForm}>
+            <form
+              className="v2-generation-form"
+              onSubmit={generationForm.handleSubmit(submitGeneration)}
+            >
+              <FormField
+                control={generationForm.control}
+                name="prompt"
+                rules={{
+                  validate: (value) =>
+                    value.trim().length >= 8 ||
+                    "Describe the circuit in at least 8 characters.",
+                  maxLength: {
+                    value: 3000,
+                    message: "Keep the description under 3,000 characters.",
+                  },
+                }}
+                render={({ field }) => (
+                  <FormItem className="v2-generation-field">
+                    <div className="v2-generation-label">
+                      <FormLabel>Circuit description</FormLabel>
+                      <span>{generationPrompt.length}/3000</span>
+                    </div>
+                    <FormControl>
+                      <textarea
+                        {...field}
+                        className="v2-generation-input"
+                        data-testid="input-v2-generation-prompt"
+                        maxLength={3000}
+                        rows={5}
+                        disabled={actionBusy || generateProposal.isPending || Boolean(proposal)}
+                        placeholder="Describe what it should do, known components, power requirements, and any details you are unsure about."
+                      />
+                    </FormControl>
+                    <FormDescription className="v2-generation-description">
+                      The generated assumptions and uncertainties will be shown with the proposal.
+                    </FormDescription>
+                    <FormMessage className="v2-generation-form-error" role="alert" />
+                  </FormItem>
+                )}
+              />
+              {proposal && (
+                <p className="v2-inline-note" data-testid="text-v2-proposal-decision-needed">
+                  Approve or reject this proposal before generating another.
+                </p>
+              )}
+              <div className="v2-generation-actions">
+                <button
+                  className="primary-button"
+                  type="submit"
+                  disabled={actionBusy || generateProposal.isPending || Boolean(proposal)}
+                  data-testid="button-generate-v2-proposal"
+                >
+                  {generateProposal.isPending
+                    ? <><LoaderCircle className="v2-spin" aria-hidden="true" /> Generating proposal…</>
+                    : <><Sparkles aria-hidden="true" /> Generate V2 proposal</>}
+                </button>
+              </div>
+            </form>
+          </Form>
+          {generationError && (
+            <p className="v2-generation-error" role="alert" data-testid="status-v2-generation-error">
+              {generationError}
+            </p>
+          )}
+        </section>
+
         {statusMessage && (
-          <p className="v2-action-message" role="status">{statusMessage}</p>
+          <p className="v2-action-message" role="status" data-testid="status-v2-action">{statusMessage}</p>
+        )}
+
+        {proposal && (
+          <CircuitDocumentV2ProposalReview
+            proposal={proposal}
+            projection={proposalProjection}
+            diagnostics={proposalDiagnostics}
+            approvalBlockReason={proposalApprovalBlockReason}
+            actionBusy={actionBusy}
+            onApprove={() => void approveProposal()}
+            onReject={rejectProposal}
+          />
         )}
 
         {localState.status === "quarantined" && !document && (

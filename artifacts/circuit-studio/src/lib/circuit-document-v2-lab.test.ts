@@ -5,9 +5,12 @@ import {
   canAccessCircuitDocumentV2Lab,
   getCircuitDocumentV2DocumentSessionId,
   getCircuitDocumentV2SessionStorageKey,
+  getCircuitDocumentV2ProposalApprovalBlockReason,
   isCircuitDocumentV2RevisionConflict,
   loadCircuitDocumentV2LocalDraft,
+  prepareCircuitDocumentV2ProposalForApproval,
   resolveCircuitDocumentV2FeatureFlags,
+  resolveCircuitDocumentV2ProposalDecision,
   saveCircuitDocumentV2LocalFirst,
 } from "./circuit-document-v2-lab.ts";
 import {
@@ -296,4 +299,190 @@ test("storage failure is not reported as a successful local save", async () => {
     expectedRevision: 0,
   });
   assert.equal(result.status, "local-save-failed");
+});
+
+test("proposal approval is allowed only for valid, non-blocked drawings without errors", () => {
+  assert.equal(
+    getCircuitDocumentV2ProposalApprovalBlockReason({
+      status: "ready",
+      isValid: true,
+      diagnostics: [],
+    }),
+    null,
+  );
+  assert.equal(
+    getCircuitDocumentV2ProposalApprovalBlockReason({
+      status: "partial",
+      isValid: true,
+      diagnostics: [{ severity: "warning" }],
+    }),
+    null,
+  );
+  assert.match(
+    getCircuitDocumentV2ProposalApprovalBlockReason({
+      status: "blocked",
+      isValid: true,
+      diagnostics: [],
+    }) ?? "",
+    /blocked/i,
+  );
+  assert.match(
+    getCircuitDocumentV2ProposalApprovalBlockReason({
+      status: "partial",
+      isValid: false,
+      diagnostics: [],
+    }) ?? "",
+    /validation/i,
+  );
+  assert.match(
+    getCircuitDocumentV2ProposalApprovalBlockReason({
+      status: "partial",
+      isValid: true,
+      diagnostics: [{ severity: "error" }],
+    }) ?? "",
+    /error-level/i,
+  );
+  assert.match(
+    getCircuitDocumentV2ProposalApprovalBlockReason({
+      status: "ready",
+      isValid: true,
+      diagnostics: [],
+      currentDraftQuarantined: true,
+    }) ?? "",
+    /quarantined/i,
+  );
+});
+
+test("rejecting a proposal leaves the current saved V2 draft unchanged", async () => {
+  const currentDraft = circuitDocumentFixtures[0]!.document;
+  const proposalDocument = circuitDocumentFixtures[1]!.document;
+  const storage = new MemoryStorage();
+  await saveCircuitDocumentV2LocalFirst({
+    storage,
+    userId: "user-a",
+    document: currentDraft,
+    sessionId: "active-session",
+    serverSyncEnabled: false,
+    expectedRevision: 0,
+  });
+  const savedBeforeReject = storage.getItem(
+    getCircuitDocumentV2DraftStorageKey("user-a"),
+  );
+
+  const rejected = resolveCircuitDocumentV2ProposalDecision(
+    currentDraft,
+    proposalDocument,
+    "reject",
+  );
+  assert.strictEqual(rejected.currentDocument, currentDraft);
+  assert.equal(rejected.proposedDocument, null);
+  assert.equal(
+    storage.getItem(getCircuitDocumentV2DraftStorageKey("user-a")),
+    savedBeforeReject,
+  );
+
+  const approved = resolveCircuitDocumentV2ProposalDecision(
+    currentDraft,
+    proposalDocument,
+    "approve",
+  );
+  assert.strictEqual(approved.currentDocument, proposalDocument);
+  assert.equal(approved.proposedDocument, null);
+});
+
+test("proposal approval keeps the active session or creates one without mutating the proposal", () => {
+  const proposalDocument = circuitDocumentFixtures[0]!.document;
+  const before = structuredClone(proposalDocument);
+
+  const activeSession = prepareCircuitDocumentV2ProposalForApproval(
+    proposalDocument,
+    "active-session",
+    () => "unused",
+  );
+  assert.equal(activeSession.sessionId, "active-session");
+  assert.equal(
+    getCircuitDocumentV2DocumentSessionId(activeSession.document),
+    "active-session",
+  );
+
+  const newSession = prepareCircuitDocumentV2ProposalForApproval(
+    proposalDocument,
+    null,
+    () => "new-session",
+  );
+  assert.equal(newSession.sessionId, "v2-session-new-session");
+  assert.equal(
+    getCircuitDocumentV2DocumentSessionId(newSession.document),
+    "v2-session-new-session",
+  );
+  assert.deepEqual(proposalDocument, before);
+});
+
+test("approved proposals use local V2 persistence and keep the existing draft on save failure", async () => {
+  const storage = new MemoryStorage();
+  const currentDraft = circuitDocumentFixtures[0]!.document;
+  const proposalDocument = circuitDocumentFixtures[1]!.document;
+  const existingSave = await saveCircuitDocumentV2LocalFirst({
+    storage,
+    userId: "user-a",
+    document: currentDraft,
+    sessionId: "active-session",
+    serverSyncEnabled: false,
+    expectedRevision: 0,
+  });
+  assert.equal(existingSave.status, "local-only");
+
+  const approved = prepareCircuitDocumentV2ProposalForApproval(
+    proposalDocument,
+    "active-session",
+    () => "unused",
+  );
+  let remoteCalls = 0;
+  const saved = await saveCircuitDocumentV2LocalFirst({
+    storage,
+    userId: "user-a",
+    document: approved.document,
+    sessionId: approved.sessionId,
+    serverSyncEnabled: false,
+    expectedRevision: 0,
+    saveRemote: async () => {
+      remoteCalls += 1;
+      return { revision: 1 };
+    },
+  });
+  assert.equal(saved.status, "local-only");
+  assert.equal(remoteCalls, 0);
+  const restored = loadCircuitDocumentV2LocalDraft(storage, "user-a");
+  assert.equal(restored.status, "v2");
+  if (restored.status === "v2") {
+    assert.deepEqual(restored.draft.document, approved.document);
+    assert.equal(
+      getCircuitDocumentV2DocumentSessionId(restored.draft.document),
+      "active-session",
+    );
+  }
+  const afterApproval = storage.getItem(
+    getCircuitDocumentV2DraftStorageKey("user-a"),
+  );
+  assert.ok(afterApproval);
+
+  storage.failWrites = true;
+  const failedProposal = prepareCircuitDocumentV2ProposalForApproval(
+    circuitDocumentFixtures[2]!.document,
+    "active-session",
+    () => "unused",
+  );
+  const failed = await saveCircuitDocumentV2LocalFirst({
+    storage,
+    userId: "user-a",
+    document: failedProposal.document,
+    sessionId: failedProposal.sessionId,
+    serverSyncEnabled: false,
+    expectedRevision: 0,
+  });
+  assert.equal(failed.status, "local-save-failed");
+  assert.equal(
+    storage.getItem(getCircuitDocumentV2DraftStorageKey("user-a")),
+    afterApproval,
+  );
 });

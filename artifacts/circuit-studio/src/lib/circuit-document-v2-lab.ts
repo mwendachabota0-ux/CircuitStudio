@@ -56,11 +56,68 @@ export function canAccessCircuitDocumentV2Lab(
   return labEnabled && isSignedIn && Boolean(userId?.trim());
 }
 
+export function getCircuitDocumentV2ProposalApprovalBlockReason(input: {
+  status: "ready" | "partial" | "blocked";
+  isValid: boolean;
+  diagnostics: ReadonlyArray<{ severity: "error" | "warning" }>;
+  currentDraftQuarantined?: boolean;
+}): string | null {
+  if (input.status === "blocked") {
+    return "Drawing preparation is blocked. Inspect or reject this proposal instead.";
+  }
+  if (!input.isValid) {
+    return "V2 validation found errors. This proposal cannot be approved.";
+  }
+  if (input.diagnostics.some((diagnostic) => diagnostic.severity === "error")) {
+    return "Error-level validation or drawing diagnostics must be resolved before approval.";
+  }
+  if (input.currentDraftQuarantined) {
+    return "The saved V2 draft is quarantined. Recover it before approving a replacement.";
+  }
+  return null;
+}
+
+export function resolveCircuitDocumentV2ProposalDecision<TDocument>(
+  currentDocument: TDocument | null,
+  proposedDocument: TDocument,
+  decision: "approve" | "reject",
+): {
+  currentDocument: TDocument | null;
+  proposedDocument: null;
+} {
+  return {
+    currentDocument:
+      decision === "approve" ? proposedDocument : currentDocument,
+    proposedDocument: null,
+  };
+}
+
 function createSecureId(): string {
   if (!globalThis.crypto?.randomUUID) {
     throw new Error("Secure ID generation is unavailable in this browser.");
   }
   return globalThis.crypto.randomUUID();
+}
+
+export function prepareCircuitDocumentV2ProposalForApproval(
+  document: CircuitDocumentV2,
+  currentSessionId: string | null,
+  idFactory: () => string = createSecureId,
+): { document: CircuitDocumentV2; sessionId: string } {
+  const sessionId = isValidSessionId(currentSessionId)
+    ? currentSessionId
+    : `v2-session-${idFactory()}`;
+
+  return {
+    sessionId,
+    document: {
+      ...document,
+      metadata: {
+        ...document.metadata,
+        [CIRCUIT_DOCUMENT_V2_SESSION_METADATA_KEY]: sessionId,
+      },
+    },
+  };
 }
 
 function isValidSessionId(value: unknown): value is string {

@@ -91,7 +91,7 @@ export const GenerateCircuitResponse = zod.object({
   "symbolId": zod.string().regex(generateCircuitResponseElementsItemSymbolIdRegExp).optional(),
   "unit": zod.number().int().min(1).optional(),
   "bodyStyle": zod.number().int().min(1).optional(),
-  "rotation": zod.union([zod.literal(0),zod.literal(90),zod.literal(180),zod.literal(270)]).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
   "symbolData": zod.object({
   "id": zod.string(),
   "units": zod.array(zod.object({
@@ -151,31 +151,112 @@ export const searchCircuitSymbolsQueryQMax = 120;
 
 export const searchCircuitSymbolsQueryLibraryMax = 120;
 
-export const searchCircuitSymbolsQueryLimitDefault = 40;
+export const searchCircuitSymbolsQueryFeaturedDefault = false;
+export const searchCircuitSymbolsQueryLimitDefault = 100;
 export const searchCircuitSymbolsQueryLimitMax = 100;
+
+export const searchCircuitSymbolsQueryOffsetDefault = 0;
+export const searchCircuitSymbolsQueryOffsetMin = 0;
+export const searchCircuitSymbolsQueryOffsetMax = 1000000;
 
 
 
 export const SearchCircuitSymbolsQueryParams = zod.object({
   "q": zod.coerce.string().max(searchCircuitSymbolsQueryQMax).optional(),
   "library": zod.coerce.string().max(searchCircuitSymbolsQueryLibraryMax).optional(),
-  "limit": zod.coerce.number().int().min(1).max(searchCircuitSymbolsQueryLimitMax).default(searchCircuitSymbolsQueryLimitDefault)
+  "family": zod.enum(['Passives', 'Semiconductors', 'Power & protection', 'Connectors', 'Analog & signal', 'Digital & processors', 'Sensors', 'Control & timing', 'Audio & display', 'Communications & RF', 'Other']).optional(),
+  "featured": zod.coerce.boolean().default(searchCircuitSymbolsQueryFeaturedDefault),
+  "limit": zod.coerce.number().int().min(1).max(searchCircuitSymbolsQueryLimitMax).default(searchCircuitSymbolsQueryLimitDefault),
+  "offset": zod.coerce.number().int().min(searchCircuitSymbolsQueryOffsetMin).max(searchCircuitSymbolsQueryOffsetMax).default(searchCircuitSymbolsQueryOffsetDefault)
 })
 
 export const SearchCircuitSymbolsResponse = zod.object({
   "sourceVersion": zod.string(),
+  "catalogTotal": zod.number().int(),
   "total": zod.number().int(),
   "hasMore": zod.boolean(),
   "libraries": zod.array(zod.string()),
+  "families": zod.array(zod.string()),
   "results": zod.array(zod.object({
   "id": zod.string(),
   "library": zod.string(),
   "name": zod.string(),
   "description": zod.string(),
+  "shortDescription": zod.string(),
+  "longDescription": zod.string(),
   "keywords": zod.string(),
+  "researchStatus": zod.enum(['catalog_reference', 'corrected', 'needs_review']),
   "pinCount": zod.number().int().nullable(),
   "extends": zod.string().optional()
 }))
+})
+
+
+/**
+ * @summary Get source geometry for a KiCad symbol preview
+ */
+export const getCircuitSymbolDataQuerySymbolIdMin = 3;
+export const getCircuitSymbolDataQuerySymbolIdMax = 160;
+
+
+export const getCircuitSymbolDataQuerySymbolIdRegExp = new RegExp('^[^:\\s]+:[^:\\s]+$');
+
+
+export const GetCircuitSymbolDataQueryParams = zod.object({
+  "symbolId": zod.coerce.string().min(getCircuitSymbolDataQuerySymbolIdMin).max(getCircuitSymbolDataQuerySymbolIdMax).regex(getCircuitSymbolDataQuerySymbolIdRegExp)
+})
+
+
+
+export const getCircuitSymbolDataResponseUnitsItemPinsItemPointMin = 2;
+export const getCircuitSymbolDataResponseUnitsItemPinsItemPointMax = 2;
+
+export const getCircuitSymbolDataResponseUnitsItemPinsItemBodyPointMin = 2;
+export const getCircuitSymbolDataResponseUnitsItemPinsItemBodyPointMax = 2;
+
+export const getCircuitSymbolDataResponseUnitsItemPinsMax = 512;
+
+export const getCircuitSymbolDataResponseUnitsItemGraphicsItemPointsItemMin = 2;
+export const getCircuitSymbolDataResponseUnitsItemGraphicsItemPointsItemMax = 2;
+
+export const getCircuitSymbolDataResponseUnitsItemGraphicsItemRadiusMin = 0;
+
+export const getCircuitSymbolDataResponseUnitsItemGraphicsItemFontSizeMin = 0;
+
+export const getCircuitSymbolDataResponseUnitsItemGraphicsItemStrokeWidthMin = 0;
+
+export const getCircuitSymbolDataResponseUnitsItemGraphicsMax = 2048;
+
+export const getCircuitSymbolDataResponseUnitsMax = 256;
+
+
+
+export const GetCircuitSymbolDataResponse = zod.object({
+  "id": zod.string(),
+  "units": zod.array(zod.object({
+  "unit": zod.number().int().min(1),
+  "bodyStyle": zod.number().int().min(1),
+  "pins": zod.array(zod.object({
+  "number": zod.string(),
+  "name": zod.string(),
+  "electricalType": zod.string(),
+  "shape": zod.string(),
+  "point": zod.array(zod.number()).min(getCircuitSymbolDataResponseUnitsItemPinsItemPointMin).max(getCircuitSymbolDataResponseUnitsItemPinsItemPointMax),
+  "bodyPoint": zod.array(zod.number()).min(getCircuitSymbolDataResponseUnitsItemPinsItemBodyPointMin).max(getCircuitSymbolDataResponseUnitsItemPinsItemBodyPointMax),
+  "showName": zod.boolean(),
+  "showNumber": zod.boolean()
+})).max(getCircuitSymbolDataResponseUnitsItemPinsMax),
+  "graphics": zod.array(zod.object({
+  "type": zod.enum(['polyline', 'rectangle', 'circle', 'arc', 'bezier', 'text']),
+  "points": zod.array(zod.array(zod.number()).min(getCircuitSymbolDataResponseUnitsItemGraphicsItemPointsItemMin).max(getCircuitSymbolDataResponseUnitsItemGraphicsItemPointsItemMax)).optional(),
+  "radius": zod.number().min(getCircuitSymbolDataResponseUnitsItemGraphicsItemRadiusMin).optional(),
+  "text": zod.string().optional(),
+  "fontSize": zod.number().min(getCircuitSymbolDataResponseUnitsItemGraphicsItemFontSizeMin).optional(),
+  "strokeWidth": zod.number().min(getCircuitSymbolDataResponseUnitsItemGraphicsItemStrokeWidthMin).optional(),
+  "fillType": zod.enum(['none', 'background', 'outline']).optional(),
+  "closed": zod.boolean().optional()
+})).max(getCircuitSymbolDataResponseUnitsItemGraphicsMax)
+})).min(1).max(getCircuitSymbolDataResponseUnitsMax)
 })
 
 
@@ -254,7 +335,7 @@ export const AskCircuitTutorBody = zod.object({
   "symbolId": zod.string().regex(askCircuitTutorBodyCurrentSpecElementsItemSymbolIdRegExp).optional(),
   "unit": zod.number().int().min(1).optional(),
   "bodyStyle": zod.number().int().min(1).optional(),
-  "rotation": zod.union([zod.literal(0),zod.literal(90),zod.literal(180),zod.literal(270)]).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
   "symbolData": zod.object({
   "id": zod.string(),
   "units": zod.array(zod.object({
@@ -377,7 +458,7 @@ export const AskCircuitTutorResponse = zod.object({
   "symbolId": zod.string().regex(askCircuitTutorResponseProposedEditSpecElementsItemSymbolIdRegExp).optional(),
   "unit": zod.number().int().min(1).optional(),
   "bodyStyle": zod.number().int().min(1).optional(),
-  "rotation": zod.union([zod.literal(0),zod.literal(90),zod.literal(180),zod.literal(270)]).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
   "symbolData": zod.object({
   "id": zod.string(),
   "units": zod.array(zod.object({
@@ -436,7 +517,6 @@ export const AskCircuitTutorResponse = zod.object({
  * Maintains a concise design brief and, in Build mode, may return a validated CircuitSpec proposal that the user must review and apply.
  * @summary Clarify circuit requirements or propose a circuit edit
  */
-export const chatWithCircuitBuilderBodyMessageMax = 6000;
 
 export const chatWithCircuitBuilderBodyCurrentSpecElementsItemFromMin = 2;
 export const chatWithCircuitBuilderBodyCurrentSpecElementsItemFromMax = 2;
@@ -503,7 +583,7 @@ export const chatWithCircuitBuilderBodyBriefOpenQuestionsMax = 12;
 
 
 export const ChatWithCircuitBuilderBody = zod.object({
-  "message": zod.string().min(1).max(chatWithCircuitBuilderBodyMessageMax),
+  "message": zod.string().min(1),
   "mode": zod.enum(['chat', 'build']),
   "responseFormatRetry": zod.boolean().optional().describe('Indicates a retry for correcting a previously truncated or malformed model response.'),
   "currentSpec": zod.object({
@@ -521,7 +601,7 @@ export const ChatWithCircuitBuilderBody = zod.object({
   "symbolId": zod.string().regex(chatWithCircuitBuilderBodyCurrentSpecElementsItemSymbolIdRegExp).optional(),
   "unit": zod.number().int().min(1).optional(),
   "bodyStyle": zod.number().int().min(1).optional(),
-  "rotation": zod.union([zod.literal(0),zod.literal(90),zod.literal(180),zod.literal(270)]).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
   "symbolData": zod.object({
   "id": zod.string(),
   "units": zod.array(zod.object({
@@ -692,7 +772,7 @@ export const ChatWithCircuitBuilderResponse = zod.object({
   "symbolId": zod.string().regex(chatWithCircuitBuilderResponseProposalSpecElementsItemSymbolIdRegExp).optional(),
   "unit": zod.number().int().min(1).optional(),
   "bodyStyle": zod.number().int().min(1).optional(),
-  "rotation": zod.union([zod.literal(0),zod.literal(90),zod.literal(180),zod.literal(270)]).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
   "symbolData": zod.object({
   "id": zod.string(),
   "units": zod.array(zod.object({
@@ -751,7 +831,7 @@ export const ChatWithCircuitBuilderResponse = zod.object({
 })).max(chatWithCircuitBuilderResponseSuggestedActionsMax).optional(),
   "memoryUpdates": zod.array(zod.object({
   "id": zod.number().int().min(1).optional().describe('Existing assumption to update; omit when adding a new one.'),
-  "category": zod.enum(['work-style', 'design-decision', 'past-context', 'repair-lesson']),
+  "category": zod.enum(['work-style', 'design-decision', 'past-context', 'repair-lesson', 'design-feedback']),
   "content": zod.string().min(1).max(chatWithCircuitBuilderResponseMemoryUpdatesItemContentMax)
 })).max(chatWithCircuitBuilderResponseMemoryUpdatesMax).optional(),
   "memoryRemovals": zod.array(zod.number().int().min(1)).max(chatWithCircuitBuilderResponseMemoryRemovalsMax).optional(),
@@ -855,7 +935,7 @@ export const ReviewExternalCircuitFixBody = zod.object({
   "symbolId": zod.string().regex(reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolIdRegExp).optional(),
   "unit": zod.number().int().min(1).optional(),
   "bodyStyle": zod.number().int().min(1).optional(),
-  "rotation": zod.union([zod.literal(0),zod.literal(90),zod.literal(180),zod.literal(270)]).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
   "symbolData": zod.object({
   "id": zod.string(),
   "units": zod.array(zod.object({
@@ -949,7 +1029,7 @@ export const listCircuitBuilderMemoriesResponseContentMax = 300;
 
 export const ListCircuitBuilderMemoriesResponseItem = zod.object({
   "id": zod.number().int().min(1),
-  "category": zod.enum(['work-style', 'design-decision', 'past-context', 'repair-lesson']),
+  "category": zod.enum(['work-style', 'design-decision', 'past-context', 'repair-lesson', 'design-feedback']),
   "content": zod.string().min(1).max(listCircuitBuilderMemoriesResponseContentMax),
   "updatedAt": zod.coerce.date()
 })
@@ -1112,7 +1192,7 @@ export const SaveCircuitBuilderRepairLessonBody = zod.union([zod.object({
   "symbolId": zod.string().regex(saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolIdRegExp).optional(),
   "unit": zod.number().int().min(1).optional(),
   "bodyStyle": zod.number().int().min(1).optional(),
-  "rotation": zod.union([zod.literal(0),zod.literal(90),zod.literal(180),zod.literal(270)]).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
   "symbolData": zod.object({
   "id": zod.string(),
   "units": zod.array(zod.object({
@@ -1178,7 +1258,7 @@ export const SaveCircuitBuilderRepairLessonBody = zod.union([zod.object({
   "symbolId": zod.string().regex(saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolIdRegExp).optional(),
   "unit": zod.number().int().min(1).optional(),
   "bodyStyle": zod.number().int().min(1).optional(),
-  "rotation": zod.union([zod.literal(0),zod.literal(90),zod.literal(180),zod.literal(270)]).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
   "symbolData": zod.object({
   "id": zod.string(),
   "units": zod.array(zod.object({
@@ -1244,6 +1324,31 @@ export const SaveCircuitBuilderRepairLessonResponse = zod.object({
 
 
 /**
+ * Saves concise, account-owned feedback that can guide future similar circuit requests. The user can edit or remove it with saved memories.
+ * @summary Save feedback on a Circuit Studio proposal
+ */
+export const saveCircuitBuilderFeedbackBodyCircuitTitleMax = 120;
+
+export const saveCircuitBuilderFeedbackBodyRequestSummaryMax = 600;
+
+export const saveCircuitBuilderFeedbackBodyDetailsMax = 500;
+
+
+
+export const SaveCircuitBuilderFeedbackBody = zod.object({
+  "vote": zod.enum(['up', 'down']),
+  "reason": zod.enum(['overall', 'incorrect-wiring', 'wrong-parts-or-values', 'poor-readability', 'missed-request', 'other']),
+  "circuitTitle": zod.string().min(1).max(saveCircuitBuilderFeedbackBodyCircuitTitleMax),
+  "requestSummary": zod.string().max(saveCircuitBuilderFeedbackBodyRequestSummaryMax).optional(),
+  "details": zod.string().max(saveCircuitBuilderFeedbackBodyDetailsMax).optional()
+})
+
+export const SaveCircuitBuilderFeedbackResponse = zod.object({
+  "saved": zod.boolean()
+})
+
+
+/**
  * Returns the signed-in user's complete chat and build history.
  * @summary List saved Circuit Studio conversations
  */
@@ -1286,8 +1391,6 @@ export const listCircuitBuilderHistoryResponseSavedAiBriefOpenQuestionsItemMax =
 export const listCircuitBuilderHistoryResponseSavedAiBriefOpenQuestionsMax = 12;
 
 export const listCircuitBuilderHistoryResponseSavedMessagesItemIdMax = 128;
-
-export const listCircuitBuilderHistoryResponseSavedMessagesItemContentMax = 6000;
 
 export const listCircuitBuilderHistoryResponseSavedMessagesItemCreatedAtMin = 0;
 export const listCircuitBuilderHistoryResponseSavedMessagesItemCreatedAtMax = 8640000000000000;
@@ -1370,7 +1473,7 @@ export const ListCircuitBuilderHistoryResponseItem = zod.object({
   "messages": zod.array(zod.object({
   "id": zod.string().min(1).max(listCircuitBuilderHistoryResponseSavedMessagesItemIdMax),
   "role": zod.enum(['user', 'assistant']),
-  "content": zod.string().max(listCircuitBuilderHistoryResponseSavedMessagesItemContentMax),
+  "content": zod.string(),
   "createdAt": zod.number().int().min(listCircuitBuilderHistoryResponseSavedMessagesItemCreatedAtMin).max(listCircuitBuilderHistoryResponseSavedMessagesItemCreatedAtMax),
   "suggestedActions": zod.array(zod.object({
   "label": zod.string().min(1).max(listCircuitBuilderHistoryResponseSavedMessagesItemSuggestedActionsItemLabelMax),
@@ -1395,7 +1498,7 @@ export const ListCircuitBuilderHistoryResponseItem = zod.object({
   "symbolId": zod.string().regex(listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolIdRegExp).optional(),
   "unit": zod.number().int().min(1).optional(),
   "bodyStyle": zod.number().int().min(1).optional(),
-  "rotation": zod.union([zod.literal(0),zod.literal(90),zod.literal(180),zod.literal(270)]).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
   "symbolData": zod.object({
   "id": zod.string(),
   "units": zod.array(zod.object({
@@ -1494,8 +1597,6 @@ export const syncCircuitBuilderHistoryBodySessionsItemSavedAiBriefOpenQuestionsM
 
 export const syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemIdMax = 128;
 
-export const syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemContentMax = 6000;
-
 export const syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemCreatedAtMin = 0;
 export const syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemCreatedAtMax = 8640000000000000;
 
@@ -1580,7 +1681,7 @@ export const SyncCircuitBuilderHistoryBody = zod.object({
   "messages": zod.array(zod.object({
   "id": zod.string().min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemIdMax),
   "role": zod.enum(['user', 'assistant']),
-  "content": zod.string().max(syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemContentMax),
+  "content": zod.string(),
   "createdAt": zod.number().int().min(syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemCreatedAtMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemCreatedAtMax),
   "suggestedActions": zod.array(zod.object({
   "label": zod.string().min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemSuggestedActionsItemLabelMax),
@@ -1605,7 +1706,7 @@ export const SyncCircuitBuilderHistoryBody = zod.object({
   "symbolId": zod.string().regex(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolIdRegExp).optional(),
   "unit": zod.number().int().min(1).optional(),
   "bodyStyle": zod.number().int().min(1).optional(),
-  "rotation": zod.union([zod.literal(0),zod.literal(90),zod.literal(180),zod.literal(270)]).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
   "symbolData": zod.object({
   "id": zod.string(),
   "units": zod.array(zod.object({
@@ -1726,7 +1827,7 @@ export const updateCircuitBuilderMemoryResponseContentMax = 300;
 
 export const UpdateCircuitBuilderMemoryResponse = zod.object({
   "id": zod.number().int().min(1),
-  "category": zod.enum(['work-style', 'design-decision', 'past-context', 'repair-lesson']),
+  "category": zod.enum(['work-style', 'design-decision', 'past-context', 'repair-lesson', 'design-feedback']),
   "content": zod.string().min(1).max(updateCircuitBuilderMemoryResponseContentMax),
   "updatedAt": zod.coerce.date()
 })
@@ -1811,7 +1912,7 @@ export const ReviewCircuitBody = zod.object({
   "symbolId": zod.string().regex(reviewCircuitBodySpecElementsItemSymbolIdRegExp).optional(),
   "unit": zod.number().int().min(1).optional(),
   "bodyStyle": zod.number().int().min(1).optional(),
-  "rotation": zod.union([zod.literal(0),zod.literal(90),zod.literal(180),zod.literal(270)]).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
   "symbolData": zod.object({
   "id": zod.string(),
   "units": zod.array(zod.object({
@@ -1866,6 +1967,169 @@ export const ReviewCircuitBody = zod.object({
 
 export const ReviewCircuitResponse = zod.object({
   "review": zod.string()
+})
+
+
+/**
+ * Returns advisory concerns about request fit and schematic readability. It does not verify electrical behavior, correctness, ratings, or safety, and never overrides deterministic blocking checks.
+ * @summary Review a staged circuit proposal for intent and readability
+ */
+export const reviewCircuitProposalBodySpecElementsItemFromMin = 2;
+export const reviewCircuitProposalBodySpecElementsItemFromMax = 2;
+
+export const reviewCircuitProposalBodySpecElementsItemToMin = 2;
+export const reviewCircuitProposalBodySpecElementsItemToMax = 2;
+
+export const reviewCircuitProposalBodySpecElementsItemAtMin = 2;
+export const reviewCircuitProposalBodySpecElementsItemAtMax = 2;
+
+export const reviewCircuitProposalBodySpecElementsItemSymbolIdRegExp = new RegExp('^[^:\\s]+:[^:\\s]+$');
+
+
+
+
+export const reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemPinsItemPointMin = 2;
+export const reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemPinsItemPointMax = 2;
+
+export const reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin = 2;
+export const reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax = 2;
+
+export const reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemPinsMax = 512;
+
+export const reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin = 2;
+export const reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax = 2;
+
+export const reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin = 0;
+
+export const reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin = 0;
+
+export const reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin = 0;
+
+export const reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemGraphicsMax = 2048;
+
+export const reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsMax = 256;
+
+export const reviewCircuitProposalBodySpecElementsItemPointsItemMin = 2;
+export const reviewCircuitProposalBodySpecElementsItemPointsItemMax = 2;
+
+export const reviewCircuitProposalBodySpecElementsItemLabelNudgeMin = 2;
+export const reviewCircuitProposalBodySpecElementsItemLabelNudgeMax = 2;
+
+export const reviewCircuitProposalBodySpecElementsItemLabelAtMin = 2;
+export const reviewCircuitProposalBodySpecElementsItemLabelAtMax = 2;
+
+export const reviewCircuitProposalBodyOriginalRequestMax = 6000;
+
+export const reviewCircuitProposalBodyBriefGoalMax = 1000;
+
+export const reviewCircuitProposalBodyBriefRequirementsItemMax = 300;
+
+export const reviewCircuitProposalBodyBriefRequirementsMax = 12;
+
+export const reviewCircuitProposalBodyBriefAssumptionsItemMax = 300;
+
+export const reviewCircuitProposalBodyBriefAssumptionsMax = 12;
+
+export const reviewCircuitProposalBodyBriefOpenQuestionsItemMax = 300;
+
+export const reviewCircuitProposalBodyBriefOpenQuestionsMax = 12;
+
+
+
+export const ReviewCircuitProposalBody = zod.object({
+  "spec": zod.object({
+  "title": zod.string(),
+  "width": zod.number().optional(),
+  "height": zod.number().optional(),
+  "elements": zod.array(zod.object({
+  "type": zod.string(),
+  "id": zod.string().optional(),
+  "label": zod.string().optional(),
+  "value": zod.string().optional(),
+  "from": zod.array(zod.number()).min(reviewCircuitProposalBodySpecElementsItemFromMin).max(reviewCircuitProposalBodySpecElementsItemFromMax).optional(),
+  "to": zod.array(zod.number()).min(reviewCircuitProposalBodySpecElementsItemToMin).max(reviewCircuitProposalBodySpecElementsItemToMax).optional(),
+  "at": zod.array(zod.number()).min(reviewCircuitProposalBodySpecElementsItemAtMin).max(reviewCircuitProposalBodySpecElementsItemAtMax).optional(),
+  "symbolId": zod.string().regex(reviewCircuitProposalBodySpecElementsItemSymbolIdRegExp).optional(),
+  "unit": zod.number().int().min(1).optional(),
+  "bodyStyle": zod.number().int().min(1).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
+  "symbolData": zod.object({
+  "id": zod.string(),
+  "units": zod.array(zod.object({
+  "unit": zod.number().int().min(1),
+  "bodyStyle": zod.number().int().min(1),
+  "pins": zod.array(zod.object({
+  "number": zod.string(),
+  "name": zod.string(),
+  "electricalType": zod.string(),
+  "shape": zod.string(),
+  "point": zod.array(zod.number()).min(reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemPinsItemPointMin).max(reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemPinsItemPointMax),
+  "bodyPoint": zod.array(zod.number()).min(reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin).max(reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax),
+  "showName": zod.boolean(),
+  "showNumber": zod.boolean()
+})).max(reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemPinsMax),
+  "graphics": zod.array(zod.object({
+  "type": zod.enum(['polyline', 'rectangle', 'circle', 'arc', 'bezier', 'text']),
+  "points": zod.array(zod.array(zod.number()).min(reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin).max(reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax)).optional(),
+  "radius": zod.number().min(reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin).optional(),
+  "text": zod.string().optional(),
+  "fontSize": zod.number().min(reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin).optional(),
+  "strokeWidth": zod.number().min(reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin).optional(),
+  "fillType": zod.enum(['none', 'background', 'outline']).optional(),
+  "closed": zod.boolean().optional()
+})).max(reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemGraphicsMax)
+})).min(1).max(reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsMax)
+}).optional(),
+  "points": zod.array(zod.array(zod.number()).min(reviewCircuitProposalBodySpecElementsItemPointsItemMin).max(reviewCircuitProposalBodySpecElementsItemPointsItemMax)).optional(),
+  "x": zod.number().optional(),
+  "y": zod.number().optional(),
+  "w": zod.number().optional(),
+  "h": zod.number().optional(),
+  "height": zod.number().optional(),
+  "open": zod.boolean().optional(),
+  "closed": zod.boolean().optional(),
+  "flip": zod.boolean().optional(),
+  "circle": zod.boolean().optional(),
+  "swap": zod.boolean().optional(),
+  "style": zod.string().optional(),
+  "labelPos": zod.string().optional(),
+  "labelNudge": zod.array(zod.number()).min(reviewCircuitProposalBodySpecElementsItemLabelNudgeMin).max(reviewCircuitProposalBodySpecElementsItemLabelNudgeMax).optional(),
+  "labelAt": zod.array(zod.number()).min(reviewCircuitProposalBodySpecElementsItemLabelAtMin).max(reviewCircuitProposalBodySpecElementsItemLabelAtMax).optional(),
+  "labelAnchor": zod.string().optional(),
+  "text": zod.string().optional(),
+  "anchor": zod.string().optional(),
+  "size": zod.number().optional(),
+  "bold": zod.boolean().optional(),
+  "muted": zod.boolean().optional()
+}))
+}),
+  "originalRequest": zod.string().min(1).max(reviewCircuitProposalBodyOriginalRequestMax),
+  "brief": zod.object({
+  "goal": zod.string().max(reviewCircuitProposalBodyBriefGoalMax),
+  "requirements": zod.array(zod.string().max(reviewCircuitProposalBodyBriefRequirementsItemMax)).max(reviewCircuitProposalBodyBriefRequirementsMax),
+  "assumptions": zod.array(zod.string().max(reviewCircuitProposalBodyBriefAssumptionsItemMax)).max(reviewCircuitProposalBodyBriefAssumptionsMax),
+  "openQuestions": zod.array(zod.string().max(reviewCircuitProposalBodyBriefOpenQuestionsItemMax)).max(reviewCircuitProposalBodyBriefOpenQuestionsMax)
+})
+})
+
+export const reviewCircuitProposalResponseIntentConcernsItemMax = 500;
+
+export const reviewCircuitProposalResponseIntentConcernsMax = 5;
+
+export const reviewCircuitProposalResponseReadabilityWarningsItemMax = 500;
+
+export const reviewCircuitProposalResponseReadabilityWarningsMax = 5;
+
+export const reviewCircuitProposalResponseUnknownsItemMax = 500;
+
+export const reviewCircuitProposalResponseUnknownsMax = 5;
+
+
+
+export const ReviewCircuitProposalResponse = zod.object({
+  "intentConcerns": zod.array(zod.string().min(1).max(reviewCircuitProposalResponseIntentConcernsItemMax)).max(reviewCircuitProposalResponseIntentConcernsMax),
+  "readabilityWarnings": zod.array(zod.string().min(1).max(reviewCircuitProposalResponseReadabilityWarningsItemMax)).max(reviewCircuitProposalResponseReadabilityWarningsMax),
+  "unknowns": zod.array(zod.string().min(1).max(reviewCircuitProposalResponseUnknownsItemMax)).max(reviewCircuitProposalResponseUnknownsMax)
 })
 
 

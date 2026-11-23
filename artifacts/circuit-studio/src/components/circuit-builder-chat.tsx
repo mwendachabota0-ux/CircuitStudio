@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   getChatWithCircuitBuilderMutationKey,
@@ -12,14 +13,17 @@ import {
   useListDeletedCircuitBuilderHistory,
   useLearnFromCircuitBuilderHistory,
   useDeleteCircuitBuilderHistory,
-  useReviewExternalCircuitFix,
+  useReviewCircuitProposal,
+  useSaveCircuitBuilderFeedback,
   useSaveCircuitBuilderRepairLesson,
   useSyncCircuitBuilderHistory,
 } from '@workspace/api-client-react';
 import type {
   CircuitBuilderHistorySession as ApiBuilderHistoryEntry,
+  CircuitBuilderFeedbackInput,
   CircuitBuilderHistoryExcerpt,
   CircuitBuilderSuggestedAction,
+  CircuitProposalReview,
   CircuitBuildChatInput,
   CircuitBuildChatMessage,
   CircuitBuilderRepairLessonInput,
@@ -30,13 +34,24 @@ import type {
 import type { CircuitComponentLibraryEntry } from '@workspace/circuit-geometry';
 import {
   buildManualRetryRequest,
+  buildLayoutRepairRequest,
   buildOutputRepairRequest,
   buildRepairRequest,
+  buildWireRebuildRequest,
+  buildWholeCircuitRetryRequest,
   CircuitBuildAttemptError,
   classifyProposalValidation,
   getProtectedCircuitChanges,
   getProtectedCircuitSignature,
+  getLayoutInvariantChanges,
+  getLayoutInvariantSignature,
+  getCircuitNetlistSignature,
+  getPinToNetSignature,
+  hasStablePinConnectivitySignature,
+  EXTERNAL_REPAIR_REFERENCE_MARKER,
+  formatRepairAttemptSummary,
   getModeAfterFailedRequest,
+  getRetryRecoveryKind,
   MAX_AUTO_RETRIES,
   normalizeCircuitBuildRequest,
   restoreProtectedNonWireElements,
@@ -55,13 +70,12 @@ import {
 } from '../lib/suggested-action-context';
 import {
   buildExternalCircuitFixPrompt,
+  buildStudioExternalCircuitFixMessage,
   getExternalCircuitFixContextKey,
-  inspectExternalCircuitFixCandidate,
   partitionExternalCircuitFixFindings,
   shouldShowExternalCircuitFixPaste,
   type ExternalCircuitFixContext,
 } from '../lib/circuit-external-fix';
-import { parseCircuitSpecJson } from '../lib/circuit-spec-editor.ts';
 import {
   Check,
   CheckCircle2,
@@ -101,6 +115,7 @@ import { ComponentLibraryDialog } from './component-library-dialog';
 import CircuitBuilderComposer, {
   type CircuitBuilderComposerHandle,
 } from './circuit-builder-composer';
+import { CircuitBuilderFeedback } from './circuit-builder-feedback';
 import {
   CircuitBuilderMemoryDialog,
   type CircuitBuilderMemoryImportStatus,
@@ -115,7 +130,26 @@ type ThreadMessage = CircuitBuildChatMessage & {
 };
 type SavedState = { brief: CircuitDesignBrief; aiBrief: CircuitDesignBrief; messages: ThreadMessage[] };
 type BuilderHistoryEntry = BuilderHistorySession<SavedState, CircuitBuildChatInput['currentSpec']>;
-type ValidationReport = { errors: string[]; warnings: string[] };
+type ValidationReport = {
+  errors: string[];
+  warnings: string[];
+  topologyErrors?: string[];
+  topologyWarnings?: string[];
+};
+type ProposalQualityReviewState =
+  | { kind: 'idle' | 'loading' | 'unavailable' | 'skipped' }
+  | { kind: 'ready'; review: CircuitProposalReview };
+type LayoutRepairOutcome =
+  | {
+      kind: 'success';
+      proposal: { summary: string; spec: NonNullable<CircuitBuildChatInput['currentSpec']> };
+      inspection: ReturnType<typeof inspectProposal>;
+    }
+  | { kind: 'failure'; message: string };
+type ProposalFeedbackReason = Exclude<
+  CircuitBuilderFeedbackInput['reason'],
+  'overall'
+>;
 type RetryFeedback = {
   message: string;
   canRetryManually: boolean;
@@ -123,10 +157,6 @@ type RetryFeedback = {
   validationWarnings?: string[];
 };
 type RejectedSpecCopyState = 'idle' | 'copied' | 'error';
-type ExternalCircuitFixFeedback =
-  | { kind: 'local-rejected'; reasons: string[] }
-  | { kind: 'review'; approved: boolean; summary: string; concerns: string[] }
-  | { kind: 'error'; message: string };
 type RepairLessonEvidence = {
   beforeSpec: CircuitSpec;
   findings: string[];
@@ -218,6 +248,53 @@ function inspectProposal(spec: CircuitBuildChatInput['currentSpec']): {
   }
 }
 
+function getConnectivitySignature(spec: CircuitSpec, allowStructuralErrors = false): string | null {
+  if (!window.CircuitDraw) return null;
+  try {
+    const netlist = window.CircuitDraw.netlist(spec, allowStructuralErrors);
+    return netlist.parts.length
+      ? getPinToNetSignature(netlist)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function inspectLayoutProposal(spec: CircuitSpec): {
+  svg: string;
+  validation: ValidationReport;
+  canRepair: boolean;
+} {
+  const inspection = inspectProposal(spec);
+  if (!inspection.svg || !window.CircuitDraw) return inspection;
+
+  const layoutFindings = window.CircuitDraw.layoutWarnings(spec)
+    .map((finding) => `Drawing-quality issue: ${finding}`);
+  return layoutFindings.length
+    ? {
+        ...inspection,
+        validation: {
+          ...inspection.validation,
+          errors: [...inspection.validation.errors, ...layoutFindings],
+        },
+      }
+    : inspection;
+}
+
+function withLayoutWarnings(
+  review: CircuitProposalReview,
+  spec: CircuitSpec,
+): CircuitProposalReview {
+  const deterministicWarnings = window.CircuitDraw?.layoutWarnings(spec) ?? [];
+  return {
+    ...review,
+    readabilityWarnings: [...new Set([
+      ...review.readabilityWarnings,
+      ...deterministicWarnings,
+    ])].slice(0, 5),
+  };
+}
+
 function renderRejectedProposalPreview(
   spec: CircuitBuildChatInput['currentSpec'] | null | undefined,
 ): string {
@@ -230,7 +307,7 @@ function renderRejectedProposalPreview(
 }
 
 function formatValidationFailure(repairAttemptCount: number): string {
-  return `Repair stopped after ${repairAttemptCount} attempt${repairAttemptCount === 1 ? '' : 's'}.`;
+  return formatRepairAttemptSummary(repairAttemptCount);
 }
 
 function asCircuitSpec(value: unknown): CircuitBuildChatInput['currentSpec'] | null {
@@ -460,6 +537,7 @@ export type CircuitBuilderChatProps = {
   canRepairCurrentDraft: boolean;
   hasUnappliedJsonEdits: boolean;
   jsonRepairRequest: JsonRepairRequest | null;
+  schematicFeedbackHost: HTMLElement | null;
   onJsonRepairRequestHandled: (id: number) => void;
   onProposalStateChange: (hasProposal: boolean) => void;
   onApplySpec: (
@@ -484,6 +562,7 @@ export function CircuitBuilderChat({
   canRepairCurrentDraft,
   hasUnappliedJsonEdits,
   jsonRepairRequest,
+  schematicFeedbackHost,
   onJsonRepairRequestHandled,
   onProposalStateChange,
   onApplySpec,
@@ -512,7 +591,8 @@ export function CircuitBuilderChat({
   const chatMutation = useChatWithCircuitBuilder({
     mutation: { mutationKey: getChatWithCircuitBuilderMutationKey() },
   });
-  const externalFixReviewMutation = useReviewExternalCircuitFix();
+  const proposalReviewMutation = useReviewCircuitProposal();
+  const feedbackMutation = useSaveCircuitBuilderFeedback();
   const repairLessonMutation = useSaveCircuitBuilderRepairLesson();
   const historyImportMutation = useLearnFromCircuitBuilderHistory();
   const usageQuery = useGetAiUsage({
@@ -533,13 +613,25 @@ export function CircuitBuilderChat({
     useState<CircuitBuilderMemoryImportStatus>({ kind: 'idle' });
   const [clearChatOpen, setClearChatOpen] = useState(false);
   const [proposal, setProposal] = useState<{ summary: string; spec: CircuitBuildChatInput['currentSpec'] } | null>(null);
+  const [appliedProposalFeedback, setAppliedProposalFeedback] = useState<{
+    id: number;
+    circuitTitle: string;
+    requestSummary: string;
+    specSignature: string;
+  } | null>(null);
+  const appliedProposalFeedbackIdRef = useRef(0);
   const [proposalSvg, setProposalSvg] = useState('');
   const [proposalValidation, setProposalValidation] = useState<ValidationReport | null>(null);
+  const [proposalQualityReview, setProposalQualityReview] =
+    useState<ProposalQualityReviewState>({ kind: 'idle' });
+  const [layoutRepairNotice, setLayoutRepairNotice] = useState('');
   const [proposalError, setProposalError] = useState('');
   const [proposalRepairLesson, setProposalRepairLesson] =
     useState<ProposalRepairLesson | null>(null);
   const [repairLessonNotice, setRepairLessonNotice] =
     useState<RepairLessonNotice | null>(null);
+  const [dismissedRepairNoticeKey, setDismissedRepairNoticeKey] =
+    useState<string | null>(null);
   const [rejectedProposalSpec, setRejectedProposalSpec] = useState<CircuitBuildChatInput['currentSpec'] | null>(null);
   const [rejectedProposalSvg, setRejectedProposalSvg] = useState('');
   const [rejectedPreviewOpen, setRejectedPreviewOpen] = useState(false);
@@ -547,7 +639,6 @@ export function CircuitBuilderChat({
   const [externalFixCopiedContextKey, setExternalFixCopiedContextKey] = useState<string | null>(null);
   const [externalFixCopyState, setExternalFixCopyState] = useState<RejectedSpecCopyState>('idle');
   const [externalFixDraft, setExternalFixDraft] = useState('');
-  const [externalFixFeedback, setExternalFixFeedback] = useState<ExternalCircuitFixFeedback | null>(null);
   const [componentLibraryOpen, setComponentLibraryOpen] = useState(false);
   const [briefEditing, setBriefEditing] = useState(false);
   const [briefGoalDraft, setBriefGoalDraft] = useState('');
@@ -558,13 +649,13 @@ export function CircuitBuilderChat({
   const [lastProtectedElementsBaseSpec, setLastProtectedElementsBaseSpec] =
     useState<NonNullable<CircuitBuildChatInput['currentSpec']> | null>(null);
   const [requestCycleActive, setRequestCycleActive] = useState(false);
+  const [repairStopAvailable, setRepairStopAvailable] = useState(false);
+  const [repairStopRequested, setRepairStopRequested] = useState(false);
   const [retryAttempt, setRetryAttempt] = useState(0);
   const [retryKind, setRetryKind] = useState<BuildRetryKind | null>(null);
   const [retryFeedback, setRetryFeedback] = useState<RetryFeedback | null>(null);
   const [repairDiagnostics, setRepairDiagnostics] = useState<RepairAttemptDiagnostic[]>([]);
   const composerRef = useRef<CircuitBuilderComposerHandle>(null);
-  const externalFixContextKeyRef = useRef('');
-  const externalFixCopiedContextKeyRef = useRef<string | null>(null);
   const handledJsonRepairRequestRef = useRef<number | null>(null);
   const observedWorkbenchRepairRef = useRef<{
     sessionId: string;
@@ -572,6 +663,8 @@ export function CircuitBuilderChat({
     findings: string[];
   } | null>(null);
   const applyingProposalSpecRef = useRef<string | null>(null);
+  const proposalReviewRunIdRef = useRef(0);
+  const stopRepairAfterAttemptRef = useRef(false);
   const pendingRestoreRef = useRef<{
     sessionId: string;
     specSignature: string;
@@ -650,6 +743,278 @@ export function CircuitBuilderChat({
       });
     }
   }, [queryClient, repairLessonMutation.mutateAsync]);
+
+  const clearProposalQualityReview = () => {
+    proposalReviewRunIdRef.current += 1;
+    setProposalQualityReview({ kind: 'idle' });
+    setLayoutRepairNotice('');
+  };
+
+  const runLayoutRepair = useCallback(async (
+    spec: NonNullable<CircuitBuildChatInput['currentSpec']>,
+    originalRequest: CircuitBuildChatInput,
+    brief: CircuitDesignBrief,
+    findings: string[],
+  ): Promise<LayoutRepairOutcome> => {
+    if (!window.CircuitDraw) {
+      return {
+        kind: 'failure',
+        message: 'The layout repair service is unavailable; the original proposal was kept.',
+      };
+    }
+    const layoutRequest = buildLayoutRepairRequest(
+      originalRequest,
+      brief,
+      spec,
+      findings,
+    );
+    let latestBrief = brief;
+    setRetryAttempt(0);
+    setRetryKind(null);
+    chatMutation.reset();
+
+    try {
+      const result = await runCircuitBuildAttempts({
+        initialRequest: layoutRequest,
+        initialProtectedSpec: spec,
+        getConnectivitySignature: (candidate) =>
+          getConnectivitySignature(candidate as CircuitSpec),
+        send: (workingRequest) => chatMutation.mutateAsync({ data: workingRequest }),
+        getProposal: (response) => response.proposal?.spec ?? null,
+        inspectProposal: inspectLayoutProposal,
+        prepareResponse: (response) => {
+          if (!response.proposal?.spec || !window.CircuitDraw) return response;
+          const beforeConnectivity = getConnectivitySignature(response.proposal.spec, true);
+          const autoFixed = window.CircuitDraw.autoFix(response.proposal.spec);
+          const afterConnectivity = getConnectivitySignature(autoFixed.spec, true);
+          if (
+            autoFixed.changes.length &&
+            !hasStablePinConnectivitySignature(beforeConnectivity, afterConnectivity)
+          ) return response;
+          return autoFixed.changes.length
+            ? { ...response, proposal: { ...response.proposal, spec: autoFixed.spec } }
+            : response;
+        },
+        getProtectedCircuitSignature: (candidate) =>
+          getLayoutInvariantSignature(candidate as NonNullable<CircuitBuildChatInput['currentSpec']>),
+        getProtectedCircuitChanges: (baseline, candidate) =>
+          getLayoutInvariantChanges(
+            baseline as NonNullable<CircuitBuildChatInput['currentSpec']>,
+            candidate as NonNullable<CircuitBuildChatInput['currentSpec']>,
+          ),
+        makeRepairRequest: (response, validationFindings) => buildLayoutRepairRequest(
+          originalRequest,
+          latestBrief,
+          response.proposal?.spec ?? spec,
+          validationFindings,
+        ),
+        makeOutputRepairRequest: buildOutputRepairRequest,
+        onResponse: (response) => {
+          latestBrief = response.brief ?? latestBrief;
+        },
+        onRetry: (attempt, kind) => {
+          setRetryAttempt(attempt);
+          setRetryKind(kind);
+        },
+      });
+      void queryClient.invalidateQueries({ queryKey: getGetAiUsageQueryKey() });
+
+      const candidate = result.response.proposal;
+      const candidateSpec = candidate?.spec;
+      const inspection = result.proposalInspection;
+      if (!candidateSpec || !inspection || inspection.validation.errors.length || !inspection.svg) {
+        return {
+          kind: 'failure',
+          message: 'The layout attempt did not pass pin and wire checks; the original proposal was kept.',
+        };
+      }
+
+      if (
+        getLayoutInvariantSignature(spec) !== getLayoutInvariantSignature(candidateSpec)
+      ) {
+        return {
+          kind: 'failure',
+          message: 'The layout attempt changed a component or its details; the original proposal was kept.',
+        };
+      }
+
+      try {
+        const beforeNetlist = getCircuitNetlistSignature(window.CircuitDraw.netlist(spec));
+        const afterNetlist = getCircuitNetlistSignature(window.CircuitDraw.netlist(candidateSpec));
+        if (beforeNetlist !== afterNetlist) {
+          return {
+            kind: 'failure',
+            message: 'The layout attempt changed pin-to-pin connectivity; the original proposal was kept.',
+          };
+        }
+      } catch {
+        return {
+          kind: 'failure',
+          message: 'Studio could not verify the pin-to-pin connections after reflow; the original proposal was kept.',
+        };
+      }
+
+      return {
+        kind: 'success',
+        proposal: {
+          summary: candidate.summary,
+          spec: candidateSpec,
+        },
+        inspection,
+      };
+    } catch (error) {
+      const remainingLayoutFindings = error instanceof CircuitBuildAttemptError
+        ? error.validationFindings.filter((finding) => finding.includes('Visual layout issue')).length
+        : 0;
+      return {
+        kind: 'failure',
+        message: remainingLayoutFindings
+          ? `Studio could not clear ${remainingLayoutFindings} visual layout issue${remainingLayoutFindings === 1 ? '' : 's'} without changing the circuit; the original proposal was kept.`
+          : 'The layout attempt could not be completed; the original proposal was kept.',
+      };
+    }
+  }, [chatMutation.mutateAsync, queryClient]);
+
+  const runProposalQualityReview = useCallback(async (
+    spec: CircuitSpec,
+    originalRequest: string,
+    brief: CircuitDesignBrief,
+    options?: {
+      automaticLayoutRepair?: boolean;
+      buildRequest?: CircuitBuildChatInput;
+    },
+  ) => {
+    const runId = ++proposalReviewRunIdRef.current;
+    setProposalQualityReview({ kind: 'loading' });
+    setLayoutRepairNotice('');
+    let firstReview: CircuitProposalReview | null = null;
+    try {
+      firstReview = await proposalReviewMutation.mutateAsync({
+        data: {
+          spec,
+          originalRequest: originalRequest.slice(0, 6000) || 'Review this staged circuit proposal.',
+          brief,
+        },
+      });
+      void queryClient.invalidateQueries({ queryKey: getGetAiUsageQueryKey() });
+    } catch {
+      // Local text and wire collision checks can still trigger a safe layout pass.
+    }
+    if (proposalReviewRunIdRef.current !== runId) return;
+
+    const deterministicWarnings = window.CircuitDraw?.layoutWarnings(spec) ?? [];
+    const initialReview = firstReview
+      ? withLayoutWarnings(firstReview, spec)
+      : deterministicWarnings.length
+        ? {
+            intentConcerns: [],
+            readabilityWarnings: deterministicWarnings.slice(0, 5),
+            unknowns: [],
+          }
+        : null;
+
+    if (
+      options?.automaticLayoutRepair &&
+      options.buildRequest &&
+      initialReview?.readabilityWarnings.length
+    ) {
+      setLayoutRepairNotice(
+        'Studio found readability issues and is trying a layout-only repair. The original will stay unless its parts and connections match.',
+      );
+      const outcome = await runLayoutRepair(
+        spec,
+        options.buildRequest,
+        brief,
+        initialReview.readabilityWarnings,
+      );
+      if (proposalReviewRunIdRef.current !== runId) return;
+      if (outcome.kind === 'failure') {
+        setLayoutRepairNotice(outcome.message);
+        setProposalQualityReview({
+          kind: 'ready',
+          review: {
+            ...initialReview,
+            readabilityWarnings: [
+              ...initialReview.readabilityWarnings.slice(0, 4),
+              outcome.message,
+            ],
+          },
+        });
+        return;
+      }
+
+      setProposal(outcome.proposal);
+      setProposalSvg(outcome.inspection.svg);
+      setProposalValidation(outcome.inspection.validation);
+      setProposalError('');
+      setLayoutRepairNotice(
+        'Layout updated after Studio confirmed the same parts and pin-to-pin connections.',
+      );
+
+      let finalReview: CircuitProposalReview | null = null;
+      try {
+        finalReview = await proposalReviewMutation.mutateAsync({
+          data: {
+            spec: outcome.proposal.spec,
+            originalRequest: originalRequest.slice(0, 6000) || 'Review this staged circuit proposal.',
+            brief,
+          },
+        });
+        void queryClient.invalidateQueries({ queryKey: getGetAiUsageQueryKey() });
+      } catch {
+        // Keep the verified layout and report the local checks below.
+      }
+      if (proposalReviewRunIdRef.current !== runId) return;
+
+      const nextReview = finalReview
+        ? withLayoutWarnings(finalReview, outcome.proposal.spec)
+        : {
+            ...initialReview,
+            readabilityWarnings: window.CircuitDraw?.layoutWarnings(outcome.proposal.spec).slice(0, 5) ?? [],
+          };
+      setProposalQualityReview({ kind: 'ready', review: nextReview });
+      if (!finalReview) {
+        setLayoutRepairNotice(
+          'Layout updated and connections verified; the second AI readability review was unavailable.',
+        );
+      }
+      return;
+    }
+
+    if (initialReview) {
+      setProposalQualityReview({ kind: 'ready', review: initialReview });
+    } else {
+      setProposalQualityReview({ kind: 'unavailable' });
+    }
+  }, [proposalReviewMutation.mutateAsync, queryClient, runLayoutRepair]);
+
+  const retryProposalLayout = () => {
+    const spec = proposal?.spec ? asCircuitSpec(proposal.spec) : null;
+    if (!spec || !lastRequest) return;
+    const brief = saved.brief;
+    const buildRequest = normalizeCircuitBuildRequest({
+      ...lastRequest,
+      mode: 'build',
+      currentSpec: spec,
+      brief,
+    });
+    void runProposalQualityReview(
+      spec,
+      buildRequest.message,
+      brief,
+      { automaticLayoutRepair: true, buildRequest },
+    );
+  };
+
+  const saveProposalFeedback = async (input: CircuitBuilderFeedbackInput) => {
+    const result = await feedbackMutation.mutateAsync({ data: input });
+    if (!result.saved) {
+      throw new Error('Feedback could not be saved. Please try again.');
+    }
+    await queryClient.invalidateQueries({
+      queryKey: getListCircuitBuilderMemoriesQueryKey(),
+    });
+  };
 
   useEffect(() => {
     if (hasUnappliedJsonEdits) return;
@@ -945,6 +1310,17 @@ export function CircuitBuilderChat({
 
   const visibleMessages = saved.messages;
   const aiUnavailable = usageQuery.data ? !usageQuery.data.canUseAi : false;
+  const currentSpecSignature = useMemo(
+    () => JSON.stringify(currentSpec ?? null),
+    [currentSpec],
+  );
+  const repairNoticeKey = validationFindings.join('\u0000');
+
+  useEffect(() => {
+    if (!canRepairCurrentDraft || validationFindings.length === 0) {
+      setDismissedRepairNoticeKey(null);
+    }
+  }, [canRepairCurrentDraft, validationFindings.length]);
 
   const localProposalState = useMemo(() => {
     if (!proposal) return null;
@@ -977,15 +1353,25 @@ export function CircuitBuilderChat({
     externalFixCopiedContextKey,
     externalFixContextKey,
   );
-  externalFixContextKeyRef.current = externalFixContextKey;
-  externalFixCopiedContextKeyRef.current = externalFixCopiedContextKey;
 
   useEffect(() => {
-    setExternalFixCopiedContextKey(null);
-    setExternalFixCopyState('idle');
-    setExternalFixDraft('');
-    setExternalFixFeedback(null);
-  }, [externalFixContextKey]);
+    if (!externalFixContextKey) {
+      setExternalFixCopiedContextKey(null);
+      setExternalFixCopyState('idle');
+      setExternalFixDraft('');
+      return;
+    }
+    if (externalFixDraft.trim()) {
+      if (externalFixCopiedContextKey !== externalFixContextKey) {
+        setExternalFixCopiedContextKey(externalFixContextKey);
+      }
+      return;
+    }
+    if (externalFixCopiedContextKey && externalFixCopiedContextKey !== externalFixContextKey) {
+      setExternalFixCopiedContextKey(null);
+      setExternalFixCopyState('idle');
+    }
+  }, [externalFixContextKey, externalFixCopiedContextKey, externalFixDraft]);
 
   useEffect(() => {
     if (!rejectedProposalSpec) setRejectedPreviewOpen(false);
@@ -1010,8 +1396,6 @@ export function CircuitBuilderChat({
     try {
       await navigator.clipboard.writeText(buildExternalCircuitFixPrompt(externalFixContext));
       setExternalFixDraft('');
-      setExternalFixFeedback(null);
-      externalFixReviewMutation.reset();
       setExternalFixCopiedContextKey(externalFixContextKey);
       setExternalFixCopyState('copied');
     } catch {
@@ -1024,105 +1408,45 @@ export function CircuitBuilderChat({
     if (
       !externalFixContext ||
       !showExternalFixPaste ||
+      !externalFixDraft.trim() ||
       proposal ||
       requestCycleActive ||
-      externalFixReviewMutation.isPending
+      chatMutation.isPending
     ) return;
 
-    const submittedContextKey = externalFixContextKey;
-    setExternalFixFeedback(null);
-    const parsed = parseCircuitSpecJson(externalFixDraft);
-    if (!parsed.ok) {
-      setExternalFixFeedback({ kind: 'local-rejected', reasons: [parsed.error] });
-      return;
-    }
-    if (!window.CircuitDraw) {
-      setExternalFixFeedback({
-        kind: 'local-rejected',
-        reasons: ['The schematic validator is not ready. Reload the page and try again.'],
-      });
-      return;
-    }
-
-    let validation: ValidationReport;
-    let svg: string;
-    try {
-      validation = window.CircuitDraw.validate(parsed.spec);
-      const localCheck = inspectExternalCircuitFixCandidate(
-        externalFixContext.rejectedSpec,
-        parsed.spec,
-        validation,
-      );
-      if (!localCheck.accepted) {
-        setExternalFixFeedback({ kind: 'local-rejected', reasons: localCheck.reasons });
-        return;
-      }
-      svg = window.CircuitDraw.render(parsed.spec);
-      if (!svg) throw new Error('The schematic renderer did not produce a preview.');
-    } catch (error) {
-      setExternalFixFeedback({
-        kind: 'local-rejected',
-        reasons: [error instanceof Error ? error.message : 'The pasted CircuitSpec could not be checked.'],
-      });
-      return;
-    }
-
-    if (
-      externalFixContextKeyRef.current !== submittedContextKey ||
-      externalFixCopiedContextKeyRef.current !== submittedContextKey
-    ) {
-      setExternalFixFeedback({
-        kind: 'error',
-        message: 'The rejected proposal changed. Copy its prompt again before submitting a fix.',
-      });
-      return;
-    }
-
-    try {
-      const result = await externalFixReviewMutation.mutateAsync({
-        data: {
-          rejectedSpec: externalFixContext.rejectedSpec,
-          candidateSpec: parsed.spec,
-          reportedProblems: externalFixContext.reportedProblems.slice(0, 30).map((item) => item.slice(0, 1000)),
-          advisoryWarnings: externalFixContext.advisoryWarnings.slice(0, 30).map((item) => item.slice(0, 1000)),
-          originalRequest: externalFixContext.originalRequest.slice(0, 6000),
-          designBrief: externalFixContext.designBrief,
-          history: externalFixContext.history,
-        },
-      });
-      void queryClient.invalidateQueries({ queryKey: getGetAiUsageQueryKey() });
-      if (
-        externalFixContextKeyRef.current !== submittedContextKey ||
-        externalFixCopiedContextKeyRef.current !== submittedContextKey
-      ) return;
-
-      setExternalFixFeedback({
-        kind: 'review',
-        approved: result.approved,
-        summary: result.summary,
-        concerns: result.concerns,
-      });
-      if (!result.approved) return;
-
-      setProposal({
-        summary: `External fix reviewed by Studio AI: ${result.summary}`.slice(0, 500),
-        spec: parsed.spec,
-      });
-      setProposalSvg(svg);
-      setProposalValidation(validation);
-      setProposalError('Studio AI review is not an electrical simulation or safety check.');
-    } catch (error) {
-      if (
-        externalFixContextKeyRef.current !== submittedContextKey ||
-        externalFixCopiedContextKeyRef.current !== submittedContextKey
-      ) return;
-      setExternalFixFeedback({
-        kind: 'error',
-        message: error instanceof Error
-          ? error.message
-          : 'Studio AI could not review this fix. Your pasted text is still here; try again shortly.',
-      });
-    }
+    const message = buildStudioExternalCircuitFixMessage(
+      externalFixContext,
+      externalFixDraft,
+    );
+    const request: CircuitBuildChatInput = {
+      message,
+      mode: 'build',
+      currentSpec: externalFixContext.rejectedSpec,
+      history: saved.messages
+        .slice(-8)
+        .map(({ role, content }) => ({ role, content })),
+      brief: externalFixContext.designBrief,
+    };
+    const repairLessonSeed: RepairLessonEvidence = {
+      beforeSpec: externalFixContext.rejectedSpec,
+      findings: externalFixContext.reportedProblems,
+      context: 'The user supplied an external AI correction as guidance for repairing the existing circuit. The Studio proposal must preserve existing work and incorporate relevant corrections.',
+    };
+    setMode('build');
+    setSaved((current) => ({
+      ...current,
+      messages: [...current.messages, newMessage('user', message)].slice(-60),
+    }));
+    await runRequest(
+      request,
+      composerRef.current?.getDraftRevision() ?? 0,
+      externalFixContext.rejectedSpec,
+      true,
+      true,
+      repairLessonSeed,
+      externalFixContext.rejectedSpec,
+      true,
+    );
   };
 
   const runRequest = async (
@@ -1132,14 +1456,24 @@ export function CircuitBuilderChat({
     preserveRejectedProposal = false,
     rememberForRetry = true,
     repairLessonSeed?: RepairLessonEvidence,
+    preservedRejectedProposalOverride?: CircuitBuildChatInput['currentSpec'],
+    allowConnectivityChange = false,
   ) => {
     const safeRequest = normalizeCircuitBuildRequest(request);
+    stopRepairAfterAttemptRef.current = false;
+    setRepairStopRequested(false);
+    setRepairStopAvailable(Boolean(preserveRejectedProposal || protectedElementsBaseSpec));
     if (rememberForRetry) setLastRequest(safeRequest);
+    if (preserveRejectedProposal && preservedRejectedProposalOverride) {
+      setRejectedProposalSpec(preservedRejectedProposalOverride);
+      setRejectedProposalSvg(renderRejectedProposalPreview(preservedRejectedProposalOverride));
+    }
     setLastProtectedElementsBaseSpec(protectedElementsBaseSpec ?? null);
-    setRetryFeedback(null);
+    if (!preserveRejectedProposal) setRetryFeedback(null);
     setRepairDiagnostics([]);
     setProposalRepairLesson(null);
     setRepairLessonNotice(null);
+    clearProposalQualityReview();
     if (!preserveRejectedProposal) {
       setRejectedProposalSpec(null);
       setRejectedProposalSvg('');
@@ -1159,16 +1493,25 @@ export function CircuitBuilderChat({
         repairLessonContext,
       } = await runCircuitBuildAttempts({
         initialRequest: safeRequest,
+        allowConnectivityChange,
         send: (workingRequest) => chatMutation.mutateAsync({ data: workingRequest }),
         getProposal: (result) => result.proposal?.spec ?? null,
         inspectProposal,
         prepareResponse: (result) => {
           if (!result.proposal?.spec || !window.CircuitDraw) return result;
+          const beforeConnectivity = getConnectivitySignature(result.proposal.spec, true);
           const autoFixed = window.CircuitDraw.autoFix(result.proposal.spec);
+          const afterConnectivity = getConnectivitySignature(autoFixed.spec, true);
+          if (
+            autoFixed.changes.length &&
+            !hasStablePinConnectivitySignature(beforeConnectivity, afterConnectivity)
+          ) return result;
           return autoFixed.changes.length
             ? { ...result, proposal: { ...result.proposal, spec: autoFixed.spec } }
             : result;
         },
+        getConnectivitySignature: (candidate) =>
+          getConnectivitySignature(candidate as CircuitSpec),
         initialProtectedSpec: protectedElementsBaseSpec ?? undefined,
         getProtectedCircuitSignature: (spec) =>
           getProtectedCircuitSignature(spec as NonNullable<CircuitBuildChatInput['currentSpec']>),
@@ -1203,13 +1546,38 @@ export function CircuitBuilderChat({
         onRetry: (attempt, kind) => {
           setRetryAttempt(attempt);
           setRetryKind(kind);
+          if (kind === 'repair') setRepairStopAvailable(true);
         },
+        shouldStopRepair: () => stopRepairAfterAttemptRef.current,
       });
         const nextMode = response.nextMode ?? completedRequest.mode;
         const nextBrief = response.brief ?? latestBrief;
         latestBrief = nextBrief;
+        const hasStagedRepair = nextMode === 'build' &&
+          !!response.proposal &&
+          !!proposalInspection;
 
         setMode(nextMode);
+        if (hasStagedRepair || !preserveRejectedProposal) {
+          setRetryFeedback(null);
+        } else {
+          const preservedSpec = asCircuitSpec(preservedRejectedProposalOverride) ??
+            asCircuitSpec(rejectedProposalSpec);
+          if (preservedSpec) {
+            setRejectedProposalSpec(preservedSpec);
+            setRejectedProposalSvg(renderRejectedProposalPreview(preservedSpec));
+          }
+          setRetryFeedback({
+            message: 'Studio answered without returning a repaired circuit proposal. The existing draft and your repair reference are still available; clarify the request or continue the repair.',
+            canRetryManually: true,
+            ...(retryFeedback?.validationFindings?.length
+              ? { validationFindings: retryFeedback.validationFindings }
+              : {}),
+            ...(retryFeedback?.validationWarnings?.length
+              ? { validationWarnings: retryFeedback.validationWarnings }
+              : {}),
+          });
+        }
         setSaved((current) => ({
           brief: mergeBriefPreservingManualEdits(current.aiBrief, current.brief, nextBrief),
           aiBrief: nextBrief,
@@ -1223,14 +1591,26 @@ export function CircuitBuilderChat({
             ),
           ].slice(-60),
         }));
-        setRejectedProposalSpec(null);
-        setRejectedProposalSvg('');
+        if (hasStagedRepair || !preserveRejectedProposal) {
+          setRejectedProposalSpec(null);
+          setRejectedProposalSvg('');
+        }
         setRepairDiagnostics(completedRepairDiagnostics);
         if (nextMode === 'build' && response.proposal && proposalInspection) {
           setProposal(response.proposal);
           setProposalError('');
           setProposalValidation(proposalInspection.validation);
           setProposalSvg(proposalInspection.svg);
+          if (proposalInspection.validation.errors.length) {
+            setProposalQualityReview({ kind: 'skipped' });
+          } else {
+            void runProposalQualityReview(
+              response.proposal.spec,
+              safeRequest.message,
+              nextBrief,
+              { automaticLayoutRepair: true, buildRequest: safeRequest },
+            );
+          }
           const automaticSeed = repairLessonContext
             ? {
                 beforeSpec: asCircuitSpec(repairLessonContext.rejectedProposal),
@@ -1272,7 +1652,9 @@ export function CircuitBuilderChat({
       setMode((currentMode) => getModeAfterFailedRequest(currentMode, safeRequest.mode));
       if (error instanceof CircuitBuildAttemptError) {
         const rejectedSpec = asCircuitSpec(error.rejectedProposal) ??
-          (preserveRejectedProposal ? rejectedProposalSpec : null);
+          (preserveRejectedProposal
+            ? asCircuitSpec(preservedRejectedProposalOverride) ?? rejectedProposalSpec
+            : null);
         setRejectedProposalSpec(rejectedSpec);
         setRejectedProposalSvg(renderRejectedProposalPreview(rejectedSpec));
         setRepairDiagnostics(error.repairDiagnostics);
@@ -1301,6 +1683,11 @@ export function CircuitBuilderChat({
           message = error.retryCount > 0
             ? `The request failed after ${error.retryCount} automatic retr${error.retryCount === 1 ? 'y' : 'ies'}. ${causeMessage}`
             : causeMessage;
+        }
+        if (error.stoppedByUser) {
+          message = rejectedSpec
+            ? 'Repair stopped after the current attempt. The latest proposal and its findings are available below; you can continue the repair manually.'
+            : 'Repair stopped after the current attempt. Your existing circuit and repair reference are still available.';
         }
         if (preserveRejectedProposal && rejectedSpec && error.failureKind !== 'validation') {
           message = `${message} The previous proposal is preserved below for another repair attempt.`;
@@ -1331,6 +1718,9 @@ export function CircuitBuilderChat({
     } finally {
       composerRef.current?.clearDraftIfUnchanged(draftRevisionAtStart, safeRequest.message);
       setRequestCycleActive(false);
+      setRepairStopAvailable(false);
+      setRepairStopRequested(false);
+      stopRepairAfterAttemptRef.current = false;
       setRetryAttempt(0);
       setRetryKind(null);
     }
@@ -1398,6 +1788,51 @@ export function CircuitBuilderChat({
       lastProtectedElementsBaseSpec ?? (continuingRejectedProposal ? rejectedProposalSpec : undefined) ?? undefined,
       continuingRejectedProposal,
       false,
+    );
+  };
+
+  const runRecoveryRetry = async () => {
+    if (!lastRequest || chatMutation.isPending || requestCycleActive) return;
+    const findings = retryFeedback?.validationFindings ?? [];
+    const rejectedSpec = asCircuitSpec(rejectedProposalSpec);
+    const recoveryKind = getRetryRecoveryKind(
+      repairDiagnostics,
+      findings,
+      rejectedProposalSpec,
+    );
+    if (!rejectedSpec || !recoveryKind) return;
+
+    const repairLessonSeed = rejectedSpec && findings.length
+      ? {
+          beforeSpec: rejectedSpec,
+          findings,
+          context: (() => {
+            const attemptedRepairs = repairDiagnostics.reduce(
+              (maximum, diagnostic) => Math.max(maximum, diagnostic.attempt),
+              0,
+            );
+            return recoveryKind === 'rewire'
+              ? `After ${attemptedRepairs} automatic repair attempts, the circuit wiring was rebuilt while preserving its components.`
+              : `A new circuit proposal was created after ${attemptedRepairs} automatic repair attempts could not resolve component or specification errors.`;
+          })(),
+        }
+      : undefined;
+    const request = recoveryKind === 'rewire'
+      ? buildWireRebuildRequest(lastRequest, saved.brief, rejectedSpec, findings)
+      : buildWholeCircuitRetryRequest(lastRequest, saved.brief);
+    const protectedBaseline = recoveryKind === 'rewire'
+      ? asCircuitSpec(request.currentSpec)
+      : null;
+
+    await runRequest(
+      request,
+      composerRef.current?.getDraftRevision() ?? 0,
+      protectedBaseline ?? undefined,
+      recoveryKind === 'rewire',
+      true,
+      repairLessonSeed,
+      undefined,
+      recoveryKind === 'rewire',
     );
   };
 
@@ -1535,8 +1970,6 @@ export function CircuitBuilderChat({
     setExternalFixCopiedContextKey(null);
     setExternalFixCopyState('idle');
     setExternalFixDraft('');
-    setExternalFixFeedback(null);
-    externalFixReviewMutation.reset();
     setRetryFeedback(null);
     setRepairDiagnostics([]);
     setRetryAttempt(0);
@@ -1663,7 +2096,14 @@ export function CircuitBuilderChat({
   ) => {
     setMode('build');
     if ('id' in entry) {
-      const description = entry.description || entry.keywords;
+      const description = [
+        entry.shortDescription || entry.description,
+        entry.longDescription,
+        entry.keywords ? `Search terms: ${entry.keywords}` : '',
+        entry.researchStatus === 'needs_review'
+          ? 'Description status: needs review; purpose is unverified.'
+          : '',
+      ].filter(Boolean).join(' ');
       composerRef.current?.setDraft(
         `Use this exact KiCad symbol ID: ${entry.id}. Add ${entry.name} to my current schematic using its real library pin names and positions.${description ? ` Symbol details: ${description}.` : ''}`,
       );
@@ -1672,7 +2112,7 @@ export function CircuitBuilderChat({
     composerRef.current?.setDraft(
       entry.category === 'Drawing'
         ? `Add a ${entry.displayName} (${entry.type}) drawing annotation to my current schematic. Do not treat it as an electrical component.`
-        : `Use a ${entry.displayName} (${entry.type}) in my current design. Use its supported pin model and ask me for any missing ratings or verified pinout before assuming them.`,
+        : `Use a ${entry.displayName} (${entry.type}) in my current design. Reference: ${entry.shortDescription} ${entry.longDescription} Use its supported pin model and ask me for any missing ratings or verified pinout before assuming them.`,
     );
   };
 
@@ -1684,19 +2124,93 @@ export function CircuitBuilderChat({
     composerRef.current?.setDraft(action.prompt);
   };
 
+  const discardProposal = () => {
+    setProposal(null);
+    setProposalSvg('');
+    setProposalValidation(null);
+    clearProposalQualityReview();
+  };
+
+  const reviseProposalFromFeedback = async (
+    reason: ProposalFeedbackReason,
+    details: string,
+  ) => {
+    const currentProposal = proposal;
+    const revisionSpec = currentProposal?.spec ?? currentSpec;
+    if (!revisionSpec || chatMutation.isPending || requestCycleActive) return;
+    const reasonText: Record<ProposalFeedbackReason, string> = {
+      'incorrect-wiring': 'the wiring was incorrect',
+      'wrong-parts-or-values': 'the parts or values were wrong',
+      'poor-readability': 'the schematic was hard to read',
+      'missed-request': 'the proposal did not match the request',
+      other: 'another issue needed correction',
+    };
+    const goal = saved.brief.goal.trim() ||
+      lastRequest?.message.trim() ||
+      revisionSpec.title;
+    const userDetail = details.trim()
+      ? ` My detail: ${details.trim().slice(0, 500)}`
+      : '';
+    const revisionPrompt = [
+      `Please revise the "${revisionSpec.title}" circuit based on my feedback: ${reasonText[reason]}.${userDetail}`,
+      `Keep the original goal: "${goal.slice(0, 600)}".`,
+      'Address the specific issue, improve the schematic readability where needed, and do not invent missing ratings or values.',
+      'Return a new staged proposal for me to review; do not apply it to the workbench.',
+    ].join(' ').slice(0, 3000);
+    const history = saved.messages
+      .slice(-8)
+      .map(({ role, content }) => ({ role, content }));
+    const request: CircuitBuildChatInput = {
+      message: revisionPrompt,
+      mode: 'build',
+      currentSpec: revisionSpec,
+      history,
+      brief: saved.brief,
+    };
+    setRejectedProposalSpec(revisionSpec);
+    setRejectedProposalSvg(renderRejectedProposalPreview(revisionSpec));
+    setMode('build');
+    setSaved((current) => ({
+      ...current,
+      messages: [...current.messages, newMessage('user', revisionPrompt)].slice(-60),
+    }));
+    if (currentProposal) discardProposal();
+    await runRequest(
+      request,
+      composerRef.current?.getDraftRevision() ?? 0,
+      undefined,
+      true,
+      true,
+      undefined,
+      revisionSpec,
+    );
+  };
+
   const applyProposal = () => {
-    if (!proposal || !proposalSvg || !proposalValidation || proposalValidation.errors.length) return;
+    if (
+      !proposal ||
+      !proposalSvg ||
+      !proposalValidation ||
+      proposalValidation.errors.length ||
+      proposalQualityReview.kind === 'loading'
+    ) return;
+    setAppliedProposalFeedback({
+      id: ++appliedProposalFeedbackIdRef.current,
+      circuitTitle: proposal.spec.title,
+      requestSummary: saved.brief.goal || lastRequest?.message || '',
+      specSignature: JSON.stringify(proposal.spec),
+    });
     onApplySpec(proposal.spec);
     setProposal(null);
     setProposalSvg('');
     setProposalValidation(null);
+    clearProposalQualityReview();
     setRetryFeedback(null);
     setRejectedProposalSpec(null);
     setRejectedProposalSvg('');
     setExternalFixCopiedContextKey(null);
     setExternalFixCopyState('idle');
     setExternalFixDraft('');
-    setExternalFixFeedback(null);
   };
 
   const errorMessage = retryFeedback?.message ?? (
@@ -1704,6 +2218,19 @@ export function CircuitBuilderChat({
       ? chatMutation.error.message
       : 'The request did not go through. Your message is still here.'
   );
+  const retryRecoveryKind = getRetryRecoveryKind(
+    repairDiagnostics,
+    retryFeedback?.validationFindings ?? [],
+    rejectedProposalSpec,
+  );
+  const proposalTopologyErrors = proposalValidation?.topologyErrors ?? [];
+  const proposalTopologyWarnings = proposalValidation?.topologyWarnings ?? [];
+  const proposalStructuralErrors = proposalValidation?.errors.filter(
+    (finding) => !proposalTopologyErrors.includes(finding),
+  ) ?? [];
+  const proposalLayoutWarnings = proposalValidation?.warnings.filter(
+    (warning) => !proposalTopologyWarnings.includes(warning),
+  ) ?? [];
   const hasBrief = Boolean(saved.brief.goal || saved.brief.requirements.length || saved.brief.assumptions.length || saved.brief.openQuestions.length);
   const retryHistorySync = () => {
     if (!historyQuery.isSuccess || !historyDeletionsQuery.isSuccess) {
@@ -1805,11 +2332,8 @@ export function CircuitBuilderChat({
         >
           <div className="builder-chat__history-heading">
             <div>
-              <strong>Recent conversations</strong>
-              <span>
-                Saved to your account, including chats in progress
-                {sessions.length > 4 ? ' · scroll for older' : ''}
-              </span>
+              <strong>Recent chats</strong>
+              <span>{sessions.length} saved</span>
             </div>
             <button type="button" className="builder-chat__text-link" onClick={() => setHistoryOpen(false)}>Close</button>
           </div>
@@ -1877,23 +2401,37 @@ export function CircuitBuilderChat({
         </div>
         <p className="builder-chat__sr-only" role="status" aria-live="polite" data-testid="status-builder-mode">{mode === 'chat' ? 'Clarify the idea, no edits proposed' : 'Shape an editable draft for review'}</p>
       </div>
-      {canRepairCurrentDraft && validationFindings.length > 0 && (
+      {canRepairCurrentDraft &&
+        validationFindings.length > 0 &&
+        dismissedRepairNoticeKey !== repairNoticeKey && (
         <div className="builder-chat__repair-notice" data-testid="panel-repair-current-draft">
           <div>
             <strong>{validationFindings.length} structural issue{validationFindings.length === 1 ? '' : 's'} found</strong>
-            <p>Ask Studio to repair the wiring. It will check the proposal; your drawing stays unchanged until you apply it.</p>
+            <p>Studio will check the fix. Your drawing changes only when you apply it.</p>
           </div>
-          <button
-            type="button"
-            className="builder-chat__repair-action"
-            onClick={repairCurrentDraft}
-            disabled={aiUnavailable || chatMutation.isPending || requestCycleActive || briefEditing || !!proposal}
-            title={proposal ? 'Apply or discard the staged proposal first.' : undefined}
-            data-testid="button-repair-current-draft"
-          >
-            <Wrench aria-hidden="true" />
-            {requestCycleActive ? 'Repairing…' : 'Repair draft with AI'}
-          </button>
+          <div className="builder-chat__repair-notice-actions">
+            <button
+              type="button"
+              className="builder-chat__repair-action"
+              onClick={repairCurrentDraft}
+              disabled={aiUnavailable || chatMutation.isPending || requestCycleActive || briefEditing || !!proposal}
+              title={proposal ? 'Apply or discard the staged proposal first.' : undefined}
+              data-testid="button-repair-current-draft"
+            >
+              <Wrench aria-hidden="true" />
+              {requestCycleActive ? 'Repairing…' : 'Repair draft with AI'}
+            </button>
+            <button
+              type="button"
+              className="builder-chat__repair-dismiss"
+              onClick={() => setDismissedRepairNoticeKey(repairNoticeKey)}
+              aria-label="Close structural issue banner"
+              title="Close"
+              data-testid="button-dismiss-repair-notice"
+            >
+              <X aria-hidden="true" />
+            </button>
+          </div>
         </div>
       )}
 
@@ -1947,6 +2485,20 @@ export function CircuitBuilderChat({
                     ? `Repairing proposal · retry ${retryAttempt} of ${MAX_AUTO_RETRIES}`
                     : `Automatic retry ${retryAttempt} of ${MAX_AUTO_RETRIES}`
                   : mode === 'build' ? 'Working through a draft' : 'Thinking it through'}</small>
+                {repairStopAvailable && (
+                  <button
+                    type="button"
+                    className="builder-chat__text-link"
+                    onClick={() => {
+                      stopRepairAfterAttemptRef.current = true;
+                      setRepairStopRequested(true);
+                    }}
+                    disabled={repairStopRequested}
+                    data-testid="button-stop-repair-after-current-attempt"
+                  >
+                    {repairStopRequested ? 'Stopping after this attempt…' : 'Stop after this repair attempt'}
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -1954,23 +2506,40 @@ export function CircuitBuilderChat({
             <>
               <div className="builder-chat__error" role="alert" data-testid="status-builder-error">
                 <span>{errorMessage}</span>
-                {retryFeedback.canRetryManually && (
-                  <button type="button" className="builder-chat__text-link" onClick={retryRequest} disabled={!lastRequest || hasUnappliedJsonEdits} data-testid="button-retry-builder-chat">
-                    {rejectedProposalSpec && retryFeedback.validationFindings?.length ? 'Continue repair' : 'Retry'}
-                  </button>
-                )}
+                <div className="builder-chat__retry-actions">
+                  {retryFeedback.canRetryManually && (
+                    <button type="button" className="builder-chat__text-link" onClick={retryRequest} disabled={!lastRequest || hasUnappliedJsonEdits} data-testid="button-retry-builder-chat">
+                      {rejectedProposalSpec && retryFeedback.validationFindings?.length ? 'Continue repair' : 'Retry'}
+                    </button>
+                  )}
+                  {retryRecoveryKind && (
+                    <button
+                      type="button"
+                      className="builder-chat__fresh-retry"
+                      onClick={() => void runRecoveryRetry()}
+                      disabled={!lastRequest || hasUnappliedJsonEdits}
+                      data-testid={`button-${retryRecoveryKind}-circuit`}
+                    >
+                      {retryRecoveryKind === 'rewire' ? 'Rewire circuit' : 'Rebuild circuit'}
+                    </button>
+                  )}
+                </div>
               </div>
               {!!retryFeedback.validationFindings?.length && (
-                <section className="builder-chat__validation-findings" aria-label="Blocking validation errors" data-testid="list-builder-validation-findings">
-                  <strong>{retryFeedback.validationFindings.length} blocking validation error{retryFeedback.validationFindings.length === 1 ? '' : 's'}</strong>
+                <details className="builder-chat__validation-findings" data-testid="list-builder-validation-findings">
+                  <summary>
+                    <strong>{retryFeedback.validationFindings.length} blocking validation error{retryFeedback.validationFindings.length === 1 ? '' : 's'}</strong>
+                  </summary>
                   <ol>{retryFeedback.validationFindings.map((finding, index) => <li key={`failure-${index}`}>{finding}</li>)}</ol>
-                </section>
+                </details>
               )}
               {!!retryFeedback.validationWarnings?.length && (
-                <section className="builder-chat__validation-findings is-warning" aria-label="Advisory validation warnings" data-testid="list-builder-validation-warnings">
-                  <strong>{retryFeedback.validationWarnings.length} advisory warning{retryFeedback.validationWarnings.length === 1 ? '' : 's'} (not blocking)</strong>
+                <details className="builder-chat__validation-findings is-warning" data-testid="list-builder-validation-warnings">
+                  <summary>
+                    <strong>{retryFeedback.validationWarnings.length} advisory warning{retryFeedback.validationWarnings.length === 1 ? '' : 's'} (not blocking)</strong>
+                  </summary>
                   <ol>{retryFeedback.validationWarnings.map((warning, index) => <li key={`warning-${index}`}>{warning}</li>)}</ol>
-                </section>
+                </details>
               )}
               {rejectedProposalSpec && (
                 <section
@@ -2027,7 +2596,7 @@ export function CircuitBuilderChat({
                       type="button"
                       className="builder-chat__text-link builder-chat__rejected-copy builder-chat__external-fix-copy"
                       onClick={copyExternalCircuitFixPrompt}
-                      disabled={!externalFixContext || externalFixReviewMutation.isPending}
+                      disabled={!externalFixContext || chatMutation.isPending || requestCycleActive}
                       data-testid="button-copy-rejected-spec-ai-prompt"
                     >
                       {externalFixCopyState === 'copied' ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
@@ -2048,14 +2617,14 @@ export function CircuitBuilderChat({
                   aria-label="Paste an external CircuitSpec fix"
                   data-testid="panel-external-circuit-fix"
                 >
-                  <h3>Paste the external fix here</h3>
-                  <p>Paste the AI’s complete plain-JSON CircuitSpec. Studio checks its structure and asks Studio AI to review it before staging.</p>
-                  <label htmlFor="external-circuit-fix-json">Corrected CircuitSpec JSON</label>
+                  <h3>Use an external repair as guidance</h3>
+                  <p>Studio AI will repair the current draft using this reference. It will keep the existing work where possible instead of starting over.</p>
+                  <label htmlFor="external-circuit-fix-json">External repair reference</label>
                   <textarea
                     id="external-circuit-fix-json"
                     value={externalFixDraft}
                     onChange={(event) => setExternalFixDraft(event.target.value)}
-                    disabled={externalFixReviewMutation.isPending}
+                    disabled={chatMutation.isPending || requestCycleActive}
                     spellCheck={false}
                     rows={8}
                     data-testid="input-external-circuit-fix"
@@ -2064,37 +2633,12 @@ export function CircuitBuilderChat({
                     type="button"
                     className="builder-chat__external-fix-submit"
                     onClick={submitExternalCircuitFix}
-                    disabled={!externalFixDraft.trim() || externalFixReviewMutation.isPending || !!proposal}
+                    disabled={!externalFixDraft.trim() || chatMutation.isPending || requestCycleActive || !!proposal}
                     data-testid="button-submit-external-circuit-fix"
                   >
-                    {externalFixReviewMutation.isPending ? 'Reviewing fix…' : 'Submit fix for review'}
+                    {requestCycleActive ? 'Repairing current draft…' : 'Repair current draft with this reference'}
                   </button>
-                  {externalFixFeedback?.kind === 'local-rejected' && (
-                    <div className="builder-chat__external-fix-feedback is-error" role="alert" data-testid="status-external-circuit-fix-local-error">
-                      <strong>This fix needs changes before Studio AI review.</strong>
-                      <ul>{externalFixFeedback.reasons.map((reason, index) => <li key={`external-local-${index}`}>{reason}</li>)}</ul>
-                    </div>
-                  )}
-                  {externalFixFeedback?.kind === 'error' && (
-                    <p className="builder-chat__external-fix-feedback is-error" role="alert" data-testid="status-external-circuit-fix-error">
-                      {externalFixFeedback.message}
-                    </p>
-                  )}
-                  {externalFixFeedback?.kind === 'review' && (
-                    <div
-                      className={`builder-chat__external-fix-feedback ${externalFixFeedback.approved ? 'is-approved' : 'is-error'}`}
-                      role={externalFixFeedback.approved ? 'status' : 'alert'}
-                      data-testid="status-external-circuit-fix-review"
-                    >
-                      <strong>{externalFixFeedback.approved ? 'Studio AI approved this fix for staging.' : 'Studio AI did not approve this fix.'}</strong>
-                      <p>{externalFixFeedback.summary}</p>
-                      {!!externalFixFeedback.concerns.length && (
-                        <ul>{externalFixFeedback.concerns.map((concern, index) => <li key={`external-concern-${index}`}>{concern}</li>)}</ul>
-                      )}
-                      {externalFixFeedback.approved && <p>The staged proposal is shown below. It has not been applied to your workbench.</p>}
-                    </div>
-                  )}
-                  <p className="builder-chat__external-fix-note">Structural checks and AI review are not electrical simulation or safety verification. Your current workbench draft stays unchanged until you choose Apply.</p>
+                  <p className="builder-chat__external-fix-note">Studio will validate its own repair and stage it for review. Applying the staged repair saves a lesson for similar issues; validation does not prove electrical or safety correctness.</p>
                 </section>
               )}
             </>
@@ -2117,7 +2661,7 @@ export function CircuitBuilderChat({
                   <p className="builder-chat__eyebrow">Staged proposal · review before applying</p>
                   <h3>{proposal.summary}</h3>
                 </div>
-                <button type="button" className="builder-chat__icon-link" aria-label="Discard proposal" onClick={() => { setProposal(null); setProposalSvg(''); setProposalValidation(null); }} data-testid="button-discard-proposal">
+                <button type="button" className="builder-chat__icon-link" aria-label="Discard proposal" onClick={discardProposal} data-testid="button-discard-proposal">
                   <X aria-hidden="true" />
                 </button>
               </div>
@@ -2127,22 +2671,107 @@ export function CircuitBuilderChat({
                   : <div className="builder-chat__preview-empty" data-testid="status-builder-preview-error">Preview unavailable until the proposal is valid.</div>}
               </div>
               <div className={`builder-chat__validation${proposalValidation?.errors.length ? ' has-errors' : proposalValidation?.warnings.length ? ' has-warnings' : ' is-valid'}`} data-testid="status-builder-validation">
-                {proposalValidation?.errors.length
-                  ? <strong>{proposalValidation.errors.length} issue{proposalValidation.errors.length === 1 ? '' : 's'} need attention</strong>
-                  : proposalValidation?.warnings.length
-                    ? <strong>Preview checked · {proposalValidation.warnings.length} warning{proposalValidation.warnings.length === 1 ? '' : 's'}</strong>
-                    : <><CheckCircle2 aria-hidden="true" /><strong>Preview checked · no structural issues</strong></>}
-                {!!proposalValidation?.errors.length && <ul>{proposalValidation.errors.map((item, index) => <li className="is-error" key={`e-${index}`}>{item}</li>)}</ul>}
-                {!!proposalValidation?.warnings.length && <ul>{proposalValidation.warnings.map((item, index) => <li key={`w-${index}`}>{item}</li>)}</ul>}
+                {proposalStructuralErrors.length > 0 && (
+                  <div className="builder-chat__validation-group is-error">
+                    <strong>Blocking pin or wire findings</strong>
+                    <ul>{proposalStructuralErrors.map((item, index) => <li className="is-error" key={`structural-${index}`}>{item}</li>)}</ul>
+                  </div>
+                )}
+                {proposalTopologyErrors.length > 0 && (
+                  <div className="builder-chat__validation-group is-error">
+                    <strong>Blocking circuit connection findings</strong>
+                    <ul>{proposalTopologyErrors.map((item, index) => <li className="is-error" key={`topology-error-${index}`}>{item}</li>)}</ul>
+                  </div>
+                )}
+                {!proposalStructuralErrors.length && !proposalTopologyErrors.length && (
+                  <div className="builder-chat__validation-group">
+                    <CheckCircle2 aria-hidden="true" />
+                    <strong>Pin and wire structure passed; no tested direct short was detected.</strong>
+                  </div>
+                )}
+                {proposalTopologyWarnings.length > 0 && (
+                  <div className="builder-chat__validation-group is-topology">
+                    <strong>Circuit connection warnings</strong>
+                    <ul>{proposalTopologyWarnings.map((item, index) => <li key={`topology-warning-${index}`}>{item}</li>)}</ul>
+                  </div>
+                )}
+                {proposalLayoutWarnings.length > 0 && (
+                  <div className="builder-chat__validation-group">
+                    <strong>Drawing and layout warnings</strong>
+                    <ul>{proposalLayoutWarnings.map((item, index) => <li key={`layout-warning-${index}`}>{item}</li>)}</ul>
+                  </div>
+                )}
                 {proposalError && <p>{proposalError}</p>}
+                <p className="builder-chat__validation-disclaimer">These checks cover pin and wire structure plus a few obvious faults. They do not simulate the circuit or prove electrical correctness or safety.</p>
+              </div>
+              <div className="builder-chat__quality-review" data-testid="panel-proposal-quality-review">
+                <strong>Intent and readability review</strong>
+                {proposalQualityReview.kind === 'loading' && (
+                  <p role="status">{layoutRepairNotice || 'Studio is checking how well the draft matches your request and whether it is readable…'}</p>
+                )}
+                {layoutRepairNotice && proposalQualityReview.kind !== 'loading' && (
+                  <p className="builder-chat__quality-review-note" role="status">{layoutRepairNotice}</p>
+                )}
+                {proposalQualityReview.kind === 'skipped' && (
+                  <p>AI review was skipped because blocking connection findings need attention first.</p>
+                )}
+                {proposalQualityReview.kind === 'unavailable' && (
+                  <p>AI review was unavailable. Check request fit and readability yourself; the separate pin and wire checks still apply.</p>
+                )}
+                {proposalQualityReview.kind === 'ready' && (
+                  <>
+                    {proposalQualityReview.review.intentConcerns.length > 0 && (
+                      <div className="builder-chat__quality-review-group">
+                        <strong>Possible request mismatches</strong>
+                        <ul>{proposalQualityReview.review.intentConcerns.map((item, index) => <li key={`intent-${index}`}>{item}</li>)}</ul>
+                      </div>
+                    )}
+                    {proposalQualityReview.review.readabilityWarnings.length > 0 && (
+                      <div className="builder-chat__quality-review-group is-layout">
+                        <strong>Readability warnings</strong>
+                        <ul>{proposalQualityReview.review.readabilityWarnings.map((item, index) => <li key={`readability-${index}`}>{item}</li>)}</ul>
+                        <button
+                          type="button"
+                          className="builder-chat__text-link is-muted"
+                          onClick={retryProposalLayout}
+                          disabled={chatMutation.isPending || requestCycleActive}
+                          data-testid="button-improve-proposal-layout"
+                        >
+                          Try layout improvement again
+                        </button>
+                      </div>
+                    )}
+                    {proposalQualityReview.review.unknowns.length > 0 && (
+                      <div className="builder-chat__quality-review-group">
+                        <strong>Unknowns to confirm</strong>
+                        <ul>{proposalQualityReview.review.unknowns.map((item, index) => <li key={`unknown-${index}`}>{item}</li>)}</ul>
+                      </div>
+                    )}
+                    {!proposalQualityReview.review.intentConcerns.length &&
+                      !proposalQualityReview.review.readabilityWarnings.length &&
+                      !proposalQualityReview.review.unknowns.length && (
+                        <p>No specific request-fit or readability concerns were flagged.</p>
+                      )}
+                    <p className="builder-chat__quality-review-note">AI notes are advisory, not an electrical rules check or safety review.</p>
+                  </>
+                )}
+                {proposalQualityReview.kind === 'idle' && (
+                  <p>Review not started.</p>
+                )}
               </div>
               <div className="builder-chat__proposal-actions">
-                <button type="button" className="builder-chat__text-link is-muted" onClick={() => { setProposal(null); setProposalSvg(''); setProposalValidation(null); }} data-testid="button-discard-proposal-link">Discard</button>
-                <button type="button" className="builder-chat__apply" disabled={!proposalSvg || !!proposalValidation?.errors.length} onClick={applyProposal} data-testid="button-apply-proposal">
-                  <Check aria-hidden="true" /> Apply to workbench
+                <button type="button" className="builder-chat__text-link is-muted" onClick={discardProposal} data-testid="button-discard-proposal-link">Discard</button>
+                <button
+                  type="button"
+                  className="builder-chat__apply"
+                  disabled={!proposalSvg || !!proposalValidation?.errors.length || proposalQualityReview.kind === 'loading'}
+                  onClick={applyProposal}
+                  data-testid="button-apply-proposal"
+                >
+                  <Check aria-hidden="true" /> {proposalQualityReview.kind === 'loading' ? 'Reviewing…' : 'Apply to workbench'}
                 </button>
               </div>
-              <p className="builder-chat__proposal-note">Applying sends this spec to your workbench. Nothing changes before you choose.</p>
+              <p className="builder-chat__proposal-note">{proposalRepairLesson ? 'Applying this repair saves a reusable lesson for similar circuit issues. ' : ''}Applying sends this spec to your workbench; nothing changes before you choose. Structural and AI checks do not prove circuit behavior, component ratings, or safety.</p>
             </section>
           )}
 
@@ -2150,7 +2779,7 @@ export function CircuitBuilderChat({
             key="circuit-builder-composer"
             ref={composerRef}
             mode={mode}
-            isWorking={chatMutation.isPending || requestCycleActive || externalFixReviewMutation.isPending}
+            isWorking={chatMutation.isPending || requestCycleActive}
             briefEditing={briefEditing}
             hasProposal={!!proposal}
             hasUnappliedJsonEdits={hasUnappliedJsonEdits}
@@ -2192,8 +2821,6 @@ export function CircuitBuilderChat({
               </div>
             ) : (
               <div className="builder-chat__brief-empty" data-testid="status-builder-brief-empty">
-                <Plus aria-hidden="true" />
-                <p>The AI uses these notes to keep important details in view. Add your own, or let the conversation fill them in.</p>
                 <button type="button" className="builder-chat__text-link" onClick={editBrief} data-testid="button-add-brief">Add a starting note</button>
               </div>
             )}
@@ -2229,8 +2856,8 @@ export function CircuitBuilderChat({
             <DialogDescription className="builder-chat__clear-description">
               {historySyncMutation.isPending && 'Wait for the account sync to finish. '}
               {historyDeleteTarget?.id === activeSessionId
-                ? 'This removes this conversation and its saved notes from your account and this device. A fresh chat will start with your current schematic, which will stay unchanged.'
-                : 'This removes this conversation and its saved notes from your account and this device. Your current conversation and schematic will stay unchanged.'}
+                ? 'Deletes this chat and its notes. Your schematic stays unchanged.'
+                : 'Deletes this chat and its notes. Your current work stays unchanged.'}
             </DialogDescription>
           </DialogHeader>
           {historyDeleteError && <p className="builder-chat__history-error" role="alert" data-testid="status-delete-builder-history-error">{historyDeleteError}</p>}
@@ -2266,7 +2893,7 @@ export function CircuitBuilderChat({
             <DialogHeader className="easyeda-sheet-header">
               <DialogTitle className="easyeda-sheet-title">{rejectedProposalSpec.title}</DialogTitle>
               <DialogDescription className="easyeda-sheet-description">
-                This draft did not pass structural checks. Preview only; it has not been applied to your workbench.
+                Failed checks. Preview only; not applied.
               </DialogDescription>
             </DialogHeader>
             <div
@@ -2293,7 +2920,7 @@ export function CircuitBuilderChat({
           <DialogHeader>
             <DialogTitle className="builder-chat__clear-title">Clear this chat?</DialogTitle>
             <DialogDescription className="builder-chat__clear-description">
-              This removes its saved messages and design notes from History. Your current schematic will stay unchanged.
+              Deletes chat messages and notes. Your schematic stays unchanged.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="builder-chat__clear-footer">
@@ -2306,6 +2933,21 @@ export function CircuitBuilderChat({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {appliedProposalFeedback &&
+        schematicFeedbackHost &&
+        currentSpecSignature === appliedProposalFeedback.specSignature &&
+        createPortal(
+          <CircuitBuilderFeedback
+            circuitTitle={appliedProposalFeedback.circuitTitle}
+            requestSummary={appliedProposalFeedback.requestSummary}
+            onSave={saveProposalFeedback}
+            onRevise={(reason, details) => {
+              void reviseProposalFromFeedback(reason, details);
+            }}
+          />,
+          schematicFeedbackHost,
+          String(appliedProposalFeedback.id),
+        )}
     </section>
   );
 }

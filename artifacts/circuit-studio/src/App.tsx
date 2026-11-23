@@ -37,12 +37,33 @@ import {
 } from './lib/bill-of-materials';
 import { Redirect, Route, Switch, useLocation, Link, Router as WouterRouter } from 'wouter';
 
-type ValidationReport = { errors: string[]; warnings: string[] };
+type ValidationReport = {
+  errors: string[];
+  warnings: string[];
+  topologyErrors?: string[];
+  topologyWarnings?: string[];
+};
 type CircuitSpec = ApiCircuitSpec;
+type CircuitDrawRenderOptions = {
+  allowStructuralErrors?: boolean;
+  padding?: number;
+  stroke?: string;
+  text?: string;
+  muted?: string;
+  background?: string | null;
+  font?: string;
+  lineWidth?: number;
+  dotRadius?: number;
+};
 type CircuitDrawApi = {
-  render: (spec: CircuitSpec, options?: { allowStructuralErrors?: boolean }) => string;
+  render: (spec: CircuitSpec, options?: CircuitDrawRenderOptions) => string;
   validate: (spec: CircuitSpec) => ValidationReport;
+  layoutWarnings: (spec: CircuitSpec) => string[];
   autoFix: (spec: CircuitSpec) => { spec: CircuitSpec; changes: string[] };
+  netlist: (spec: CircuitSpec, allowStructuralErrors?: boolean) => {
+    parts: Array<{ designator: string; type: string; value: string }>;
+    nets: Array<{ name: string; pins: string[] }>;
+  };
   buildSheet: (spec: CircuitSpec) => string;
 };
 declare global {
@@ -96,7 +117,7 @@ const clerkAppearance = {
     colorInputForeground: '#263b40',
     colorNeutral: '#263b40',
     fontFamily: 'DM Sans',
-    borderRadius: '0.65rem',
+    borderRadius: '0.4875rem',
   },
   elements: {
     rootBox: 'w-full flex justify-center',
@@ -188,7 +209,7 @@ function Landing() {
     <main className="landing">
       <header className="landing-nav">
         <Link href="/" className="brand" data-testid="link-brand-home">
-          <span className="brand-mark"><CircuitBoard aria-hidden="true" /></span><span>Circuit Studio</span>
+          <span className="brand-mark"><CircuitBoard aria-hidden="true" /></span><span>CircuitStudio</span>
         </Link>
         <nav className="nav-actions" aria-label="Account">
           <Link href="/sign-in" data-testid="link-sign-in">Sign in</Link>
@@ -200,7 +221,7 @@ function Landing() {
         <div className="hero-copy">
           <p className="hero-kicker">A workbench for curious minds</p>
           <h1>Make the idea<br />visible<span>.</span></h1>
-          <p>Describe the circuit you have in mind. Get a clear schematic you can inspect, refine, and carry into your next tool.</p>
+          <p>Describe a circuit. Get an editable schematic.</p>
           <div className="hero-ctas">
             <Link href="/sign-up" className="hero-cta" data-testid="link-start-building">Start building <ArrowRight /></Link>
             <Link href="/sign-in" className="hero-secondary" data-testid="link-return-to-studio">I have an account <MoveUpRight /></Link>
@@ -254,12 +275,12 @@ function Landing() {
       <section className="landing-section">
         <div className="section-intro">
           <div><p className="hero-kicker">A little structure goes a long way</p><h2>From a sentence<br />to a circuit you can read.</h2></div>
-          <p>Circuit Studio makes the first pass less intimidating. Bring a rough idea, get an inspectable drawing, and keep the parts you want to change close at hand.</p>
+          <p>Turn a circuit idea into a drawing you can refine.</p>
         </div>
         <div className="steps-line">
-          <article className="step"><span className="step-number">01 / DESCRIBE</span><h3>Say what it should do</h3><p>Write in plain language. Mention the supply, parts, or behavior you already know.</p></article>
-          <article className="step"><span className="step-number">02 / INSPECT</span><h3>Follow the connections</h3><p>See the circuit as a clean vector drawing, with structure notes alongside it.</p></article>
-          <article className="step"><span className="step-number">03 / REFINE</span><h3>Keep your hands on it</h3><p>Edit the CircuitSpec directly, then export a drawing or an EasyEDA-ready sheet.</p></article>
+          <article className="step"><span className="step-number">01 / DESCRIBE</span><h3>Say what it should do</h3><p>Add the supply, parts, or behavior you know.</p></article>
+          <article className="step"><span className="step-number">02 / INSPECT</span><h3>Follow the connections</h3><p>Check how the parts connect.</p></article>
+          <article className="step"><span className="step-number">03 / REFINE</span><h3>Keep your hands on it</h3><p>Edit the schematic. Export when ready.</p></article>
         </div>
       </section>
 
@@ -269,7 +290,7 @@ function Landing() {
           <Link href="/sign-up" className="hero-cta" data-testid="link-create-account-bottom">Create your account <ArrowRight /></Link>
         </div>
       </section>
-      <footer className="footer"><span>CIRCUIT STUDIO</span><span>Clear drawings. Curious makers.</span></footer>
+      <footer className="footer"><span>CIRCUITSTUDIO</span><span>Clear drawings. Curious makers.</span></footer>
     </main>
   );
 }
@@ -696,6 +717,7 @@ function Studio({ userId }: { userId: string }) {
   const [jsonRepairRequest, setJsonRepairRequest] = useState<JsonRepairRequest | null>(null);
   const jsonRepairRequestIdRef = useRef(0);
   const [hasStagedBuilderProposal, setHasStagedBuilderProposal] = useState(false);
+  const [schematicFeedbackHost, setSchematicFeedbackHost] = useState<HTMLDivElement | null>(null);
   const [libraryReady, setLibraryReady] = useState(!!window.CircuitDraw);
   const [toast, setToast] = useState('');
   const [copied, setCopied] = useState(false);
@@ -969,7 +991,7 @@ function Studio({ userId }: { userId: string }) {
   return (
     <main className="studio-shell">
       <header className="topbar">
-        <Link href="/studio" className="brand" data-testid="link-studio-home"><span className="brand-mark"><CircuitBoard aria-hidden="true" /></span><span>Circuit Studio</span></Link>
+        <Link href="/studio" className="brand" data-testid="link-studio-home"><span className="brand-mark"><CircuitBoard aria-hidden="true" /></span><span>CircuitStudio</span></Link>
         <div className="top-user"><span data-testid="text-account-name">{user?.firstName || 'Your workbench'}</span><Link href="/studio/tutor" className="tutor-nav-link" data-testid="link-open-tutor"><MessageCircle /> Tutor</Link><button data-testid="button-sign-out" onClick={() => signOut({ redirectUrl: basePath || '/' })}>Sign out</button><AiStatusControls /></div>
       </header>
       <div className="workspace">
@@ -987,6 +1009,7 @@ function Studio({ userId }: { userId: string }) {
             canRepairCurrentDraft={libraryReady && !jsonError && !jsonEditorDirty && report.errors.length > 0}
             hasUnappliedJsonEdits={jsonEditorDirty}
             jsonRepairRequest={jsonRepairRequest}
+            schematicFeedbackHost={schematicFeedbackHost}
             onProposalStateChange={setHasStagedBuilderProposal}
             onJsonRepairRequestHandled={(id) => {
               setJsonRepairRequest((current) => current?.id === id ? null : current);
@@ -1026,14 +1049,19 @@ function Studio({ userId }: { userId: string }) {
               </div>
             </div>
             <div className="schematic-stage">
-              {!libraryReady ? <div className="schematic-paper canvas-empty"><div className="loading-skeleton" /><p>Loading the drawing engine…</p></div>
+              {!libraryReady ? <div className="schematic-paper canvas-empty"><div className="loading-skeleton" /><p>Loading schematic…</p></div>
                 : svg ? <>
                     {report.errors.length > 0 && <span className="schematic-repair-badge" data-testid="status-schematic-repair">Needs repair</span>}
                     <SchematicViewer svg={svg} onFullscreenError={() => setToast('Fullscreen mode is unavailable in this browser.')} />
                   </>
-                  : report.errors.length ? <div className="schematic-paper canvas-empty"><h3>This schematic needs a repair</h3><p>The current draft has drawing errors and could not be rendered. Apply a JSON edit or ask Studio AI to repair it.</p></div>
-                    : <div className="schematic-paper canvas-empty"><div className="empty-icon"><CircuitBoard /></div><h3>Ready to draw</h3><p>Your schematic will appear here once the drawing engine is available.</p></div>}
+                  : report.errors.length ? <div className="schematic-paper canvas-empty"><h3>This schematic needs repair</h3><p>Fix the errors to preview it.</p></div>
+                    : <div className="schematic-paper canvas-empty"><div className="empty-icon"><CircuitBoard /></div><h3>Ready to draw</h3><p>Your schematic will appear here.</p></div>}
             </div>
+            <div
+              className="schematic-feedback-host"
+              ref={setSchematicFeedbackHost}
+              data-testid="slot-schematic-feedback"
+            />
             <div className="canvas-foot"><span data-testid="status-canvas">{report.errors.length ? svg ? 'Needs repair' : 'Drawing paused' : 'Vector schematic'}</span><span>Canvas {spec.width || 'auto'} × {spec.height || 'auto'}</span></div>
           </div>
         </section>
@@ -1328,7 +1356,7 @@ function Tutor({ userId }: { userId: string }) {
   return (
     <main className="studio-shell tutor-shell">
       <header className="topbar">
-        <Link href="/studio" className="brand" data-testid="link-tutor-studio"><span className="brand-mark"><CircuitBoard aria-hidden="true" /></span><span>Circuit Studio</span></Link>
+        <Link href="/studio" className="brand" data-testid="link-tutor-studio"><span className="brand-mark"><CircuitBoard aria-hidden="true" /></span><span>CircuitStudio</span></Link>
         <div className="tutor-header-actions">
           <Link href="/studio" className="tutor-back-link" data-testid="link-back-to-studio"><ArrowRight /> Back to workbench</Link>
           <div className="top-meta"><span>LEARNING DESK</span><AiStatusControls /></div>
@@ -1375,10 +1403,10 @@ function Tutor({ userId }: { userId: string }) {
                 <label className="proposal-toggle">
                   <input type="checkbox" data-testid="toggle-propose-edits" checked={proposeEdits} onChange={(event) => setProposeEdits(event.target.checked)} />
                   <span className="toggle-mark" />
-                  <span><strong>Allow a proposed edit</strong><small>The tutor will show the complete proposed CircuitSpec. Nothing is applied automatically.</small></span>
+                  <span><strong>Allow a proposed edit</strong><small>Review edits before applying.</small></span>
                 </label>
                 <div className="tutor-submit-row">
-                  <span className="tutor-input-hint">Your current local draft is included as context.</span>
+                  <span className="tutor-input-hint">Current draft included.</span>
                   <button className="primary-button" data-testid="button-ask-tutor" type="submit" disabled={askTutor.isPending || (!question.trim() && !image) || question.trim().length > 3000 || !!imageError || usageQuery.isLoading || !usage?.canUseAi}>
                     {askTutor.isPending ? <><LoaderCircle className="spin-icon" /> Thinking…</> : <><Send /> Ask the tutor</>}
                   </button>
@@ -1386,7 +1414,7 @@ function Tutor({ userId }: { userId: string }) {
               </form>
             </Form>
             {formError && <p className="prompt-error" role="alert">{formError}</p>}
-            {!usageQuery.isLoading && usage && usage.configuredKeyNumbers.length === 0 && <div className="ai-unavailable" role="status" data-testid="status-ai-unavailable"><span><strong>Gemini is not configured</strong><small>AI requests are unavailable for this app. Your draft remains available in the workbench.</small></span></div>}
+            {!usageQuery.isLoading && usage && usage.configuredKeyNumbers.length === 0 && <div className="ai-unavailable" role="status" data-testid="status-ai-unavailable"><span><strong>AI unavailable</strong><small>Your draft is still available.</small></span></div>}
             {usageQuery.isError && <div className="usage-error" role="alert" data-testid="status-usage-error"><span>AI availability could not be checked. Retry to check again.</span><button type="button" onClick={() => usageQuery.refetch()}>Retry</button></div>}
             {requestError && <div className="tutor-error" role="alert" data-testid="status-tutor-error"><span>{requestError}</span><button type="button" onClick={() => formRef.current?.requestSubmit()}>Retry</button></div>}
           </section>
@@ -1404,18 +1432,18 @@ function Tutor({ userId }: { userId: string }) {
                 {selectKey.isError && <p className="prompt-error" role="alert">Key selection failed. Try again.</p>}
                 <p className="usage-policy" data-testid="text-ai-usage-policy">No app-side token cap</p>
                 <p className="usage-detail">{usage.tokensUsed.toLocaleString()} used · {usage.tokensReserved.toLocaleString()} reserved</p>
-                <p className="usage-footnote">Gemini provider quotas and costs still apply. Keys stay on the server and are never sent to your browser.</p>
+                <p className="usage-footnote">Provider costs apply. Keys stay on the server.</p>
               </div>
-                : <div className="usage-fallback" role="status"><p>AI usage details are unavailable. You can still return to your saved workbench.</p><button type="button" className="quiet-button" onClick={() => usageQuery.refetch()}>Retry account check</button></div>}
+                : <div className="usage-fallback" role="status"><p>Usage unavailable. Your workbench is saved.</p><button type="button" className="quiet-button" onClick={() => usageQuery.refetch()}>Retry</button></div>}
           </aside>
         </div>
 
         <section className="tutor-response-area" aria-live="polite">
-          {askTutor.isPending ? <div className="panel response-empty response-loading"><span className="loading-skeleton" /><p>The tutor is separating what is visible from what is inferred.</p></div>
+          {askTutor.isPending ? <div className="panel response-empty response-loading"><span className="loading-skeleton" /><p>Preparing answer…</p></div>
             : response ? <TutorAnswer response={response} onApply={applyProposal} applied={applied} libraryReady={libraryReady} />
-              : <div className="panel response-empty"><span className="response-empty-icon"><MessageCircle /></span><h2>Your explanation will appear here.</h2><p>Observed details, interpretation, uncertainty, and missing values stay in separate lanes.</p></div>}
+              : <div className="panel response-empty"><span className="response-empty-icon"><MessageCircle /></span><h2>Ask about this circuit.</h2></div>}
         </section>
-        <p className="tutor-safety"><span>Educational explanations only. They are not electrical correctness, safety, simulation, or compliance checks. Do not rely on them to build, power, or use a circuit.</span></p>
+        <p className="tutor-safety"><span>For learning only. Verify circuit safety before building or powering.</span></p>
       </div>
     </main>
   );
@@ -1462,10 +1490,10 @@ function TutorAnswer({ response, onApply, applied, libraryReady }: { response: T
           <summary>Inspect exact proposed CircuitSpec</summary>
           <pre data-testid="text-proposed-circuit-spec">{JSON.stringify(response.proposedEdit.spec, null, 2)}</pre>
         </details>
-        <div className="proposal-actions"><p>This replaces the current editable draft only after you choose Apply.</p><button type="button" className="primary-button" data-testid="button-apply-proposal" onClick={onApply} disabled={proposalPreview.state !== 'ready'}><Check /> Apply proposal</button></div>
+          <div className="proposal-actions"><p>Your draft changes only when applied.</p><button type="button" className="primary-button" data-testid="button-apply-proposal" onClick={onApply} disabled={proposalPreview.state !== 'ready'}><Check /> Apply proposal</button></div>
         {applied && <p className="proposal-applied" role="status">Proposal saved to your workbench draft.</p>}
       </section>}
-      <p className="answer-disclaimer">An explanation is not a verification. Confirm circuit behavior and safety with qualified sources and appropriate instruments.</p>
+      <p className="answer-disclaimer">Verify circuit behavior and safety before building.</p>
     </article>
   );
 }
@@ -1482,7 +1510,7 @@ function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <main className="auth-shell">
       <aside className="auth-aside">
-        <Link href="/" className="brand" data-testid="link-auth-brand"><span className="brand-mark"><CircuitBoard /></span><span>Circuit Studio</span></Link>
+        <Link href="/" className="brand" data-testid="link-auth-brand"><span className="brand-mark"><CircuitBoard /></span><span>CircuitStudio</span></Link>
         <div className="auth-aside-copy"><p className="eyebrow">Your workbench is waiting</p><h1>Build understanding, one connection at a time.</h1><p>Bring a circuit idea to the bench. Keep the schematic clear, editable, and yours.</p></div>
         <div className="auth-aside-foot">A CLEARER PATH FROM IDEA TO CIRCUIT</div>
       </aside>

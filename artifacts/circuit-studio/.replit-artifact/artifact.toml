@@ -1,6 +1,6 @@
 kind = "web"
 previewPath = "/"
-title = "Circuit Studio"
+title = "CircuitStudio"
 description = "A circuit-diagram workspace that turns plain-language circuit ideas into editable schematics, validates connections, and exports drawings and EasyEDA build sheets."
 version = "1.0.0"
 id = "artifacts/circuit-studio"

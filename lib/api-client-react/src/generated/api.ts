@@ -26,6 +26,8 @@ import type {
   ApiError,
   CircuitBuildChatInput,
   CircuitBuildChatResponse,
+  CircuitBuilderFeedbackInput,
+  CircuitBuilderFeedbackResponse,
   CircuitBuilderHistoryDeletion,
   CircuitBuilderHistoryImportInput,
   CircuitBuilderHistoryImportResponse,
@@ -37,13 +39,17 @@ import type {
   CircuitBuilderRepairLessonInput,
   CircuitBuilderRepairLessonResult,
   CircuitPrompt,
+  CircuitProposalReview,
+  CircuitProposalReviewInput,
   CircuitReviewRequest,
   CircuitReviewResponse,
   CircuitSpec,
   CircuitSymbolSearchResponse,
   ExternalCircuitFixReviewInput,
   ExternalCircuitFixReviewResponse,
+  GetCircuitSymbolDataParams,
   HealthStatus,
+  KicadSymbolData,
   SearchCircuitSymbolsParams,
   TutorRequest,
   TutorResponse
@@ -315,6 +321,90 @@ export function useSearchCircuitSymbols<TData = Awaited<ReturnType<typeof search
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getSearchCircuitSymbolsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetCircuitSymbolDataUrl = (params: GetCircuitSymbolDataParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/circuits/library/symbol-data?${stringifiedParams}` : `/api/circuits/library/symbol-data`
+}
+
+/**
+ * @summary Get source geometry for a KiCad symbol preview
+ */
+export const getCircuitSymbolData = async (params: GetCircuitSymbolDataParams, options?: Parameters<typeof customFetch>[1]): Promise<KicadSymbolData> => {
+
+  return customFetch<KicadSymbolData>(getGetCircuitSymbolDataUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCircuitSymbolDataQueryKey = (params?: GetCircuitSymbolDataParams,) => {
+    return [
+    `/api/circuits/library/symbol-data`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetCircuitSymbolDataQueryOptions = <TData = Awaited<ReturnType<typeof getCircuitSymbolData>>, TError = ErrorType<ApiError>>(params: GetCircuitSymbolDataParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCircuitSymbolData>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCircuitSymbolDataQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCircuitSymbolData>>> = ({ signal }) => getCircuitSymbolData(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCircuitSymbolData>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCircuitSymbolDataQueryResult = NonNullable<Awaited<ReturnType<typeof getCircuitSymbolData>>>
+export type GetCircuitSymbolDataQueryError = ErrorType<ApiError>
+
+
+/**
+ * @summary Get source geometry for a KiCad symbol preview
+ */
+
+export function useGetCircuitSymbolData<TData = Awaited<ReturnType<typeof getCircuitSymbolData>>, TError = ErrorType<ApiError>>(
+ params: GetCircuitSymbolDataParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCircuitSymbolData>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCircuitSymbolDataQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -923,6 +1013,95 @@ export const useSaveCircuitBuilderRepairLesson = <TError = ErrorType<ApiError>,
       return useMutation(getSaveCircuitBuilderRepairLessonMutationOptions(options));
     }
 
+export const getSaveCircuitBuilderFeedbackUrl = () => {
+
+
+
+
+  return `/api/circuit-builder/memories/feedback`
+}
+
+/**
+ * Saves concise, account-owned feedback that can guide future similar circuit requests. The user can edit or remove it with saved memories.
+ * @summary Save feedback on a Circuit Studio proposal
+ */
+export const saveCircuitBuilderFeedback = async (circuitBuilderFeedbackInput: CircuitBuilderFeedbackInput, options?: Parameters<typeof customFetch>[1]): Promise<CircuitBuilderFeedbackResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CircuitBuilderFeedbackResponse>(getSaveCircuitBuilderFeedbackUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(circuitBuilderFeedbackInput)
+  }
+);}
+
+
+
+
+
+export const getSaveCircuitBuilderFeedbackMutationKey = () => ['saveCircuitBuilderFeedback'] as const;
+
+export const getSaveCircuitBuilderFeedbackMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveCircuitBuilderFeedback>>, TError,SaveCircuitBuilderFeedbackMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveCircuitBuilderFeedback>>, TError,SaveCircuitBuilderFeedbackMutationVariables, TContext> => {
+
+const mutationKey = getSaveCircuitBuilderFeedbackMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveCircuitBuilderFeedback>>, SaveCircuitBuilderFeedbackMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  saveCircuitBuilderFeedback(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveCircuitBuilderFeedbackMutationResult = NonNullable<Awaited<ReturnType<typeof saveCircuitBuilderFeedback>>>
+    export type SaveCircuitBuilderFeedbackMutationBody = BodyType<CircuitBuilderFeedbackInput>
+    export type SaveCircuitBuilderFeedbackMutationError = ErrorType<ApiError>
+    export type SaveCircuitBuilderFeedbackMutationVariables = {data: BodyType<CircuitBuilderFeedbackInput>}
+
+    /**
+ * @summary Save feedback on a Circuit Studio proposal
+ */
+export const useSaveCircuitBuilderFeedback = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveCircuitBuilderFeedback>>, TError,SaveCircuitBuilderFeedbackMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveCircuitBuilderFeedback>>,
+        TError,
+        SaveCircuitBuilderFeedbackMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveCircuitBuilderFeedbackMutationOptions(options));
+    }
+
 export const getListCircuitBuilderHistoryUrl = () => {
 
 
@@ -1493,6 +1672,95 @@ export const useReviewCircuit = <TError = ErrorType<ApiError>,
         TContext
       > => {
       return useMutation(getReviewCircuitMutationOptions(options));
+    }
+
+export const getReviewCircuitProposalUrl = () => {
+
+
+
+
+  return `/api/circuits/proposal-review`
+}
+
+/**
+ * Returns advisory concerns about request fit and schematic readability. It does not verify electrical behavior, correctness, ratings, or safety, and never overrides deterministic blocking checks.
+ * @summary Review a staged circuit proposal for intent and readability
+ */
+export const reviewCircuitProposal = async (circuitProposalReviewInput: CircuitProposalReviewInput, options?: Parameters<typeof customFetch>[1]): Promise<CircuitProposalReview> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CircuitProposalReview>(getReviewCircuitProposalUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(circuitProposalReviewInput)
+  }
+);}
+
+
+
+
+
+export const getReviewCircuitProposalMutationKey = () => ['reviewCircuitProposal'] as const;
+
+export const getReviewCircuitProposalMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewCircuitProposal>>, TError,ReviewCircuitProposalMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewCircuitProposal>>, TError,ReviewCircuitProposalMutationVariables, TContext> => {
+
+const mutationKey = getReviewCircuitProposalMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewCircuitProposal>>, ReviewCircuitProposalMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  reviewCircuitProposal(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewCircuitProposalMutationResult = NonNullable<Awaited<ReturnType<typeof reviewCircuitProposal>>>
+    export type ReviewCircuitProposalMutationBody = BodyType<CircuitProposalReviewInput>
+    export type ReviewCircuitProposalMutationError = ErrorType<ApiError>
+    export type ReviewCircuitProposalMutationVariables = {data: BodyType<CircuitProposalReviewInput>}
+
+    /**
+ * @summary Review a staged circuit proposal for intent and readability
+ */
+export const useReviewCircuitProposal = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewCircuitProposal>>, TError,ReviewCircuitProposalMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reviewCircuitProposal>>,
+        TError,
+        ReviewCircuitProposalMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReviewCircuitProposalMutationOptions(options));
     }
 
 export const getGetAiUsageUrl = () => {

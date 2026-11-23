@@ -299,7 +299,7 @@ export function buildTechnicalDocumentHtml({
     td small { display:block; color:#9a5d3f; margin-top:3px; }
     .notice { margin-top:14px; padding:11px 13px; background:#f8f3e9; border-left:3px solid #c07a50; color:#5e5142; font-size:12px; }
     pre { white-space:pre-wrap; overflow-wrap:anywhere; padding:14px; background:#f5f6f2; border:1px solid #e0e3dc; font:11px/1.5 ui-monospace,monospace; }
-    .print-action { position:fixed; right:22px; top:18px; padding:9px 13px; border:0; border-radius:5px; background:#176b55; color:white; font-weight:700; cursor:pointer; }
+    .print-action { position:fixed; right:22px; top:18px; padding:9px 13px; border:0; border-radius:3.75px; background:#176b55; color:white; font-weight:700; cursor:pointer; }
     @page { size:A4 landscape; margin:12mm; }
     @media print {
       body { max-width:none; padding:0; font-size:10px; }

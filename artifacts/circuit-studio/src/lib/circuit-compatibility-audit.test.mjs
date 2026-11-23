@@ -195,3 +195,21 @@ test("IC, potentiometer, and MOSFET symbols use explicit catalog entries", () =>
   }
   assert.match(guide, /no IC supply pins are modeled/);
 });
+
+test("loads researched component descriptions without repeating the unknown-pin error", () => {
+  const entries = CircuitGeometry.CIRCUIT_COMPONENT_LIBRARY;
+  assert.equal(entries.length, 50);
+  assert.ok(entries.every((entry) => entry.longDescription.trim()));
+  assert.ok(
+    entries.every(
+      (entry) => !entry.longDescription.includes("None-pin symbol drawing"),
+    ),
+  );
+
+  const context =
+    CircuitGeometry.formatRelevantCircuitComponentResearchContext([
+      "I need an adjustable variable resistor",
+    ]);
+  assert.match(context, /potentiometer \(Potentiometer\)/i);
+  assert.match(context, /adjustable resistor/i);
+});

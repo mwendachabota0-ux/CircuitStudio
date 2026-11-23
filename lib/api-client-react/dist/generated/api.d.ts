@@ -1,5 +1,5 @@
 import type { QueryKey, UseMutationOptions, UseMutationResult, UseQueryOptions, UseQueryResult } from '@tanstack/react-query';
-import type { AiKeySelectionRequest, AiStatus, AiUsage, ApiError, CircuitBuildChatInput, CircuitBuildChatResponse, CircuitBuilderHistoryDeletion, CircuitBuilderHistoryImportInput, CircuitBuilderHistoryImportResponse, CircuitBuilderHistorySession, CircuitBuilderHistorySyncInput, CircuitBuilderHistorySyncResponse, CircuitBuilderMemory, CircuitBuilderMemoryInput, CircuitBuilderRepairLessonInput, CircuitBuilderRepairLessonResult, CircuitPrompt, CircuitReviewRequest, CircuitReviewResponse, CircuitSpec, CircuitSymbolSearchResponse, ExternalCircuitFixReviewInput, ExternalCircuitFixReviewResponse, HealthStatus, SearchCircuitSymbolsParams, TutorRequest, TutorResponse } from './api.schemas';
+import type { AiKeySelectionRequest, AiStatus, AiUsage, ApiError, CircuitBuildChatInput, CircuitBuildChatResponse, CircuitBuilderFeedbackInput, CircuitBuilderFeedbackResponse, CircuitBuilderHistoryDeletion, CircuitBuilderHistoryImportInput, CircuitBuilderHistoryImportResponse, CircuitBuilderHistorySession, CircuitBuilderHistorySyncInput, CircuitBuilderHistorySyncResponse, CircuitBuilderMemory, CircuitBuilderMemoryInput, CircuitBuilderRepairLessonInput, CircuitBuilderRepairLessonResult, CircuitPrompt, CircuitProposalReview, CircuitProposalReviewInput, CircuitReviewRequest, CircuitReviewResponse, CircuitSpec, CircuitSymbolSearchResponse, ExternalCircuitFixReviewInput, ExternalCircuitFixReviewResponse, GetCircuitSymbolDataParams, HealthStatus, KicadSymbolData, SearchCircuitSymbolsParams, TutorRequest, TutorResponse } from './api.schemas';
 import { customFetch } from '../custom-fetch';
 import type { ErrorType, BodyType } from '../custom-fetch';
 type AwaitedInput<T> = PromiseLike<T> | T;
@@ -72,6 +72,29 @@ export type SearchCircuitSymbolsQueryError = ErrorType<ApiError>;
  */
 export declare function useSearchCircuitSymbols<TData = Awaited<ReturnType<typeof searchCircuitSymbols>>, TError = ErrorType<ApiError>>(params?: SearchCircuitSymbolsParams, options?: {
     query?: UseQueryOptions<Awaited<ReturnType<typeof searchCircuitSymbols>>, TError, TData>;
+    request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+};
+export declare const getGetCircuitSymbolDataUrl: (params: GetCircuitSymbolDataParams) => string;
+/**
+ * @summary Get source geometry for a KiCad symbol preview
+ */
+export declare const getCircuitSymbolData: (params: GetCircuitSymbolDataParams, options?: Parameters<typeof customFetch>[1]) => Promise<KicadSymbolData>;
+export declare const getGetCircuitSymbolDataQueryKey: (params?: GetCircuitSymbolDataParams) => readonly ["/api/circuits/library/symbol-data", ...GetCircuitSymbolDataParams[]];
+export declare const getGetCircuitSymbolDataQueryOptions: <TData = Awaited<ReturnType<typeof getCircuitSymbolData>>, TError = ErrorType<ApiError>>(params: GetCircuitSymbolDataParams, options?: {
+    query?: UseQueryOptions<Awaited<ReturnType<typeof getCircuitSymbolData>>, TError, TData>;
+    request?: SecondParameter<typeof customFetch>;
+}) => UseQueryOptions<Awaited<ReturnType<typeof getCircuitSymbolData>>, TError, TData> & {
+    queryKey: QueryKey;
+};
+export type GetCircuitSymbolDataQueryResult = NonNullable<Awaited<ReturnType<typeof getCircuitSymbolData>>>;
+export type GetCircuitSymbolDataQueryError = ErrorType<ApiError>;
+/**
+ * @summary Get source geometry for a KiCad symbol preview
+ */
+export declare function useGetCircuitSymbolData<TData = Awaited<ReturnType<typeof getCircuitSymbolData>>, TError = ErrorType<ApiError>>(params: GetCircuitSymbolDataParams, options?: {
+    query?: UseQueryOptions<Awaited<ReturnType<typeof getCircuitSymbolData>>, TError, TData>;
     request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & {
     queryKey: QueryKey;
@@ -238,6 +261,30 @@ export declare const useSaveCircuitBuilderRepairLesson: <TError = ErrorType<ApiE
     mutation?: UseMutationOptions<Awaited<ReturnType<typeof saveCircuitBuilderRepairLesson>>, TError, SaveCircuitBuilderRepairLessonMutationVariables, TContext>;
     request?: SecondParameter<typeof customFetch>;
 }) => UseMutationResult<Awaited<ReturnType<typeof saveCircuitBuilderRepairLesson>>, TError, SaveCircuitBuilderRepairLessonMutationVariables, TContext>;
+export declare const getSaveCircuitBuilderFeedbackUrl: () => string;
+/**
+ * Saves concise, account-owned feedback that can guide future similar circuit requests. The user can edit or remove it with saved memories.
+ * @summary Save feedback on a Circuit Studio proposal
+ */
+export declare const saveCircuitBuilderFeedback: (circuitBuilderFeedbackInput: CircuitBuilderFeedbackInput, options?: Parameters<typeof customFetch>[1]) => Promise<CircuitBuilderFeedbackResponse>;
+export declare const getSaveCircuitBuilderFeedbackMutationKey: () => readonly ["saveCircuitBuilderFeedback"];
+export declare const getSaveCircuitBuilderFeedbackMutationOptions: <TError = ErrorType<ApiError>, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<Awaited<ReturnType<typeof saveCircuitBuilderFeedback>>, TError, SaveCircuitBuilderFeedbackMutationVariables, TContext>;
+    request?: SecondParameter<typeof customFetch>;
+}) => UseMutationOptions<Awaited<ReturnType<typeof saveCircuitBuilderFeedback>>, TError, SaveCircuitBuilderFeedbackMutationVariables, TContext>;
+export type SaveCircuitBuilderFeedbackMutationResult = NonNullable<Awaited<ReturnType<typeof saveCircuitBuilderFeedback>>>;
+export type SaveCircuitBuilderFeedbackMutationBody = BodyType<CircuitBuilderFeedbackInput>;
+export type SaveCircuitBuilderFeedbackMutationError = ErrorType<ApiError>;
+export type SaveCircuitBuilderFeedbackMutationVariables = {
+    data: BodyType<CircuitBuilderFeedbackInput>;
+};
+/**
+* @summary Save feedback on a Circuit Studio proposal
+*/
+export declare const useSaveCircuitBuilderFeedback: <TError = ErrorType<ApiError>, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<Awaited<ReturnType<typeof saveCircuitBuilderFeedback>>, TError, SaveCircuitBuilderFeedbackMutationVariables, TContext>;
+    request?: SecondParameter<typeof customFetch>;
+}) => UseMutationResult<Awaited<ReturnType<typeof saveCircuitBuilderFeedback>>, TError, SaveCircuitBuilderFeedbackMutationVariables, TContext>;
 export declare const getListCircuitBuilderHistoryUrl: () => string;
 /**
  * Returns the signed-in user's complete chat and build history.
@@ -403,6 +450,30 @@ export declare const useReviewCircuit: <TError = ErrorType<ApiError>, TContext =
     mutation?: UseMutationOptions<Awaited<ReturnType<typeof reviewCircuit>>, TError, ReviewCircuitMutationVariables, TContext>;
     request?: SecondParameter<typeof customFetch>;
 }) => UseMutationResult<Awaited<ReturnType<typeof reviewCircuit>>, TError, ReviewCircuitMutationVariables, TContext>;
+export declare const getReviewCircuitProposalUrl: () => string;
+/**
+ * Returns advisory concerns about request fit and schematic readability. It does not verify electrical behavior, correctness, ratings, or safety, and never overrides deterministic blocking checks.
+ * @summary Review a staged circuit proposal for intent and readability
+ */
+export declare const reviewCircuitProposal: (circuitProposalReviewInput: CircuitProposalReviewInput, options?: Parameters<typeof customFetch>[1]) => Promise<CircuitProposalReview>;
+export declare const getReviewCircuitProposalMutationKey: () => readonly ["reviewCircuitProposal"];
+export declare const getReviewCircuitProposalMutationOptions: <TError = ErrorType<ApiError>, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<Awaited<ReturnType<typeof reviewCircuitProposal>>, TError, ReviewCircuitProposalMutationVariables, TContext>;
+    request?: SecondParameter<typeof customFetch>;
+}) => UseMutationOptions<Awaited<ReturnType<typeof reviewCircuitProposal>>, TError, ReviewCircuitProposalMutationVariables, TContext>;
+export type ReviewCircuitProposalMutationResult = NonNullable<Awaited<ReturnType<typeof reviewCircuitProposal>>>;
+export type ReviewCircuitProposalMutationBody = BodyType<CircuitProposalReviewInput>;
+export type ReviewCircuitProposalMutationError = ErrorType<ApiError>;
+export type ReviewCircuitProposalMutationVariables = {
+    data: BodyType<CircuitProposalReviewInput>;
+};
+/**
+* @summary Review a staged circuit proposal for intent and readability
+*/
+export declare const useReviewCircuitProposal: <TError = ErrorType<ApiError>, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<Awaited<ReturnType<typeof reviewCircuitProposal>>, TError, ReviewCircuitProposalMutationVariables, TContext>;
+    request?: SecondParameter<typeof customFetch>;
+}) => UseMutationResult<Awaited<ReturnType<typeof reviewCircuitProposal>>, TError, ReviewCircuitProposalMutationVariables, TContext>;
 export declare const getGetAiUsageUrl: () => string;
 /**
  * @summary Read the signed-in account's AI usage and selected key

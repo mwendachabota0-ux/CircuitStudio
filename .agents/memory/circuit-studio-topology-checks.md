@@ -9,6 +9,8 @@ When an automatic repair fails but a rejected proposal exists, manual Retry must
 
 After three automatic repair attempts fail, distinguish wiring failures from circuit-composition failures. For wiring-only blockers, offer a full rewire that discards existing wires and routing markers while preserving components, labels, values, positions, and canvas metadata. For recognized missing/unsupported component or spec-shape blockers, offer a separate full rebuild from the original request. Both actions stage a proposal; never overwrite the workbench until the user applies it. If a recovery result is later accepted, retain the rejected proposal and findings as evidence for a repair lesson.
 
+When the user brings back a complete CircuitSpec from external help, validate and stage that exact candidate instead of sending it back through Studio's circuit generator. Keep the rejected spec and findings until the user applies the correction; only then derive a concise lesson from the before/after diff and relevant findings. Do not learn from invalid, unchanged, or unapplied candidates, and use the saved lesson only for relevant future repairs.
+
 While an external correction is processing, keep Chat available through a separate chat-mode request. Do not let that conversation replace the repair request, baseline, findings, or pasted correction.
 
 Only blocking structural/topology faults should prevent a proposal from being staged or consume repair retries. Disconnected wire ends and wires shorting components are errors; diagonal routing, tight visual spacing, and other advisory layout notes remain warnings. For known astable circuits, validate critical base feedback and emitter return paths so making generic pin warnings non-blocking does not hide those faults.

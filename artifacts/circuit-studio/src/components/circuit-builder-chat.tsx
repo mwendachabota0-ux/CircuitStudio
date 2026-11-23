@@ -50,7 +50,6 @@ import {
   getCircuitNetlistSignature,
   getPinToNetSignature,
   hasStablePinConnectivitySignature,
-  EXTERNAL_REPAIR_REFERENCE_MARKER,
   formatRepairAttemptSummary,
   getModeAfterFailedRequest,
   getRetryRecoveryKind,
@@ -80,8 +79,8 @@ import {
   getFinalAssistantQuestion,
 } from '../lib/suggested-action-context';
 import {
+  buildExternalCircuitFixProposal,
   buildExternalCircuitFixPrompt,
-  buildStudioExternalCircuitFixMessage,
   getExternalCircuitFixContextKey,
   partitionExternalCircuitFixFindings,
   shouldShowExternalCircuitFixPaste,
@@ -154,7 +153,8 @@ type ValidationReport = {
   topologyWarnings?: string[];
 };
 type ProposalQualityReviewState =
-  | { kind: 'idle' | 'loading' | 'unavailable' | 'skipped' | 'cancelled' }
+  | { kind: 'idle' | 'loading' | 'unavailable' | 'cancelled' }
+  | { kind: 'skipped'; reason?: 'blocking-findings' | 'external-correction' }
   | { kind: 'ready'; review: CircuitProposalReview };
 type LayoutRepairOutcome =
   | {
@@ -639,7 +639,6 @@ export function CircuitBuilderChat({
     },
   });
   const buildAbortControllerRef = useRef<AbortController | null>(null);
-  const followupAbortControllerRef = useRef<AbortController | null>(null);
   const proposalReviewAbortControllerRef = useRef<AbortController | null>(null);
   const proposalReviewLayoutRepairActiveRef = useRef(false);
   const historySyncMutation = useSyncCircuitBuilderHistory();
@@ -649,13 +648,6 @@ export function CircuitBuilderChat({
       mutationKey: getChatWithCircuitBuilderMutationKey(),
       mutationFn: ({ data }) => chatWithCircuitBuilder(data, {
         signal: buildAbortControllerRef.current?.signal,
-      }),
-    },
-  });
-  const followupChatMutation = useChatWithCircuitBuilder({
-    mutation: {
-      mutationFn: ({ data }) => chatWithCircuitBuilder(data, {
-        signal: followupAbortControllerRef.current?.signal,
       }),
     },
   });
@@ -715,7 +707,7 @@ export function CircuitBuilderChat({
   const [briefOpenQuestionsDraft, setBriefOpenQuestionsDraft] = useState('');
   const [requestCycleActive, setRequestCycleActive] = useState(false);
   const [isStoppingWork, setIsStoppingWork] = useState(false);
-  const [externalFixProcessing, setExternalFixProcessing] = useState(false);
+  const [externalFixFeedback, setExternalFixFeedback] = useState('');
   const [repairStopAvailable, setRepairStopAvailable] = useState(false);
   const [repairStopRequested, setRepairStopRequested] = useState(false);
   const repairState = saved.repair;
@@ -944,12 +936,10 @@ export function CircuitBuilderChat({
   const stopBuilderWork = () => {
     setIsStoppingWork(true);
     buildAbortControllerRef.current?.abort();
-    followupAbortControllerRef.current?.abort();
   };
 
   useEffect(() => () => {
     buildAbortControllerRef.current?.abort();
-    followupAbortControllerRef.current?.abort();
     proposalReviewAbortControllerRef.current?.abort();
   }, []);
 
@@ -1082,7 +1072,7 @@ export function CircuitBuilderChat({
       if (buildAbortControllerRef.current === abortController) {
         buildAbortControllerRef.current = null;
       }
-      setIsStoppingWork(Boolean(followupAbortControllerRef.current?.signal.aborted));
+      setIsStoppingWork(false);
     }
   }, [chatMutation.mutateAsync, queryClient]);
 
@@ -1607,12 +1597,8 @@ export function CircuitBuilderChat({
       advisoryWarnings,
       originalRequest: lastRequest?.message ?? '',
       designBrief: saved.brief,
-      history: saved.messages.slice(-8).map(({ role, content }) => ({
-        role,
-        content: content.slice(0, 3000),
-      })),
     };
-  }, [rejectedProposalSpec, retryFeedback, lastRequest, saved.brief, saved.messages]);
+  }, [rejectedProposalSpec, retryFeedback, lastRequest, saved.brief]);
   const externalFixContextKey = externalFixContext
     ? getExternalCircuitFixContextKey(externalFixContext)
     : '';
@@ -1663,6 +1649,7 @@ export function CircuitBuilderChat({
     try {
       await navigator.clipboard.writeText(buildExternalCircuitFixPrompt(externalFixContext));
       setExternalFixDraft('');
+      setExternalFixFeedback('');
       setExternalFixCopiedContextKey(externalFixContextKey);
       setExternalFixCopyState('copied');
     } catch {
@@ -1671,7 +1658,7 @@ export function CircuitBuilderChat({
     }
   };
 
-  const submitExternalCircuitFix = async () => {
+  const submitExternalCircuitFix = () => {
     if (
       !externalFixContext ||
       !showExternalFixPaste ||
@@ -1681,44 +1668,53 @@ export function CircuitBuilderChat({
       chatMutation.isPending
     ) return;
 
-    const message = buildStudioExternalCircuitFixMessage(
-      externalFixContext,
-      externalFixDraft,
-    );
-    const request: CircuitBuildChatInput = {
-      message,
-      mode: 'build',
-      currentSpec: externalFixContext.rejectedSpec,
-      history: saved.messages
-        .slice(-8)
-        .map(({ role, content }) => ({ role, content })),
-      brief: externalFixContext.designBrief,
-    };
-    const repairLessonSeed: RepairLessonEvidence = {
-      beforeSpec: externalFixContext.rejectedSpec,
-      findings: externalFixContext.reportedProblems,
-      context: 'The user supplied an external AI correction as guidance for repairing the existing circuit. The Studio proposal must preserve existing work and incorporate relevant corrections.',
-    };
-    setMode('build');
-    setSaved((current) => ({
-      ...current,
-      messages: [...current.messages, newMessage('user', message)].slice(-60),
-    }));
-    setExternalFixProcessing(true);
+    setExternalFixFeedback('');
+    let candidate: ReturnType<typeof buildExternalCircuitFixProposal>;
     try {
-      await runRequest(
-        request,
-        composerRef.current?.getDraftRevision() ?? 0,
+      candidate = buildExternalCircuitFixProposal(
         externalFixContext.rejectedSpec,
-        true,
-        true,
-        repairLessonSeed,
-        externalFixContext.rejectedSpec,
-        true,
+        externalFixDraft,
       );
-    } finally {
-      setExternalFixProcessing(false);
+    } catch (error) {
+      setExternalFixFeedback(
+        error instanceof Error ? error.message : 'The pasted CircuitSpec could not be read.',
+      );
+      return;
     }
+    if (!window.CircuitDraw) {
+      setExternalFixFeedback('Drawing checks are not ready yet. Try staging the correction again in a moment.');
+      return;
+    }
+
+    const correctedSpec = candidate.spec;
+    const inspection = inspectProposal(correctedSpec);
+    setMode('build');
+    setProposal({
+      summary: candidate.summary,
+      spec: correctedSpec,
+    });
+    setProposalValidation(inspection.validation);
+    setProposalSvg(inspection.svg);
+    setProposalError('');
+    setLayoutRepairNotice('');
+    setProposalQualityReview({
+      kind: 'skipped',
+      reason: inspection.validation.errors.length
+        ? 'blocking-findings'
+        : 'external-correction',
+    });
+    setProposalRepairLesson(
+      inspection.validation.errors.length || !externalFixContext.reportedProblems.length
+        ? null
+        : {
+            beforeSpec: externalFixContext.rejectedSpec,
+            afterSpec: correctedSpec,
+            findings: externalFixContext.reportedProblems,
+            context: 'Applied external CircuitSpec correction.',
+            content: null,
+          },
+    );
+    updateRepairState({ repairDiagnostics: [], retryAttempt: 0, retryKind: undefined });
   };
 
   const runRequest = async (
@@ -1880,7 +1876,7 @@ export function CircuitBuilderChat({
           setProposalValidation(proposalInspection.validation);
           setProposalSvg(proposalInspection.svg);
           if (proposalInspection.validation.errors.length) {
-            setProposalQualityReview({ kind: 'skipped' });
+            setProposalQualityReview({ kind: 'skipped', reason: 'blocking-findings' });
           } else {
             void runProposalQualityReview(
               response.proposal.spec,
@@ -2011,87 +2007,13 @@ export function CircuitBuilderChat({
       stopRepairAfterAttemptRef.current = false;
       setRetryAttempt(0);
       setRetryKind(null);
-      setIsStoppingWork(Boolean(followupAbortControllerRef.current?.signal.aborted));
-    }
-  };
-
-  const submitChatDuringExternalRepair = async (
-    content: string,
-    draftRevisionAtStart: number,
-  ) => {
-    const normalizedContent = content.trim();
-    if (!normalizedContent) return;
-    const history = saved.messages
-      .slice(-8)
-      .map(({ role, content: messageContent }) => ({ role, content: messageContent }));
-    const abortController = new AbortController();
-    followupAbortControllerRef.current = abortController;
-    const userMessage = newMessage('user', normalizedContent);
-    setSaved((current) => ({
-      ...current,
-      messages: [...current.messages, userMessage].slice(-60),
-    }));
-
-    try {
-      const response = await followupChatMutation.mutateAsync({
-        data: {
-          message: normalizedContent,
-          mode: 'chat',
-          currentSpec,
-          history,
-          brief: saved.brief,
-        },
-      });
-      if (abortController.signal.aborted) return;
-      composerRef.current?.clearDraftIfUnchanged(draftRevisionAtStart, normalizedContent);
-      setSaved((current) => ({
-        ...current,
-        messages: [
-          ...current.messages,
-          newMessage(
-            'assistant',
-            response.answer,
-            response.suggestedActions,
-            { buildApprovalRequest: response.buildApprovalRequested },
-          ),
-        ].slice(-60),
-      }));
-      void queryClient.invalidateQueries({ queryKey: getGetAiUsageQueryKey() });
-      void queryClient.invalidateQueries({
-        queryKey: getListCircuitBuilderMemoriesQueryKey(),
-      });
-      onTaskComplete('chat');
-    } catch {
-      if (abortController.signal.aborted) return;
-      setSaved((current) => ({
-        ...current,
-        messages: [
-          ...current.messages,
-          newMessage(
-            'assistant',
-            'I couldn’t answer that message just now. Your message and circuit work are still here; try again.',
-          ),
-        ].slice(-60),
-      }));
-    } finally {
-      if (followupAbortControllerRef.current === abortController) {
-        followupAbortControllerRef.current = null;
-      }
-      if (!buildAbortControllerRef.current?.signal.aborted) {
-        setIsStoppingWork(false);
-      } else {
-        setIsStoppingWork(true);
-      }
+      setIsStoppingWork(false);
     }
   };
 
   const handleSubmitMessage = async (content: string, draftRevisionAtStart: number) => {
     const normalizedContent = content.trim();
     if (!normalizedContent || briefEditing || hasUnappliedJsonEdits) return;
-    if (externalFixProcessing) {
-      await submitChatDuringExternalRepair(normalizedContent, draftRevisionAtStart);
-      return;
-    }
     if (chatMutation.isPending || requestCycleActive) return;
     const intent = getLocalBuilderModeIntent(normalizedContent);
     if (proposal && intent !== 'chat') return;
@@ -2958,10 +2880,10 @@ export function CircuitBuilderChat({
                       className="builder-chat__text-link builder-chat__rejected-copy builder-chat__external-fix-copy"
                       onClick={copyExternalCircuitFixPrompt}
                       disabled={!externalFixContext || chatMutation.isPending || requestCycleActive}
-                      data-testid="button-copy-rejected-spec-ai-prompt"
+                      data-testid="button-copy-external-repair-context"
                     >
                       {externalFixCopyState === 'copied' ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
-                      {externalFixCopyState === 'copied' ? 'Prompt copied' : 'Copy CircuitSpec + AI prompt'}
+                      {externalFixCopyState === 'copied' ? 'Context copied' : 'Copy CircuitSpec + findings'}
                     </button>
                     {externalFixCopyState === 'error' && (
                       <span className="builder-chat__rejected-copy-error" role="status">
@@ -2978,19 +2900,28 @@ export function CircuitBuilderChat({
                   aria-label="Paste an external CircuitSpec fix"
                   data-testid="panel-external-circuit-fix"
                 >
-                  <h3>Use an external repair as guidance</h3>
-                  <p>Studio AI will repair the current draft using this reference. It will keep the existing work where possible instead of starting over.</p>
-                  <label htmlFor="external-circuit-fix-json">External repair reference</label>
+                  <h3>Paste the corrected CircuitSpec</h3>
+                  <p>Copy the CircuitSpec and findings for your external helper, then paste its complete corrected JSON here. CircuitStudio checks and stages what you paste; it does not regenerate it.</p>
+                  <label htmlFor="external-circuit-fix-json">Corrected CircuitSpec JSON</label>
                   <textarea
                     id="external-circuit-fix-json"
                     value={externalFixDraft}
                     maxLength={50000}
-                    onChange={(event) => setExternalFixDraft(event.target.value)}
+                    onChange={(event) => {
+                      setExternalFixDraft(event.target.value);
+                      setExternalFixFeedback('');
+                    }}
                     disabled={chatMutation.isPending || requestCycleActive}
                     spellCheck={false}
                     rows={8}
+                    placeholder="Paste the complete CircuitSpec JSON (code fences are okay)."
                     data-testid="input-external-circuit-fix"
                   />
+                  {externalFixFeedback && (
+                    <p className="builder-chat__external-fix-feedback is-error" role="alert">
+                      {externalFixFeedback}
+                    </p>
+                  )}
                   <button
                     type="button"
                     className="builder-chat__external-fix-submit"
@@ -2998,9 +2929,9 @@ export function CircuitBuilderChat({
                     disabled={!externalFixDraft.trim() || chatMutation.isPending || requestCycleActive || !!proposal}
                     data-testid="button-submit-external-circuit-fix"
                   >
-                    {requestCycleActive ? 'Repairing current draft…' : 'Repair current draft with this reference'}
+                    Validate and stage correction
                   </button>
-                  <p className="builder-chat__external-fix-note">Studio will validate its own repair and stage it for review. Applying the staged repair saves a lesson for similar issues; validation does not prove electrical or safety correctness.</p>
+                  <p className="builder-chat__external-fix-note">Applying the staged correction saves a short lesson for similar issues. Structural checks do not prove electrical correctness or safety.</p>
                 </section>
               )}
             </>
@@ -3088,7 +3019,9 @@ export function CircuitBuilderChat({
                   <p className="builder-chat__quality-review-note" role="status">{layoutRepairNotice}</p>
                 )}
                 {proposalQualityReview.kind === 'skipped' && (
-                  <p>AI review was skipped because blocking connection findings need attention first.</p>
+                  <p>{proposalQualityReview.reason === 'external-correction'
+                    ? 'AI review was skipped so this external correction stays unchanged. Check that it still matches your request; structural checks are separate.'
+                    : 'AI review was skipped because blocking structural findings need attention first.'}</p>
                 )}
                 {proposalQualityReview.kind === 'unavailable' && (
                   <p>AI review was unavailable. Check request fit and readability yourself; the separate pin and wire checks still apply.</p>
@@ -3166,15 +3099,9 @@ export function CircuitBuilderChat({
             ref={composerRef}
             draft={composerDraft}
             onDraftChange={setComposerDraft}
-            mode={externalFixProcessing ? 'chat' : mode}
-            isWorking={
-              chatMutation.isPending ||
-              requestCycleActive ||
-              followupChatMutation.isPending
-            }
-            allowSendWhileWorking={
-              externalFixProcessing && !followupChatMutation.isPending
-            }
+            mode={mode}
+            isWorking={chatMutation.isPending || requestCycleActive}
+            allowSendWhileWorking={false}
             briefEditing={briefEditing}
             hasProposal={!!proposal}
             hasUnappliedJsonEdits={hasUnappliedJsonEdits}

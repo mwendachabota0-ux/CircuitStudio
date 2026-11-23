@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  buildCircuitBuilderRepairLessonLearningInput,
+  buildCircuitSpecRepairDiff,
   formatCircuitBuilderMemoryContext,
   formatCircuitBuilderHistoryLearningInput,
   normalizeCircuitBuilderMemoryContent,
@@ -118,4 +120,44 @@ test("history learning prompt extracts assumptions, not transcripts or secrets",
 test("memory text is whitespace-normalized and capped", () => {
   assert.equal(normalizeCircuitBuilderMemoryContent("  Use   a  555 timer.  "), "Use a 555 timer.");
   assert.equal(normalizeCircuitBuilderMemoryContent("x".repeat(350)).length, 300);
+});
+
+test("repair lesson input sends a compact structural diff instead of both full specs", () => {
+  const beforeSpec = {
+    title: "LED indicator",
+    elements: [
+      {
+        type: "wire",
+        id: "W1",
+        points: [[80, 100], [100, 100]],
+        symbolData: { svg: "large geometry omitted" },
+      },
+      { type: "resistor", id: "R1", value: "1k" },
+    ],
+  };
+  const afterSpec = {
+    title: "LED indicator",
+    elements: [
+      {
+        type: "wire",
+        id: "W1",
+        points: [[80, 100], [120, 100]],
+        symbolData: { svg: "different geometry omitted" },
+      },
+      { type: "resistor", id: "R1", value: "2k" },
+    ],
+  };
+  const diff = buildCircuitSpecRepairDiff(beforeSpec, afterSpec);
+  const learningInput = buildCircuitBuilderRepairLessonLearningInput({
+    beforeSpec,
+    afterSpec,
+    findings: ["Wire W1 has a disconnected endpoint."],
+  });
+
+  assert.match(JSON.stringify(diff), /"name":"points"/);
+  assert.match(JSON.stringify(diff), /"name":"value"/);
+  assert.match(learningInput, /Wire W1 has a disconnected endpoint/);
+  assert.match(learningInput, /"changes":/);
+  assert.doesNotMatch(learningInput, /beforeSpec|afterSpec|large geometry omitted|different geometry omitted/);
+  assert.ok(learningInput.length < 8000);
 });

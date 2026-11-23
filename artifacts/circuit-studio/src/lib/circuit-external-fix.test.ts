@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
+  buildExternalCircuitFixProposal,
   buildExternalCircuitFixPrompt,
-  buildStudioExternalCircuitFixMessage,
   getExternalCircuitFixContextKey,
+  parseExternalCircuitFixSpec,
   partitionExternalCircuitFixFindings,
   shouldShowExternalCircuitFixPaste,
+  summarizeExternalCircuitFix,
 } from './circuit-external-fix.ts';
 
 const rejectedSpec = {
@@ -29,18 +31,17 @@ const context = {
     assumptions: [],
     openQuestions: [],
   },
-  history: [{ role: 'user' as const, content: 'Build a low-voltage LED indicator.' }],
 };
 
-test('external repair prompt includes the exact rejected spec, blockers, context, and JSON-only output rule', () => {
+test('external-help context stays concise while including the exact circuit and blockers', () => {
   const prompt = buildExternalCircuitFixPrompt(context);
 
   assert.match(prompt, /Wire W1 at \(80,100\) is disconnected/);
   assert.match(prompt, /A wire segment is diagonal; this is a layout note/);
   assert.match(prompt, /Build a low-voltage LED indicator/);
-  assert.match(prompt, /Return one complete CircuitSpec as plain JSON only/);
-  assert.match(prompt, /CircuitDraw element type identifiers and schemas/);
-  assert.ok(prompt.includes(JSON.stringify(rejectedSpec, null, 2)));
+  assert.match(prompt, /Return one complete CircuitSpec as JSON only/);
+  assert.doesNotMatch(prompt, /Recent conversation context|supported components and repair constraints/i);
+  assert.ok(prompt.includes(JSON.stringify(rejectedSpec)));
 });
 
 test('paste section is visible only for the exact context successfully copied', () => {
@@ -69,17 +70,74 @@ test('visual notes are kept advisory rather than presented as blocking errors', 
   );
 });
 
-test('Studio sends pasted repair guidance to its builder without pre-rejecting it', () => {
-  const pastedReference = JSON.stringify({
-    title: 'External repair',
-    elements: [{ type: 'wire', id: 'W2', points: [[100, 100], [180, 100]] }],
-  });
-  const message = buildStudioExternalCircuitFixMessage(context, pastedReference);
+test('pasted complete CircuitSpec accepts plain or fenced JSON only', () => {
+  assert.deepEqual(
+    parseExternalCircuitFixSpec(JSON.stringify(rejectedSpec)),
+    rejectedSpec,
+  );
+  assert.deepEqual(
+    parseExternalCircuitFixSpec(`\`\`\`json\n${JSON.stringify(rejectedSpec)}\n\`\`\``),
+    rejectedSpec,
+  );
+  assert.throws(
+    () => parseExternalCircuitFixSpec('Here is the fix: ' + JSON.stringify(rejectedSpec)),
+    /complete CircuitSpec as JSON/,
+  );
+  assert.throws(
+    () => parseExternalCircuitFixSpec('{"elements": []}'),
+    /title and elements array/,
+  );
+});
 
-  assert.match(message, /Repair the existing rejected circuit in place/);
-  assert.match(message, /Do not start over/);
-  assert.match(message, /do not stop before attempting repair/);
-  assert.match(message, /Wire W1 at \(80,100\) is disconnected/);
-  assert.match(message, /External repair reference supplied by the user/);
-  assert.ok(message.includes(pastedReference));
+test('external correction summary reports meaningful additions and wire changes', () => {
+  const after = {
+    ...rejectedSpec,
+    elements: [
+      { type: 'led', id: 'D1', from: [100, 100], to: [140, 100], value: 'LED' },
+      { type: 'wire', id: 'W1', points: [[100, 100], [100, 180]] },
+      { type: 'wire', id: 'W2', points: [[100, 180], [80, 180]] },
+    ],
+  };
+  const diff = summarizeExternalCircuitFix(rejectedSpec, after);
+
+  assert.equal(diff.hasChanges, true);
+  assert.equal(diff.changeCount, 2);
+  assert.match(diff.summary, /1 added; 1 wire updated/);
+  assert.ok(diff.details.some((line) => line.includes('Updated wire W1 (points)')));
+  assert.ok(diff.details.some((line) => line.includes('Added wire W2')));
+});
+
+test('external correction proposal preserves the pasted CircuitSpec without rewriting it', () => {
+  const correctedSpec = {
+    ...rejectedSpec,
+    elements: [
+      rejectedSpec.elements[0],
+      { type: 'wire', id: 'W1', points: [[100, 100], [140, 100]] },
+    ],
+  };
+  const candidate = buildExternalCircuitFixProposal(
+    rejectedSpec,
+    JSON.stringify(correctedSpec),
+  );
+
+  assert.deepEqual(candidate.spec, correctedSpec);
+  assert.match(candidate.summary, /External correction/);
+  assert.throws(
+    () => buildExternalCircuitFixProposal(rejectedSpec, JSON.stringify(rejectedSpec)),
+    /No drawing changes/,
+  );
+});
+
+test('external correction comparison ignores object key order and symbol geometry', () => {
+  const before = {
+    title: 'Same',
+    elements: [{ type: 'symbol', id: 'U1', properties: { value: 'IC', ref: 'U1' }, symbolData: { svg: 'old' } }],
+  };
+  const after = {
+    title: 'Same',
+    elements: [{ symbolData: { svg: 'new' }, id: 'U1', properties: { ref: 'U1', value: 'IC' }, type: 'symbol' }],
+  };
+  const diff = summarizeExternalCircuitFix(before, after);
+  assert.equal(diff.hasChanges, false);
+  assert.equal(diff.summary, 'No drawing changes detected.');
 });

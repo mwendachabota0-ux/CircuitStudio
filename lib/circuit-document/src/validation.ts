@@ -517,7 +517,7 @@ export function checkCircuitDrawingConsistency(
           warnings.push(warningDiagnostic(
             "unmarked-route-crossing",
             "drawing.routes",
-            `Different-net routes "${first.id}" and "${second.id}" cross at (${point[0]}, ${point[1]}) without an explicit visual crossing marker.`,
+            `Different-net routes "${first.id}" and "${second.id}" cross at (${point[0]}, ${point[1]}) without a saved non-connecting crossing annotation.`,
           ));
         }
       });

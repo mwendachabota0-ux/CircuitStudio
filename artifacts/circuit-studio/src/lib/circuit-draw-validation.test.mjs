@@ -260,6 +260,7 @@ test("KiCad symbols render source geometry, exact pin labels, and world-space pi
   assert.match(svg, /TRIG/);
   assert.match(svg, /OUT/);
   assert.match(svg, /viewBox="100 50 /);
+  assert.match(svg, /preserveAspectRatio="xMidYMid meet"/);
 
   const buildSheet = CircuitDraw.buildSheet(spec);
   assert.match(buildSheet, /\| U1 \| Timer:NE555 \| NE555 \|/);
@@ -508,7 +509,7 @@ test("invalid but renderable schematics can be shown with explicit structural-er
   assert.match(CircuitDraw.render(spec, { allowStructuralErrors: true }), /^<svg/);
 });
 
-test("a wire-crossing bridge renders an overpass and keeps the two nets separate", () => {
+test("a non-connecting wire crossing stays continuous and keeps the two nets separate", () => {
   const spec = {
     title: "Non-connecting wire bridge",
     elements: [
@@ -527,7 +528,11 @@ test("a wire-crossing bridge renders an overpass and keeps the two nets separate
   };
   const validation = CircuitDraw.validate(spec);
   assert.deepEqual(Array.from(validation.errors), []);
-  assert.match(CircuitDraw.render(spec), /<path d="M38 50 Q50 36 62 50"/);
+  const svg = CircuitDraw.render(spec);
+  assert.doesNotMatch(svg, /Q50 36 62 50/);
+  assert.doesNotMatch(svg, /<circle cx="50" cy="50"/);
+  assert.match(svg, /points="0,50 100,50"/);
+  assert.match(svg, /points="50,0 50,100"/);
 
   const nets = CircuitDraw.netlist(spec).nets;
   const horizontal = nets.find((net) => net.pins.includes("B_HL.+"));
@@ -540,9 +545,38 @@ test("a wire-crossing bridge renders an overpass and keeps the two nets separate
   assert.equal(vertical.pins.includes("B_HL.+"), false);
 });
 
-test("a crossing bridge must be placed on one horizontal and one vertical wire", () => {
+test("an explicit junction connects crossing wires and renders a junction dot", () => {
+  const spec = {
+    title: "Connected wire crossing",
+    elements: [
+      { type: "wire", id: "WH", points: [[0, 50], [100, 50]] },
+      { type: "wire", id: "WV", points: [[50, 0], [50, 100]] },
+      { type: "battery", id: "B_HL", from: [0, 50], to: [0, 70] },
+      { type: "battery", id: "B_HR", from: [100, 50], to: [100, 70] },
+      { type: "battery", id: "B_VT", from: [50, 0], to: [70, 0] },
+      { type: "battery", id: "B_VB", from: [50, 100], to: [70, 100] },
+      { type: "wire", id: "W_HL_RETURN", open: true, points: [[0, 70], [0, 90]] },
+      { type: "wire", id: "W_HR_RETURN", open: true, points: [[100, 70], [100, 90]] },
+      { type: "wire", id: "W_VT_RETURN", open: true, points: [[70, 0], [90, 0]] },
+      { type: "wire", id: "W_VB_RETURN", open: true, points: [[70, 100], [90, 100]] },
+      { type: "junction", id: "J1", x: 50, y: 50 },
+    ],
+  };
+  const validation = CircuitDraw.validate(spec);
+  assert.deepEqual(Array.from(validation.errors), []);
+  assert.match(CircuitDraw.render(spec), /<circle cx="50" cy="50"/);
+
+  const nets = CircuitDraw.netlist(spec).nets;
+  const connected = nets.find((net) => net.pins.includes("B_HL.+"));
+  assert.ok(connected);
+  for (const pin of ["B_HR.+", "B_VT.+", "B_VB.+"]) {
+    assert.ok(connected.pins.includes(pin), `${pin} should join at the junction`);
+  }
+});
+
+test("a crossing annotation must sit on one horizontal and one vertical wire", () => {
   const report = CircuitDraw.validate({
-    title: "Misplaced bridge",
+    title: "Misplaced crossing annotation",
     elements: [
       { type: "wire", id: "WH", open: true, points: [[0, 50], [100, 50]] },
       { type: "wire", id: "WV", open: true, points: [[50, 0], [50, 100]] },

@@ -78,6 +78,37 @@ test("parses KiCad symbol graphics, pin coordinates, and hidden-text flags", () 
   assert.equal(output?.shape, "inverted_clock");
 });
 
+test("standard resistor leads meet the exact library body edges", () => {
+  const resistorSource = `
+  (kicad_symbol_lib
+    (version 20231120)
+    (symbol "Resistor"
+      (symbol "Resistor_1_1"
+        (rectangle (start -1.27 1.27) (end 1.27 -1.27)
+          (stroke (width 0.254) (type default))
+          (fill (type background)))
+        (pin passive line (at -3.81 0 0) (length 2.54)
+          (name "~") (number "1"))
+        (pin passive line (at 3.81 0 180) (length 2.54)
+          (name "~") (number "2"))
+      )
+    )
+  )`;
+  const parsed = parseKicadSymbolSource(resistorSource);
+  const unit = parsed.units[0];
+  const body = unit.graphics.find((graphic) => graphic.type === "rectangle");
+  const left = unit.pins.find((pin) => pin.number === "1");
+  const right = unit.pins.find((pin) => pin.number === "2");
+
+  assert.deepEqual(body?.points, [[-12.7, -12.7], [12.7, 12.7]]);
+  assert.deepEqual(left?.point, [-38.1, 0]);
+  assert.deepEqual(left?.bodyPoint, [-12.7, 0]);
+  assert.deepEqual(right?.point, [38.1, 0]);
+  assert.ok(right?.bodyPoint);
+  assert.ok(Math.abs(right.bodyPoint[0] - 12.7) < 0.000001);
+  assert.ok(Math.abs(right.bodyPoint[1]) < 0.000001);
+});
+
 test("merges inherited unit graphics and pins without dropping child definitions", () => {
   const parent = parseKicadSymbolSource(`
     (kicad_symbol_lib (version 20231120)

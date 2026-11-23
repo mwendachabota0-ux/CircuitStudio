@@ -129,7 +129,7 @@ test('astable base-short validation is identical under descriptive and neutral t
   assertSameNet(baseShort, ['Q1.B', 'Q2.B']);
 });
 
-test('wire crossing bridge preserves two separate pin groups without a junction', () => {
+test('plain wire crossing preserves two separate pin groups without a junction', () => {
   const spec = fixture('non-connecting-crossing.json');
   assert.deepEqual(Array.from(CircuitDraw.validate(spec).errors), []);
   assertSameNet(spec, ['B_HL.+', 'B_HR.+']);

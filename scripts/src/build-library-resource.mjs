@@ -33,6 +33,15 @@ const expectedCounts = {
   kicad: 22_911,
   total: 22_962,
 };
+// Prevent the legacy research snapshot from restoring bridge-specific copy.
+const studioResourceOverrides = {
+  crossing: {
+    shortDescription: "Marks crossing wires that remain electrically separate.",
+    longDescription:
+      "Circuit Studio built-in non-connecting wire-crossing annotation (0-pin) from the Drawing category. It records an intersection without changing connectivity. The wires render as uninterrupted strokes with no bridge or dot; only an explicit junction connects them. The app does not simulate electrical behavior or validate circuit correctness.",
+    keywords: ["wire crossing", "crossing", "separate wires", "no connection"],
+  },
+};
 
 function parseCatalog(text) {
   const startMarker = "CATALOG_TSV_BEGIN\n";
@@ -195,6 +204,9 @@ function parseReport(text, catalogRows) {
       correctionNote: typeof item.correctionNote === "string"
         ? item.correctionNote
         : "",
+      ...(item.source === "studio"
+        ? studioResourceOverrides[item.catalogId] ?? {}
+        : {}),
     };
 
     if (item.source === "studio") {

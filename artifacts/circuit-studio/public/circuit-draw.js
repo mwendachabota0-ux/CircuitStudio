@@ -387,8 +387,6 @@
         if (!isPt(el.at)) { res.errors.push(id + ': needs "at":[x,y].'); return; }
         var orientation = el.orientation || 'horizontal';
         res.crossings.push({ at: el.at, orientation: orientation, owner: id });
-        track(el.at[0] - 14, el.at[1] - 14);
-        track(el.at[0] + 14, el.at[1] + 14);
         return;
       }
       if (t === 'label') {
@@ -456,7 +454,7 @@
       if (res.junctions.some(function (junction) {
         return key(junction[0], junction[1]) === key(crossing.at[0], crossing.at[1]);
       })) {
-        res.errors.push(crossing.owner + ' conflicts with a junction at the same point; use either a crossing bridge or a junction.');
+        res.errors.push(crossing.owner + ' conflicts with a junction at the same point; keep only the junction for a connected crossing.');
       }
     });
 
@@ -1273,17 +1271,6 @@
     parts.text += placeLabel(lines, el.at[0], el.at[1], el.labelPos || 'above', 8, el.labelNudge);
   }
 
-  function drawWireCrossing(el, parts) {
-    var x = el.at[0], y = el.at[1], orientation = el.orientation || 'horizontal';
-    var mask = T.background || '#fff';
-    var path = orientation === 'vertical'
-      ? 'M' + f(x) + ' ' + f(y - 12) + ' Q' + f(x - 14) + ' ' + f(y) + ' ' + f(x) + ' ' + f(y + 12)
-      : 'M' + f(x - 12) + ' ' + f(y) + ' Q' + f(x) + ' ' + f(y - 14) + ' ' + f(x + 12) + ' ' + f(y);
-    parts.comp += '<circle cx="' + f(x) + '" cy="' + f(y) + '" r="5" fill="' + mask + '" stroke="none"/>' +
-      '<path d="' + path + '" fill="none" stroke="' + T.stroke + '" stroke-width="' + T.lineWidth +
-      '" stroke-linecap="round" stroke-linejoin="round"/>';
-  }
-
   var WIRESEGS = [];
   function wireDirAt(x, y) {
     for (var i = 0; i < WIRESEGS.length; i++) {
@@ -1357,7 +1344,8 @@
         parts.text += withTextRole('annotation-label', function () {
           return textEl(el.at[0], el.at[1], el.text, el.anchor || 'start', lsz, el.bold !== undefined ? !!el.bold : lsz >= 14, el.muted ? 'muted' : 'text');
         });
-      } else if (t === 'crossing') { drawWireCrossing(el, parts);
+      } else if (t === 'crossing') {
+        // Keep the saved non-connection annotation; the wires themselves stay continuous.
       } else if (t === 'kicad') { drawKicadSymbol(el, parts);
       } else if (TWO[t]) { drawTwo(el, parts);
       } else if (t === 'npn' || t === 'pnp') { drawTransistor(el, parts);
@@ -1395,7 +1383,7 @@
     TEXTOWNER = '';
     TEXTROLE = 'symbol-text';
     return '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="' + vx + ' ' + vy + ' ' + W + ' ' + H +
-      '" font-family="' + esc(T.font) + '">' +
+      '" preserveAspectRatio="xMidYMid meet" font-family="' + esc(T.font) + '">' +
       '<title>' + esc(spec.title || 'Circuit schematic') + '</title>' +
       '<defs><marker id="cd-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">' +
       '<path d="M2 1L8 5L2 9" fill="none" stroke="' + T.stroke + '" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>' +

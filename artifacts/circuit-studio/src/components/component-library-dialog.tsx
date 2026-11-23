@@ -100,6 +100,19 @@ const commonSymbolUses: Record<string, string> = {
 
 type LibraryEntry = CircuitComponentLibraryEntry | CircuitSymbolSearchItem;
 const KICAD_PAGE_SIZE = 100;
+const STUDIO_SYMBOL_KICAD_IDS: Record<string, string> = {
+  resistor: 'Device:R',
+  capacitor: 'Device:C',
+  electrolytic: 'Device:C_Polarized',
+  diode: 'Device:D',
+  led: 'Device:LED',
+  npn: 'Transistor_BJT:Q_NPN_BCE',
+  pnp: 'Transistor_BJT:Q_PNP_BCE',
+  nmos: 'Transistor_FET:Q_NMOS_GDS',
+  pmos: 'Transistor_FET:Q_PMOS_GDS',
+  battery: 'Device:Battery',
+  fuse: 'Device:Fuse',
+};
 
 function getUsagePanelId(entryId: string): string {
   return `component-library-use-${entryId.replace(/[^a-z0-9_-]/gi, '-')}`;
@@ -108,6 +121,27 @@ function getUsagePanelId(entryId: string): string {
 function createBuiltinPreviewSpec(
   entry: CircuitComponentLibraryEntry,
 ): CircuitSpec {
+  if (entry.type === 'crossing') {
+    return {
+      title: `${entry.displayName} preview`,
+      elements: [
+        {
+          type: 'wire',
+          id: 'crossing-horizontal',
+          points: [[44, 100], [156, 100]],
+          open: true,
+        },
+        {
+          type: 'wire',
+          id: 'crossing-vertical',
+          points: [[100, 44], [100, 156]],
+          open: true,
+        },
+        { type: 'crossing', id: 'crossing-marker', at: [100, 100] },
+      ],
+    } as CircuitSpec;
+  }
+
   const required = new Set(entry.requiredProperties);
   const element: Record<string, unknown> = { type: entry.type };
 
@@ -149,7 +183,7 @@ function getPreviewSvg(spec: CircuitSpec): string {
   }
 }
 
-function CircuitSymbolPreview({
+function StudioSymbolPreview({
   entry,
 }: {
   entry: CircuitComponentLibraryEntry;
@@ -254,6 +288,25 @@ function KicadSymbolPreview({
         />
       )}
     </div>
+  );
+}
+
+function CircuitSymbolPreview({
+  entry,
+  listRef,
+}: {
+  entry: CircuitComponentLibraryEntry;
+  listRef: RefObject<HTMLDivElement | null>;
+}) {
+  const symbolId = STUDIO_SYMBOL_KICAD_IDS[entry.type];
+  return symbolId ? (
+    <KicadSymbolPreview
+      symbolId={symbolId}
+      name={entry.displayName}
+      listRef={listRef}
+    />
+  ) : (
+    <StudioSymbolPreview entry={entry} />
   );
 }
 
@@ -394,7 +447,7 @@ function ComponentLibraryCard({
             listRef={listRef}
           />
         ) : (
-          <CircuitSymbolPreview entry={entry} />
+          <CircuitSymbolPreview entry={entry} listRef={listRef} />
         )}
       </div>
       <div

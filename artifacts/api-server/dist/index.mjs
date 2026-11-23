@@ -56730,14 +56730,13 @@ var STUDIO_LIBRARY_RESEARCH = {
     "researchStatus": "catalog_reference"
   },
   "crossing": {
-    "shortDescription": "Bridge mark shows two crossing wires that remain electrically separate.",
-    "longDescription": "Circuit Studio built-in wire crossing bridge schematic symbol (0-pin) from the Drawing category. Rendered and structurally validated; crossing geometry is checked. The symbol is a drawing element; the app does not simulate electrical behavior or validate circuit correctness.",
+    "shortDescription": "Marks crossing wires that remain electrically separate.",
+    "longDescription": "Circuit Studio built-in non-connecting wire-crossing annotation (0-pin) from the Drawing category. It records an intersection without changing connectivity. The wires render as uninterrupted strokes with no bridge or dot; only an explicit junction connects them. The app does not simulate electrical behavior or validate circuit correctness.",
     "keywords": [
-      "wire crossing bridge",
+      "wire crossing",
       "crossing",
-      "no connection",
-      "crossover",
-      "wire hop"
+      "separate wires",
+      "no connection"
     ],
     "researchStatus": "catalog_reference"
   },
@@ -56865,7 +56864,7 @@ var CIRCUIT_COMPONENT_REFERENCE = [
   { type: "kicad", requiredProperties: ["symbolId", "at"], optionalProperties: ["id", "label", "value", "unit", "bodyStyle", "rotation", "flip", "symbolData", "labelPos", "labelNudge", "labelAt", "labelAnchor"], pinCount: null, pinNames: "Exact KiCad pin numbers and names from the imported source symbol.", pinPositions: "Pin endpoints are derived from the selected library symbol, unit, and rotation.", connectionRules: "Use the exact symbol ID and pin offsets supplied by the library. Do not invent a pinout.", validation: "The source symbol drawing and structural connections are checked; electrical behavior is not simulated.", autoFix: "May snap a unique wire endpoint within 8 px." },
   { type: "wire", requiredProperties: ["points"], optionalProperties: ["id", "label", "open"], pinCount: null, pinNames: "Not a component; endpoints are points[0] and points[last].", pinPositions: "Every points entry is a route coordinate.", connectionRules: "Use two or more points; route orthogonally; endpoints connect exactly. Crossings alone do not connect; use a junction for an explicit crossing connection. Set open:true only for an intentionally open wire.", validation: "Rendered and structurally validated; disconnected endpoints and component overlaps are blocking errors.", autoFix: "Only unique endpoint snaps within 8 px and limited eligible rail-tail trimming." },
   { type: "junction", requiredProperties: ["x", "y"], optionalProperties: ["id", "label"], pinCount: 1, pinNames: "junction", pinPositions: "The junction is at (x,y).", connectionRules: "Place exactly on the wire intersection or wire endpoint that should connect.", validation: "Rendered and structurally validated.", autoFix: "No junction relocation or topology repair." },
-  { type: "crossing", requiredProperties: ["at"], optionalProperties: ["id", "orientation"], pinCount: 0, pinNames: "None; drawing annotation only.", pinPositions: "Place at the exact interior intersection of one horizontal and one vertical wire segment. orientation selects which wire is drawn as the bridge; defaults to horizontal.", connectionRules: "This bridge marker keeps the two crossing wires electrically separate. Use a junction instead when they should connect.", validation: "Rendered and structurally validated; crossing geometry is checked.", autoFix: "No crossing relocation or topology repair." },
+  { type: "crossing", requiredProperties: ["at"], optionalProperties: ["id", "orientation"], pinCount: 0, pinNames: "None; drawing annotation only.", pinPositions: "Place at the exact intersection of a horizontal and vertical wire. orientation is retained for older saved drawings and has no visual effect.", connectionRules: "The annotation preserves a non-connecting crossing. Use a junction when the wires should connect.", validation: "Validated against the crossing geometry; it does not add a bridge or junction dot.", autoFix: "No crossing relocation or topology repair." },
   { type: "label", requiredProperties: ["at", "text"], optionalProperties: ["id", "anchor", "size", "bold", "muted"], pinCount: 0, pinNames: "None.", pinPositions: "Not an electrical connection.", connectionRules: "Text annotation only; it does not connect nets.", validation: "Rendered and structurally validated.", autoFix: "No label repair." },
   { type: "box", requiredProperties: ["x", "y", "w", "h"], optionalProperties: ["id", "label", "value"], pinCount: 0, pinNames: "None.", pinPositions: "Not an electrical connection.", connectionRules: "Drawing annotation only; it does not connect nets.", validation: "Rendered and structurally validated.", autoFix: "No box repair." }
 ];
@@ -56921,7 +56920,7 @@ var COMPONENT_LIBRARY_METADATA = {
   kicad: { displayName: "KiCad library symbol", category: "Semiconductors", description: "Imported KiCad symbol with its source drawing and pin geometry." },
   wire: { displayName: "Wire", category: "Drawing", description: "Orthogonal route between exact pin coordinates." },
   junction: { displayName: "Junction", category: "Drawing", description: "Explicit connection point for crossing wires." },
-  crossing: { displayName: "Wire crossing bridge", category: "Drawing", description: "Bridge mark shows two crossing wires that remain electrically separate." },
+  crossing: { displayName: "Wire crossing", category: "Drawing", description: "Marks a crossing whose wires stay electrically separate." },
   label: { displayName: "Text label", category: "Drawing", description: "Non-electrical annotation." },
   box: { displayName: "Annotation box", category: "Drawing", description: "Non-electrical outline for grouping a section." }
 };
@@ -78421,6 +78420,7 @@ A greeting or other social opener by itself is not a circuit request. Reply brie
 In Build mode, if the request is clear enough, include a complete proposed CircuitSpec. If a critical requirement is unclear, ask one focused question and omit the proposal. For edits, start from the supplied current CircuitSpec and preserve unrelated components, values, labels, and connections. For an explicitly new or replacement design, do not preserve an unrelated example circuit.
 
 For new schematic layouts, prioritize readability over density: leave at least 20 px of clear space between distinct symbol bodies where possible, give two-terminal parts visible lead wires with at least 10 px beyond the listed minimum terminal distance, reserve room for labels and pin names, and keep labels away from symbols and wire crossings. Arrange parts in deliberate rows or columns instead of compressing every component into one long line; align related power and return paths, and keep separate control paths visually distinct. Route every wire horizontally or vertically, adding corner points wherever a route turns. Increase the canvas dimensions when needed to keep the whole drawing inside a clear margin. Do not overlap symbol bodies, pins, labels, or wires. For motor-driver diagrams, show the fuse and motor in the power path, the flyback diode clearly across the motor, and the MOSFET return and gate-control wiring separately. These are drawing-layout instructions, not proof of electrical correctness. When asked only to repair wiring or respond to validator findings, follow the preservation rules below instead of changing component positions. Move a component only when the user explicitly asks for a layout change.
+When wires cross without connecting, draw both as continuous straight strokes with no bridge, gap, or dot; keep them on separate nets. Add a junction only when the crossing should connect. A saved crossing annotation is non-connecting and has no visible bridge.
 
 Use only the component types, required properties, pin locations, and minimum lengths in this actual CircuitDraw reference:
 ${formatCircuitComponentGuide()}

@@ -2808,7 +2808,7 @@ export function CircuitBuilderChat({
                   ? retryKind === 'format'
                     ? `Fixing response format · retry ${retryAttempt} of ${MAX_AUTO_RETRIES}`
                     : retryKind === 'repair'
-                    ? `Repairing proposal · retry ${retryAttempt} of ${MAX_AUTO_RETRIES}`
+                    ? `Preparing proposal · retry ${retryAttempt} of ${MAX_AUTO_RETRIES}`
                     : `Automatic retry ${retryAttempt} of ${MAX_AUTO_RETRIES}`
                   : mode === 'build' ? 'Working through a draft' : 'Thinking it through'}</small>
                 {repairStopAvailable && (

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   getListCircuitBuilderMemoriesQueryKey,
@@ -22,6 +22,7 @@ const categoryLabels: Record<CircuitBuilderMemory['category'], string> = {
   'design-decision': 'Circuit decision',
   'past-context': 'Project context',
   'repair-lesson': 'Repair lesson',
+  'design-feedback': 'Proposal feedback',
 };
 
 export type CircuitBuilderMemoryImportStatus = {
@@ -57,6 +58,34 @@ export function CircuitBuilderMemoryDialog({
   const [confirmClear, setConfirmClear] = useState(false);
   const [actionError, setActionError] = useState('');
   const [helpOpen, setHelpOpen] = useState(false);
+  const helpTriggerRef = useRef<HTMLButtonElement>(null);
+  const helpContentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!helpOpen) return;
+
+    const closeHelpWhenClickingOutside = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (
+        helpContentRef.current?.contains(target) ||
+        helpTriggerRef.current?.contains(target)
+      ) {
+        return;
+      }
+
+      setHelpOpen(false);
+    };
+
+    document.addEventListener('pointerdown', closeHelpWhenClickingOutside);
+    return () =>
+      document.removeEventListener('pointerdown', closeHelpWhenClickingOutside);
+  }, [helpOpen]);
+
+  const handleDialogOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) setHelpOpen(false);
+    onOpenChange(nextOpen);
+  };
 
   const refreshMemories = async () => {
     await queryClient.invalidateQueries({
@@ -114,14 +143,15 @@ export function CircuitBuilderMemoryDialog({
     clearMutation.isPending;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent className="builder-memory-dialog">
         <DialogHeader>
           <div className="builder-memory-dialog__title-row">
-            <DialogTitle>What I remember</DialogTitle>
+            <DialogTitle>Saved memories</DialogTitle>
             <button
               type="button"
               className="builder-memory-dialog__help-trigger"
+              ref={helpTriggerRef}
               aria-label="About saved memories"
               aria-expanded={helpOpen}
               aria-controls="builder-memory-help"
@@ -135,18 +165,17 @@ export function CircuitBuilderMemoryDialog({
             <div
               id="builder-memory-help"
               className="builder-memory-dialog__help-content"
+              ref={helpContentRef}
               role="note"
               aria-label="Saved memory details"
               data-testid="memory-help"
             >
-              <p>Memories are saved to your account, not as chat transcripts.</p>
-              <p>Applying a checked repair can save a lesson.</p>
+              <p>Memories save separately from chats. Checked repairs can save a lesson.</p>
+              <p>Proposal feedback is private to this account and may guide similar future requests. Edit or remove it here.</p>
               <p>
-                On first import, short excerpts from up to 12 recent sessions are
-                sent to Gemini to find reusable assumptions. Only assumptions are
-                saved, not chats; they do not train Gemini.
+                First import scans up to 12 recent sessions for reusable assumptions.
+                Chats are not saved or used to train Gemini.
               </p>
-              <p>Relevant memories can shape future chats. Edit or remove them here.</p>
             </div>
           )}
         </DialogHeader>
@@ -200,14 +229,10 @@ export function CircuitBuilderMemoryDialog({
               return (
                 <article className="builder-memory-dialog__item" key={memory.id}>
                   <div className="builder-memory-dialog__item-heading">
-                    <span>{memory.category === 'repair-lesson' ? 'Repair lesson' : 'Memory'}</span>
                     <span>{categoryLabels[memory.category]}</span>
                   </div>
-                  <label className="builder-memory-dialog__label" htmlFor={`builder-memory-${memory.id}`}>
-                    Edit memory
-                  </label>
                   <textarea
-                    id={`builder-memory-${memory.id}`}
+                    aria-label={`Edit ${categoryLabels[memory.category].toLowerCase()}`}
                     value={draft}
                     maxLength={300}
                     rows={3}

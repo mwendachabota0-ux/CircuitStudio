@@ -4,6 +4,7 @@ import {
   formatCircuitBuilderMemoryContext,
   formatCircuitBuilderHistoryLearningInput,
   normalizeCircuitBuilderMemoryContent,
+  sanitizeCircuitBuilderFeedbackText,
   selectRelevantCircuitBuilderMemories,
 } from "./circuitBuilderMemory.ts";
 
@@ -25,6 +26,12 @@ const memories = [
     category: "past-context",
     content: "The greenhouse controller is powered by a 12V battery.",
     updatedAt: new Date("2026-03-01T00:00:00Z"),
+  },
+  {
+    id: 4,
+    category: "design-feedback",
+    content: "Disliked the 9V inductive load switch proposal because the wiring was wrong.",
+    updatedAt: new Date("2026-04-01T00:00:00Z"),
   },
 ];
 
@@ -58,6 +65,40 @@ test("memory context avoids repeat questions and keeps unrelated chats fresh", (
   assert.match(prompt, /do not ask the user to repeat answered details/i);
   assert.match(prompt, /invite correction/i);
   assert.match(prompt, /do not force old context/i);
+});
+
+test("specific proposal feedback is used only for similar circuit requests", () => {
+  const similar = selectRelevantCircuitBuilderMemories(
+    memories,
+    "Build a 9V inductive load switch with a flyback diode.",
+  );
+  const unrelated = selectRelevantCircuitBuilderMemories(
+    memories,
+    "Build an LED flasher with a sequential chase.",
+  );
+
+  assert.ok(similar.some((memory) => memory.id === 4));
+  assert.ok(!unrelated.some((memory) => memory.id === 4));
+});
+
+test("feedback prompt preserves its limited scope and does not imply circuit validation", () => {
+  const prompt = formatCircuitBuilderMemoryContext([memories[3]]);
+
+  assert.match(prompt, /only for similar requests/i);
+  assert.match(prompt, /current request overrides/i);
+  assert.match(prompt, /not electrical validation, simulation, or a safety review/i);
+  assert.ok(prompt.includes("the wiring was wrong"));
+});
+
+test("feedback text removes common contact details and credentials before saving", () => {
+  const safe = sanitizeCircuitBuilderFeedbackText(
+    "Wrong wiring. Contact me at user@example.com; api key: abc123; call 123-456-7890.",
+  );
+
+  assert.doesNotMatch(safe, /user@example\.com|abc123|123-456-7890/);
+  assert.match(safe, /\[email omitted\]/);
+  assert.match(safe, /\[credential omitted\]/);
+  assert.match(safe, /\[number omitted\]/);
 });
 
 test("history learning prompt extracts assumptions, not transcripts or secrets", () => {

@@ -5,13 +5,17 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { CircuitSymbolSearchItemResearchStatus } from './circuitSymbolSearchItemResearchStatus';
 
 export interface CircuitSymbolSearchItem {
   id: string;
   library: string;
   name: string;
   description: string;
+  shortDescription: string;
+  longDescription: string;
   keywords: string;
+  researchStatus: CircuitSymbolSearchItemResearchStatus;
   /** @nullable */
   pinCount: number | null;
   extends?: string;

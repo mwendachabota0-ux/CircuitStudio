@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   buildExternalCircuitFixPrompt,
+  buildStudioExternalCircuitFixMessage,
   getExternalCircuitFixContextKey,
-  inspectExternalCircuitFixCandidate,
   partitionExternalCircuitFixFindings,
   shouldShowExternalCircuitFixPaste,
 } from './circuit-external-fix.ts';
@@ -69,40 +69,17 @@ test('visual notes are kept advisory rather than presented as blocking errors', 
   );
 });
 
-test('unchanged or structurally invalid external fixes are rejected', () => {
-  assert.deepEqual(
-    inspectExternalCircuitFixCandidate(rejectedSpec, rejectedSpec, { errors: [], warnings: [] }),
-    {
-      accepted: false,
-      reasons: ['This CircuitSpec is unchanged from the rejected proposal.'],
-    },
-  );
-  assert.deepEqual(
-    inspectExternalCircuitFixCandidate(
-      rejectedSpec,
-      { ...rejectedSpec, title: 'Changed but still broken' },
-      { errors: ['A required pin is disconnected.'], warnings: [] },
-    ),
-    {
-      accepted: false,
-      reasons: ['Blocking validation issue: A required pin is disconnected.'],
-    },
-  );
-});
+test('Studio sends pasted repair guidance to its builder without pre-rejecting it', () => {
+  const pastedReference = JSON.stringify({
+    title: 'External repair',
+    elements: [{ type: 'wire', id: 'W2', points: [[100, 100], [180, 100]] }],
+  });
+  const message = buildStudioExternalCircuitFixMessage(context, pastedReference);
 
-test('advisory warnings do not block a changed candidate with no validation errors', () => {
-  const candidate = {
-    ...rejectedSpec,
-    elements: [
-      ...rejectedSpec.elements,
-      { type: 'wire', id: 'W2', points: [[140, 100], [180, 100]] },
-    ],
-  };
-  assert.deepEqual(
-    inspectExternalCircuitFixCandidate(rejectedSpec, candidate, {
-      errors: [],
-      warnings: ['A wire segment is diagonal; this is a layout note.'],
-    }),
-    { accepted: true, reasons: [] },
-  );
+  assert.match(message, /Repair the existing rejected circuit in place/);
+  assert.match(message, /Do not start over/);
+  assert.match(message, /do not stop before attempting repair/);
+  assert.match(message, /Wire W1 at \(80,100\) is disconnected/);
+  assert.match(message, /External repair reference supplied by the user/);
+  assert.ok(message.includes(pastedReference));
 });

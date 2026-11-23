@@ -37,12 +37,33 @@ import {
 } from './lib/bill-of-materials';
 import { Redirect, Route, Switch, useLocation, Link, Router as WouterRouter } from 'wouter';
 
-type ValidationReport = { errors: string[]; warnings: string[] };
+type ValidationReport = {
+  errors: string[];
+  warnings: string[];
+  topologyErrors?: string[];
+  topologyWarnings?: string[];
+};
 type CircuitSpec = ApiCircuitSpec;
+type CircuitDrawRenderOptions = {
+  allowStructuralErrors?: boolean;
+  padding?: number;
+  stroke?: string;
+  text?: string;
+  muted?: string;
+  background?: string | null;
+  font?: string;
+  lineWidth?: number;
+  dotRadius?: number;
+};
 type CircuitDrawApi = {
-  render: (spec: CircuitSpec, options?: { allowStructuralErrors?: boolean }) => string;
+  render: (spec: CircuitSpec, options?: CircuitDrawRenderOptions) => string;
   validate: (spec: CircuitSpec) => ValidationReport;
+  layoutWarnings: (spec: CircuitSpec) => string[];
   autoFix: (spec: CircuitSpec) => { spec: CircuitSpec; changes: string[] };
+  netlist: (spec: CircuitSpec, allowStructuralErrors?: boolean) => {
+    parts: Array<{ designator: string; type: string; value: string }>;
+    nets: Array<{ name: string; pins: string[] }>;
+  };
   buildSheet: (spec: CircuitSpec) => string;
 };
 declare global {
@@ -96,7 +117,7 @@ const clerkAppearance = {
     colorInputForeground: '#263b40',
     colorNeutral: '#263b40',
     fontFamily: 'DM Sans',
-    borderRadius: '0.65rem',
+    borderRadius: '0.4875rem',
   },
   elements: {
     rootBox: 'w-full flex justify-center',
@@ -188,7 +209,7 @@ function Landing() {
     <main className="landing">
       <header className="landing-nav">
         <Link href="/" className="brand" data-testid="link-brand-home">
-          <span className="brand-mark"><CircuitBoard aria-hidden="true" /></span><span>Circuit Studio</span>
+          <span className="brand-mark"><CircuitBoard aria-hidden="true" /></span><span>CircuitStudio</span>
         </Link>
         <nav className="nav-actions" aria-label="Account">
           <Link href="/sign-in" data-testid="link-sign-in">Sign in</Link>
@@ -269,7 +290,7 @@ function Landing() {
           <Link href="/sign-up" className="hero-cta" data-testid="link-create-account-bottom">Create your account <ArrowRight /></Link>
         </div>
       </section>
-      <footer className="footer"><span>CIRCUIT STUDIO</span><span>Clear drawings. Curious makers.</span></footer>
+      <footer className="footer"><span>CIRCUITSTUDIO</span><span>Clear drawings. Curious makers.</span></footer>
     </main>
   );
 }
@@ -696,6 +717,7 @@ function Studio({ userId }: { userId: string }) {
   const [jsonRepairRequest, setJsonRepairRequest] = useState<JsonRepairRequest | null>(null);
   const jsonRepairRequestIdRef = useRef(0);
   const [hasStagedBuilderProposal, setHasStagedBuilderProposal] = useState(false);
+  const [schematicFeedbackHost, setSchematicFeedbackHost] = useState<HTMLDivElement | null>(null);
   const [libraryReady, setLibraryReady] = useState(!!window.CircuitDraw);
   const [toast, setToast] = useState('');
   const [copied, setCopied] = useState(false);
@@ -969,7 +991,7 @@ function Studio({ userId }: { userId: string }) {
   return (
     <main className="studio-shell">
       <header className="topbar">
-        <Link href="/studio" className="brand" data-testid="link-studio-home"><span className="brand-mark"><CircuitBoard aria-hidden="true" /></span><span>Circuit Studio</span></Link>
+        <Link href="/studio" className="brand" data-testid="link-studio-home"><span className="brand-mark"><CircuitBoard aria-hidden="true" /></span><span>CircuitStudio</span></Link>
         <div className="top-user"><span data-testid="text-account-name">{user?.firstName || 'Your workbench'}</span><Link href="/studio/tutor" className="tutor-nav-link" data-testid="link-open-tutor"><MessageCircle /> Tutor</Link><button data-testid="button-sign-out" onClick={() => signOut({ redirectUrl: basePath || '/' })}>Sign out</button><AiStatusControls /></div>
       </header>
       <div className="workspace">
@@ -987,6 +1009,7 @@ function Studio({ userId }: { userId: string }) {
             canRepairCurrentDraft={libraryReady && !jsonError && !jsonEditorDirty && report.errors.length > 0}
             hasUnappliedJsonEdits={jsonEditorDirty}
             jsonRepairRequest={jsonRepairRequest}
+            schematicFeedbackHost={schematicFeedbackHost}
             onProposalStateChange={setHasStagedBuilderProposal}
             onJsonRepairRequestHandled={(id) => {
               setJsonRepairRequest((current) => current?.id === id ? null : current);
@@ -1034,6 +1057,11 @@ function Studio({ userId }: { userId: string }) {
                   : report.errors.length ? <div className="schematic-paper canvas-empty"><h3>This schematic needs repair</h3><p>Fix the errors to preview it.</p></div>
                     : <div className="schematic-paper canvas-empty"><div className="empty-icon"><CircuitBoard /></div><h3>Ready to draw</h3><p>Your schematic will appear here.</p></div>}
             </div>
+            <div
+              className="schematic-feedback-host"
+              ref={setSchematicFeedbackHost}
+              data-testid="slot-schematic-feedback"
+            />
             <div className="canvas-foot"><span data-testid="status-canvas">{report.errors.length ? svg ? 'Needs repair' : 'Drawing paused' : 'Vector schematic'}</span><span>Canvas {spec.width || 'auto'} × {spec.height || 'auto'}</span></div>
           </div>
         </section>
@@ -1328,7 +1356,7 @@ function Tutor({ userId }: { userId: string }) {
   return (
     <main className="studio-shell tutor-shell">
       <header className="topbar">
-        <Link href="/studio" className="brand" data-testid="link-tutor-studio"><span className="brand-mark"><CircuitBoard aria-hidden="true" /></span><span>Circuit Studio</span></Link>
+        <Link href="/studio" className="brand" data-testid="link-tutor-studio"><span className="brand-mark"><CircuitBoard aria-hidden="true" /></span><span>CircuitStudio</span></Link>
         <div className="tutor-header-actions">
           <Link href="/studio" className="tutor-back-link" data-testid="link-back-to-studio"><ArrowRight /> Back to workbench</Link>
           <div className="top-meta"><span>LEARNING DESK</span><AiStatusControls /></div>
@@ -1482,7 +1510,7 @@ function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <main className="auth-shell">
       <aside className="auth-aside">
-        <Link href="/" className="brand" data-testid="link-auth-brand"><span className="brand-mark"><CircuitBoard /></span><span>Circuit Studio</span></Link>
+        <Link href="/" className="brand" data-testid="link-auth-brand"><span className="brand-mark"><CircuitBoard /></span><span>CircuitStudio</span></Link>
         <div className="auth-aside-copy"><p className="eyebrow">Your workbench is waiting</p><h1>Build understanding, one connection at a time.</h1><p>Bring a circuit idea to the bench. Keep the schematic clear, editable, and yours.</p></div>
         <div className="auth-aside-foot">A CLEARER PATH FROM IDEA TO CIRCUIT</div>
       </aside>

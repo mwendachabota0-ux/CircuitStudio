@@ -1,3 +1,4 @@
+import { type StudioLibraryResearchEntry } from "./generatedStudioLibraryResource.js";
 export type CircuitPoint = [number, number];
 export type CircuitPin = {
     name: string;
@@ -606,7 +607,7 @@ type CircuitComponentLibraryMetadata = {
     category: CircuitComponentCategory;
     description: string;
 };
-export type CircuitComponentLibraryEntry = CircuitComponentReferenceEntry & CircuitComponentLibraryMetadata;
+export type CircuitComponentLibraryEntry = CircuitComponentReferenceEntry & CircuitComponentLibraryMetadata & StudioLibraryResearchEntry;
 export declare const CIRCUIT_COMPONENT_LIBRARY: CircuitComponentLibraryEntry[];
 export declare function getCircuitComponentReference(type: unknown): (typeof CIRCUIT_COMPONENT_REFERENCE)[number] | undefined;
 export declare function getCircuitElementSchemaError(element: unknown): string | null;
@@ -614,5 +615,6 @@ export declare function isSupportedCircuitElementType(value: unknown): value is 
 export declare function getCircuitPins(element: CircuitElementGeometry): CircuitPin[];
 export declare function formatCircuitPinGuide(): string;
 export declare function formatCircuitComponentGuide(): string;
+export declare function formatRelevantCircuitComponentResearchContext(queryTexts: string[], requestedLimit?: number): string;
 export {};
 //# sourceMappingURL=index.d.ts.map

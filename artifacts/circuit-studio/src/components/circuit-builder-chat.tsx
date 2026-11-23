@@ -2195,7 +2195,6 @@ export function CircuitBuilderChat({
     setExternalFixCopiedContextKey(null);
     setExternalFixCopyState('idle');
     setExternalFixDraft('');
-    setExternalFixFeedback(null);
   };
 
   const errorMessage = retryFeedback?.message ?? (

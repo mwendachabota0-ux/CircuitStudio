@@ -209,7 +209,7 @@ function Landing() {
     <main className="landing">
       <header className="landing-nav">
         <Link href="/" className="brand" data-testid="link-brand-home">
-          <span className="brand-mark"><CircuitBoard aria-hidden="true" /></span><span>Circuit Studio</span>
+          <span className="brand-mark"><CircuitBoard aria-hidden="true" /></span><span>CircuitStudio</span>
         </Link>
         <nav className="nav-actions" aria-label="Account">
           <Link href="/sign-in" data-testid="link-sign-in">Sign in</Link>
@@ -290,7 +290,7 @@ function Landing() {
           <Link href="/sign-up" className="hero-cta" data-testid="link-create-account-bottom">Create your account <ArrowRight /></Link>
         </div>
       </section>
-      <footer className="footer"><span>CIRCUIT STUDIO</span><span>Clear drawings. Curious makers.</span></footer>
+      <footer className="footer"><span>CIRCUITSTUDIO</span><span>Clear drawings. Curious makers.</span></footer>
     </main>
   );
 }
@@ -991,7 +991,7 @@ function Studio({ userId }: { userId: string }) {
   return (
     <main className="studio-shell">
       <header className="topbar">
-        <Link href="/studio" className="brand" data-testid="link-studio-home"><span className="brand-mark"><CircuitBoard aria-hidden="true" /></span><span>Circuit Studio</span></Link>
+        <Link href="/studio" className="brand" data-testid="link-studio-home"><span className="brand-mark"><CircuitBoard aria-hidden="true" /></span><span>CircuitStudio</span></Link>
         <div className="top-user"><span data-testid="text-account-name">{user?.firstName || 'Your workbench'}</span><Link href="/studio/tutor" className="tutor-nav-link" data-testid="link-open-tutor"><MessageCircle /> Tutor</Link><button data-testid="button-sign-out" onClick={() => signOut({ redirectUrl: basePath || '/' })}>Sign out</button><AiStatusControls /></div>
       </header>
       <div className="workspace">
@@ -1356,7 +1356,7 @@ function Tutor({ userId }: { userId: string }) {
   return (
     <main className="studio-shell tutor-shell">
       <header className="topbar">
-        <Link href="/studio" className="brand" data-testid="link-tutor-studio"><span className="brand-mark"><CircuitBoard aria-hidden="true" /></span><span>Circuit Studio</span></Link>
+        <Link href="/studio" className="brand" data-testid="link-tutor-studio"><span className="brand-mark"><CircuitBoard aria-hidden="true" /></span><span>CircuitStudio</span></Link>
         <div className="tutor-header-actions">
           <Link href="/studio" className="tutor-back-link" data-testid="link-back-to-studio"><ArrowRight /> Back to workbench</Link>
           <div className="top-meta"><span>LEARNING DESK</span><AiStatusControls /></div>
@@ -1510,7 +1510,7 @@ function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <main className="auth-shell">
       <aside className="auth-aside">
-        <Link href="/" className="brand" data-testid="link-auth-brand"><span className="brand-mark"><CircuitBoard /></span><span>Circuit Studio</span></Link>
+        <Link href="/" className="brand" data-testid="link-auth-brand"><span className="brand-mark"><CircuitBoard /></span><span>CircuitStudio</span></Link>
         <div className="auth-aside-copy"><p className="eyebrow">Your workbench is waiting</p><h1>Build understanding, one connection at a time.</h1><p>Bring a circuit idea to the bench. Keep the schematic clear, editable, and yours.</p></div>
         <div className="auth-aside-foot">A CLEARER PATH FROM IDEA TO CIRCUIT</div>
       </aside>

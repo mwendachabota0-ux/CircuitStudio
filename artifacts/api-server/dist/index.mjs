@@ -15448,187 +15448,23 @@ var require_type_is = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/body-parser@2.4.0/node_modules/body-parser/lib/read.js
-var require_read = __commonJS({
-  "../../node_modules/.pnpm/body-parser@2.4.0/node_modules/body-parser/lib/read.js"(exports, module) {
+// ../../node_modules/.pnpm/body-parser@2.3.0/node_modules/body-parser/lib/utils.js
+var require_utils = __commonJS({
+  "../../node_modules/.pnpm/body-parser@2.3.0/node_modules/body-parser/lib/utils.js"(exports, module) {
     "use strict";
-    var createError = require_http_errors();
-    var getBody = require_raw_body();
-    var iconv = require_lib();
-    var onFinished = require_on_finished();
-    var zlib = __require("node:zlib");
-    var hasBody = require_type_is().hasBody;
+    var bytes = require_bytes();
     var contentType = require_dist();
-    module.exports = read;
-    var hasZstandardSupport = "createZstdDecompress" in zlib;
-    function read(req, res, next, parse4, debug7, options) {
-      if (onFinished.isFinished(req)) {
-        debug7("body already parsed");
-        next();
-        return;
-      }
-      if (!("body" in req)) {
-        req.body = void 0;
-      }
-      if (!hasBody(req)) {
-        debug7("skip empty body");
-        next();
-        return;
-      }
-      debug7("content-type %j", req.headers["content-type"]);
-      if (!options.shouldParse(req)) {
-        debug7("skip parsing");
-        next();
-        return;
-      }
-      let encoding = null;
-      if (options?.skipCharset !== true) {
-        encoding = getCharset(req) || options.defaultCharset;
-        if (!!options?.isValidCharset && !options.isValidCharset(encoding)) {
-          debug7("invalid charset");
-          next(createError(415, 'unsupported charset "' + encoding.toUpperCase() + '"', {
-            charset: encoding,
-            type: "charset.unsupported"
-          }));
-          return;
-        }
-      }
-      let length;
-      let stream;
-      const verify = options.verify;
-      if (verify && encoding !== null && !iconv.encodingExists(encoding)) {
-        return next(createError(415, 'unsupported charset "' + encoding.toUpperCase() + '"', {
-          charset: encoding.toLowerCase(),
-          type: "charset.unsupported"
-        }));
-      }
-      try {
-        const contentEncoding = (req.headers["content-encoding"] || "identity").toLowerCase();
-        debug7('content-encoding "%s"', contentEncoding);
-        if (options.inflate === false && contentEncoding !== "identity") {
-          throw createError(415, "content encoding unsupported", {
-            encoding: contentEncoding,
-            type: "encoding.unsupported"
-          });
-        }
-        if (contentEncoding === "identity") {
-          length = req.headers["content-length"];
-          stream = req;
-        } else {
-          stream = createDecompressionStream(contentEncoding, debug7);
-          req.pipe(stream);
-        }
-      } catch (err) {
-        return next(err);
-      }
-      const rawBodyOptions = {
-        length,
-        encoding: verify ? null : encoding,
-        limit: options.limit
-      };
-      debug7("read body");
-      getBody(stream, rawBodyOptions, function(error40, body) {
-        if (error40) {
-          let _error;
-          if (error40.type === "encoding.unsupported") {
-            _error = createError(415, 'unsupported charset "' + encoding.toUpperCase() + '"', {
-              charset: encoding.toLowerCase(),
-              type: "charset.unsupported"
-            });
-          } else {
-            _error = createError(400, error40);
-          }
-          if (stream !== req) {
-            req.unpipe();
-            stream.destroy();
-          }
-          dump(req, function onfinished() {
-            next(createError(400, _error));
-          });
-          return;
-        }
-        if (stream !== req) {
-          req.unpipe(stream);
-          stream.on("error", () => {
-          });
-          stream.destroy();
-          req.resume();
-        }
-        if (verify) {
-          try {
-            debug7("verify body");
-            verify(req, res, body, encoding);
-          } catch (err) {
-            next(createError(403, err, {
-              body,
-              type: err.type || "entity.verify.failed"
-            }));
-            return;
-          }
-        }
-        let str = body;
-        try {
-          debug7("parse body");
-          str = typeof body !== "string" && encoding !== null ? iconv.decode(body, encoding) : body;
-          req.body = parse4(str, encoding);
-        } catch (err) {
-          next(createError(400, err, {
-            body: str,
-            type: err.type || "entity.parse.failed"
-          }));
-          return;
-        }
-        next();
-      });
-    }
-    function createDecompressionStream(encoding, debug7) {
-      switch (encoding) {
-        case "deflate":
-          debug7("inflate body");
-          return zlib.createInflate();
-        case "gzip":
-          debug7("gunzip body");
-          return zlib.createGunzip();
-        case "br":
-          debug7("brotli decompress body");
-          return zlib.createBrotliDecompress();
-        case "zstd":
-          if (hasZstandardSupport) {
-            debug7("zstd decompress body");
-            return zlib.createZstdDecompress();
-          }
-      }
-      throw createError(415, 'unsupported content encoding "' + encoding + '"', {
-        encoding,
-        type: "encoding.unsupported"
-      });
-    }
-    function dump(req, callback) {
-      if (onFinished.isFinished(req)) {
-        callback(null);
-      } else {
-        onFinished(req, callback);
-        req.resume();
-      }
-    }
+    var typeis = require_type_is();
+    module.exports = {
+      getCharset,
+      normalizeOptions,
+      passthrough
+    };
     function getCharset(req) {
       const header = req.headers["content-type"];
       if (!header) return void 0;
       return contentType.parse(header).parameters.charset?.toLowerCase();
     }
-  }
-});
-
-// ../../node_modules/.pnpm/body-parser@2.4.0/node_modules/body-parser/lib/utils.js
-var require_utils = __commonJS({
-  "../../node_modules/.pnpm/body-parser@2.4.0/node_modules/body-parser/lib/utils.js"(exports, module) {
-    "use strict";
-    var bytes = require_bytes();
-    var typeis = require_type_is();
-    module.exports = {
-      normalizeOptions,
-      passthrough
-    };
     function typeChecker(type) {
       return function checkType(req) {
         return Boolean(typeis(req, type));
@@ -15664,15 +15500,173 @@ var require_utils = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/body-parser@2.4.0/node_modules/body-parser/lib/types/json.js
+// ../../node_modules/.pnpm/body-parser@2.3.0/node_modules/body-parser/lib/read.js
+var require_read = __commonJS({
+  "../../node_modules/.pnpm/body-parser@2.3.0/node_modules/body-parser/lib/read.js"(exports, module) {
+    "use strict";
+    var createError = require_http_errors();
+    var getBody = require_raw_body();
+    var iconv = require_lib();
+    var onFinished = require_on_finished();
+    var zlib = __require("node:zlib");
+    var hasBody = require_type_is().hasBody;
+    var { getCharset } = require_utils();
+    module.exports = read;
+    function read(req, res, next, parse4, debug7, options) {
+      if (onFinished.isFinished(req)) {
+        debug7("body already parsed");
+        next();
+        return;
+      }
+      if (!("body" in req)) {
+        req.body = void 0;
+      }
+      if (!hasBody(req)) {
+        debug7("skip empty body");
+        next();
+        return;
+      }
+      debug7("content-type %j", req.headers["content-type"]);
+      if (!options.shouldParse(req)) {
+        debug7("skip parsing");
+        next();
+        return;
+      }
+      let encoding = null;
+      if (options?.skipCharset !== true) {
+        encoding = getCharset(req) || options.defaultCharset;
+        if (!!options?.isValidCharset && !options.isValidCharset(encoding)) {
+          debug7("invalid charset");
+          next(createError(415, 'unsupported charset "' + encoding.toUpperCase() + '"', {
+            charset: encoding,
+            type: "charset.unsupported"
+          }));
+          return;
+        }
+      }
+      let length;
+      const opts = options;
+      let stream;
+      const verify = opts.verify;
+      try {
+        stream = contentstream(req, debug7, opts.inflate);
+        length = stream.length;
+        stream.length = void 0;
+      } catch (err) {
+        return next(err);
+      }
+      opts.length = length;
+      opts.encoding = verify ? null : encoding;
+      if (opts.encoding === null && encoding !== null && !iconv.encodingExists(encoding)) {
+        return next(createError(415, 'unsupported charset "' + encoding.toUpperCase() + '"', {
+          charset: encoding.toLowerCase(),
+          type: "charset.unsupported"
+        }));
+      }
+      debug7("read body");
+      getBody(stream, opts, function(error40, body) {
+        if (error40) {
+          let _error;
+          if (error40.type === "encoding.unsupported") {
+            _error = createError(415, 'unsupported charset "' + encoding.toUpperCase() + '"', {
+              charset: encoding.toLowerCase(),
+              type: "charset.unsupported"
+            });
+          } else {
+            _error = createError(400, error40);
+          }
+          if (stream !== req) {
+            req.unpipe();
+            stream.destroy();
+          }
+          dump(req, function onfinished() {
+            next(createError(400, _error));
+          });
+          return;
+        }
+        if (verify) {
+          try {
+            debug7("verify body");
+            verify(req, res, body, encoding);
+          } catch (err) {
+            next(createError(403, err, {
+              body,
+              type: err.type || "entity.verify.failed"
+            }));
+            return;
+          }
+        }
+        let str = body;
+        try {
+          debug7("parse body");
+          str = typeof body !== "string" && encoding !== null ? iconv.decode(body, encoding) : body;
+          req.body = parse4(str, encoding);
+        } catch (err) {
+          next(createError(400, err, {
+            body: str,
+            type: err.type || "entity.parse.failed"
+          }));
+          return;
+        }
+        next();
+      });
+    }
+    function contentstream(req, debug7, inflate) {
+      const encoding = (req.headers["content-encoding"] || "identity").toLowerCase();
+      const length = req.headers["content-length"];
+      debug7('content-encoding "%s"', encoding);
+      if (inflate === false && encoding !== "identity") {
+        throw createError(415, "content encoding unsupported", {
+          encoding,
+          type: "encoding.unsupported"
+        });
+      }
+      if (encoding === "identity") {
+        req.length = length;
+        return req;
+      }
+      const stream = createDecompressionStream(encoding, debug7);
+      req.pipe(stream);
+      return stream;
+    }
+    function createDecompressionStream(encoding, debug7) {
+      switch (encoding) {
+        case "deflate":
+          debug7("inflate body");
+          return zlib.createInflate();
+        case "gzip":
+          debug7("gunzip body");
+          return zlib.createGunzip();
+        case "br":
+          debug7("brotli decompress body");
+          return zlib.createBrotliDecompress();
+        default:
+          throw createError(415, 'unsupported content encoding "' + encoding + '"', {
+            encoding,
+            type: "encoding.unsupported"
+          });
+      }
+    }
+    function dump(req, callback) {
+      if (onFinished.isFinished(req)) {
+        callback(null);
+      } else {
+        onFinished(req, callback);
+        req.resume();
+      }
+    }
+  }
+});
+
+// ../../node_modules/.pnpm/body-parser@2.3.0/node_modules/body-parser/lib/types/json.js
 var require_json = __commonJS({
-  "../../node_modules/.pnpm/body-parser@2.4.0/node_modules/body-parser/lib/types/json.js"(exports, module) {
+  "../../node_modules/.pnpm/body-parser@2.3.0/node_modules/body-parser/lib/types/json.js"(exports, module) {
     "use strict";
     var debug7 = require_src()("body-parser:json");
     var read = require_read();
     var { normalizeOptions } = require_utils();
     module.exports = json3;
-    var FIRST_NON_WHITESPACE_REGEXP = /^[\x20\x09\x0a\x0d]*([^\x20\x09\x0a\x0d]|$)/;
+    var FIRST_CHAR_REGEXP = /^[\x20\x09\x0a\x0d]*([^\x20\x09\x0a\x0d])/;
     var JSON_SYNTAX_CHAR = "#";
     var JSON_SYNTAX_REGEXP = /#+/g;
     function json3(options) {
@@ -15695,12 +15689,10 @@ var require_json = __commonJS({
           if (body.length === 0) {
             return {};
           }
-          if (body[0] !== "{" && body[0] !== "[") {
-            const first = firstNonWhitespaceChar(body);
-            if (first !== "{" && first !== "[") {
-              debug7("strict violation");
-              throw createStrictSyntaxError(body, first);
-            }
+          const first = firstchar(body);
+          if (first !== "{" && first !== "[") {
+            debug7("strict violation");
+            throw createStrictSyntaxError(body, first);
           }
           try {
             debug7("parse json");
@@ -15746,9 +15738,9 @@ var require_json = __commonJS({
         });
       }
     }
-    function firstNonWhitespaceChar(str) {
-      const match2 = FIRST_NON_WHITESPACE_REGEXP.exec(str);
-      return match2 && match2[1] ? match2[1] : void 0;
+    function firstchar(str) {
+      const match2 = FIRST_CHAR_REGEXP.exec(str);
+      return match2 ? match2[1] : void 0;
     }
     function normalizeJsonSyntaxError(error40, obj) {
       const keys = Object.getOwnPropertyNames(error40);
@@ -15765,9 +15757,9 @@ var require_json = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/body-parser@2.4.0/node_modules/body-parser/lib/types/raw.js
+// ../../node_modules/.pnpm/body-parser@2.3.0/node_modules/body-parser/lib/types/raw.js
 var require_raw = __commonJS({
-  "../../node_modules/.pnpm/body-parser@2.4.0/node_modules/body-parser/lib/types/raw.js"(exports, module) {
+  "../../node_modules/.pnpm/body-parser@2.3.0/node_modules/body-parser/lib/types/raw.js"(exports, module) {
     "use strict";
     var debug7 = require_src()("body-parser:raw");
     var read = require_read();
@@ -15787,9 +15779,9 @@ var require_raw = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/body-parser@2.4.0/node_modules/body-parser/lib/types/text.js
+// ../../node_modules/.pnpm/body-parser@2.3.0/node_modules/body-parser/lib/types/text.js
 var require_text = __commonJS({
-  "../../node_modules/.pnpm/body-parser@2.4.0/node_modules/body-parser/lib/types/text.js"(exports, module) {
+  "../../node_modules/.pnpm/body-parser@2.3.0/node_modules/body-parser/lib/types/text.js"(exports, module) {
     "use strict";
     var debug7 = require_src()("body-parser:text");
     var read = require_read();
@@ -17430,16 +17422,15 @@ var require_side_channel = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/qs@6.17.1/node_modules/qs/lib/formats.js
+// ../../node_modules/.pnpm/qs@6.16.0/node_modules/qs/lib/formats.js
 var require_formats = __commonJS({
-  "../../node_modules/.pnpm/qs@6.17.1/node_modules/qs/lib/formats.js"(exports, module) {
+  "../../node_modules/.pnpm/qs@6.16.0/node_modules/qs/lib/formats.js"(exports, module) {
     "use strict";
     var replace = String.prototype.replace;
     var percentTwenties = /%20/g;
     var Format = {
       RFC1738: "RFC1738",
-      RFC3986: "RFC3986",
-      WHATWG: "WHATWG"
+      RFC3986: "RFC3986"
     };
     module.exports = {
       "default": Format.RFC3986,
@@ -17449,21 +17440,17 @@ var require_formats = __commonJS({
         },
         RFC3986: function(value) {
           return String(value);
-        },
-        WHATWG: function(value) {
-          return replace.call(value, percentTwenties, "+");
         }
       },
       RFC1738: Format.RFC1738,
-      RFC3986: Format.RFC3986,
-      WHATWG: Format.WHATWG
+      RFC3986: Format.RFC3986
     };
   }
 });
 
-// ../../node_modules/.pnpm/qs@6.17.1/node_modules/qs/lib/utils.js
+// ../../node_modules/.pnpm/qs@6.16.0/node_modules/qs/lib/utils.js
 var require_utils2 = __commonJS({
-  "../../node_modules/.pnpm/qs@6.17.1/node_modules/qs/lib/utils.js"(exports, module) {
+  "../../node_modules/.pnpm/qs@6.16.0/node_modules/qs/lib/utils.js"(exports, module) {
     "use strict";
     var formats = require_formats();
     var getSideChannel = require_side_channel();
@@ -17483,17 +17470,6 @@ var require_utils2 = __commonJS({
     };
     var setMaxIndex = function setMaxIndex2(obj, maxIndex) {
       overflowChannel.set(obj, maxIndex);
-    };
-    var conflictChannel = getSideChannel();
-    var markConflict = function markConflict2(obj, maxIndex) {
-      conflictChannel.set(obj, maxIndex);
-      return obj;
-    };
-    var isConflict = function isConflict2(obj) {
-      return conflictChannel.has(obj);
-    };
-    var getConflictIndex = function getConflictIndex2(obj) {
-      return conflictChannel.get(obj);
     };
     var hexTable = (function() {
       var array2 = [];
@@ -17538,36 +17514,6 @@ var require_utils2 = __commonJS({
         obj[key] = value;
       }
     };
-    var maxNumericIndex = function maxNumericIndex2(obj, min) {
-      var max = min;
-      var keys = Object.keys(obj);
-      for (var i = 0; i < keys.length; ++i) {
-        var num = parseInt(keys[i], 10);
-        if (String(num) === keys[i] && num > max) {
-          max = num;
-        }
-      }
-      return max;
-    };
-    var countElements = function countElements2(arr) {
-      var count = 0;
-      for (var i = 0; i < arr.length; ++i) {
-        if (has.call(arr, i)) {
-          count += 1;
-        }
-      }
-      return count;
-    };
-    var limitedPair = function limitedPair2(first, second, options) {
-      var pair = [first, second];
-      if (options && typeof options.arrayLimit === "number" && pair.length > options.arrayLimit) {
-        if (options.throwOnLimitExceeded) {
-          throw new RangeError("Array limit exceeded. Only " + options.arrayLimit + " element" + (options.arrayLimit === 1 ? "" : "s") + " allowed in an array.");
-        }
-        return markOverflow(arrayToObject(pair, options), 1);
-      }
-      return pair;
-    };
     var merge2 = function merge3(target, source, options) {
       if (!source) {
         return target;
@@ -17575,7 +17521,7 @@ var require_utils2 = __commonJS({
       if (typeof source !== "object" && typeof source !== "function") {
         if (isArray(target)) {
           var nextIndex = target.length;
-          if (options && typeof options.arrayLimit === "number" && countElements(target) >= options.arrayLimit) {
+          if (options && typeof options.arrayLimit === "number" && nextIndex >= options.arrayLimit) {
             if (options.throwOnLimitExceeded) {
               throw new RangeError("Array limit exceeded. Only " + options.arrayLimit + " element" + (options.arrayLimit === 1 ? "" : "s") + " allowed in an array.");
             }
@@ -17587,21 +17533,13 @@ var require_utils2 = __commonJS({
             var newIndex = getMaxIndex(target) + 1;
             target[newIndex] = source;
             setMaxIndex(target, newIndex);
-          } else if (options && options.strictMerge && isConflict(target)) {
-            var nextConflict = getConflictIndex(target) + 1;
-            if (options.throwOnLimitExceeded && typeof options.arrayLimit === "number" && nextConflict >= options.arrayLimit) {
-              throw new RangeError("Array limit exceeded. Only " + options.arrayLimit + " element" + (options.arrayLimit === 1 ? "" : "s") + " allowed in an array.");
-            }
-            target[nextConflict] = source;
-            markConflict(target, nextConflict);
           } else if (options && options.strictMerge) {
-            var conflict = limitedPair(target, source, options);
-            return isArray(conflict) ? markConflict(conflict, 1) : conflict;
+            return [target, source];
           } else if (options && (options.plainObjects || options.allowPrototypes) || !has.call(Object.prototype, source)) {
             target[source] = true;
           }
         } else {
-          return limitedPair(target, source, options);
+          return [target, source];
         }
         return target;
       }
@@ -17627,9 +17565,6 @@ var require_utils2 = __commonJS({
       var mergeTarget = target;
       if (isArray(target) && !isArray(source)) {
         mergeTarget = arrayToObject(target, options);
-        if (isConflict(target)) {
-          markConflict(mergeTarget, target.length - 1);
-        }
       }
       if (isArray(target) && isArray(source)) {
         source.forEach(function(item, i) {
@@ -17644,7 +17579,7 @@ var require_utils2 = __commonJS({
             target[i] = item;
           }
         });
-        if (options && typeof options.arrayLimit === "number" && countElements(target) > options.arrayLimit) {
+        if (options && typeof options.arrayLimit === "number" && target.length > options.arrayLimit) {
           if (options.throwOnLimitExceeded) {
             throw new RangeError("Array limit exceeded. Only " + options.arrayLimit + " element" + (options.arrayLimit === 1 ? "" : "s") + " allowed in an array.");
           }
@@ -17660,18 +17595,12 @@ var require_utils2 = __commonJS({
           setProperty(acc, key, value);
         }
         if (isOverflow(source) && !isOverflow(acc)) {
-          markOverflow(acc, maxNumericIndex(acc, getMaxIndex(source)));
+          markOverflow(acc, getMaxIndex(source));
         }
         if (isOverflow(acc)) {
           var keyNum = parseInt(key, 10);
           if (String(keyNum) === key && keyNum >= 0 && keyNum > getMaxIndex(acc)) {
             setMaxIndex(acc, keyNum);
-          }
-        }
-        if (isConflict(acc)) {
-          var conflictKey = parseInt(key, 10);
-          if (String(conflictKey) === key && conflictKey > getConflictIndex(acc)) {
-            markConflict(acc, conflictKey);
           }
         }
         return acc;
@@ -17684,9 +17613,6 @@ var require_utils2 = __commonJS({
       }, target);
     };
     var decode = function(str, defaultDecoder, charset) {
-      if (typeof str === "string" && str.indexOf("%") === -1) {
-        return str.indexOf("+") === -1 ? str : str.replace(/\+/g, " ");
-      }
       var strWithoutPlus = str.replace(/\+/g, " ");
       if (charset === "iso-8859-1") {
         return strWithoutPlus.replace(/%[0-9a-f]{2}/gi, unescape);
@@ -17697,52 +17623,6 @@ var require_utils2 = __commonJS({
         return strWithoutPlus;
       }
     };
-    var hasToPrimitive = typeof Symbol === "function" && typeof Symbol.toPrimitive === "symbol";
-    var arrayJoin = Array.prototype.join;
-    var arrayToString = Array.prototype.toString;
-    var objectToString = Object.prototype.toString;
-    var toCoercible = function toCoercible2(value, joining) {
-      if (!value || typeof value !== "object" && typeof value !== "function") {
-        return value;
-      }
-      if (hasToPrimitive && value[Symbol.toPrimitive] != null) {
-        return value;
-      }
-      if (isArray(value) && value.toString === arrayToString && value.join === arrayJoin) {
-        var ancestors = joining || getSideChannel();
-        if (ancestors.has(value)) {
-          return "";
-        }
-        ancestors.set(value, true);
-        var copy;
-        for (var i = 0; i < value.length; i += 1) {
-          var item = value[i];
-          var coerced = toCoercible2(item, ancestors);
-          if (!copy && coerced !== item) {
-            copy = [];
-            for (var j = 0; j < i; j += 1) {
-              copy[j] = value[j];
-            }
-          }
-          if (copy) {
-            copy[i] = coerced;
-          }
-        }
-        ancestors["delete"](value);
-        return copy || value;
-      }
-      if (typeof value.toString === "function") {
-        return value;
-      }
-      var valueOf = value.valueOf;
-      if (typeof valueOf === "function") {
-        var primitive = valueOf.call(value);
-        if (!primitive || typeof primitive !== "object" && typeof primitive !== "function") {
-          return String(primitive);
-        }
-      }
-      return objectToString.call(value);
-    };
     var limit = 1024;
     var encode = function encode2(str, defaultEncoder, charset, kind, format) {
       if (str.length === 0) {
@@ -17752,12 +17632,12 @@ var require_utils2 = __commonJS({
       if (typeof str === "symbol") {
         string4 = Symbol.prototype.toString.call(str);
       } else if (typeof str !== "string") {
-        string4 = String(toCoercible(str));
+        string4 = String(str);
       }
       if (charset === "iso-8859-1") {
         return escape(string4).replace(/%u[0-9a-f]{4}/gi, function($0) {
           return "%26%23" + parseInt($0.slice(2), 16) + "%3B";
-        }).replace(/\+/g, "%2B");
+        });
       }
       var out = "";
       for (var j = 0; j < string4.length; j += limit) {
@@ -17772,7 +17652,7 @@ var require_utils2 = __commonJS({
         var arr = [];
         for (var i = 0; i < segment.length; ++i) {
           var c = segment.charCodeAt(i);
-          if (c === 45 || c === 46 || c === 95 || c === 126 && format !== formats.WHATWG || c >= 48 && c <= 57 || c >= 65 && c <= 90 || c >= 97 && c <= 122 || format === formats.RFC1738 && (c === 40 || c === 41) || format === formats.WHATWG && c === 42) {
+          if (c === 45 || c === 46 || c === 95 || c === 126 || c >= 48 && c <= 57 || c >= 65 && c <= 90 || c >= 97 && c <= 122 || format === formats.RFC1738 && (c === 40 || c === 41)) {
             arr[arr.length] = segment.charAt(i);
             continue;
           }
@@ -17788,14 +17668,9 @@ var require_utils2 = __commonJS({
             arr[arr.length] = hexTable[224 | c >> 12] + hexTable[128 | c >> 6 & 63] + hexTable[128 | c & 63];
             continue;
           }
-          var next = segment.charCodeAt(i + 1);
-          if (c <= 56319 && next >= 56320 && next <= 57343) {
-            i += 1;
-            c = 65536 + ((c & 1023) << 10 | next & 1023);
-            arr[arr.length] = hexTable[240 | c >> 18] + hexTable[128 | c >> 12 & 63] + hexTable[128 | c >> 6 & 63] + hexTable[128 | c & 63];
-          } else {
-            arr[arr.length] = "%EF%BF%BD";
-          }
+          i += 1;
+          c = 65536 + ((c & 1023) << 10 | segment.charCodeAt(i) & 1023);
+          arr[arr.length] = hexTable[240 | c >> 18] + hexTable[128 | c >> 12 & 63] + hexTable[128 | c >> 6 & 63] + hexTable[128 | c & 63];
         }
         out += arr.join("");
       }
@@ -17874,16 +17749,14 @@ var require_utils2 = __commonJS({
       isRegExp,
       markOverflow,
       maybeMap,
-      merge: merge2,
-      setProperty,
-      toCoercible
+      merge: merge2
     };
   }
 });
 
-// ../../node_modules/.pnpm/qs@6.17.1/node_modules/qs/lib/stringify.js
+// ../../node_modules/.pnpm/qs@6.16.0/node_modules/qs/lib/stringify.js
 var require_stringify = __commonJS({
-  "../../node_modules/.pnpm/qs@6.17.1/node_modules/qs/lib/stringify.js"(exports, module) {
+  "../../node_modules/.pnpm/qs@6.16.0/node_modules/qs/lib/stringify.js"(exports, module) {
     "use strict";
     var getSideChannel = require_side_channel();
     var utils = require_utils2();
@@ -17991,20 +17864,20 @@ var require_stringify = __commonJS({
       if (generateArrayPrefix === "comma" && isArray(obj)) {
         if (encodeValuesOnly && encoder) {
           obj = utils.maybeMap(obj, function(v) {
-            return v == null ? v : encoder(v, defaults2.encoder, charset, "value", format);
+            return v == null ? v : encoder(v);
           });
         }
-        objKeys = [{ value: obj.length > 0 ? utils.toCoercible(obj).join(",") || null : void 0 }];
+        objKeys = [{ value: obj.length > 0 ? obj.join(",") || null : void 0 }];
       } else if (isArray(filter)) {
         objKeys = filter;
       } else {
         var keys = Object.keys(obj);
         objKeys = sort ? keys.sort(sort) : keys;
       }
-      var encodedPrefix = String(prefix);
+      var encodedPrefix = encodeDotInKeys ? String(prefix).replace(/\./g, "%2E") : String(prefix);
       var adjustedPrefix = commaRoundTrip && isArray(obj) && obj.length === 1 ? encodedPrefix + "[]" : encodedPrefix;
       if (allowEmptyArrays && isArray(obj) && obj.length === 0 && Object.keys(obj).length === 0) {
-        return formatter(encoder && !encodeValuesOnly ? encoder(adjustedPrefix, defaults2.encoder, charset, "key", format) : adjustedPrefix) + "[]";
+        return adjustedPrefix + "[]";
       }
       for (var j = 0; j < objKeys.length; ++j) {
         var key = objKeys[j];
@@ -18072,7 +17945,7 @@ var require_stringify = __commonJS({
         filter = opts.filter;
       }
       var arrayFormat;
-      if (has.call(arrayPrefixGenerators, opts.arrayFormat)) {
+      if (opts.arrayFormat in arrayPrefixGenerators) {
         arrayFormat = opts.arrayFormat;
       } else if ("indices" in opts) {
         arrayFormat = opts.indices ? "indices" : "repeat";
@@ -18115,7 +17988,7 @@ var require_stringify = __commonJS({
         filter = options.filter;
         obj = filter("", obj);
       } else if (isArray(options.filter)) {
-        filter = options.filter.slice();
+        filter = options.filter;
         objKeys = filter;
       }
       var keys = [];
@@ -18151,7 +18024,7 @@ var require_stringify = __commonJS({
           options.skipNulls,
           options.encodeDotInKeys,
           options.encode ? options.encoder : null,
-          filter,
+          options.filter,
           options.sort,
           options.allowDots,
           options.serializeDate,
@@ -18178,58 +18051,13 @@ var require_stringify = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/qs@6.17.1/node_modules/qs/lib/parse.js
+// ../../node_modules/.pnpm/qs@6.16.0/node_modules/qs/lib/parse.js
 var require_parse = __commonJS({
-  "../../node_modules/.pnpm/qs@6.17.1/node_modules/qs/lib/parse.js"(exports, module) {
+  "../../node_modules/.pnpm/qs@6.16.0/node_modules/qs/lib/parse.js"(exports, module) {
     "use strict";
-    var getSideChannel = require_side_channel();
     var utils = require_utils2();
     var has = Object.prototype.hasOwnProperty;
     var isArray = Array.isArray;
-    var getPrototypeOf = Object.getPrototypeOf;
-    var fromCharCode = String.fromCharCode;
-    var isPlainContainer = function isPlainContainer2(value) {
-      if (!value || typeof value !== "object") {
-        return false;
-      }
-      if (isArray(value)) {
-        return true;
-      }
-      var proto = getPrototypeOf(value);
-      return proto === Object.prototype || proto === null;
-    };
-    var emptyCopyOf = function emptyCopyOf2(value) {
-      if (isArray(value)) {
-        var arr = [];
-        arr.length = value.length;
-        return arr;
-      }
-      return getPrototypeOf(value) === null ? { __proto__: null } : {};
-    };
-    var copyInput = function copyInput2(input) {
-      var copies = getSideChannel();
-      var result = {};
-      var queue = [{ source: input, target: result }];
-      for (var i = 0; i < queue.length; ++i) {
-        var source = queue[i].source;
-        var target = queue[i].target;
-        var keys = Object.keys(source);
-        for (var j = 0; j < keys.length; ++j) {
-          var value = source[keys[j]];
-          if (isPlainContainer(value)) {
-            if (!copies.has(value)) {
-              var copy = emptyCopyOf(value);
-              copies.set(value, copy);
-              queue[queue.length] = { source: value, target: copy };
-            }
-            utils.setProperty(target, keys[j], copies.get(value));
-          } else {
-            utils.setProperty(target, keys[j], value);
-          }
-        }
-      }
-      return result;
-    };
     var defaults2 = {
       allowDots: false,
       allowEmptyArrays: false,
@@ -18256,12 +18084,7 @@ var require_parse = __commonJS({
     };
     var interpretNumericEntities = function(str) {
       return str.replace(/&#(\d+);/g, function($0, numberStr) {
-        var c = parseInt(numberStr, 10);
-        if (c > 65535 && c <= 1114111) {
-          c -= 65536;
-          return fromCharCode(55296 | c >> 10, 56320 | c & 1023);
-        }
-        return fromCharCode(c);
+        return String.fromCharCode(parseInt(numberStr, 10));
       });
     };
     var parseArrayValue = function(val, options, currentArrayLength) {
@@ -18279,7 +18102,7 @@ var require_parse = __commonJS({
         }
         return val.split(",");
       }
-      if (options.throwOnLimitExceeded && currentArrayLength >= options.arrayLimit && currentArrayLength > 0) {
+      if (options.throwOnLimitExceeded && currentArrayLength >= options.arrayLimit) {
         throw new RangeError("Array limit exceeded. Only " + options.arrayLimit + " element" + (options.arrayLimit === 1 ? "" : "s") + " allowed in an array.");
       }
       return val;
@@ -18321,7 +18144,6 @@ var require_parse = __commonJS({
         var part = parts[i];
         var bracketEqualsPos = part.indexOf("]=");
         var pos = bracketEqualsPos === -1 ? part.indexOf("=") : bracketEqualsPos + 1;
-        var isEmptyBracketKey = pos > 1 && part.slice(pos - 2, pos) === "[]";
         var key;
         var val;
         if (pos === -1) {
@@ -18334,7 +18156,7 @@ var require_parse = __commonJS({
               parseArrayValue(
                 part.slice(pos + 1),
                 options,
-                isArray(obj[key]) && (options.duplicates === "combine" || isEmptyBracketKey) ? obj[key].length : 0
+                isArray(obj[key]) ? obj[key].length : 0
               ),
               function(encodedVal) {
                 return options.decoder(encodedVal, defaults2.decoder, charset, "value");
@@ -18343,11 +18165,9 @@ var require_parse = __commonJS({
           }
         }
         if (val && options.interpretNumericEntities && charset === "iso-8859-1") {
-          val = utils.maybeMap(val, function(value) {
-            return value ? interpretNumericEntities(String(value)) : value;
-          });
+          val = interpretNumericEntities(String(val));
         }
-        if (isEmptyBracketKey) {
+        if (part.indexOf("[]=") > -1) {
           val = isArray(val) ? [val] : val;
         }
         if (options.comma && isArray(val) && val.length > options.arrayLimit) {
@@ -18355,7 +18175,7 @@ var require_parse = __commonJS({
         }
         if (key !== null) {
           var existing = has.call(obj, key);
-          if (existing && (options.duplicates === "combine" || isEmptyBracketKey)) {
+          if (existing && (options.duplicates === "combine" || part.indexOf("[]=") > -1)) {
             obj[key] = utils.combine(
               obj[key],
               val,
@@ -18369,9 +18189,6 @@ var require_parse = __commonJS({
         }
       }
       return obj;
-    };
-    var stripWrappingBrackets = function stripWrappingBrackets2(key) {
-      return key.charAt(0) === "[" && key.charAt(key.length - 1) === "]" ? key.slice(1, -1) : key;
     };
     var parseObject = function(chain, val, options, valuesParsed) {
       var currentArrayLength = 0;
@@ -18397,12 +18214,12 @@ var require_parse = __commonJS({
           }
         } else {
           obj = options.plainObjects ? { __proto__: null } : {};
-          var cleanRoot = stripWrappingBrackets(root);
-          var decodedRoot = options.decodeDotInKeys ? cleanRoot.replace(/%2E/gi, ".") : cleanRoot;
+          var cleanRoot = root.charAt(0) === "[" && root.charAt(root.length - 1) === "]" ? root.slice(1, -1) : root;
+          var decodedRoot = options.decodeDotInKeys ? cleanRoot.replace(/%2E/g, ".") : cleanRoot;
           var index2 = parseInt(decodedRoot, 10);
           var isValidArrayIndex = !isNaN(index2) && root !== decodedRoot && String(index2) === decodedRoot && index2 >= 0 && options.parseArrays;
           if (!options.parseArrays && decodedRoot === "") {
-            obj[0] = leaf;
+            obj = { 0: leaf };
           } else if (isValidArrayIndex && index2 < options.arrayLimit) {
             obj = [];
             obj[index2] = leaf;
@@ -18419,37 +18236,10 @@ var require_parse = __commonJS({
       }
       return leaf;
     };
-    var topLevelDotsToBrackets = function topLevelDotsToBrackets2(key) {
-      var result = "";
-      var depth = 0;
-      for (var i = 0; i < key.length; i += 1) {
-        var cu = key.charCodeAt(i);
-        if (cu === 91) {
-          depth += 1;
-          result += "[";
-        } else if (cu === 93) {
-          if (depth > 0) {
-            depth -= 1;
-          }
-          result += "]";
-        } else if (cu === 46 && depth === 0 && i + 1 < key.length && key.charCodeAt(i + 1) !== 46 && key.charCodeAt(i + 1) !== 91) {
-          var start = i + 1;
-          var j = start;
-          while (j < key.length && key.charCodeAt(j) !== 46 && key.charCodeAt(j) !== 91) {
-            j += 1;
-          }
-          result += "[" + key.slice(start, j) + "]";
-          i = j - 1;
-        } else {
-          result += key.charAt(i);
-        }
-      }
-      return result;
-    };
     var splitKeyIntoSegments = function splitKeyIntoSegments2(originalKey, options) {
-      var key = options.allowDots ? topLevelDotsToBrackets(originalKey) : originalKey;
+      var key = options.allowDots ? originalKey.replace(/\.([^.[]+)/g, "[$1]") : originalKey;
       if (options.depth <= 0) {
-        if (!options.plainObjects && has.call(Object.prototype, stripWrappingBrackets(key))) {
+        if (!options.plainObjects && has.call(Object.prototype, key)) {
           if (!options.allowPrototypes) {
             return;
           }
@@ -18573,7 +18363,7 @@ var require_parse = __commonJS({
       if (str === "" || str === null || typeof str === "undefined") {
         return options.plainObjects ? { __proto__: null } : {};
       }
-      var tempObj = typeof str === "string" ? parseValues(str, options) : copyInput(str);
+      var tempObj = typeof str === "string" ? parseValues(str, options) : str;
       var obj = options.plainObjects ? { __proto__: null } : {};
       var keys = Object.keys(tempObj);
       for (var i = 0; i < keys.length; ++i) {
@@ -18589,9 +18379,9 @@ var require_parse = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/qs@6.17.1/node_modules/qs/lib/index.js
+// ../../node_modules/.pnpm/qs@6.16.0/node_modules/qs/lib/index.js
 var require_lib2 = __commonJS({
-  "../../node_modules/.pnpm/qs@6.17.1/node_modules/qs/lib/index.js"(exports, module) {
+  "../../node_modules/.pnpm/qs@6.16.0/node_modules/qs/lib/index.js"(exports, module) {
     "use strict";
     var stringify2 = require_stringify();
     var parse4 = require_parse();
@@ -18604,9 +18394,9 @@ var require_lib2 = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/body-parser@2.4.0/node_modules/body-parser/lib/types/urlencoded.js
+// ../../node_modules/.pnpm/body-parser@2.3.0/node_modules/body-parser/lib/types/urlencoded.js
 var require_urlencoded = __commonJS({
-  "../../node_modules/.pnpm/body-parser@2.4.0/node_modules/body-parser/lib/types/urlencoded.js"(exports, module) {
+  "../../node_modules/.pnpm/body-parser@2.3.0/node_modules/body-parser/lib/types/urlencoded.js"(exports, module) {
     "use strict";
     var createError = require_http_errors();
     var debug7 = require_src()("body-parser:urlencoded");
@@ -18690,9 +18480,9 @@ var require_urlencoded = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/body-parser@2.4.0/node_modules/body-parser/index.js
+// ../../node_modules/.pnpm/body-parser@2.3.0/node_modules/body-parser/index.js
 var require_body_parser = __commonJS({
-  "../../node_modules/.pnpm/body-parser@2.4.0/node_modules/body-parser/index.js"(exports, module) {
+  "../../node_modules/.pnpm/body-parser@2.3.0/node_modules/body-parser/index.js"(exports, module) {
     "use strict";
     exports = module.exports = bodyParser;
     exports.json = require_json();
@@ -78073,6 +77863,37 @@ var CONTEXTUAL_KICAD_SYMBOLS = [
   { pattern: /\bLM555(?:xN)?\b/i, ids: ["Timer:LM555xN"] },
   { pattern: /\bTLC555(?:xP)?\b/i, ids: ["Timer:TLC555xP"] },
   { pattern: /\bLM358\b/i, ids: ["Amplifier_Operational:LM358"] },
+  { pattern: /\b2N3904\b/i, ids: ["Transistor_BJT:2N3904"] },
+  { pattern: /\bBC547\b/i, ids: ["Transistor_BJT:BC547"] },
+  {
+    pattern: /\b(?:electrolytic|polarized)\s+(?:capacitor|cap)\b|\b(?:capacitor|cap)\s+(?:electrolytic|polarized)\b/i,
+    ids: ["Device:C_Polarized"]
+  },
+  { pattern: /\b(?:resistor|resistors)\b/i, ids: ["Device:R"] },
+  { pattern: /\b(?:capacitor|capacitors|cap)\b/i, ids: ["Device:C"] },
+  { pattern: /\b(?:inductor|inductors|coil)\b/i, ids: ["Device:L"] },
+  { pattern: /\bzener\b/i, ids: ["Device:D_Zener"] },
+  { pattern: /\bschottky\b/i, ids: ["Device:D_Schottky"] },
+  { pattern: /\bdiode(?:s)?\b/i, ids: ["Device:D"] },
+  { pattern: /\b(?:led|light emitting diode)\b/i, ids: ["Device:LED"] },
+  { pattern: /\bnpn\b/i, ids: ["Transistor_BJT:Q_NPN_BCE"] },
+  { pattern: /\bpnp\b/i, ids: ["Transistor_BJT:Q_PNP_BCE"] },
+  {
+    pattern: /\b(?:nmosfet|nmos|n-channel|n channel)\s*(?:mosfet|fet)?\b/i,
+    ids: ["Transistor_FET:Q_NMOS_GDS"]
+  },
+  {
+    pattern: /\b(?:pmosfet|pmos|p-channel|p channel)\s*(?:mosfet|fet)?\b/i,
+    ids: ["Transistor_FET:Q_PMOS_GDS"]
+  },
+  { pattern: /\bfuse(?:s)?\b/i, ids: ["Device:Fuse"] },
+  { pattern: /\bbatter(?:y|ies)\b/i, ids: ["Device:Battery"] },
+  { pattern: /\bspeaker(?:s)?\b/i, ids: ["Device:Speaker"] },
+  { pattern: /\bbuzzer(?:s)?\b/i, ids: ["Device:Buzzer"] },
+  { pattern: /\b(?:push|tactile)\s+button\b/i, ids: ["Switch:SW_Push"] },
+  { pattern: /\bspdt\b/i, ids: ["Switch:SW_SPDT"] },
+  { pattern: /\b(?:spst|on\/off switch|switch(?:es)?)\b/i, ids: ["Switch:SW_SPST"] },
+  { pattern: /\bground\b|\bgnd\b/i, ids: ["power:GND"] },
   {
     pattern: /\b(?:LM7805|L7805|uA7805|7805)\b/i,
     ids: ["Regulator_Linear:LM7805_TO220"]
@@ -78598,9 +78419,9 @@ Safety and component support:
 - Do not generate a schematic proposal for a phone/device charger or AC/DC supply wired directly to household mains, high-voltage AC, or a switch-mode mains primary. Explain that this is hazardous and safety-critical, and offer a low-voltage-only follow-up that uses a certified, isolated commercial adapter as an external source. Never claim a generated drawing is safe, certified, or ready to connect to mains.
 - For unsupported symbols or missing verified IC/connector pinouts, explain the exact limitation without inventing symbols, pins, ratings, or part numbers. Suggest up to two concrete next prompts when a safe alternative exists. Suggested actions must be short, specific, and compatible with the user's goal; never suggest a way to recreate a rejected hazardous design.
 - If the user requests an IC but has not supplied a verified pinout, ask for the exact part and pinout before proposing that block. Generic pin blocks are drawing aids, not validation of the IC's actual pin mapping.
-- The built-in Circuit Studio component library is the first-choice source for generic circuit elements. Match each requested function to that library before considering KiCad. Use a built-in symbol when it represents the requested function; do not replace it with KiCad merely because a catalog equivalent exists.
-- Consult the official KiCad library only when the requested function is missing from the Studio library, or when an exact named part needs a pinout or symbol that the generic Studio element does not provide. For a KiCad fallback, use type "kicad" with the exact symbolId and a valid unit/bodyStyle from its supplied definition. Use only listed pin numbers, names, and offsets; never invent a KiCad ID or pinout. The server attaches exact source drawings and pin geometry after generation. Do not return symbolData yourself. A library symbol is not confirmation of a physical part choice, rating, electrical correctness, or safety.
-- Requests may include relevant Studio-library matches first, followed by KiCad fallback results only when the request may need a symbol that Studio does not provide. In Chat, consult Studio matches before fallback results when explaining component options. In Build, use a KiCad candidate only when the Studio library lacks a suitable symbol or exact part; only place listed symbols that have an exact loaded pin guide, using only that guide's pin data. Descriptions and keywords identify symbol purpose, not electrical ratings or verified circuit suitability. If a KiCad symbol is marked needs_review, say its purpose is unverified and do not present it as a fact; prefer a catalog reference or ask for an authoritative part source.
+- Treat every verified KiCad symbol drawing as fixed library geometry, like a component placed into an assembly. Never redraw, stretch, simplify, or approximate that symbol with a built-in Studio symbol or handmade geometry when its exact library definition is supplied. For new standard parts such as resistors, capacitors, inductors, diodes, LEDs, batteries, fuses, speakers, and polarity-specific transistors, use the matching verified KiCad symbol definition supplied below. Change only its position, rotation, or flip as needed; connect wires to its exact listed pin numbers and offsets. The server attaches the original source drawing and pin geometry after generation. Do not return or edit symbolData yourself.
+- Preserve existing component types and source drawings during edits and repairs unless the user explicitly asks to replace a part. For a newly added part, prefer a supplied exact KiCad definition when it matches; use a built-in Studio type only when no matching verified library definition is supplied or the requested item is an abstract drawing aid. Use only exact IDs, unit/bodyStyle values, and pin numbers, names, and offsets in the loaded definitions; never invent a KiCad ID or pinout. A library symbol is not confirmation of a physical part choice, rating, electrical correctness, or safety.
+- Requests may include Studio component references and exact KiCad library definitions. In Chat, use the references to explain component options without claiming they establish ratings or suitability. In Build, use supplied pin guides for matching standard parts and exact named components. Descriptions and keywords identify symbol purpose, not electrical ratings or verified circuit suitability. If a KiCad symbol is marked needs_review, say its purpose is unverified and do not present it as a fact; prefer a catalog reference or ask for an authoritative part source.
 
 Use clear reference designators and unique wire IDs (W1, W2, ...). Connect every required pin exactly to a wire endpoint or another pin: all pins on supported discrete parts are required; a relay needs both coil pins, COM, and at least one of NC/NO, while the unused contact may remain open. Unused IC, connector, and KiCad symbol pins may remain unconnected. Keep wire segments horizontal or vertical, avoid zero-length segments and routes through two-terminal parts, and connect wire endpoints exactly to pins or other wire endpoints. Set open:true on a wire only when it is intentionally left disconnected. If a requested component has no supported equivalent, state the limitation instead of inventing a type or pin model.
 
@@ -78830,7 +78651,7 @@ ${catalogMatches.join("\n")}`,
 ${JSON.stringify(brief)}`,
       conversation ? `Recent conversation:
 ${conversation}` : "",
-      studioComponentResearchContext ? `First-choice built-in Studio library matches:
+      studioComponentResearchContext ? `Studio component library references:
 ${studioComponentResearchContext}` : "",
       kicadDefinitions,
       `Current CircuitSpec:

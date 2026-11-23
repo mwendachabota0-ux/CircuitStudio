@@ -59,6 +59,101 @@ test("canonical pin definitions are shared by generation, validation, and render
   assert.match(CircuitDraw.render(CircuitDraw.autoFix(astableFlasher).spec), /<svg/);
 });
 
+test("layout analysis detects overlapping Studio labels", () => {
+  const warnings = CircuitDraw.layoutWarnings({
+    title: "Label overlap",
+    elements: [
+      { type: "label", id: "Label1", text: "Power input", at: [100, 100] },
+      { type: "label", id: "Label2", text: "Main supply", at: [112, 100] },
+    ],
+  });
+
+  assert.ok(warnings.some((warning) => warning.includes("overlaps text")));
+});
+
+test("layout analysis detects wires that cross readable text", () => {
+  const warnings = CircuitDraw.layoutWarnings({
+    title: "Wire through text",
+    elements: [
+      { type: "label", id: "Label1", text: "Power", at: [100, 100] },
+      {
+        type: "wire",
+        id: "W1",
+        open: true,
+        points: [[80, 90], [180, 90]],
+      },
+    ],
+  });
+
+  assert.ok(warnings.some((warning) => warning.includes("crosses text")));
+});
+
+test("layout analysis allows separated labels and clear wire routes", () => {
+  const warnings = CircuitDraw.layoutWarnings({
+    title: "Clear layout",
+    elements: [
+      { type: "label", id: "Label1", text: "Power", at: [100, 100] },
+      { type: "label", id: "Label2", text: "Output", at: [250, 100] },
+      {
+        type: "wire",
+        id: "W1",
+        open: true,
+        points: [[80, 130], [280, 130]],
+      },
+    ],
+  });
+
+  assert.deepEqual(Array.from(warnings), []);
+});
+
+test("layout analysis detects overlapping component bodies", () => {
+  const warnings = CircuitDraw.layoutWarnings({
+    title: "Crowded components",
+    elements: [
+      { type: "resistor", id: "R1", from: [100, 100], to: [180, 100] },
+      { type: "led", id: "LED1", from: [140, 100], to: [200, 100] },
+    ],
+  });
+
+  assert.ok(warnings.some((warning) => warning.includes("symbol bodies") && warning.includes("overlap")));
+});
+
+test("layout analysis detects wires crossing a component body", () => {
+  const warnings = CircuitDraw.layoutWarnings({
+    title: "Wire through component",
+    elements: [
+      { type: "resistor", id: "R1", from: [100, 100], to: [180, 100] },
+      { type: "wire", id: "W1", open: true, points: [[120, 100], [160, 100]] },
+    ],
+  });
+
+  assert.ok(warnings.some((warning) => warning.includes("W1") && warning.includes("symbol body")));
+});
+
+test("layout analysis does not flag a lead wire ending before a component body", () => {
+  const warnings = CircuitDraw.layoutWarnings({
+    title: "Clear lead",
+    elements: [
+      { type: "resistor", id: "R1", from: [100, 100], to: [180, 100] },
+      { type: "wire", id: "W1", open: true, points: [[80, 100], [100, 100]] },
+    ],
+  });
+
+  assert.deepEqual(Array.from(warnings), []);
+});
+
+test("layout analysis treats a wire ending at a component pin as a connection", () => {
+  const warnings = CircuitDraw.layoutWarnings({
+    title: "Connected transistor pin",
+    elements: [
+      { type: "npn", id: "Q1", at: [100, 100] },
+      { type: "wire", id: "W1", open: true, points: [[125, 56], [125, 90]] },
+    ],
+  });
+
+  assert.ok(!warnings.some((warning) => warning.includes("W1") && warning.includes("symbol body")));
+});
+
 test("KiCad symbols render source geometry, exact pin labels, and world-space pins", () => {
   const symbolData = {
     id: "Timer:NE555",
@@ -172,6 +267,66 @@ test("KiCad symbols render source geometry, exact pin labels, and world-space pi
   assert.match(buildSheet, /U1\.3/);
 });
 
+test("KiCad symbols accept and render arbitrary fractional rotation angles", () => {
+  const symbolData = {
+    id: "Device:R",
+    units: [{
+      unit: 1,
+      bodyStyle: 1,
+      pins: [
+        {
+          number: "1",
+          name: "A",
+          electricalType: "passive",
+          shape: "line",
+          point: [-30, 0],
+          bodyPoint: [-12, 0],
+          showName: true,
+          showNumber: true,
+        },
+        {
+          number: "2",
+          name: "B",
+          electricalType: "passive",
+          shape: "line",
+          point: [30, 0],
+          bodyPoint: [12, 0],
+          showName: true,
+          showNumber: true,
+        },
+      ],
+      graphics: [{
+        type: "rectangle",
+        points: [[-12, -16], [12, 16]],
+        strokeWidth: 2,
+        fillType: "background",
+      }],
+    }],
+  };
+  const spec = {
+    title: "Fractionally rotated KiCad symbol",
+    elements: [{
+      type: "kicad",
+      id: "R1",
+      symbolId: "Device:R",
+      at: [200, 150],
+      rotation: 37.5,
+      symbolData,
+    }],
+  };
+
+  const validation = CircuitDraw.validate(spec);
+  assert.deepEqual(Array.from(validation.errors), []);
+  assert.deepEqual(
+    CircuitGeometry.getCircuitPins(spec.elements[0]),
+    [
+      { name: "1", point: [176.2, 131.74] },
+      { name: "2", point: [223.8, 168.26] },
+    ],
+  );
+  assert.match(CircuitDraw.render(spec), /translate\(200 150\) rotate\(37\.5\) scale\(1 1\)/);
+});
+
 test("KiCad symbols without hydrated source data cannot be rendered as valid drafts", () => {
   const report = CircuitDraw.validate({
     title: "Missing KiCad source",
@@ -283,16 +438,74 @@ test("disconnected wire errors identify the nearest pin and distance", () => {
   );
 });
 
+test("unconnected DC source and potentiometer pins are blocking errors", () => {
+  const report = CircuitDraw.validate({
+    title: "Required supply and wiper connections",
+    elements: [
+      { type: "dcsource", id: "VCC_5V", from: [100, 50], to: [100, 100] },
+      { type: "potentiometer", id: "POT1", at: [280, 350] },
+    ],
+  });
+
+  assert.ok(report.errors.some((error) => error.includes('dcsource "VCC_5V".-') && error.includes("required pin")));
+  assert.ok(report.errors.some((error) => error.includes('potentiometer "POT1".W') && error.includes("required pin")));
+  assert.ok(report.warnings.some((warning) => warning.includes("terminals are very close")));
+});
+
+test("relay needs both coil pins and COM, plus at least one contact", () => {
+  const report = CircuitDraw.validate({
+    title: "Relay without a switched contact",
+    elements: [
+      { type: "relay", id: "RL1", at: [200, 200] },
+      { type: "wire", id: "W_COIL1", open: true, points: [[145, 180], [120, 180]] },
+      { type: "wire", id: "W_COIL2", open: true, points: [[145, 220], [120, 220]] },
+      { type: "wire", id: "W_COM", open: true, points: [[255, 200], [280, 200]] },
+    ],
+  });
+
+  assert.ok(report.errors.some((error) => error.includes('relay "RL1" has neither NC nor NO contact connected')));
+});
+
+test("an unused relay contact remains advisory when the other contact is wired", () => {
+  const report = CircuitDraw.validate({
+    title: "Relay with unused NC contact",
+    elements: [
+      { type: "relay", id: "RL1", at: [200, 200] },
+      { type: "wire", id: "W_COIL1", open: true, points: [[145, 180], [120, 180]] },
+      { type: "wire", id: "W_COIL2", open: true, points: [[145, 220], [120, 220]] },
+      { type: "wire", id: "W_COM", open: true, points: [[255, 200], [280, 200]] },
+      { type: "wire", id: "W_NO", open: true, points: [[255, 230], [280, 230]] },
+    ],
+  });
+
+  assert.deepEqual(Array.from(report.errors), []);
+  assert.ok(report.warnings.some((warning) => warning.includes('relay "RL1".NC')));
+});
+
 test("diagonal routing remains an advisory warning rather than a blocking error", () => {
   const report = CircuitDraw.validate({
     title: "Diagonal wire layout",
     elements: [
       { type: "resistor", id: "R1", from: [100, 100], to: [160, 100] },
       { type: "wire", id: "W1", open: true, points: [[100, 100], [140, 140]] },
+      { type: "wire", id: "W2", open: true, points: [[160, 100], [180, 100]] },
     ],
   });
   assert.deepEqual(Array.from(report.errors), []);
   assert.ok(report.warnings.some((warning) => warning.includes("is diagonal")));
+});
+
+test("invalid but renderable schematics can be shown with explicit structural-error opt-in", () => {
+  const spec = {
+    title: "Needs repair",
+    elements: [
+      { type: "resistor", id: "R1", from: [100, 100], to: [200, 100] },
+    ],
+  };
+
+  assert.ok(CircuitDraw.validate(spec).errors.length > 0);
+  assert.throws(() => CircuitDraw.render(spec), /Invalid circuit spec/);
+  assert.match(CircuitDraw.render(spec, { allowStructuralErrors: true }), /^<svg/);
 });
 
 test("a wire-crossing bridge renders an overpass and keeps the two nets separate", () => {
@@ -305,6 +518,10 @@ test("a wire-crossing bridge renders an overpass and keeps the two nets separate
       { type: "battery", id: "B_HR", from: [100, 50], to: [100, 70] },
       { type: "battery", id: "B_VT", from: [50, 0], to: [70, 0] },
       { type: "battery", id: "B_VB", from: [50, 100], to: [70, 100] },
+      { type: "wire", id: "W_HL_RETURN", open: true, points: [[0, 70], [0, 90]] },
+      { type: "wire", id: "W_HR_RETURN", open: true, points: [[100, 70], [100, 90]] },
+      { type: "wire", id: "W_VT_RETURN", open: true, points: [[70, 0], [90, 0]] },
+      { type: "wire", id: "W_VB_RETURN", open: true, points: [[70, 100], [90, 100]] },
       { type: "crossing", id: "BR1", at: [50, 50], orientation: "horizontal" },
     ],
   };

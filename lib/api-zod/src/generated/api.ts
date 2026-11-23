@@ -91,7 +91,7 @@ export const GenerateCircuitResponse = zod.object({
   "symbolId": zod.string().regex(generateCircuitResponseElementsItemSymbolIdRegExp).optional(),
   "unit": zod.number().int().min(1).optional(),
   "bodyStyle": zod.number().int().min(1).optional(),
-  "rotation": zod.union([zod.literal(0),zod.literal(90),zod.literal(180),zod.literal(270)]).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
   "symbolData": zod.object({
   "id": zod.string(),
   "units": zod.array(zod.object({
@@ -151,31 +151,112 @@ export const searchCircuitSymbolsQueryQMax = 120;
 
 export const searchCircuitSymbolsQueryLibraryMax = 120;
 
-export const searchCircuitSymbolsQueryLimitDefault = 40;
+export const searchCircuitSymbolsQueryFeaturedDefault = false;
+export const searchCircuitSymbolsQueryLimitDefault = 100;
 export const searchCircuitSymbolsQueryLimitMax = 100;
+
+export const searchCircuitSymbolsQueryOffsetDefault = 0;
+export const searchCircuitSymbolsQueryOffsetMin = 0;
+export const searchCircuitSymbolsQueryOffsetMax = 1000000;
 
 
 
 export const SearchCircuitSymbolsQueryParams = zod.object({
   "q": zod.coerce.string().max(searchCircuitSymbolsQueryQMax).optional(),
   "library": zod.coerce.string().max(searchCircuitSymbolsQueryLibraryMax).optional(),
-  "limit": zod.coerce.number().int().min(1).max(searchCircuitSymbolsQueryLimitMax).default(searchCircuitSymbolsQueryLimitDefault)
+  "family": zod.enum(['Passives', 'Semiconductors', 'Power & protection', 'Connectors', 'Analog & signal', 'Digital & processors', 'Sensors', 'Control & timing', 'Audio & display', 'Communications & RF', 'Other']).optional(),
+  "featured": zod.coerce.boolean().default(searchCircuitSymbolsQueryFeaturedDefault),
+  "limit": zod.coerce.number().int().min(1).max(searchCircuitSymbolsQueryLimitMax).default(searchCircuitSymbolsQueryLimitDefault),
+  "offset": zod.coerce.number().int().min(searchCircuitSymbolsQueryOffsetMin).max(searchCircuitSymbolsQueryOffsetMax).default(searchCircuitSymbolsQueryOffsetDefault)
 })
 
 export const SearchCircuitSymbolsResponse = zod.object({
   "sourceVersion": zod.string(),
+  "catalogTotal": zod.number().int(),
   "total": zod.number().int(),
   "hasMore": zod.boolean(),
   "libraries": zod.array(zod.string()),
+  "families": zod.array(zod.string()),
   "results": zod.array(zod.object({
   "id": zod.string(),
   "library": zod.string(),
   "name": zod.string(),
   "description": zod.string(),
+  "shortDescription": zod.string(),
+  "longDescription": zod.string(),
   "keywords": zod.string(),
+  "researchStatus": zod.enum(['catalog_reference', 'corrected', 'needs_review']),
   "pinCount": zod.number().int().nullable(),
   "extends": zod.string().optional()
 }))
+})
+
+
+/**
+ * @summary Get source geometry for a KiCad symbol preview
+ */
+export const getCircuitSymbolDataQuerySymbolIdMin = 3;
+export const getCircuitSymbolDataQuerySymbolIdMax = 160;
+
+
+export const getCircuitSymbolDataQuerySymbolIdRegExp = new RegExp('^[^:\\s]+:[^:\\s]+$');
+
+
+export const GetCircuitSymbolDataQueryParams = zod.object({
+  "symbolId": zod.coerce.string().min(getCircuitSymbolDataQuerySymbolIdMin).max(getCircuitSymbolDataQuerySymbolIdMax).regex(getCircuitSymbolDataQuerySymbolIdRegExp)
+})
+
+
+
+export const getCircuitSymbolDataResponseUnitsItemPinsItemPointMin = 2;
+export const getCircuitSymbolDataResponseUnitsItemPinsItemPointMax = 2;
+
+export const getCircuitSymbolDataResponseUnitsItemPinsItemBodyPointMin = 2;
+export const getCircuitSymbolDataResponseUnitsItemPinsItemBodyPointMax = 2;
+
+export const getCircuitSymbolDataResponseUnitsItemPinsMax = 512;
+
+export const getCircuitSymbolDataResponseUnitsItemGraphicsItemPointsItemMin = 2;
+export const getCircuitSymbolDataResponseUnitsItemGraphicsItemPointsItemMax = 2;
+
+export const getCircuitSymbolDataResponseUnitsItemGraphicsItemRadiusMin = 0;
+
+export const getCircuitSymbolDataResponseUnitsItemGraphicsItemFontSizeMin = 0;
+
+export const getCircuitSymbolDataResponseUnitsItemGraphicsItemStrokeWidthMin = 0;
+
+export const getCircuitSymbolDataResponseUnitsItemGraphicsMax = 2048;
+
+export const getCircuitSymbolDataResponseUnitsMax = 256;
+
+
+
+export const GetCircuitSymbolDataResponse = zod.object({
+  "id": zod.string(),
+  "units": zod.array(zod.object({
+  "unit": zod.number().int().min(1),
+  "bodyStyle": zod.number().int().min(1),
+  "pins": zod.array(zod.object({
+  "number": zod.string(),
+  "name": zod.string(),
+  "electricalType": zod.string(),
+  "shape": zod.string(),
+  "point": zod.array(zod.number()).min(getCircuitSymbolDataResponseUnitsItemPinsItemPointMin).max(getCircuitSymbolDataResponseUnitsItemPinsItemPointMax),
+  "bodyPoint": zod.array(zod.number()).min(getCircuitSymbolDataResponseUnitsItemPinsItemBodyPointMin).max(getCircuitSymbolDataResponseUnitsItemPinsItemBodyPointMax),
+  "showName": zod.boolean(),
+  "showNumber": zod.boolean()
+})).max(getCircuitSymbolDataResponseUnitsItemPinsMax),
+  "graphics": zod.array(zod.object({
+  "type": zod.enum(['polyline', 'rectangle', 'circle', 'arc', 'bezier', 'text']),
+  "points": zod.array(zod.array(zod.number()).min(getCircuitSymbolDataResponseUnitsItemGraphicsItemPointsItemMin).max(getCircuitSymbolDataResponseUnitsItemGraphicsItemPointsItemMax)).optional(),
+  "radius": zod.number().min(getCircuitSymbolDataResponseUnitsItemGraphicsItemRadiusMin).optional(),
+  "text": zod.string().optional(),
+  "fontSize": zod.number().min(getCircuitSymbolDataResponseUnitsItemGraphicsItemFontSizeMin).optional(),
+  "strokeWidth": zod.number().min(getCircuitSymbolDataResponseUnitsItemGraphicsItemStrokeWidthMin).optional(),
+  "fillType": zod.enum(['none', 'background', 'outline']).optional(),
+  "closed": zod.boolean().optional()
+})).max(getCircuitSymbolDataResponseUnitsItemGraphicsMax)
+})).min(1).max(getCircuitSymbolDataResponseUnitsMax)
 })
 
 
@@ -254,7 +335,7 @@ export const AskCircuitTutorBody = zod.object({
   "symbolId": zod.string().regex(askCircuitTutorBodyCurrentSpecElementsItemSymbolIdRegExp).optional(),
   "unit": zod.number().int().min(1).optional(),
   "bodyStyle": zod.number().int().min(1).optional(),
-  "rotation": zod.union([zod.literal(0),zod.literal(90),zod.literal(180),zod.literal(270)]).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
   "symbolData": zod.object({
   "id": zod.string(),
   "units": zod.array(zod.object({
@@ -377,7 +458,7 @@ export const AskCircuitTutorResponse = zod.object({
   "symbolId": zod.string().regex(askCircuitTutorResponseProposedEditSpecElementsItemSymbolIdRegExp).optional(),
   "unit": zod.number().int().min(1).optional(),
   "bodyStyle": zod.number().int().min(1).optional(),
-  "rotation": zod.union([zod.literal(0),zod.literal(90),zod.literal(180),zod.literal(270)]).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
   "symbolData": zod.object({
   "id": zod.string(),
   "units": zod.array(zod.object({
@@ -436,7 +517,6 @@ export const AskCircuitTutorResponse = zod.object({
  * Maintains a concise design brief and, in Build mode, may return a validated CircuitSpec proposal that the user must review and apply.
  * @summary Clarify circuit requirements or propose a circuit edit
  */
-export const chatWithCircuitBuilderBodyMessageMax = 6000;
 
 export const chatWithCircuitBuilderBodyCurrentSpecElementsItemFromMin = 2;
 export const chatWithCircuitBuilderBodyCurrentSpecElementsItemFromMax = 2;
@@ -503,7 +583,7 @@ export const chatWithCircuitBuilderBodyBriefOpenQuestionsMax = 12;
 
 
 export const ChatWithCircuitBuilderBody = zod.object({
-  "message": zod.string().min(1).max(chatWithCircuitBuilderBodyMessageMax),
+  "message": zod.string().min(1),
   "mode": zod.enum(['chat', 'build']),
   "responseFormatRetry": zod.boolean().optional().describe('Indicates a retry for correcting a previously truncated or malformed model response.'),
   "currentSpec": zod.object({
@@ -521,7 +601,7 @@ export const ChatWithCircuitBuilderBody = zod.object({
   "symbolId": zod.string().regex(chatWithCircuitBuilderBodyCurrentSpecElementsItemSymbolIdRegExp).optional(),
   "unit": zod.number().int().min(1).optional(),
   "bodyStyle": zod.number().int().min(1).optional(),
-  "rotation": zod.union([zod.literal(0),zod.literal(90),zod.literal(180),zod.literal(270)]).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
   "symbolData": zod.object({
   "id": zod.string(),
   "units": zod.array(zod.object({
@@ -655,6 +735,16 @@ export const chatWithCircuitBuilderResponseSuggestedActionsItemReplyToMax = 300;
 export const chatWithCircuitBuilderResponseSuggestedActionsMax = 2;
 
 
+export const chatWithCircuitBuilderResponseMemoryUpdatesItemContentMax = 300;
+
+export const chatWithCircuitBuilderResponseMemoryUpdatesMax = 2;
+
+
+export const chatWithCircuitBuilderResponseMemoryRemovalsMax = 10;
+
+export const chatWithCircuitBuilderResponseRepairLessonMax = 300;
+
+
 
 export const ChatWithCircuitBuilderResponse = zod.object({
   "nextMode": zod.enum(['chat', 'build']).optional(),
@@ -682,7 +772,7 @@ export const ChatWithCircuitBuilderResponse = zod.object({
   "symbolId": zod.string().regex(chatWithCircuitBuilderResponseProposalSpecElementsItemSymbolIdRegExp).optional(),
   "unit": zod.number().int().min(1).optional(),
   "bodyStyle": zod.number().int().min(1).optional(),
-  "rotation": zod.union([zod.literal(0),zod.literal(90),zod.literal(180),zod.literal(270)]).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
   "symbolData": zod.object({
   "id": zod.string(),
   "units": zod.array(zod.object({
@@ -739,8 +829,1760 @@ export const ChatWithCircuitBuilderResponse = zod.object({
   "prompt": zod.string().min(1).max(chatWithCircuitBuilderResponseSuggestedActionsItemPromptMax),
   "replyTo": zod.string().min(1).max(chatWithCircuitBuilderResponseSuggestedActionsItemReplyToMax).optional().describe('Exact assistant question this suggested reply answers.')
 })).max(chatWithCircuitBuilderResponseSuggestedActionsMax).optional(),
+  "memoryUpdates": zod.array(zod.object({
+  "id": zod.number().int().min(1).optional().describe('Existing assumption to update; omit when adding a new one.'),
+  "category": zod.enum(['work-style', 'design-decision', 'past-context', 'repair-lesson', 'design-feedback']),
+  "content": zod.string().min(1).max(chatWithCircuitBuilderResponseMemoryUpdatesItemContentMax)
+})).max(chatWithCircuitBuilderResponseMemoryUpdatesMax).optional(),
+  "memoryRemovals": zod.array(zod.number().int().min(1)).max(chatWithCircuitBuilderResponseMemoryRemovalsMax).optional(),
+  "repairLesson": zod.string().max(chatWithCircuitBuilderResponseRepairLessonMax).nullish().describe('Optional reusable lesson from a repair; save only after the corrected proposal passes checks and the user applies it.'),
   "buildApprovalRequested": zod.boolean().optional().describe('Server-set marker that the assistant asked permission before creating a schematic.')
 })
+
+
+/**
+ * Checks a candidate CircuitSpec against a rejected proposal and its reported problems. The response is an AI review, not proof of electrical correctness or safety.
+ * @summary Review a user-pasted correction to a rejected circuit
+ */
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemFromMin = 2;
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemFromMax = 2;
+
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemToMin = 2;
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemToMax = 2;
+
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemAtMin = 2;
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemAtMax = 2;
+
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolIdRegExp = new RegExp('^[^:\\s]+:[^:\\s]+$');
+
+
+
+
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemPinsItemPointMin = 2;
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemPinsItemPointMax = 2;
+
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin = 2;
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax = 2;
+
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemPinsMax = 512;
+
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin = 2;
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax = 2;
+
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin = 0;
+
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin = 0;
+
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin = 0;
+
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemGraphicsMax = 2048;
+
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsMax = 256;
+
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemPointsItemMin = 2;
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemPointsItemMax = 2;
+
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemLabelNudgeMin = 2;
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemLabelNudgeMax = 2;
+
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemLabelAtMin = 2;
+export const reviewExternalCircuitFixBodyCandidateSpecElementsItemLabelAtMax = 2;
+
+export const reviewExternalCircuitFixBodyReportedProblemsItemMax = 1000;
+
+export const reviewExternalCircuitFixBodyReportedProblemsMax = 30;
+
+export const reviewExternalCircuitFixBodyAdvisoryWarningsItemMax = 1000;
+
+export const reviewExternalCircuitFixBodyAdvisoryWarningsMax = 30;
+
+export const reviewExternalCircuitFixBodyOriginalRequestMax = 6000;
+
+export const reviewExternalCircuitFixBodyDesignBriefGoalMax = 1000;
+
+export const reviewExternalCircuitFixBodyDesignBriefRequirementsItemMax = 300;
+
+export const reviewExternalCircuitFixBodyDesignBriefRequirementsMax = 12;
+
+export const reviewExternalCircuitFixBodyDesignBriefAssumptionsItemMax = 300;
+
+export const reviewExternalCircuitFixBodyDesignBriefAssumptionsMax = 12;
+
+export const reviewExternalCircuitFixBodyDesignBriefOpenQuestionsItemMax = 300;
+
+export const reviewExternalCircuitFixBodyDesignBriefOpenQuestionsMax = 12;
+
+export const reviewExternalCircuitFixBodyHistoryItemContentMax = 3000;
+
+export const reviewExternalCircuitFixBodyHistoryMax = 8;
+
+
+
+export const ReviewExternalCircuitFixBody = zod.object({
+  "rejectedSpec": zod.record(zod.string(), zod.unknown()).describe('Untrusted snapshot of a rejected model proposal; intentionally permissive so invalid elements can be reviewed.'),
+  "candidateSpec": zod.object({
+  "title": zod.string(),
+  "width": zod.number().optional(),
+  "height": zod.number().optional(),
+  "elements": zod.array(zod.object({
+  "type": zod.string(),
+  "id": zod.string().optional(),
+  "label": zod.string().optional(),
+  "value": zod.string().optional(),
+  "from": zod.array(zod.number()).min(reviewExternalCircuitFixBodyCandidateSpecElementsItemFromMin).max(reviewExternalCircuitFixBodyCandidateSpecElementsItemFromMax).optional(),
+  "to": zod.array(zod.number()).min(reviewExternalCircuitFixBodyCandidateSpecElementsItemToMin).max(reviewExternalCircuitFixBodyCandidateSpecElementsItemToMax).optional(),
+  "at": zod.array(zod.number()).min(reviewExternalCircuitFixBodyCandidateSpecElementsItemAtMin).max(reviewExternalCircuitFixBodyCandidateSpecElementsItemAtMax).optional(),
+  "symbolId": zod.string().regex(reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolIdRegExp).optional(),
+  "unit": zod.number().int().min(1).optional(),
+  "bodyStyle": zod.number().int().min(1).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
+  "symbolData": zod.object({
+  "id": zod.string(),
+  "units": zod.array(zod.object({
+  "unit": zod.number().int().min(1),
+  "bodyStyle": zod.number().int().min(1),
+  "pins": zod.array(zod.object({
+  "number": zod.string(),
+  "name": zod.string(),
+  "electricalType": zod.string(),
+  "shape": zod.string(),
+  "point": zod.array(zod.number()).min(reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemPinsItemPointMin).max(reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemPinsItemPointMax),
+  "bodyPoint": zod.array(zod.number()).min(reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin).max(reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax),
+  "showName": zod.boolean(),
+  "showNumber": zod.boolean()
+})).max(reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemPinsMax),
+  "graphics": zod.array(zod.object({
+  "type": zod.enum(['polyline', 'rectangle', 'circle', 'arc', 'bezier', 'text']),
+  "points": zod.array(zod.array(zod.number()).min(reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin).max(reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax)).optional(),
+  "radius": zod.number().min(reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin).optional(),
+  "text": zod.string().optional(),
+  "fontSize": zod.number().min(reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin).optional(),
+  "strokeWidth": zod.number().min(reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin).optional(),
+  "fillType": zod.enum(['none', 'background', 'outline']).optional(),
+  "closed": zod.boolean().optional()
+})).max(reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsItemGraphicsMax)
+})).min(1).max(reviewExternalCircuitFixBodyCandidateSpecElementsItemSymbolDataUnitsMax)
+}).optional(),
+  "points": zod.array(zod.array(zod.number()).min(reviewExternalCircuitFixBodyCandidateSpecElementsItemPointsItemMin).max(reviewExternalCircuitFixBodyCandidateSpecElementsItemPointsItemMax)).optional(),
+  "x": zod.number().optional(),
+  "y": zod.number().optional(),
+  "w": zod.number().optional(),
+  "h": zod.number().optional(),
+  "height": zod.number().optional(),
+  "open": zod.boolean().optional(),
+  "closed": zod.boolean().optional(),
+  "flip": zod.boolean().optional(),
+  "circle": zod.boolean().optional(),
+  "swap": zod.boolean().optional(),
+  "style": zod.string().optional(),
+  "labelPos": zod.string().optional(),
+  "labelNudge": zod.array(zod.number()).min(reviewExternalCircuitFixBodyCandidateSpecElementsItemLabelNudgeMin).max(reviewExternalCircuitFixBodyCandidateSpecElementsItemLabelNudgeMax).optional(),
+  "labelAt": zod.array(zod.number()).min(reviewExternalCircuitFixBodyCandidateSpecElementsItemLabelAtMin).max(reviewExternalCircuitFixBodyCandidateSpecElementsItemLabelAtMax).optional(),
+  "labelAnchor": zod.string().optional(),
+  "text": zod.string().optional(),
+  "anchor": zod.string().optional(),
+  "size": zod.number().optional(),
+  "bold": zod.boolean().optional(),
+  "muted": zod.boolean().optional()
+}))
+}),
+  "reportedProblems": zod.array(zod.string().min(1).max(reviewExternalCircuitFixBodyReportedProblemsItemMax)).min(1).max(reviewExternalCircuitFixBodyReportedProblemsMax),
+  "advisoryWarnings": zod.array(zod.string().min(1).max(reviewExternalCircuitFixBodyAdvisoryWarningsItemMax)).max(reviewExternalCircuitFixBodyAdvisoryWarningsMax).optional(),
+  "originalRequest": zod.string().max(reviewExternalCircuitFixBodyOriginalRequestMax).optional(),
+  "designBrief": zod.object({
+  "goal": zod.string().max(reviewExternalCircuitFixBodyDesignBriefGoalMax),
+  "requirements": zod.array(zod.string().max(reviewExternalCircuitFixBodyDesignBriefRequirementsItemMax)).max(reviewExternalCircuitFixBodyDesignBriefRequirementsMax),
+  "assumptions": zod.array(zod.string().max(reviewExternalCircuitFixBodyDesignBriefAssumptionsItemMax)).max(reviewExternalCircuitFixBodyDesignBriefAssumptionsMax),
+  "openQuestions": zod.array(zod.string().max(reviewExternalCircuitFixBodyDesignBriefOpenQuestionsItemMax)).max(reviewExternalCircuitFixBodyDesignBriefOpenQuestionsMax)
+}),
+  "history": zod.array(zod.object({
+  "role": zod.enum(['user', 'assistant']),
+  "content": zod.string().max(reviewExternalCircuitFixBodyHistoryItemContentMax)
+})).max(reviewExternalCircuitFixBodyHistoryMax)
+})
+
+export const reviewExternalCircuitFixResponseSummaryMax = 800;
+
+export const reviewExternalCircuitFixResponseConcernsItemMax = 500;
+
+export const reviewExternalCircuitFixResponseConcernsMax = 8;
+
+export const reviewExternalCircuitFixResponseRepairLessonMax = 300;
+
+
+
+export const ReviewExternalCircuitFixResponse = zod.object({
+  "approved": zod.boolean().describe('Studio AI\'s review verdict; never a simulation or safety result.'),
+  "summary": zod.string().min(1).max(reviewExternalCircuitFixResponseSummaryMax),
+  "concerns": zod.array(zod.string().min(1).max(reviewExternalCircuitFixResponseConcernsItemMax)).max(reviewExternalCircuitFixResponseConcernsMax),
+  "repairLesson": zod.string().max(reviewExternalCircuitFixResponseRepairLessonMax).nullish().describe('Reusable lesson from the correction, if supported by the review evidence.')
+})
+
+
+/**
+ * @summary List saved Circuit Studio assumptions
+ */
+
+export const listCircuitBuilderMemoriesResponseContentMax = 300;
+
+
+
+export const ListCircuitBuilderMemoriesResponseItem = zod.object({
+  "id": zod.number().int().min(1),
+  "category": zod.enum(['work-style', 'design-decision', 'past-context', 'repair-lesson', 'design-feedback']),
+  "content": zod.string().min(1).max(listCircuitBuilderMemoriesResponseContentMax),
+  "updatedAt": zod.coerce.date()
+})
+export const ListCircuitBuilderMemoriesResponse = zod.array(ListCircuitBuilderMemoriesResponseItem)
+
+
+/**
+ * @summary Delete all saved Circuit Studio assumptions
+ */
+export const ClearCircuitBuilderMemoriesResponse = zod.void()
+
+
+/**
+ * Analyzes short summaries of recent local conversations and stores only reusable assumptions, not transcripts.
+ * @summary Learn reusable assumptions from saved chats
+ */
+export const learnFromCircuitBuilderHistoryBodyConversationsItemTitleMax = 160;
+
+export const learnFromCircuitBuilderHistoryBodyConversationsItemContextMax = 3000;
+
+export const learnFromCircuitBuilderHistoryBodyConversationsMax = 12;
+
+
+
+export const LearnFromCircuitBuilderHistoryBody = zod.object({
+  "conversations": zod.array(zod.object({
+  "title": zod.string().max(learnFromCircuitBuilderHistoryBodyConversationsItemTitleMax),
+  "context": zod.string().min(1).max(learnFromCircuitBuilderHistoryBodyConversationsItemContextMax)
+})).min(1).max(learnFromCircuitBuilderHistoryBodyConversationsMax)
+})
+
+export const learnFromCircuitBuilderHistoryResponseLearnedCountMin = 0;
+
+
+
+export const LearnFromCircuitBuilderHistoryResponse = zod.object({
+  "learnedCount": zod.number().int().min(learnFromCircuitBuilderHistoryResponseLearnedCountMin)
+})
+
+
+/**
+ * Stores a repair lesson after a corrected proposal passes checks and the user applies it, or learns from a manual correction after it passes checks.
+ * @summary Save a lesson from a corrected circuit
+ */
+export const saveCircuitBuilderRepairLessonBodyOneContentMax = 300;
+
+export const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemFromMin = 2;
+export const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemFromMax = 2;
+
+export const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemToMin = 2;
+export const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemToMax = 2;
+
+export const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemAtMin = 2;
+export const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemAtMax = 2;
+
+export const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolIdRegExp = new RegExp('^[^:\\s]+:[^:\\s]+$');
+
+
+
+
+export const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolDataUnitsItemPinsItemPointMin = 2;
+export const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolDataUnitsItemPinsItemPointMax = 2;
+
+export const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin = 2;
+export const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax = 2;
+
+export const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolDataUnitsItemPinsMax = 512;
+
+export const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin = 2;
+export const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax = 2;
+
+export const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin = 0;
+
+export const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin = 0;
+
+export const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin = 0;
+
+export const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolDataUnitsItemGraphicsMax = 2048;
+
+export const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolDataUnitsMax = 256;
+
+export const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemPointsItemMin = 2;
+export const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemPointsItemMax = 2;
+
+export const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemLabelNudgeMin = 2;
+export const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemLabelNudgeMax = 2;
+
+export const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemLabelAtMin = 2;
+export const saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemLabelAtMax = 2;
+
+export const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemFromMin = 2;
+export const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemFromMax = 2;
+
+export const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemToMin = 2;
+export const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemToMax = 2;
+
+export const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemAtMin = 2;
+export const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemAtMax = 2;
+
+export const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolIdRegExp = new RegExp('^[^:\\s]+:[^:\\s]+$');
+
+
+
+
+export const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolDataUnitsItemPinsItemPointMin = 2;
+export const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolDataUnitsItemPinsItemPointMax = 2;
+
+export const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin = 2;
+export const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax = 2;
+
+export const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolDataUnitsItemPinsMax = 512;
+
+export const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin = 2;
+export const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax = 2;
+
+export const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin = 0;
+
+export const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin = 0;
+
+export const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin = 0;
+
+export const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolDataUnitsItemGraphicsMax = 2048;
+
+export const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolDataUnitsMax = 256;
+
+export const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemPointsItemMin = 2;
+export const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemPointsItemMax = 2;
+
+export const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemLabelNudgeMin = 2;
+export const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemLabelNudgeMax = 2;
+
+export const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemLabelAtMin = 2;
+export const saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemLabelAtMax = 2;
+
+export const saveCircuitBuilderRepairLessonBodyTwoFindingsItemMax = 700;
+
+export const saveCircuitBuilderRepairLessonBodyTwoFindingsMax = 12;
+
+export const saveCircuitBuilderRepairLessonBodyTwoContextMax = 1600;
+
+
+
+export const SaveCircuitBuilderRepairLessonBody = zod.union([zod.object({
+  "kind": zod.enum(['save']),
+  "content": zod.string().min(1).max(saveCircuitBuilderRepairLessonBodyOneContentMax)
+}),zod.object({
+  "kind": zod.enum(['learn']),
+  "beforeSpec": zod.object({
+  "title": zod.string(),
+  "width": zod.number().optional(),
+  "height": zod.number().optional(),
+  "elements": zod.array(zod.object({
+  "type": zod.string(),
+  "id": zod.string().optional(),
+  "label": zod.string().optional(),
+  "value": zod.string().optional(),
+  "from": zod.array(zod.number()).min(saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemFromMin).max(saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemFromMax).optional(),
+  "to": zod.array(zod.number()).min(saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemToMin).max(saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemToMax).optional(),
+  "at": zod.array(zod.number()).min(saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemAtMin).max(saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemAtMax).optional(),
+  "symbolId": zod.string().regex(saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolIdRegExp).optional(),
+  "unit": zod.number().int().min(1).optional(),
+  "bodyStyle": zod.number().int().min(1).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
+  "symbolData": zod.object({
+  "id": zod.string(),
+  "units": zod.array(zod.object({
+  "unit": zod.number().int().min(1),
+  "bodyStyle": zod.number().int().min(1),
+  "pins": zod.array(zod.object({
+  "number": zod.string(),
+  "name": zod.string(),
+  "electricalType": zod.string(),
+  "shape": zod.string(),
+  "point": zod.array(zod.number()).min(saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolDataUnitsItemPinsItemPointMin).max(saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolDataUnitsItemPinsItemPointMax),
+  "bodyPoint": zod.array(zod.number()).min(saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin).max(saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax),
+  "showName": zod.boolean(),
+  "showNumber": zod.boolean()
+})).max(saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolDataUnitsItemPinsMax),
+  "graphics": zod.array(zod.object({
+  "type": zod.enum(['polyline', 'rectangle', 'circle', 'arc', 'bezier', 'text']),
+  "points": zod.array(zod.array(zod.number()).min(saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin).max(saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax)).optional(),
+  "radius": zod.number().min(saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin).optional(),
+  "text": zod.string().optional(),
+  "fontSize": zod.number().min(saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin).optional(),
+  "strokeWidth": zod.number().min(saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin).optional(),
+  "fillType": zod.enum(['none', 'background', 'outline']).optional(),
+  "closed": zod.boolean().optional()
+})).max(saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolDataUnitsItemGraphicsMax)
+})).min(1).max(saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemSymbolDataUnitsMax)
+}).optional(),
+  "points": zod.array(zod.array(zod.number()).min(saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemPointsItemMin).max(saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemPointsItemMax)).optional(),
+  "x": zod.number().optional(),
+  "y": zod.number().optional(),
+  "w": zod.number().optional(),
+  "h": zod.number().optional(),
+  "height": zod.number().optional(),
+  "open": zod.boolean().optional(),
+  "closed": zod.boolean().optional(),
+  "flip": zod.boolean().optional(),
+  "circle": zod.boolean().optional(),
+  "swap": zod.boolean().optional(),
+  "style": zod.string().optional(),
+  "labelPos": zod.string().optional(),
+  "labelNudge": zod.array(zod.number()).min(saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemLabelNudgeMin).max(saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemLabelNudgeMax).optional(),
+  "labelAt": zod.array(zod.number()).min(saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemLabelAtMin).max(saveCircuitBuilderRepairLessonBodyTwoBeforeSpecElementsItemLabelAtMax).optional(),
+  "labelAnchor": zod.string().optional(),
+  "text": zod.string().optional(),
+  "anchor": zod.string().optional(),
+  "size": zod.number().optional(),
+  "bold": zod.boolean().optional(),
+  "muted": zod.boolean().optional()
+}))
+}),
+  "afterSpec": zod.object({
+  "title": zod.string(),
+  "width": zod.number().optional(),
+  "height": zod.number().optional(),
+  "elements": zod.array(zod.object({
+  "type": zod.string(),
+  "id": zod.string().optional(),
+  "label": zod.string().optional(),
+  "value": zod.string().optional(),
+  "from": zod.array(zod.number()).min(saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemFromMin).max(saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemFromMax).optional(),
+  "to": zod.array(zod.number()).min(saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemToMin).max(saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemToMax).optional(),
+  "at": zod.array(zod.number()).min(saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemAtMin).max(saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemAtMax).optional(),
+  "symbolId": zod.string().regex(saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolIdRegExp).optional(),
+  "unit": zod.number().int().min(1).optional(),
+  "bodyStyle": zod.number().int().min(1).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
+  "symbolData": zod.object({
+  "id": zod.string(),
+  "units": zod.array(zod.object({
+  "unit": zod.number().int().min(1),
+  "bodyStyle": zod.number().int().min(1),
+  "pins": zod.array(zod.object({
+  "number": zod.string(),
+  "name": zod.string(),
+  "electricalType": zod.string(),
+  "shape": zod.string(),
+  "point": zod.array(zod.number()).min(saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolDataUnitsItemPinsItemPointMin).max(saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolDataUnitsItemPinsItemPointMax),
+  "bodyPoint": zod.array(zod.number()).min(saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin).max(saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax),
+  "showName": zod.boolean(),
+  "showNumber": zod.boolean()
+})).max(saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolDataUnitsItemPinsMax),
+  "graphics": zod.array(zod.object({
+  "type": zod.enum(['polyline', 'rectangle', 'circle', 'arc', 'bezier', 'text']),
+  "points": zod.array(zod.array(zod.number()).min(saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin).max(saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax)).optional(),
+  "radius": zod.number().min(saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin).optional(),
+  "text": zod.string().optional(),
+  "fontSize": zod.number().min(saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin).optional(),
+  "strokeWidth": zod.number().min(saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin).optional(),
+  "fillType": zod.enum(['none', 'background', 'outline']).optional(),
+  "closed": zod.boolean().optional()
+})).max(saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolDataUnitsItemGraphicsMax)
+})).min(1).max(saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemSymbolDataUnitsMax)
+}).optional(),
+  "points": zod.array(zod.array(zod.number()).min(saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemPointsItemMin).max(saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemPointsItemMax)).optional(),
+  "x": zod.number().optional(),
+  "y": zod.number().optional(),
+  "w": zod.number().optional(),
+  "h": zod.number().optional(),
+  "height": zod.number().optional(),
+  "open": zod.boolean().optional(),
+  "closed": zod.boolean().optional(),
+  "flip": zod.boolean().optional(),
+  "circle": zod.boolean().optional(),
+  "swap": zod.boolean().optional(),
+  "style": zod.string().optional(),
+  "labelPos": zod.string().optional(),
+  "labelNudge": zod.array(zod.number()).min(saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemLabelNudgeMin).max(saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemLabelNudgeMax).optional(),
+  "labelAt": zod.array(zod.number()).min(saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemLabelAtMin).max(saveCircuitBuilderRepairLessonBodyTwoAfterSpecElementsItemLabelAtMax).optional(),
+  "labelAnchor": zod.string().optional(),
+  "text": zod.string().optional(),
+  "anchor": zod.string().optional(),
+  "size": zod.number().optional(),
+  "bold": zod.boolean().optional(),
+  "muted": zod.boolean().optional()
+}))
+}),
+  "findings": zod.array(zod.string().min(1).max(saveCircuitBuilderRepairLessonBodyTwoFindingsItemMax)).min(1).max(saveCircuitBuilderRepairLessonBodyTwoFindingsMax),
+  "context": zod.string().max(saveCircuitBuilderRepairLessonBodyTwoContextMax).optional()
+})])
+
+export const saveCircuitBuilderRepairLessonResponseLessonMax = 300;
+
+
+
+export const SaveCircuitBuilderRepairLessonResponse = zod.object({
+  "saved": zod.boolean(),
+  "lesson": zod.string().max(saveCircuitBuilderRepairLessonResponseLessonMax).nullable()
+})
+
+
+/**
+ * Saves concise, account-owned feedback that can guide future similar circuit requests. The user can edit or remove it with saved memories.
+ * @summary Save feedback on a Circuit Studio proposal
+ */
+export const saveCircuitBuilderFeedbackBodyCircuitTitleMax = 120;
+
+export const saveCircuitBuilderFeedbackBodyRequestSummaryMax = 600;
+
+export const saveCircuitBuilderFeedbackBodyDetailsMax = 500;
+
+
+
+export const SaveCircuitBuilderFeedbackBody = zod.object({
+  "vote": zod.enum(['up', 'down']),
+  "reason": zod.enum(['overall', 'incorrect-wiring', 'wrong-parts-or-values', 'poor-readability', 'missed-request', 'other']),
+  "circuitTitle": zod.string().min(1).max(saveCircuitBuilderFeedbackBodyCircuitTitleMax),
+  "requestSummary": zod.string().max(saveCircuitBuilderFeedbackBodyRequestSummaryMax).optional(),
+  "details": zod.string().max(saveCircuitBuilderFeedbackBodyDetailsMax).optional()
+})
+
+export const SaveCircuitBuilderFeedbackResponse = zod.object({
+  "saved": zod.boolean()
+})
+
+
+/**
+ * Reads only the V2 draft owned by the authenticated user and session. An empty result does not read or import legacy history.
+ * @summary Load a signed-in user's V2 circuit document
+ */
+export const loadCircuitDocumentV2DraftPathSessionIdMax = 128;
+
+
+export const loadCircuitDocumentV2DraftPathSessionIdRegExp = new RegExp('.*\\S.*');
+
+
+export const LoadCircuitDocumentV2DraftParams = zod.object({
+  "sessionId": zod.coerce.string().min(1).max(loadCircuitDocumentV2DraftPathSessionIdMax).regex(loadCircuitDocumentV2DraftPathSessionIdRegExp)
+})
+
+
+
+
+
+
+
+
+
+export const loadCircuitDocumentV2DraftResponseOneDraftDocumentElectricalComponentsItemPinsItemOccurrenceMin = 0;
+
+
+
+
+
+
+
+
+export const loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingCanvasWidthExclusiveMin = 0;
+
+export const loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingCanvasHeightExclusiveMin = 0;
+
+
+export const loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingPlacementsItemPositionMin = 2;
+export const loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingPlacementsItemPositionMax = 2;
+
+export const loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingPlacementsItemLegacyGeometryFromMin = 2;
+export const loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingPlacementsItemLegacyGeometryFromMax = 2;
+
+export const loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingPlacementsItemLegacyGeometryToMin = 2;
+export const loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingPlacementsItemLegacyGeometryToMax = 2;
+
+export const loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingPlacementsItemLegacyGeometryAtMin = 2;
+export const loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingPlacementsItemLegacyGeometryAtMax = 2;
+
+
+
+export const loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingRoutesItemPointsItemMin = 2;
+export const loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingRoutesItemPointsItemMax = 2;
+
+export const loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingRoutesItemPointsMin = 2;
+
+
+export const loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingJunctionsItemAtMin = 2;
+export const loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingJunctionsItemAtMax = 2;
+
+
+
+export const loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingCrossingsItemAtMin = 2;
+export const loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingCrossingsItemAtMax = 2;
+
+
+
+export const loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingAnnotationsItemOneAtMin = 2;
+export const loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingAnnotationsItemOneAtMax = 2;
+
+
+
+
+export const LoadCircuitDocumentV2DraftResponse = zod.union([zod.object({
+  "status": zod.enum(['loaded']),
+  "representation": zod.enum(['circuit-document-v2']),
+  "schemaVersion": zod.literal(2),
+  "revision": zod.number().int().min(1),
+  "updatedAt": zod.coerce.date(),
+  "draft": zod.object({
+  "format": zod.enum(['circuit-studio-draft']),
+  "envelopeVersion": zod.literal(1),
+  "representation": zod.enum(['circuit-document-v2']),
+  "document": zod.object({
+  "schemaVersion": zod.literal(2),
+  "id": zod.string().min(1),
+  "title": zod.string().optional(),
+  "electrical": zod.object({
+  "components": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "type": zod.string().min(1),
+  "reference": zod.string().optional(),
+  "value": zod.string().optional(),
+  "properties": zod.record(zod.string(), zod.unknown()),
+  "pins": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "name": zod.string().min(1),
+  "number": zod.string().optional(),
+  "unit": zod.number().int().min(1).optional(),
+  "bodyStyle": zod.number().int().min(1).optional(),
+  "occurrence": zod.number().int().min(loadCircuitDocumentV2DraftResponseOneDraftDocumentElectricalComponentsItemPinsItemOccurrenceMin).optional(),
+  "electricalType": zod.string().optional()
+}))
+})),
+  "nets": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "name": zod.string().optional(),
+  "attributes": zod.record(zod.string(), zod.unknown()).optional(),
+  "members": zod.array(zod.object({
+  "componentId": zod.string().min(1),
+  "pinId": zod.string().min(1)
+}))
+})),
+  "noConnects": zod.array(zod.object({
+  "componentId": zod.string().min(1),
+  "pinId": zod.string().min(1)
+})),
+  "unassignedPins": zod.array(zod.object({
+  "componentId": zod.string().min(1),
+  "pinId": zod.string().min(1)
+}))
+}),
+  "drawing": zod.object({
+  "units": zod.enum(['px']),
+  "canvas": zod.object({
+  "width": zod.number().gt(loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingCanvasWidthExclusiveMin).optional(),
+  "height": zod.number().gt(loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingCanvasHeightExclusiveMin).optional()
+}),
+  "placements": zod.array(zod.object({
+  "componentId": zod.string().min(1),
+  "position": zod.array(zod.number()).min(loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingPlacementsItemPositionMin).max(loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingPlacementsItemPositionMax),
+  "rotation": zod.number(),
+  "flip": zod.boolean(),
+  "legacyGeometry": zod.object({
+  "from": zod.array(zod.number()).min(loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingPlacementsItemLegacyGeometryFromMin).max(loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingPlacementsItemLegacyGeometryFromMax).optional(),
+  "to": zod.array(zod.number()).min(loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingPlacementsItemLegacyGeometryToMin).max(loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingPlacementsItemLegacyGeometryToMax).optional(),
+  "at": zod.array(zod.number()).min(loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingPlacementsItemLegacyGeometryAtMin).max(loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingPlacementsItemLegacyGeometryAtMax).optional()
+}).optional(),
+  "properties": zod.record(zod.string(), zod.unknown())
+})),
+  "routes": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "netId": zod.string().min(1),
+  "points": zod.array(zod.array(zod.number()).min(loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingRoutesItemPointsItemMin).max(loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingRoutesItemPointsItemMax)).min(loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingRoutesItemPointsMin),
+  "open": zod.boolean().optional(),
+  "properties": zod.record(zod.string(), zod.unknown())
+})),
+  "junctions": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "at": zod.array(zod.number()).min(loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingJunctionsItemAtMin).max(loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingJunctionsItemAtMax),
+  "routeIds": zod.array(zod.string().min(1)),
+  "properties": zod.record(zod.string(), zod.unknown())
+})),
+  "crossings": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "at": zod.array(zod.number()).min(loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingCrossingsItemAtMin).max(loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingCrossingsItemAtMax),
+  "orientation": zod.enum(['horizontal', 'vertical']).optional(),
+  "routeIds": zod.array(zod.string().min(1)),
+  "properties": zod.record(zod.string(), zod.unknown())
+})),
+  "annotations": zod.array(zod.union([zod.object({
+  "id": zod.string().min(1),
+  "type": zod.enum(['label']),
+  "at": zod.array(zod.number()).min(loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingAnnotationsItemOneAtMin).max(loadCircuitDocumentV2DraftResponseOneDraftDocumentDrawingAnnotationsItemOneAtMax),
+  "text": zod.string(),
+  "properties": zod.record(zod.string(), zod.unknown())
+}),zod.object({
+  "id": zod.string().min(1),
+  "type": zod.enum(['box']),
+  "x": zod.number(),
+  "y": zod.number(),
+  "w": zod.number(),
+  "h": zod.number(),
+  "properties": zod.record(zod.string(), zod.unknown())
+})]))
+}),
+  "legacyImport": zod.object({
+  "sourceFormat": zod.enum(['CircuitSpec']),
+  "groundSemantics": zod.enum(['global-ground']),
+  "terminalLabelSemantics": zod.enum(['local-labels-do-not-merge']),
+  "sourceMetadata": zod.record(zod.string(), zod.unknown())
+}).optional(),
+  "metadata": zod.record(zod.string(), zod.unknown()).optional()
+})
+})
+}),zod.object({
+  "status": zod.enum(['empty'])
+})])
+
+
+/**
+ * Validates a tagged V2 envelope and atomically saves it only when expectedRevision matches the authenticated user's current record. Use expectedRevision 0 only to create a missing record.
+ * @summary Create or update a V2 circuit document
+ */
+export const saveCircuitDocumentV2DraftPathSessionIdMax = 128;
+
+
+export const saveCircuitDocumentV2DraftPathSessionIdRegExp = new RegExp('.*\\S.*');
+
+
+export const SaveCircuitDocumentV2DraftParams = zod.object({
+  "sessionId": zod.coerce.string().min(1).max(saveCircuitDocumentV2DraftPathSessionIdMax).regex(saveCircuitDocumentV2DraftPathSessionIdRegExp)
+})
+
+export const saveCircuitDocumentV2DraftBodyExpectedRevisionMin = 0;
+export const saveCircuitDocumentV2DraftBodyExpectedRevisionMax = 2147483646;
+
+
+
+
+
+
+
+
+export const saveCircuitDocumentV2DraftBodyDraftDocumentElectricalComponentsItemPinsItemOccurrenceMin = 0;
+
+
+
+
+
+
+
+
+export const saveCircuitDocumentV2DraftBodyDraftDocumentDrawingCanvasWidthExclusiveMin = 0;
+
+export const saveCircuitDocumentV2DraftBodyDraftDocumentDrawingCanvasHeightExclusiveMin = 0;
+
+
+export const saveCircuitDocumentV2DraftBodyDraftDocumentDrawingPlacementsItemPositionMin = 2;
+export const saveCircuitDocumentV2DraftBodyDraftDocumentDrawingPlacementsItemPositionMax = 2;
+
+export const saveCircuitDocumentV2DraftBodyDraftDocumentDrawingPlacementsItemLegacyGeometryFromMin = 2;
+export const saveCircuitDocumentV2DraftBodyDraftDocumentDrawingPlacementsItemLegacyGeometryFromMax = 2;
+
+export const saveCircuitDocumentV2DraftBodyDraftDocumentDrawingPlacementsItemLegacyGeometryToMin = 2;
+export const saveCircuitDocumentV2DraftBodyDraftDocumentDrawingPlacementsItemLegacyGeometryToMax = 2;
+
+export const saveCircuitDocumentV2DraftBodyDraftDocumentDrawingPlacementsItemLegacyGeometryAtMin = 2;
+export const saveCircuitDocumentV2DraftBodyDraftDocumentDrawingPlacementsItemLegacyGeometryAtMax = 2;
+
+
+
+export const saveCircuitDocumentV2DraftBodyDraftDocumentDrawingRoutesItemPointsItemMin = 2;
+export const saveCircuitDocumentV2DraftBodyDraftDocumentDrawingRoutesItemPointsItemMax = 2;
+
+export const saveCircuitDocumentV2DraftBodyDraftDocumentDrawingRoutesItemPointsMin = 2;
+
+
+export const saveCircuitDocumentV2DraftBodyDraftDocumentDrawingJunctionsItemAtMin = 2;
+export const saveCircuitDocumentV2DraftBodyDraftDocumentDrawingJunctionsItemAtMax = 2;
+
+
+
+export const saveCircuitDocumentV2DraftBodyDraftDocumentDrawingCrossingsItemAtMin = 2;
+export const saveCircuitDocumentV2DraftBodyDraftDocumentDrawingCrossingsItemAtMax = 2;
+
+
+
+export const saveCircuitDocumentV2DraftBodyDraftDocumentDrawingAnnotationsItemOneAtMin = 2;
+export const saveCircuitDocumentV2DraftBodyDraftDocumentDrawingAnnotationsItemOneAtMax = 2;
+
+
+
+
+export const SaveCircuitDocumentV2DraftBody = zod.object({
+  "expectedRevision": zod.number().int().min(saveCircuitDocumentV2DraftBodyExpectedRevisionMin).max(saveCircuitDocumentV2DraftBodyExpectedRevisionMax).describe('Use 0 only for a new document; otherwise use the revision most recently loaded.'),
+  "draft": zod.object({
+  "format": zod.enum(['circuit-studio-draft']),
+  "envelopeVersion": zod.literal(1),
+  "representation": zod.enum(['circuit-document-v2']),
+  "document": zod.object({
+  "schemaVersion": zod.literal(2),
+  "id": zod.string().min(1),
+  "title": zod.string().optional(),
+  "electrical": zod.object({
+  "components": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "type": zod.string().min(1),
+  "reference": zod.string().optional(),
+  "value": zod.string().optional(),
+  "properties": zod.record(zod.string(), zod.unknown()),
+  "pins": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "name": zod.string().min(1),
+  "number": zod.string().optional(),
+  "unit": zod.number().int().min(1).optional(),
+  "bodyStyle": zod.number().int().min(1).optional(),
+  "occurrence": zod.number().int().min(saveCircuitDocumentV2DraftBodyDraftDocumentElectricalComponentsItemPinsItemOccurrenceMin).optional(),
+  "electricalType": zod.string().optional()
+}))
+})),
+  "nets": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "name": zod.string().optional(),
+  "attributes": zod.record(zod.string(), zod.unknown()).optional(),
+  "members": zod.array(zod.object({
+  "componentId": zod.string().min(1),
+  "pinId": zod.string().min(1)
+}))
+})),
+  "noConnects": zod.array(zod.object({
+  "componentId": zod.string().min(1),
+  "pinId": zod.string().min(1)
+})),
+  "unassignedPins": zod.array(zod.object({
+  "componentId": zod.string().min(1),
+  "pinId": zod.string().min(1)
+}))
+}),
+  "drawing": zod.object({
+  "units": zod.enum(['px']),
+  "canvas": zod.object({
+  "width": zod.number().gt(saveCircuitDocumentV2DraftBodyDraftDocumentDrawingCanvasWidthExclusiveMin).optional(),
+  "height": zod.number().gt(saveCircuitDocumentV2DraftBodyDraftDocumentDrawingCanvasHeightExclusiveMin).optional()
+}),
+  "placements": zod.array(zod.object({
+  "componentId": zod.string().min(1),
+  "position": zod.array(zod.number()).min(saveCircuitDocumentV2DraftBodyDraftDocumentDrawingPlacementsItemPositionMin).max(saveCircuitDocumentV2DraftBodyDraftDocumentDrawingPlacementsItemPositionMax),
+  "rotation": zod.number(),
+  "flip": zod.boolean(),
+  "legacyGeometry": zod.object({
+  "from": zod.array(zod.number()).min(saveCircuitDocumentV2DraftBodyDraftDocumentDrawingPlacementsItemLegacyGeometryFromMin).max(saveCircuitDocumentV2DraftBodyDraftDocumentDrawingPlacementsItemLegacyGeometryFromMax).optional(),
+  "to": zod.array(zod.number()).min(saveCircuitDocumentV2DraftBodyDraftDocumentDrawingPlacementsItemLegacyGeometryToMin).max(saveCircuitDocumentV2DraftBodyDraftDocumentDrawingPlacementsItemLegacyGeometryToMax).optional(),
+  "at": zod.array(zod.number()).min(saveCircuitDocumentV2DraftBodyDraftDocumentDrawingPlacementsItemLegacyGeometryAtMin).max(saveCircuitDocumentV2DraftBodyDraftDocumentDrawingPlacementsItemLegacyGeometryAtMax).optional()
+}).optional(),
+  "properties": zod.record(zod.string(), zod.unknown())
+})),
+  "routes": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "netId": zod.string().min(1),
+  "points": zod.array(zod.array(zod.number()).min(saveCircuitDocumentV2DraftBodyDraftDocumentDrawingRoutesItemPointsItemMin).max(saveCircuitDocumentV2DraftBodyDraftDocumentDrawingRoutesItemPointsItemMax)).min(saveCircuitDocumentV2DraftBodyDraftDocumentDrawingRoutesItemPointsMin),
+  "open": zod.boolean().optional(),
+  "properties": zod.record(zod.string(), zod.unknown())
+})),
+  "junctions": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "at": zod.array(zod.number()).min(saveCircuitDocumentV2DraftBodyDraftDocumentDrawingJunctionsItemAtMin).max(saveCircuitDocumentV2DraftBodyDraftDocumentDrawingJunctionsItemAtMax),
+  "routeIds": zod.array(zod.string().min(1)),
+  "properties": zod.record(zod.string(), zod.unknown())
+})),
+  "crossings": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "at": zod.array(zod.number()).min(saveCircuitDocumentV2DraftBodyDraftDocumentDrawingCrossingsItemAtMin).max(saveCircuitDocumentV2DraftBodyDraftDocumentDrawingCrossingsItemAtMax),
+  "orientation": zod.enum(['horizontal', 'vertical']).optional(),
+  "routeIds": zod.array(zod.string().min(1)),
+  "properties": zod.record(zod.string(), zod.unknown())
+})),
+  "annotations": zod.array(zod.union([zod.object({
+  "id": zod.string().min(1),
+  "type": zod.enum(['label']),
+  "at": zod.array(zod.number()).min(saveCircuitDocumentV2DraftBodyDraftDocumentDrawingAnnotationsItemOneAtMin).max(saveCircuitDocumentV2DraftBodyDraftDocumentDrawingAnnotationsItemOneAtMax),
+  "text": zod.string(),
+  "properties": zod.record(zod.string(), zod.unknown())
+}),zod.object({
+  "id": zod.string().min(1),
+  "type": zod.enum(['box']),
+  "x": zod.number(),
+  "y": zod.number(),
+  "w": zod.number(),
+  "h": zod.number(),
+  "properties": zod.record(zod.string(), zod.unknown())
+})]))
+}),
+  "legacyImport": zod.object({
+  "sourceFormat": zod.enum(['CircuitSpec']),
+  "groundSemantics": zod.enum(['global-ground']),
+  "terminalLabelSemantics": zod.enum(['local-labels-do-not-merge']),
+  "sourceMetadata": zod.record(zod.string(), zod.unknown())
+}).optional(),
+  "metadata": zod.record(zod.string(), zod.unknown()).optional()
+})
+})
+})
+
+
+
+
+
+
+
+
+
+export const saveCircuitDocumentV2DraftResponseDraftDocumentElectricalComponentsItemPinsItemOccurrenceMin = 0;
+
+
+
+
+
+
+
+
+export const saveCircuitDocumentV2DraftResponseDraftDocumentDrawingCanvasWidthExclusiveMin = 0;
+
+export const saveCircuitDocumentV2DraftResponseDraftDocumentDrawingCanvasHeightExclusiveMin = 0;
+
+
+export const saveCircuitDocumentV2DraftResponseDraftDocumentDrawingPlacementsItemPositionMin = 2;
+export const saveCircuitDocumentV2DraftResponseDraftDocumentDrawingPlacementsItemPositionMax = 2;
+
+export const saveCircuitDocumentV2DraftResponseDraftDocumentDrawingPlacementsItemLegacyGeometryFromMin = 2;
+export const saveCircuitDocumentV2DraftResponseDraftDocumentDrawingPlacementsItemLegacyGeometryFromMax = 2;
+
+export const saveCircuitDocumentV2DraftResponseDraftDocumentDrawingPlacementsItemLegacyGeometryToMin = 2;
+export const saveCircuitDocumentV2DraftResponseDraftDocumentDrawingPlacementsItemLegacyGeometryToMax = 2;
+
+export const saveCircuitDocumentV2DraftResponseDraftDocumentDrawingPlacementsItemLegacyGeometryAtMin = 2;
+export const saveCircuitDocumentV2DraftResponseDraftDocumentDrawingPlacementsItemLegacyGeometryAtMax = 2;
+
+
+
+export const saveCircuitDocumentV2DraftResponseDraftDocumentDrawingRoutesItemPointsItemMin = 2;
+export const saveCircuitDocumentV2DraftResponseDraftDocumentDrawingRoutesItemPointsItemMax = 2;
+
+export const saveCircuitDocumentV2DraftResponseDraftDocumentDrawingRoutesItemPointsMin = 2;
+
+
+export const saveCircuitDocumentV2DraftResponseDraftDocumentDrawingJunctionsItemAtMin = 2;
+export const saveCircuitDocumentV2DraftResponseDraftDocumentDrawingJunctionsItemAtMax = 2;
+
+
+
+export const saveCircuitDocumentV2DraftResponseDraftDocumentDrawingCrossingsItemAtMin = 2;
+export const saveCircuitDocumentV2DraftResponseDraftDocumentDrawingCrossingsItemAtMax = 2;
+
+
+
+export const saveCircuitDocumentV2DraftResponseDraftDocumentDrawingAnnotationsItemOneAtMin = 2;
+export const saveCircuitDocumentV2DraftResponseDraftDocumentDrawingAnnotationsItemOneAtMax = 2;
+
+
+
+
+export const SaveCircuitDocumentV2DraftResponse = zod.object({
+  "status": zod.enum(['saved']),
+  "representation": zod.enum(['circuit-document-v2']),
+  "schemaVersion": zod.literal(2),
+  "revision": zod.number().int().min(1),
+  "updatedAt": zod.coerce.date(),
+  "draft": zod.object({
+  "format": zod.enum(['circuit-studio-draft']),
+  "envelopeVersion": zod.literal(1),
+  "representation": zod.enum(['circuit-document-v2']),
+  "document": zod.object({
+  "schemaVersion": zod.literal(2),
+  "id": zod.string().min(1),
+  "title": zod.string().optional(),
+  "electrical": zod.object({
+  "components": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "type": zod.string().min(1),
+  "reference": zod.string().optional(),
+  "value": zod.string().optional(),
+  "properties": zod.record(zod.string(), zod.unknown()),
+  "pins": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "name": zod.string().min(1),
+  "number": zod.string().optional(),
+  "unit": zod.number().int().min(1).optional(),
+  "bodyStyle": zod.number().int().min(1).optional(),
+  "occurrence": zod.number().int().min(saveCircuitDocumentV2DraftResponseDraftDocumentElectricalComponentsItemPinsItemOccurrenceMin).optional(),
+  "electricalType": zod.string().optional()
+}))
+})),
+  "nets": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "name": zod.string().optional(),
+  "attributes": zod.record(zod.string(), zod.unknown()).optional(),
+  "members": zod.array(zod.object({
+  "componentId": zod.string().min(1),
+  "pinId": zod.string().min(1)
+}))
+})),
+  "noConnects": zod.array(zod.object({
+  "componentId": zod.string().min(1),
+  "pinId": zod.string().min(1)
+})),
+  "unassignedPins": zod.array(zod.object({
+  "componentId": zod.string().min(1),
+  "pinId": zod.string().min(1)
+}))
+}),
+  "drawing": zod.object({
+  "units": zod.enum(['px']),
+  "canvas": zod.object({
+  "width": zod.number().gt(saveCircuitDocumentV2DraftResponseDraftDocumentDrawingCanvasWidthExclusiveMin).optional(),
+  "height": zod.number().gt(saveCircuitDocumentV2DraftResponseDraftDocumentDrawingCanvasHeightExclusiveMin).optional()
+}),
+  "placements": zod.array(zod.object({
+  "componentId": zod.string().min(1),
+  "position": zod.array(zod.number()).min(saveCircuitDocumentV2DraftResponseDraftDocumentDrawingPlacementsItemPositionMin).max(saveCircuitDocumentV2DraftResponseDraftDocumentDrawingPlacementsItemPositionMax),
+  "rotation": zod.number(),
+  "flip": zod.boolean(),
+  "legacyGeometry": zod.object({
+  "from": zod.array(zod.number()).min(saveCircuitDocumentV2DraftResponseDraftDocumentDrawingPlacementsItemLegacyGeometryFromMin).max(saveCircuitDocumentV2DraftResponseDraftDocumentDrawingPlacementsItemLegacyGeometryFromMax).optional(),
+  "to": zod.array(zod.number()).min(saveCircuitDocumentV2DraftResponseDraftDocumentDrawingPlacementsItemLegacyGeometryToMin).max(saveCircuitDocumentV2DraftResponseDraftDocumentDrawingPlacementsItemLegacyGeometryToMax).optional(),
+  "at": zod.array(zod.number()).min(saveCircuitDocumentV2DraftResponseDraftDocumentDrawingPlacementsItemLegacyGeometryAtMin).max(saveCircuitDocumentV2DraftResponseDraftDocumentDrawingPlacementsItemLegacyGeometryAtMax).optional()
+}).optional(),
+  "properties": zod.record(zod.string(), zod.unknown())
+})),
+  "routes": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "netId": zod.string().min(1),
+  "points": zod.array(zod.array(zod.number()).min(saveCircuitDocumentV2DraftResponseDraftDocumentDrawingRoutesItemPointsItemMin).max(saveCircuitDocumentV2DraftResponseDraftDocumentDrawingRoutesItemPointsItemMax)).min(saveCircuitDocumentV2DraftResponseDraftDocumentDrawingRoutesItemPointsMin),
+  "open": zod.boolean().optional(),
+  "properties": zod.record(zod.string(), zod.unknown())
+})),
+  "junctions": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "at": zod.array(zod.number()).min(saveCircuitDocumentV2DraftResponseDraftDocumentDrawingJunctionsItemAtMin).max(saveCircuitDocumentV2DraftResponseDraftDocumentDrawingJunctionsItemAtMax),
+  "routeIds": zod.array(zod.string().min(1)),
+  "properties": zod.record(zod.string(), zod.unknown())
+})),
+  "crossings": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "at": zod.array(zod.number()).min(saveCircuitDocumentV2DraftResponseDraftDocumentDrawingCrossingsItemAtMin).max(saveCircuitDocumentV2DraftResponseDraftDocumentDrawingCrossingsItemAtMax),
+  "orientation": zod.enum(['horizontal', 'vertical']).optional(),
+  "routeIds": zod.array(zod.string().min(1)),
+  "properties": zod.record(zod.string(), zod.unknown())
+})),
+  "annotations": zod.array(zod.union([zod.object({
+  "id": zod.string().min(1),
+  "type": zod.enum(['label']),
+  "at": zod.array(zod.number()).min(saveCircuitDocumentV2DraftResponseDraftDocumentDrawingAnnotationsItemOneAtMin).max(saveCircuitDocumentV2DraftResponseDraftDocumentDrawingAnnotationsItemOneAtMax),
+  "text": zod.string(),
+  "properties": zod.record(zod.string(), zod.unknown())
+}),zod.object({
+  "id": zod.string().min(1),
+  "type": zod.enum(['box']),
+  "x": zod.number(),
+  "y": zod.number(),
+  "w": zod.number(),
+  "h": zod.number(),
+  "properties": zod.record(zod.string(), zod.unknown())
+})]))
+}),
+  "legacyImport": zod.object({
+  "sourceFormat": zod.enum(['CircuitSpec']),
+  "groundSemantics": zod.enum(['global-ground']),
+  "terminalLabelSemantics": zod.enum(['local-labels-do-not-merge']),
+  "sourceMetadata": zod.record(zod.string(), zod.unknown())
+}).optional(),
+  "metadata": zod.record(zod.string(), zod.unknown()).optional()
+})
+})
+})
+
+
+/**
+ * Converts a circuit description to V2 components and explicit pin-to-net states. The response has an empty drawing section and is not saved or applied. Structural validation does not establish electrical correctness, simulation, or safety.
+ * @summary Generate a staged V2 electrical circuit proposal
+ */
+export const generateCircuitDocumentV2BodyPromptMin = 8;
+export const generateCircuitDocumentV2BodyPromptMax = 3000;
+
+
+
+export const GenerateCircuitDocumentV2Body = zod.object({
+  "prompt": zod.string().min(generateCircuitDocumentV2BodyPromptMin).max(generateCircuitDocumentV2BodyPromptMax)
+})
+
+
+
+
+
+
+
+
+export const generateCircuitDocumentV2ResponseDocumentElectricalComponentsItemPinsItemOccurrenceMin = 0;
+
+
+
+
+
+
+
+
+export const generateCircuitDocumentV2ResponseDocumentDrawingCanvasWidthExclusiveMin = 0;
+
+export const generateCircuitDocumentV2ResponseDocumentDrawingCanvasHeightExclusiveMin = 0;
+
+
+export const generateCircuitDocumentV2ResponseDocumentDrawingPlacementsItemPositionMin = 2;
+export const generateCircuitDocumentV2ResponseDocumentDrawingPlacementsItemPositionMax = 2;
+
+export const generateCircuitDocumentV2ResponseDocumentDrawingPlacementsItemLegacyGeometryFromMin = 2;
+export const generateCircuitDocumentV2ResponseDocumentDrawingPlacementsItemLegacyGeometryFromMax = 2;
+
+export const generateCircuitDocumentV2ResponseDocumentDrawingPlacementsItemLegacyGeometryToMin = 2;
+export const generateCircuitDocumentV2ResponseDocumentDrawingPlacementsItemLegacyGeometryToMax = 2;
+
+export const generateCircuitDocumentV2ResponseDocumentDrawingPlacementsItemLegacyGeometryAtMin = 2;
+export const generateCircuitDocumentV2ResponseDocumentDrawingPlacementsItemLegacyGeometryAtMax = 2;
+
+
+
+export const generateCircuitDocumentV2ResponseDocumentDrawingRoutesItemPointsItemMin = 2;
+export const generateCircuitDocumentV2ResponseDocumentDrawingRoutesItemPointsItemMax = 2;
+
+export const generateCircuitDocumentV2ResponseDocumentDrawingRoutesItemPointsMin = 2;
+
+
+export const generateCircuitDocumentV2ResponseDocumentDrawingJunctionsItemAtMin = 2;
+export const generateCircuitDocumentV2ResponseDocumentDrawingJunctionsItemAtMax = 2;
+
+
+
+export const generateCircuitDocumentV2ResponseDocumentDrawingCrossingsItemAtMin = 2;
+export const generateCircuitDocumentV2ResponseDocumentDrawingCrossingsItemAtMax = 2;
+
+
+
+export const generateCircuitDocumentV2ResponseDocumentDrawingAnnotationsItemOneAtMin = 2;
+export const generateCircuitDocumentV2ResponseDocumentDrawingAnnotationsItemOneAtMax = 2;
+
+
+
+
+export const GenerateCircuitDocumentV2Response = zod.object({
+  "status": zod.enum(['proposed']),
+  "document": zod.object({
+  "schemaVersion": zod.literal(2),
+  "id": zod.string().min(1),
+  "title": zod.string().optional(),
+  "electrical": zod.object({
+  "components": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "type": zod.string().min(1),
+  "reference": zod.string().optional(),
+  "value": zod.string().optional(),
+  "properties": zod.record(zod.string(), zod.unknown()),
+  "pins": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "name": zod.string().min(1),
+  "number": zod.string().optional(),
+  "unit": zod.number().int().min(1).optional(),
+  "bodyStyle": zod.number().int().min(1).optional(),
+  "occurrence": zod.number().int().min(generateCircuitDocumentV2ResponseDocumentElectricalComponentsItemPinsItemOccurrenceMin).optional(),
+  "electricalType": zod.string().optional()
+}))
+})),
+  "nets": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "name": zod.string().optional(),
+  "attributes": zod.record(zod.string(), zod.unknown()).optional(),
+  "members": zod.array(zod.object({
+  "componentId": zod.string().min(1),
+  "pinId": zod.string().min(1)
+}))
+})),
+  "noConnects": zod.array(zod.object({
+  "componentId": zod.string().min(1),
+  "pinId": zod.string().min(1)
+})),
+  "unassignedPins": zod.array(zod.object({
+  "componentId": zod.string().min(1),
+  "pinId": zod.string().min(1)
+}))
+}),
+  "drawing": zod.object({
+  "units": zod.enum(['px']),
+  "canvas": zod.object({
+  "width": zod.number().gt(generateCircuitDocumentV2ResponseDocumentDrawingCanvasWidthExclusiveMin).optional(),
+  "height": zod.number().gt(generateCircuitDocumentV2ResponseDocumentDrawingCanvasHeightExclusiveMin).optional()
+}),
+  "placements": zod.array(zod.object({
+  "componentId": zod.string().min(1),
+  "position": zod.array(zod.number()).min(generateCircuitDocumentV2ResponseDocumentDrawingPlacementsItemPositionMin).max(generateCircuitDocumentV2ResponseDocumentDrawingPlacementsItemPositionMax),
+  "rotation": zod.number(),
+  "flip": zod.boolean(),
+  "legacyGeometry": zod.object({
+  "from": zod.array(zod.number()).min(generateCircuitDocumentV2ResponseDocumentDrawingPlacementsItemLegacyGeometryFromMin).max(generateCircuitDocumentV2ResponseDocumentDrawingPlacementsItemLegacyGeometryFromMax).optional(),
+  "to": zod.array(zod.number()).min(generateCircuitDocumentV2ResponseDocumentDrawingPlacementsItemLegacyGeometryToMin).max(generateCircuitDocumentV2ResponseDocumentDrawingPlacementsItemLegacyGeometryToMax).optional(),
+  "at": zod.array(zod.number()).min(generateCircuitDocumentV2ResponseDocumentDrawingPlacementsItemLegacyGeometryAtMin).max(generateCircuitDocumentV2ResponseDocumentDrawingPlacementsItemLegacyGeometryAtMax).optional()
+}).optional(),
+  "properties": zod.record(zod.string(), zod.unknown())
+})),
+  "routes": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "netId": zod.string().min(1),
+  "points": zod.array(zod.array(zod.number()).min(generateCircuitDocumentV2ResponseDocumentDrawingRoutesItemPointsItemMin).max(generateCircuitDocumentV2ResponseDocumentDrawingRoutesItemPointsItemMax)).min(generateCircuitDocumentV2ResponseDocumentDrawingRoutesItemPointsMin),
+  "open": zod.boolean().optional(),
+  "properties": zod.record(zod.string(), zod.unknown())
+})),
+  "junctions": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "at": zod.array(zod.number()).min(generateCircuitDocumentV2ResponseDocumentDrawingJunctionsItemAtMin).max(generateCircuitDocumentV2ResponseDocumentDrawingJunctionsItemAtMax),
+  "routeIds": zod.array(zod.string().min(1)),
+  "properties": zod.record(zod.string(), zod.unknown())
+})),
+  "crossings": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "at": zod.array(zod.number()).min(generateCircuitDocumentV2ResponseDocumentDrawingCrossingsItemAtMin).max(generateCircuitDocumentV2ResponseDocumentDrawingCrossingsItemAtMax),
+  "orientation": zod.enum(['horizontal', 'vertical']).optional(),
+  "routeIds": zod.array(zod.string().min(1)),
+  "properties": zod.record(zod.string(), zod.unknown())
+})),
+  "annotations": zod.array(zod.union([zod.object({
+  "id": zod.string().min(1),
+  "type": zod.enum(['label']),
+  "at": zod.array(zod.number()).min(generateCircuitDocumentV2ResponseDocumentDrawingAnnotationsItemOneAtMin).max(generateCircuitDocumentV2ResponseDocumentDrawingAnnotationsItemOneAtMax),
+  "text": zod.string(),
+  "properties": zod.record(zod.string(), zod.unknown())
+}),zod.object({
+  "id": zod.string().min(1),
+  "type": zod.enum(['box']),
+  "x": zod.number(),
+  "y": zod.number(),
+  "w": zod.number(),
+  "h": zod.number(),
+  "properties": zod.record(zod.string(), zod.unknown())
+})]))
+}),
+  "legacyImport": zod.object({
+  "sourceFormat": zod.enum(['CircuitSpec']),
+  "groundSemantics": zod.enum(['global-ground']),
+  "terminalLabelSemantics": zod.enum(['local-labels-do-not-merge']),
+  "sourceMetadata": zod.record(zod.string(), zod.unknown())
+}).optional(),
+  "metadata": zod.record(zod.string(), zod.unknown()).optional()
+}),
+  "design": zod.object({
+  "summary": zod.string(),
+  "assumptions": zod.array(zod.string()),
+  "uncertainties": zod.array(zod.string()),
+  "questions": zod.array(zod.string())
+}),
+  "validation": zod.object({
+  "scope": zod.enum(['document-structure-only']),
+  "isValid": zod.literal(true),
+  "diagnostics": zod.array(zod.object({
+  "category": zod.enum(['schema', 'electrical', 'drawing', 'drawing-warning', 'consistency-warning']),
+  "code": zod.string(),
+  "severity": zod.enum(['error', 'warning']),
+  "path": zod.string(),
+  "message": zod.string()
+}))
+})
+})
+
+
+/**
+ * Returns the signed-in user's complete chat and build history.
+ * @summary List saved Circuit Studio conversations
+ */
+export const listCircuitBuilderHistoryResponseIdMax = 128;
+
+export const listCircuitBuilderHistoryResponseTitleMax = 64;
+
+export const listCircuitBuilderHistoryResponseCreatedAtMin = 0;
+export const listCircuitBuilderHistoryResponseCreatedAtMax = 8640000000000000;
+
+export const listCircuitBuilderHistoryResponseUpdatedAtMin = 0;
+export const listCircuitBuilderHistoryResponseUpdatedAtMax = 8640000000000000;
+
+export const listCircuitBuilderHistoryResponseSavedBriefGoalMax = 1000;
+
+export const listCircuitBuilderHistoryResponseSavedBriefRequirementsItemMax = 300;
+
+export const listCircuitBuilderHistoryResponseSavedBriefRequirementsMax = 12;
+
+export const listCircuitBuilderHistoryResponseSavedBriefAssumptionsItemMax = 300;
+
+export const listCircuitBuilderHistoryResponseSavedBriefAssumptionsMax = 12;
+
+export const listCircuitBuilderHistoryResponseSavedBriefOpenQuestionsItemMax = 300;
+
+export const listCircuitBuilderHistoryResponseSavedBriefOpenQuestionsMax = 12;
+
+export const listCircuitBuilderHistoryResponseSavedAiBriefGoalMax = 1000;
+
+export const listCircuitBuilderHistoryResponseSavedAiBriefRequirementsItemMax = 300;
+
+export const listCircuitBuilderHistoryResponseSavedAiBriefRequirementsMax = 12;
+
+export const listCircuitBuilderHistoryResponseSavedAiBriefAssumptionsItemMax = 300;
+
+export const listCircuitBuilderHistoryResponseSavedAiBriefAssumptionsMax = 12;
+
+export const listCircuitBuilderHistoryResponseSavedAiBriefOpenQuestionsItemMax = 300;
+
+export const listCircuitBuilderHistoryResponseSavedAiBriefOpenQuestionsMax = 12;
+
+export const listCircuitBuilderHistoryResponseSavedMessagesItemIdMax = 128;
+
+export const listCircuitBuilderHistoryResponseSavedMessagesItemCreatedAtMin = 0;
+export const listCircuitBuilderHistoryResponseSavedMessagesItemCreatedAtMax = 8640000000000000;
+
+export const listCircuitBuilderHistoryResponseSavedMessagesItemSuggestedActionsItemLabelMax = 90;
+
+export const listCircuitBuilderHistoryResponseSavedMessagesItemSuggestedActionsItemPromptMax = 1000;
+
+export const listCircuitBuilderHistoryResponseSavedMessagesItemSuggestedActionsItemReplyToMax = 300;
+
+export const listCircuitBuilderHistoryResponseSavedMessagesItemSuggestedActionsMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedMessagesMax = 60;
+
+export const listCircuitBuilderHistoryResponseCurrentSpecElementsItemFromMin = 2;
+export const listCircuitBuilderHistoryResponseCurrentSpecElementsItemFromMax = 2;
+
+export const listCircuitBuilderHistoryResponseCurrentSpecElementsItemToMin = 2;
+export const listCircuitBuilderHistoryResponseCurrentSpecElementsItemToMax = 2;
+
+export const listCircuitBuilderHistoryResponseCurrentSpecElementsItemAtMin = 2;
+export const listCircuitBuilderHistoryResponseCurrentSpecElementsItemAtMax = 2;
+
+export const listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolIdRegExp = new RegExp('^[^:\\s]+:[^:\\s]+$');
+
+
+
+
+export const listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemPinsItemPointMin = 2;
+export const listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemPinsItemPointMax = 2;
+
+export const listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin = 2;
+export const listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax = 2;
+
+export const listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemPinsMax = 512;
+
+export const listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin = 2;
+export const listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax = 2;
+
+export const listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin = 0;
+
+export const listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin = 0;
+
+export const listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin = 0;
+
+export const listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemGraphicsMax = 2048;
+
+export const listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsMax = 256;
+
+export const listCircuitBuilderHistoryResponseCurrentSpecElementsItemPointsItemMin = 2;
+export const listCircuitBuilderHistoryResponseCurrentSpecElementsItemPointsItemMax = 2;
+
+export const listCircuitBuilderHistoryResponseCurrentSpecElementsItemLabelNudgeMin = 2;
+export const listCircuitBuilderHistoryResponseCurrentSpecElementsItemLabelNudgeMax = 2;
+
+export const listCircuitBuilderHistoryResponseCurrentSpecElementsItemLabelAtMin = 2;
+export const listCircuitBuilderHistoryResponseCurrentSpecElementsItemLabelAtMax = 2;
+
+
+
+export const ListCircuitBuilderHistoryResponseItem = zod.object({
+  "id": zod.string().min(1).max(listCircuitBuilderHistoryResponseIdMax),
+  "title": zod.string().max(listCircuitBuilderHistoryResponseTitleMax),
+  "createdAt": zod.number().int().min(listCircuitBuilderHistoryResponseCreatedAtMin).max(listCircuitBuilderHistoryResponseCreatedAtMax),
+  "updatedAt": zod.number().int().min(listCircuitBuilderHistoryResponseUpdatedAtMin).max(listCircuitBuilderHistoryResponseUpdatedAtMax),
+  "mode": zod.enum(['chat', 'build']),
+  "saved": zod.object({
+  "brief": zod.object({
+  "goal": zod.string().max(listCircuitBuilderHistoryResponseSavedBriefGoalMax),
+  "requirements": zod.array(zod.string().max(listCircuitBuilderHistoryResponseSavedBriefRequirementsItemMax)).max(listCircuitBuilderHistoryResponseSavedBriefRequirementsMax),
+  "assumptions": zod.array(zod.string().max(listCircuitBuilderHistoryResponseSavedBriefAssumptionsItemMax)).max(listCircuitBuilderHistoryResponseSavedBriefAssumptionsMax),
+  "openQuestions": zod.array(zod.string().max(listCircuitBuilderHistoryResponseSavedBriefOpenQuestionsItemMax)).max(listCircuitBuilderHistoryResponseSavedBriefOpenQuestionsMax)
+}),
+  "aiBrief": zod.object({
+  "goal": zod.string().max(listCircuitBuilderHistoryResponseSavedAiBriefGoalMax),
+  "requirements": zod.array(zod.string().max(listCircuitBuilderHistoryResponseSavedAiBriefRequirementsItemMax)).max(listCircuitBuilderHistoryResponseSavedAiBriefRequirementsMax),
+  "assumptions": zod.array(zod.string().max(listCircuitBuilderHistoryResponseSavedAiBriefAssumptionsItemMax)).max(listCircuitBuilderHistoryResponseSavedAiBriefAssumptionsMax),
+  "openQuestions": zod.array(zod.string().max(listCircuitBuilderHistoryResponseSavedAiBriefOpenQuestionsItemMax)).max(listCircuitBuilderHistoryResponseSavedAiBriefOpenQuestionsMax)
+}),
+  "messages": zod.array(zod.object({
+  "id": zod.string().min(1).max(listCircuitBuilderHistoryResponseSavedMessagesItemIdMax),
+  "role": zod.enum(['user', 'assistant']),
+  "content": zod.string(),
+  "createdAt": zod.number().int().min(listCircuitBuilderHistoryResponseSavedMessagesItemCreatedAtMin).max(listCircuitBuilderHistoryResponseSavedMessagesItemCreatedAtMax),
+  "suggestedActions": zod.array(zod.object({
+  "label": zod.string().min(1).max(listCircuitBuilderHistoryResponseSavedMessagesItemSuggestedActionsItemLabelMax),
+  "prompt": zod.string().min(1).max(listCircuitBuilderHistoryResponseSavedMessagesItemSuggestedActionsItemPromptMax),
+  "replyTo": zod.string().min(1).max(listCircuitBuilderHistoryResponseSavedMessagesItemSuggestedActionsItemReplyToMax).optional().describe('Exact assistant question this suggested reply answers.')
+})).max(listCircuitBuilderHistoryResponseSavedMessagesItemSuggestedActionsMax).optional(),
+  "buildApprovalRequest": zod.boolean().optional()
+})).min(1).max(listCircuitBuilderHistoryResponseSavedMessagesMax)
+}),
+  "currentSpec": zod.object({
+  "title": zod.string(),
+  "width": zod.number().optional(),
+  "height": zod.number().optional(),
+  "elements": zod.array(zod.object({
+  "type": zod.string(),
+  "id": zod.string().optional(),
+  "label": zod.string().optional(),
+  "value": zod.string().optional(),
+  "from": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseCurrentSpecElementsItemFromMin).max(listCircuitBuilderHistoryResponseCurrentSpecElementsItemFromMax).optional(),
+  "to": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseCurrentSpecElementsItemToMin).max(listCircuitBuilderHistoryResponseCurrentSpecElementsItemToMax).optional(),
+  "at": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseCurrentSpecElementsItemAtMin).max(listCircuitBuilderHistoryResponseCurrentSpecElementsItemAtMax).optional(),
+  "symbolId": zod.string().regex(listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolIdRegExp).optional(),
+  "unit": zod.number().int().min(1).optional(),
+  "bodyStyle": zod.number().int().min(1).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
+  "symbolData": zod.object({
+  "id": zod.string(),
+  "units": zod.array(zod.object({
+  "unit": zod.number().int().min(1),
+  "bodyStyle": zod.number().int().min(1),
+  "pins": zod.array(zod.object({
+  "number": zod.string(),
+  "name": zod.string(),
+  "electricalType": zod.string(),
+  "shape": zod.string(),
+  "point": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemPinsItemPointMin).max(listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemPinsItemPointMax),
+  "bodyPoint": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin).max(listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax),
+  "showName": zod.boolean(),
+  "showNumber": zod.boolean()
+})).max(listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemPinsMax),
+  "graphics": zod.array(zod.object({
+  "type": zod.enum(['polyline', 'rectangle', 'circle', 'arc', 'bezier', 'text']),
+  "points": zod.array(zod.array(zod.number()).min(listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin).max(listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax)).optional(),
+  "radius": zod.number().min(listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin).optional(),
+  "text": zod.string().optional(),
+  "fontSize": zod.number().min(listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin).optional(),
+  "strokeWidth": zod.number().min(listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin).optional(),
+  "fillType": zod.enum(['none', 'background', 'outline']).optional(),
+  "closed": zod.boolean().optional()
+})).max(listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsItemGraphicsMax)
+})).min(1).max(listCircuitBuilderHistoryResponseCurrentSpecElementsItemSymbolDataUnitsMax)
+}).optional(),
+  "points": zod.array(zod.array(zod.number()).min(listCircuitBuilderHistoryResponseCurrentSpecElementsItemPointsItemMin).max(listCircuitBuilderHistoryResponseCurrentSpecElementsItemPointsItemMax)).optional(),
+  "x": zod.number().optional(),
+  "y": zod.number().optional(),
+  "w": zod.number().optional(),
+  "h": zod.number().optional(),
+  "height": zod.number().optional(),
+  "open": zod.boolean().optional(),
+  "closed": zod.boolean().optional(),
+  "flip": zod.boolean().optional(),
+  "circle": zod.boolean().optional(),
+  "swap": zod.boolean().optional(),
+  "style": zod.string().optional(),
+  "labelPos": zod.string().optional(),
+  "labelNudge": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseCurrentSpecElementsItemLabelNudgeMin).max(listCircuitBuilderHistoryResponseCurrentSpecElementsItemLabelNudgeMax).optional(),
+  "labelAt": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseCurrentSpecElementsItemLabelAtMin).max(listCircuitBuilderHistoryResponseCurrentSpecElementsItemLabelAtMax).optional(),
+  "labelAnchor": zod.string().optional(),
+  "text": zod.string().optional(),
+  "anchor": zod.string().optional(),
+  "size": zod.number().optional(),
+  "bold": zod.boolean().optional(),
+  "muted": zod.boolean().optional()
+}))
+})
+})
+export const ListCircuitBuilderHistoryResponse = zod.array(ListCircuitBuilderHistoryResponseItem)
+
+
+/**
+ * Saves or updates account-owned sessions, including unfinished chats and circuit snapshots.
+ * @summary Save Circuit Studio conversations
+ */
+export const syncCircuitBuilderHistoryBodySessionsItemIdMax = 128;
+
+export const syncCircuitBuilderHistoryBodySessionsItemTitleMax = 64;
+
+export const syncCircuitBuilderHistoryBodySessionsItemCreatedAtMin = 0;
+export const syncCircuitBuilderHistoryBodySessionsItemCreatedAtMax = 8640000000000000;
+
+export const syncCircuitBuilderHistoryBodySessionsItemUpdatedAtMin = 0;
+export const syncCircuitBuilderHistoryBodySessionsItemUpdatedAtMax = 8640000000000000;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedBriefGoalMax = 1000;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedBriefRequirementsItemMax = 300;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedBriefRequirementsMax = 12;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedBriefAssumptionsItemMax = 300;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedBriefAssumptionsMax = 12;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedBriefOpenQuestionsItemMax = 300;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedBriefOpenQuestionsMax = 12;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedAiBriefGoalMax = 1000;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedAiBriefRequirementsItemMax = 300;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedAiBriefRequirementsMax = 12;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedAiBriefAssumptionsItemMax = 300;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedAiBriefAssumptionsMax = 12;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedAiBriefOpenQuestionsItemMax = 300;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedAiBriefOpenQuestionsMax = 12;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemIdMax = 128;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemCreatedAtMin = 0;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemCreatedAtMax = 8640000000000000;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemSuggestedActionsItemLabelMax = 90;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemSuggestedActionsItemPromptMax = 1000;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemSuggestedActionsItemReplyToMax = 300;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemSuggestedActionsMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedMessagesMax = 60;
+
+export const syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemFromMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemFromMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemToMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemToMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemAtMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemAtMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolIdRegExp = new RegExp('^[^:\\s]+:[^:\\s]+$');
+
+
+
+
+export const syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemPinsItemPointMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemPinsItemPointMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemPinsMax = 512;
+
+export const syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin = 0;
+
+export const syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin = 0;
+
+export const syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin = 0;
+
+export const syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemGraphicsMax = 2048;
+
+export const syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsMax = 256;
+
+export const syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemPointsItemMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemPointsItemMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemLabelNudgeMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemLabelNudgeMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemLabelAtMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemLabelAtMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsMax = 10;
+
+
+
+export const SyncCircuitBuilderHistoryBody = zod.object({
+  "sessions": zod.array(zod.object({
+  "id": zod.string().min(1).max(syncCircuitBuilderHistoryBodySessionsItemIdMax),
+  "title": zod.string().max(syncCircuitBuilderHistoryBodySessionsItemTitleMax),
+  "createdAt": zod.number().int().min(syncCircuitBuilderHistoryBodySessionsItemCreatedAtMin).max(syncCircuitBuilderHistoryBodySessionsItemCreatedAtMax),
+  "updatedAt": zod.number().int().min(syncCircuitBuilderHistoryBodySessionsItemUpdatedAtMin).max(syncCircuitBuilderHistoryBodySessionsItemUpdatedAtMax),
+  "mode": zod.enum(['chat', 'build']),
+  "saved": zod.object({
+  "brief": zod.object({
+  "goal": zod.string().max(syncCircuitBuilderHistoryBodySessionsItemSavedBriefGoalMax),
+  "requirements": zod.array(zod.string().max(syncCircuitBuilderHistoryBodySessionsItemSavedBriefRequirementsItemMax)).max(syncCircuitBuilderHistoryBodySessionsItemSavedBriefRequirementsMax),
+  "assumptions": zod.array(zod.string().max(syncCircuitBuilderHistoryBodySessionsItemSavedBriefAssumptionsItemMax)).max(syncCircuitBuilderHistoryBodySessionsItemSavedBriefAssumptionsMax),
+  "openQuestions": zod.array(zod.string().max(syncCircuitBuilderHistoryBodySessionsItemSavedBriefOpenQuestionsItemMax)).max(syncCircuitBuilderHistoryBodySessionsItemSavedBriefOpenQuestionsMax)
+}),
+  "aiBrief": zod.object({
+  "goal": zod.string().max(syncCircuitBuilderHistoryBodySessionsItemSavedAiBriefGoalMax),
+  "requirements": zod.array(zod.string().max(syncCircuitBuilderHistoryBodySessionsItemSavedAiBriefRequirementsItemMax)).max(syncCircuitBuilderHistoryBodySessionsItemSavedAiBriefRequirementsMax),
+  "assumptions": zod.array(zod.string().max(syncCircuitBuilderHistoryBodySessionsItemSavedAiBriefAssumptionsItemMax)).max(syncCircuitBuilderHistoryBodySessionsItemSavedAiBriefAssumptionsMax),
+  "openQuestions": zod.array(zod.string().max(syncCircuitBuilderHistoryBodySessionsItemSavedAiBriefOpenQuestionsItemMax)).max(syncCircuitBuilderHistoryBodySessionsItemSavedAiBriefOpenQuestionsMax)
+}),
+  "messages": zod.array(zod.object({
+  "id": zod.string().min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemIdMax),
+  "role": zod.enum(['user', 'assistant']),
+  "content": zod.string(),
+  "createdAt": zod.number().int().min(syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemCreatedAtMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemCreatedAtMax),
+  "suggestedActions": zod.array(zod.object({
+  "label": zod.string().min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemSuggestedActionsItemLabelMax),
+  "prompt": zod.string().min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemSuggestedActionsItemPromptMax),
+  "replyTo": zod.string().min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemSuggestedActionsItemReplyToMax).optional().describe('Exact assistant question this suggested reply answers.')
+})).max(syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemSuggestedActionsMax).optional(),
+  "buildApprovalRequest": zod.boolean().optional()
+})).min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedMessagesMax)
+}),
+  "currentSpec": zod.object({
+  "title": zod.string(),
+  "width": zod.number().optional(),
+  "height": zod.number().optional(),
+  "elements": zod.array(zod.object({
+  "type": zod.string(),
+  "id": zod.string().optional(),
+  "label": zod.string().optional(),
+  "value": zod.string().optional(),
+  "from": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemFromMin).max(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemFromMax).optional(),
+  "to": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemToMin).max(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemToMax).optional(),
+  "at": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemAtMin).max(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemAtMax).optional(),
+  "symbolId": zod.string().regex(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolIdRegExp).optional(),
+  "unit": zod.number().int().min(1).optional(),
+  "bodyStyle": zod.number().int().min(1).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
+  "symbolData": zod.object({
+  "id": zod.string(),
+  "units": zod.array(zod.object({
+  "unit": zod.number().int().min(1),
+  "bodyStyle": zod.number().int().min(1),
+  "pins": zod.array(zod.object({
+  "number": zod.string(),
+  "name": zod.string(),
+  "electricalType": zod.string(),
+  "shape": zod.string(),
+  "point": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemPinsItemPointMin).max(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemPinsItemPointMax),
+  "bodyPoint": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin).max(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax),
+  "showName": zod.boolean(),
+  "showNumber": zod.boolean()
+})).max(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemPinsMax),
+  "graphics": zod.array(zod.object({
+  "type": zod.enum(['polyline', 'rectangle', 'circle', 'arc', 'bezier', 'text']),
+  "points": zod.array(zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin).max(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax)).optional(),
+  "radius": zod.number().min(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin).optional(),
+  "text": zod.string().optional(),
+  "fontSize": zod.number().min(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin).optional(),
+  "strokeWidth": zod.number().min(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin).optional(),
+  "fillType": zod.enum(['none', 'background', 'outline']).optional(),
+  "closed": zod.boolean().optional()
+})).max(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsItemGraphicsMax)
+})).min(1).max(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemSymbolDataUnitsMax)
+}).optional(),
+  "points": zod.array(zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemPointsItemMin).max(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemPointsItemMax)).optional(),
+  "x": zod.number().optional(),
+  "y": zod.number().optional(),
+  "w": zod.number().optional(),
+  "h": zod.number().optional(),
+  "height": zod.number().optional(),
+  "open": zod.boolean().optional(),
+  "closed": zod.boolean().optional(),
+  "flip": zod.boolean().optional(),
+  "circle": zod.boolean().optional(),
+  "swap": zod.boolean().optional(),
+  "style": zod.string().optional(),
+  "labelPos": zod.string().optional(),
+  "labelNudge": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemLabelNudgeMin).max(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemLabelNudgeMax).optional(),
+  "labelAt": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemLabelAtMin).max(syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemLabelAtMax).optional(),
+  "labelAnchor": zod.string().optional(),
+  "text": zod.string().optional(),
+  "anchor": zod.string().optional(),
+  "size": zod.number().optional(),
+  "bold": zod.boolean().optional(),
+  "muted": zod.boolean().optional()
+}))
+})
+})).min(1).max(syncCircuitBuilderHistoryBodySessionsMax)
+})
+
+export const syncCircuitBuilderHistoryResponseSavedCountMin = 0;
+
+
+
+export const SyncCircuitBuilderHistoryResponse = zod.object({
+  "savedCount": zod.number().int().min(syncCircuitBuilderHistoryResponseSavedCountMin)
+})
+
+
+/**
+ * Returns account-owned conversation deletion markers so older device copies cannot restore deleted sessions.
+ * @summary List deleted Circuit Studio conversations
+ */
+export const listDeletedCircuitBuilderHistoryResponseSessionIdMax = 128;
+
+export const listDeletedCircuitBuilderHistoryResponseDeletedAtMin = 0;
+export const listDeletedCircuitBuilderHistoryResponseDeletedAtMax = 8640000000000000;
+
+
+
+export const ListDeletedCircuitBuilderHistoryResponseItem = zod.object({
+  "sessionId": zod.string().min(1).max(listDeletedCircuitBuilderHistoryResponseSessionIdMax),
+  "deletedAt": zod.number().int().min(listDeletedCircuitBuilderHistoryResponseDeletedAtMin).max(listDeletedCircuitBuilderHistoryResponseDeletedAtMax)
+})
+export const ListDeletedCircuitBuilderHistoryResponse = zod.array(ListDeletedCircuitBuilderHistoryResponseItem)
+
+
+/**
+ * Deletes one conversation owned by the signed-in user.
+ * @summary Delete a saved Circuit Studio conversation
+ */
+export const deleteCircuitBuilderHistoryPathSessionIdMax = 128;
+
+
+
+export const DeleteCircuitBuilderHistoryParams = zod.object({
+  "sessionId": zod.coerce.string().min(1).max(deleteCircuitBuilderHistoryPathSessionIdMax)
+})
+
+export const DeleteCircuitBuilderHistoryResponse = zod.void()
+
+
+/**
+ * @summary Edit a saved Circuit Studio assumption
+ */
+
+
+
+export const UpdateCircuitBuilderMemoryParams = zod.object({
+  "id": zod.coerce.number().int().min(1)
+})
+
+export const updateCircuitBuilderMemoryBodyContentMax = 300;
+
+
+
+export const UpdateCircuitBuilderMemoryBody = zod.object({
+  "content": zod.string().min(1).max(updateCircuitBuilderMemoryBodyContentMax)
+})
+
+
+export const updateCircuitBuilderMemoryResponseContentMax = 300;
+
+
+
+export const UpdateCircuitBuilderMemoryResponse = zod.object({
+  "id": zod.number().int().min(1),
+  "category": zod.enum(['work-style', 'design-decision', 'past-context', 'repair-lesson', 'design-feedback']),
+  "content": zod.string().min(1).max(updateCircuitBuilderMemoryResponseContentMax),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a saved Circuit Studio assumption
+ */
+
+
+
+export const DeleteCircuitBuilderMemoryParams = zod.object({
+  "id": zod.coerce.number().int().min(1)
+})
+
+export const DeleteCircuitBuilderMemoryResponse = zod.void()
 
 
 /**
@@ -809,7 +2651,7 @@ export const ReviewCircuitBody = zod.object({
   "symbolId": zod.string().regex(reviewCircuitBodySpecElementsItemSymbolIdRegExp).optional(),
   "unit": zod.number().int().min(1).optional(),
   "bodyStyle": zod.number().int().min(1).optional(),
-  "rotation": zod.union([zod.literal(0),zod.literal(90),zod.literal(180),zod.literal(270)]).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
   "symbolData": zod.object({
   "id": zod.string(),
   "units": zod.array(zod.object({
@@ -864,6 +2706,169 @@ export const ReviewCircuitBody = zod.object({
 
 export const ReviewCircuitResponse = zod.object({
   "review": zod.string()
+})
+
+
+/**
+ * Returns advisory concerns about request fit and schematic readability. It does not verify electrical behavior, correctness, ratings, or safety, and never overrides deterministic blocking checks.
+ * @summary Review a staged circuit proposal for intent and readability
+ */
+export const reviewCircuitProposalBodySpecElementsItemFromMin = 2;
+export const reviewCircuitProposalBodySpecElementsItemFromMax = 2;
+
+export const reviewCircuitProposalBodySpecElementsItemToMin = 2;
+export const reviewCircuitProposalBodySpecElementsItemToMax = 2;
+
+export const reviewCircuitProposalBodySpecElementsItemAtMin = 2;
+export const reviewCircuitProposalBodySpecElementsItemAtMax = 2;
+
+export const reviewCircuitProposalBodySpecElementsItemSymbolIdRegExp = new RegExp('^[^:\\s]+:[^:\\s]+$');
+
+
+
+
+export const reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemPinsItemPointMin = 2;
+export const reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemPinsItemPointMax = 2;
+
+export const reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin = 2;
+export const reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax = 2;
+
+export const reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemPinsMax = 512;
+
+export const reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin = 2;
+export const reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax = 2;
+
+export const reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin = 0;
+
+export const reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin = 0;
+
+export const reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin = 0;
+
+export const reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemGraphicsMax = 2048;
+
+export const reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsMax = 256;
+
+export const reviewCircuitProposalBodySpecElementsItemPointsItemMin = 2;
+export const reviewCircuitProposalBodySpecElementsItemPointsItemMax = 2;
+
+export const reviewCircuitProposalBodySpecElementsItemLabelNudgeMin = 2;
+export const reviewCircuitProposalBodySpecElementsItemLabelNudgeMax = 2;
+
+export const reviewCircuitProposalBodySpecElementsItemLabelAtMin = 2;
+export const reviewCircuitProposalBodySpecElementsItemLabelAtMax = 2;
+
+export const reviewCircuitProposalBodyOriginalRequestMax = 6000;
+
+export const reviewCircuitProposalBodyBriefGoalMax = 1000;
+
+export const reviewCircuitProposalBodyBriefRequirementsItemMax = 300;
+
+export const reviewCircuitProposalBodyBriefRequirementsMax = 12;
+
+export const reviewCircuitProposalBodyBriefAssumptionsItemMax = 300;
+
+export const reviewCircuitProposalBodyBriefAssumptionsMax = 12;
+
+export const reviewCircuitProposalBodyBriefOpenQuestionsItemMax = 300;
+
+export const reviewCircuitProposalBodyBriefOpenQuestionsMax = 12;
+
+
+
+export const ReviewCircuitProposalBody = zod.object({
+  "spec": zod.object({
+  "title": zod.string(),
+  "width": zod.number().optional(),
+  "height": zod.number().optional(),
+  "elements": zod.array(zod.object({
+  "type": zod.string(),
+  "id": zod.string().optional(),
+  "label": zod.string().optional(),
+  "value": zod.string().optional(),
+  "from": zod.array(zod.number()).min(reviewCircuitProposalBodySpecElementsItemFromMin).max(reviewCircuitProposalBodySpecElementsItemFromMax).optional(),
+  "to": zod.array(zod.number()).min(reviewCircuitProposalBodySpecElementsItemToMin).max(reviewCircuitProposalBodySpecElementsItemToMax).optional(),
+  "at": zod.array(zod.number()).min(reviewCircuitProposalBodySpecElementsItemAtMin).max(reviewCircuitProposalBodySpecElementsItemAtMax).optional(),
+  "symbolId": zod.string().regex(reviewCircuitProposalBodySpecElementsItemSymbolIdRegExp).optional(),
+  "unit": zod.number().int().min(1).optional(),
+  "bodyStyle": zod.number().int().min(1).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
+  "symbolData": zod.object({
+  "id": zod.string(),
+  "units": zod.array(zod.object({
+  "unit": zod.number().int().min(1),
+  "bodyStyle": zod.number().int().min(1),
+  "pins": zod.array(zod.object({
+  "number": zod.string(),
+  "name": zod.string(),
+  "electricalType": zod.string(),
+  "shape": zod.string(),
+  "point": zod.array(zod.number()).min(reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemPinsItemPointMin).max(reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemPinsItemPointMax),
+  "bodyPoint": zod.array(zod.number()).min(reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin).max(reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax),
+  "showName": zod.boolean(),
+  "showNumber": zod.boolean()
+})).max(reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemPinsMax),
+  "graphics": zod.array(zod.object({
+  "type": zod.enum(['polyline', 'rectangle', 'circle', 'arc', 'bezier', 'text']),
+  "points": zod.array(zod.array(zod.number()).min(reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin).max(reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax)).optional(),
+  "radius": zod.number().min(reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin).optional(),
+  "text": zod.string().optional(),
+  "fontSize": zod.number().min(reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin).optional(),
+  "strokeWidth": zod.number().min(reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin).optional(),
+  "fillType": zod.enum(['none', 'background', 'outline']).optional(),
+  "closed": zod.boolean().optional()
+})).max(reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsItemGraphicsMax)
+})).min(1).max(reviewCircuitProposalBodySpecElementsItemSymbolDataUnitsMax)
+}).optional(),
+  "points": zod.array(zod.array(zod.number()).min(reviewCircuitProposalBodySpecElementsItemPointsItemMin).max(reviewCircuitProposalBodySpecElementsItemPointsItemMax)).optional(),
+  "x": zod.number().optional(),
+  "y": zod.number().optional(),
+  "w": zod.number().optional(),
+  "h": zod.number().optional(),
+  "height": zod.number().optional(),
+  "open": zod.boolean().optional(),
+  "closed": zod.boolean().optional(),
+  "flip": zod.boolean().optional(),
+  "circle": zod.boolean().optional(),
+  "swap": zod.boolean().optional(),
+  "style": zod.string().optional(),
+  "labelPos": zod.string().optional(),
+  "labelNudge": zod.array(zod.number()).min(reviewCircuitProposalBodySpecElementsItemLabelNudgeMin).max(reviewCircuitProposalBodySpecElementsItemLabelNudgeMax).optional(),
+  "labelAt": zod.array(zod.number()).min(reviewCircuitProposalBodySpecElementsItemLabelAtMin).max(reviewCircuitProposalBodySpecElementsItemLabelAtMax).optional(),
+  "labelAnchor": zod.string().optional(),
+  "text": zod.string().optional(),
+  "anchor": zod.string().optional(),
+  "size": zod.number().optional(),
+  "bold": zod.boolean().optional(),
+  "muted": zod.boolean().optional()
+}))
+}),
+  "originalRequest": zod.string().min(1).max(reviewCircuitProposalBodyOriginalRequestMax),
+  "brief": zod.object({
+  "goal": zod.string().max(reviewCircuitProposalBodyBriefGoalMax),
+  "requirements": zod.array(zod.string().max(reviewCircuitProposalBodyBriefRequirementsItemMax)).max(reviewCircuitProposalBodyBriefRequirementsMax),
+  "assumptions": zod.array(zod.string().max(reviewCircuitProposalBodyBriefAssumptionsItemMax)).max(reviewCircuitProposalBodyBriefAssumptionsMax),
+  "openQuestions": zod.array(zod.string().max(reviewCircuitProposalBodyBriefOpenQuestionsItemMax)).max(reviewCircuitProposalBodyBriefOpenQuestionsMax)
+})
+})
+
+export const reviewCircuitProposalResponseIntentConcernsItemMax = 500;
+
+export const reviewCircuitProposalResponseIntentConcernsMax = 5;
+
+export const reviewCircuitProposalResponseReadabilityWarningsItemMax = 500;
+
+export const reviewCircuitProposalResponseReadabilityWarningsMax = 5;
+
+export const reviewCircuitProposalResponseUnknownsItemMax = 500;
+
+export const reviewCircuitProposalResponseUnknownsMax = 5;
+
+
+
+export const ReviewCircuitProposalResponse = zod.object({
+  "intentConcerns": zod.array(zod.string().min(1).max(reviewCircuitProposalResponseIntentConcernsItemMax)).max(reviewCircuitProposalResponseIntentConcernsMax),
+  "readabilityWarnings": zod.array(zod.string().min(1).max(reviewCircuitProposalResponseReadabilityWarningsItemMax)).max(reviewCircuitProposalResponseReadabilityWarningsMax),
+  "unknowns": zod.array(zod.string().min(1).max(reviewCircuitProposalResponseUnknownsItemMax)).max(reviewCircuitProposalResponseUnknownsMax)
 })
 
 

@@ -1,12 +1,26 @@
+import {
+  STUDIO_LIBRARY_RESEARCH,
+  type StudioLibraryResearchEntry,
+} from "./generatedStudioLibraryResource.js";
+
 export type CircuitPoint = [number, number];
 export type CircuitPin = { name: string; point: CircuitPoint };
 export type CircuitElementGeometry = {
   type?: unknown;
+  label?: unknown;
+  value?: unknown;
   from?: unknown;
   to?: unknown;
   at?: unknown;
   flip?: unknown;
   swap?: unknown;
+  circle?: unknown;
+  height?: unknown;
+  pins?: unknown;
+  labelAt?: unknown;
+  labelPos?: unknown;
+  labelNudge?: unknown;
+  labelAnchor?: unknown;
   symbolId?: unknown;
   unit?: unknown;
   bodyStyle?: unknown;
@@ -258,14 +272,23 @@ const COMPONENT_LIBRARY_METADATA = {
 } satisfies Record<SupportedCircuitElementType, CircuitComponentLibraryMetadata>;
 
 export type CircuitComponentLibraryEntry =
-  CircuitComponentReferenceEntry & CircuitComponentLibraryMetadata;
+  CircuitComponentReferenceEntry &
+    CircuitComponentLibraryMetadata &
+    StudioLibraryResearchEntry;
 
 export const CIRCUIT_COMPONENT_LIBRARY: CircuitComponentLibraryEntry[] = CIRCUIT_COMPONENT_REFERENCE
   .filter((entry) => entry.type !== 'kicad')
-  .map((entry) => ({
-    ...entry,
-    ...COMPONENT_LIBRARY_METADATA[entry.type],
-  }));
+  .map((entry) => {
+    const research =
+      STUDIO_LIBRARY_RESEARCH[
+        entry.type as keyof typeof STUDIO_LIBRARY_RESEARCH
+      ];
+    return {
+      ...entry,
+      ...COMPONENT_LIBRARY_METADATA[entry.type],
+      ...research,
+    };
+  });
 
 export function getCircuitComponentReference(
   type: unknown,
@@ -333,10 +356,9 @@ export function getCircuitElementSchemaError(element: unknown): string | null {
     if (
       record.rotation !== undefined &&
       (typeof record.rotation !== 'number' ||
-        !Number.isFinite(record.rotation) ||
-        ![0, 90, 180, 270].includes(record.rotation))
+        !Number.isFinite(record.rotation))
     ) {
-      return 'kicad rotation must be 0, 90, 180, or 270 degrees.';
+      return 'kicad rotation must be a finite angle in degrees.';
     }
     if (record.symbolData !== undefined) {
       const symbolData = record.symbolData as Partial<KicadSymbolData> | null;
@@ -419,6 +441,29 @@ function isPoint(value: unknown): value is CircuitPoint {
 
 function copyPoint(point: CircuitPoint): CircuitPoint {
   return [point[0], point[1]];
+}
+
+/**
+ * Applies the Circuit Studio KiCad transform in renderer order: horizontal
+ * mirror, rotation, then translation. Kept unrounded so callers that render
+ * vector artwork do not lose precision; pin anchors are rounded separately for
+ * compatibility with the existing catalog contract.
+ */
+export function transformKicadPoint(
+  point: CircuitPoint,
+  origin: CircuitPoint,
+  rotationDegrees = 0,
+  flipX = false,
+): CircuitPoint {
+  const rotation = rotationDegrees * Math.PI / 180;
+  const localX = point[0] * (flipX ? -1 : 1);
+  const localY = point[1];
+  const cos = Math.cos(rotation);
+  const sin = Math.sin(rotation);
+  return [
+    origin[0] + localX * cos - localY * sin,
+    origin[1] + localX * sin + localY * cos,
+  ];
 }
 
 function coordinateOffset(value: number, axis: 'x' | 'y'): string {
@@ -561,21 +606,20 @@ export function getCircuitPins(element: CircuitElementGeometry): CircuitPin[] {
       (unit) => unit.unit === unitNumber && unit.bodyStyle === bodyStyle,
     );
     if (!unitData) return [];
-    const [x, y] = element.at;
-    const flip = element.flip === true ? -1 : 1;
-    const rotation = Number(element.rotation ?? 0) * Math.PI / 180;
-    const cos = Math.cos(rotation);
-    const sin = Math.sin(rotation);
     const cleanCoordinate = (value: number) => Math.round(value * 100) / 100;
     return unitData.pins.flatMap((pin) => {
       if (!pin || !isPoint(pin.point)) return [];
-      const localX = pin.point[0] * flip;
-      const localY = pin.point[1];
+      const point = transformKicadPoint(
+        pin.point,
+        element.at as CircuitPoint,
+        typeof element.rotation === 'number' ? element.rotation : 0,
+        element.flip === true,
+      );
       return [{
         name: pin.number || pin.name || 'pin',
         point: [
-          cleanCoordinate(x + localX * cos - localY * sin),
-          cleanCoordinate(y + localX * sin + localY * cos),
+          cleanCoordinate(point[0]),
+          cleanCoordinate(point[1]),
         ],
       }];
     });
@@ -610,11 +654,22 @@ export function formatCircuitPinGuide(): string {
   lines.push(
     `opamp: INV=${formatOffset([-40, -20])}, NONINV=${formatOffset([-40, 20])}, OUT=${formatOffset([40, 0])}; swap:true exchanges the two input y offsets.`,
     'ground, antenna, terminal: the pin is exactly at the element at coordinate.',
-    'kicad: use the exact symbolId and per-unit pin offsets supplied in the selected KiCad library definitions; element.at is the symbol origin, rotation is 0, 90, 180, or 270, and unit/bodyStyle default to 1.',
+    'kicad: use the exact symbolId and per-unit pin offsets supplied in the selected KiCad library definitions; element.at is the symbol origin, rotation accepts any finite angle in degrees (including fractional and negative angles). Preserve the exact angle the user requests; otherwise, choose an angle that improves a clear layout. Rotate each pin offset around the origin using x′=x cos(θ)−y sin(θ), y′=x sin(θ)+y cos(θ), then add element.at. unit/bodyStyle default to 1.',
   );
 
   return lines.join('\n');
 }
+
+export {
+  CIRCUIT_GEOMETRY_COMPATIBILITY_PROPERTY_KEYS,
+  getCircuitPinIdentities,
+  resolveCircuitComponentGeometry,
+  type CircuitGeometryBounds,
+  type CircuitGeometryPinIdentity,
+  type CircuitGeometryResolution,
+  type CircuitGeometryTextBound,
+  type ResolvedCircuitPin,
+} from './resolver.ts';
 
 export function formatCircuitComponentGuide(): string {
   const componentLines = CIRCUIT_COMPONENT_LIBRARY.map((entry) => {
@@ -637,5 +692,54 @@ export function formatCircuitComponentGuide(): string {
     '- kicad (imported KiCad symbol): required symbolId, at; optional id, label, value, unit, bodyStyle, rotation, flip. Use only exact IDs and unit pin offsets provided in the selected library definitions. The server attaches the trusted source geometry.',
     'General pin offsets:',
     formatCircuitPinGuide(),
+  ].join('\n');
+}
+
+export function formatRelevantCircuitComponentResearchContext(
+  queryTexts: string[],
+  requestedLimit = 8,
+): string {
+  const stopWords = new Set([
+    'add', 'all', 'and', 'are', 'can', 'circuit', 'component', 'components',
+    'create', 'for', 'from', 'have', 'help', 'how', 'into', 'make', 'need',
+    'please', 'show', 'symbol', 'symbols', 'that', 'the', 'this', 'use',
+    'using', 'what', 'with',
+  ]);
+  const queryTokens = new Set(
+    queryTexts
+      .join(' ')
+      .toLocaleLowerCase()
+      .match(/[a-z0-9]+/g)
+      ?.filter((token) => token.length > 1 && !stopWords.has(token)) ?? [],
+  );
+  if (!queryTokens.size) return '';
+
+  const ranked = CIRCUIT_COMPONENT_LIBRARY.map((entry) => {
+    const identity = `${entry.type} ${entry.displayName}`.toLocaleLowerCase();
+    const keywords = entry.keywords.join(' ').toLocaleLowerCase();
+    const short = entry.shortDescription.toLocaleLowerCase();
+    const long = entry.longDescription.toLocaleLowerCase();
+    let score = 0;
+    for (const token of queryTokens) {
+      if (identity.includes(token)) score += 5;
+      else if (keywords.includes(token)) score += 4;
+      else if (short.includes(token)) score += 2;
+      else if (long.includes(token)) score += 1;
+    }
+    return { entry, score };
+  })
+    .filter((item) => item.score > 0)
+    .sort((left, right) =>
+      right.score - left.score ||
+      left.entry.type.localeCompare(right.entry.type),
+    )
+    .slice(0, Math.max(1, Math.min(12, Math.floor(requestedLimit) || 8)));
+
+  if (!ranked.length) return '';
+  return [
+    'Relevant built-in Circuit Studio component references. These descriptions explain symbol purpose; they do not verify electrical behavior, ratings, or safety.',
+    ...ranked.map(({ entry }) =>
+      `- ${entry.type} (${entry.displayName}): ${entry.shortDescription} Detailed reference: ${entry.longDescription} Search terms: ${entry.keywords.join(', ')}`,
+    ),
   ].join('\n');
 }

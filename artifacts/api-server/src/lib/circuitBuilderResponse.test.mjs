@@ -147,3 +147,39 @@ test("malformed and excess suggested actions are removed or capped", () => {
     { label: "Second", prompt: "Second prompt" },
   ]);
 });
+
+test("memory updates are normalized and capped to two concise assumptions", () => {
+  const result = normalizeCircuitBuilderResponse({
+    answer: "Understood.",
+    brief,
+    memoryUpdates: [
+      {
+        id: 7,
+        category: "work-style",
+        content: "  Prefers concise answers.  ",
+      },
+      {
+        category: "design-decision",
+        content: "Use a sequential chase for the LED flasher.",
+      },
+      {
+        category: "unknown",
+        content: "This category is not allowed.",
+      },
+    ],
+    memoryRemovals: [7, 7, -2, "8"],
+  }, brief);
+
+  assert.deepEqual(result.memoryUpdates, [
+    {
+      id: 7,
+      category: "work-style",
+      content: "Prefers concise answers.",
+    },
+    {
+      category: "design-decision",
+      content: "Use a sequential chase for the LED flasher.",
+    },
+  ]);
+  assert.deepEqual(result.memoryRemovals, [7]);
+});

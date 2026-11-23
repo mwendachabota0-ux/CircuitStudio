@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { SearchCircuitSymbolsFamily } from './searchCircuitSymbolsFamily';
 
 export type SearchCircuitSymbolsParams = {
 /**
@@ -15,9 +16,16 @@ q?: string;
  * @maxLength 120
  */
 library?: string;
+family?: SearchCircuitSymbolsFamily;
+featured?: boolean;
 /**
  * @minimum 1
  * @maximum 100
  */
 limit?: number;
+/**
+ * @minimum 0
+ * @maximum 1000000
+ */
+offset?: number;
 };

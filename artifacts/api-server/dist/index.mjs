@@ -60177,6 +60177,12 @@ function uniqueIndex(name) {
 }
 
 // ../../node_modules/.pnpm/drizzle-orm@0.45.4_@types+pg@8.23.1_pg@8.23.1/node_modules/drizzle-orm/pg-core/primary-keys.js
+function primaryKey(...config2) {
+  if (config2[0].columns) {
+    return new PrimaryKeyBuilder(config2[0].columns, config2[0].name);
+  }
+  return new PrimaryKeyBuilder(config2);
+}
 var PrimaryKeyBuilder = class {
   static [entityKind] = "PgPrimaryKeyBuilder";
   /** @internal */
@@ -60535,19 +60541,19 @@ function extractTablesRelationalConfig(schema, configHelpers) {
       const relations2 = value.config(
         configHelpers(value.table)
       );
-      let primaryKey;
+      let primaryKey2;
       for (const [relationName, relation] of Object.entries(relations2)) {
         if (tableName) {
           const tableConfig = tablesConfig[tableName];
           tableConfig.relations[relationName] = relation;
-          if (primaryKey) {
-            tableConfig.primaryKey.push(...primaryKey);
+          if (primaryKey2) {
+            tableConfig.primaryKey.push(...primaryKey2);
           }
         } else {
           if (!(dbName in relationsBuffer)) {
             relationsBuffer[dbName] = {
               relations: {},
-              primaryKey
+              primaryKey: primaryKey2
             };
           }
           relationsBuffer[dbName].relations[relationName] = relation;
@@ -64215,6 +64221,7 @@ __export(schema_exports, {
   circuitBuilderHistory: () => circuitBuilderHistory,
   circuitBuilderHistoryDeletions: () => circuitBuilderHistoryDeletions,
   circuitBuilderMemories: () => circuitBuilderMemories,
+  circuitStudioV2Drafts: () => circuitStudioV2Drafts,
   insertCircuitBuilderHistoryDeletionSchema: () => insertCircuitBuilderHistoryDeletionSchema
 });
 
@@ -75691,6 +75698,25 @@ var circuitBuilderHistoryDeletions = pgTable(
 var insertCircuitBuilderHistoryDeletionSchema = createInsertSchema(
   circuitBuilderHistoryDeletions
 ).omit({ deletedAt: true });
+
+// ../../lib/db/src/schema/circuitStudioV2Draft.ts
+var circuitStudioV2Drafts = pgTable(
+  "circuit_studio_v2_drafts",
+  {
+    userId: text("user_id").notNull(),
+    sessionId: text("session_id").notNull(),
+    representation: text("representation").notNull(),
+    schemaVersion: integer("schema_version").notNull(),
+    draft: jsonb("draft").$type().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull()
+  },
+  (table) => ({
+    userSessionPrimaryKey: primaryKey({
+      name: "circuit_studio_v2_drafts_user_session_pk",
+      columns: [table.userId, table.sessionId]
+    })
+  })
+);
 
 // ../../lib/db/src/index.ts
 var { Pool: Pool3 } = esm_default;

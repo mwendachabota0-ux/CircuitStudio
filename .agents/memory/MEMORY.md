@@ -8,3 +8,4 @@
 - [Circuit Studio interface restraint](circuit-studio-copy.md) — keep copy concise and use cards only when they clarify actionable items.
 - [Circuit Studio symbol source](circuit-studio-symbol-source.md) — prefer verified KiCad symbols by default when drawing circuits.
 - [Native Node test imports](native-node-test-imports.md) — use explicit `.ts` generated-module imports when Node's strip-types runner cannot resolve extensionless package barrels.
+- [Vite package firewall](vite-package-firewall.md) — if Replit blocks the locked Vite tarball, update the shared catalog and lockfile to a compatible allowed release.

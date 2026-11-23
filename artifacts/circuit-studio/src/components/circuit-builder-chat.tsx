@@ -57,8 +57,17 @@ import {
   restoreProtectedNonWireElements,
   runCircuitBuildAttempts,
   type BuildRetryKind,
-  type RepairAttemptDiagnostic,
 } from '../lib/circuit-build-retry';
+import {
+  clearAppliedRepairRecovery,
+  createEmptyRepairRecoveryState,
+  discardStagedRepairProposal,
+  getBuilderHistoryStorageKey,
+  getNextBuilderHistoryTimestamp,
+  normalizeRepairRecoveryState,
+  updateRepairRecoveryState,
+  type RepairRecoveryState,
+} from '../lib/circuit-builder-repair-session';
 import { getLocalBuilderModeIntent } from '../lib/circuit-build-intent';
 import {
   isExplicitBuildApproval,
@@ -128,7 +137,13 @@ type ThreadMessage = CircuitBuildChatMessage & {
   suggestedActions?: CircuitBuilderSuggestedAction[];
   buildApprovalRequest?: boolean;
 };
-type SavedState = { brief: CircuitDesignBrief; aiBrief: CircuitDesignBrief; messages: ThreadMessage[] };
+type RepairState = RepairRecoveryState<CircuitSpec, CircuitBuildChatInput>;
+type SavedState = {
+  brief: CircuitDesignBrief;
+  aiBrief: CircuitDesignBrief;
+  messages: ThreadMessage[];
+  repair: RepairState;
+};
 type BuilderHistoryEntry = BuilderHistorySession<SavedState, CircuitBuildChatInput['currentSpec']>;
 type ValidationReport = {
   errors: string[];
@@ -376,6 +391,11 @@ function normalizeSavedState(value: unknown): SavedState {
     brief,
     aiBrief,
     messages: messages.length ? messages : [initialMessage],
+    repair: normalizeRepairRecoveryState(
+      parsed.repair,
+      isCircuitSpec,
+      isCircuitBuildRequest,
+    ),
   };
 }
 
@@ -395,6 +415,36 @@ function isCircuitSpec(value: unknown): value is CircuitBuildChatInput['currentS
     !Array.isArray(value) &&
     typeof (value as { title?: unknown }).title === 'string' &&
     Array.isArray((value as { elements?: unknown }).elements);
+}
+
+function isCircuitBuildRequest(value: unknown): value is CircuitBuildChatInput {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const request = value as Partial<CircuitBuildChatInput>;
+  if (
+    typeof request.message !== 'string' ||
+    (request.mode !== 'chat' && request.mode !== 'build') ||
+    !isCircuitSpec(request.currentSpec)
+  ) return false;
+  if (
+    request.responseFormatRetry !== undefined &&
+    typeof request.responseFormatRetry !== 'boolean'
+  ) return false;
+  if (
+    request.history !== undefined &&
+    (!Array.isArray(request.history) ||
+      request.history.length > 8 ||
+      !request.history.every((message) =>
+        !!message &&
+        (message.role === 'user' || message.role === 'assistant') &&
+        typeof message.content === 'string',
+      ))
+  ) return false;
+  return request.brief === undefined ||
+    (!!request.brief &&
+      typeof request.brief.goal === 'string' &&
+      isStringList(request.brief.requirements) &&
+      isStringList(request.brief.assumptions) &&
+      isStringList(request.brief.openQuestions));
 }
 
 function isHistoryTimestamp(value: unknown): value is number {
@@ -568,7 +618,7 @@ export function CircuitBuilderChat({
   onApplySpec,
   onTaskComplete,
 }: CircuitBuilderChatProps) {
-  const storageKey = `circuit-studio-builder-chat-v1:${userId}`;
+  const storageKey = getBuilderHistoryStorageKey(userId);
   const historyStorageKey = `${storageKey}:history-v1`;
   const activeSessionStorageKey = `${storageKey}:active-session-v1`;
   const queryClient = useQueryClient();
@@ -613,7 +663,6 @@ export function CircuitBuilderChat({
   const [historyImportStatus, setHistoryImportStatus] =
     useState<CircuitBuilderMemoryImportStatus>({ kind: 'idle' });
   const [clearChatOpen, setClearChatOpen] = useState(false);
-  const [proposal, setProposal] = useState<{ summary: string; spec: CircuitBuildChatInput['currentSpec'] } | null>(null);
   const [appliedProposalFeedback, setAppliedProposalFeedback] = useState<{
     id: number;
     circuitTitle: string;
@@ -622,41 +671,128 @@ export function CircuitBuilderChat({
   } | null>(null);
   const appliedProposalFeedbackIdRef = useRef(0);
   const [proposalSvg, setProposalSvg] = useState('');
-  const [proposalValidation, setProposalValidation] = useState<ValidationReport | null>(null);
   const [proposalQualityReview, setProposalQualityReview] =
     useState<ProposalQualityReviewState>({ kind: 'idle' });
   const [layoutRepairNotice, setLayoutRepairNotice] = useState('');
   const [proposalError, setProposalError] = useState('');
-  const [proposalRepairLesson, setProposalRepairLesson] =
-    useState<ProposalRepairLesson | null>(null);
   const [repairLessonNotice, setRepairLessonNotice] =
     useState<RepairLessonNotice | null>(null);
   const [dismissedRepairNoticeKey, setDismissedRepairNoticeKey] =
     useState<string | null>(null);
-  const [rejectedProposalSpec, setRejectedProposalSpec] = useState<CircuitBuildChatInput['currentSpec'] | null>(null);
   const [rejectedProposalSvg, setRejectedProposalSvg] = useState('');
   const [rejectedPreviewOpen, setRejectedPreviewOpen] = useState(false);
   const [rejectedSpecCopyState, setRejectedSpecCopyState] = useState<RejectedSpecCopyState>('idle');
   const [externalFixCopiedContextKey, setExternalFixCopiedContextKey] = useState<string | null>(null);
   const [externalFixCopyState, setExternalFixCopyState] = useState<RejectedSpecCopyState>('idle');
-  const [externalFixDraft, setExternalFixDraft] = useState('');
   const [componentLibraryOpen, setComponentLibraryOpen] = useState(false);
   const [briefEditing, setBriefEditing] = useState(false);
   const [briefGoalDraft, setBriefGoalDraft] = useState('');
   const [briefRequirementsDraft, setBriefRequirementsDraft] = useState('');
   const [briefAssumptionsDraft, setBriefAssumptionsDraft] = useState('');
   const [briefOpenQuestionsDraft, setBriefOpenQuestionsDraft] = useState('');
-  const [lastRequest, setLastRequest] = useState<CircuitBuildChatInput | null>(null);
-  const [lastProtectedElementsBaseSpec, setLastProtectedElementsBaseSpec] =
-    useState<NonNullable<CircuitBuildChatInput['currentSpec']> | null>(null);
   const [requestCycleActive, setRequestCycleActive] = useState(false);
   const [externalFixProcessing, setExternalFixProcessing] = useState(false);
   const [repairStopAvailable, setRepairStopAvailable] = useState(false);
   const [repairStopRequested, setRepairStopRequested] = useState(false);
-  const [retryAttempt, setRetryAttempt] = useState(0);
-  const [retryKind, setRetryKind] = useState<BuildRetryKind | null>(null);
-  const [retryFeedback, setRetryFeedback] = useState<RetryFeedback | null>(null);
-  const [repairDiagnostics, setRepairDiagnostics] = useState<RepairAttemptDiagnostic[]>([]);
+  const repairState = saved.repair;
+  const proposal = repairState.proposal ?? null;
+  const proposalValidation = repairState.proposalValidation ?? null;
+  const proposalRepairLesson = repairState.proposalRepairLesson ?? null;
+  const rejectedProposalSpec = repairState.rejectedProposalSpec ?? null;
+  const externalFixDraft = repairState.externalFixDraft;
+  const composerDraft = repairState.composerDraft;
+  const lastRequest = repairState.lastRequest ?? null;
+  const lastProtectedElementsBaseSpec = repairState.lastProtectedElementsBaseSpec ?? null;
+  const retryAttempt = repairState.retryAttempt;
+  const retryKind = repairState.retryKind ?? null;
+  const retryFeedback = repairState.retryFeedback ?? null;
+  const repairDiagnostics = repairState.repairDiagnostics;
+  const updateRepairState = (patch: Partial<RepairState>) => {
+    setSaved((current) => ({
+      ...current,
+      repair: updateRepairRecoveryState(current.repair, patch),
+    }));
+  };
+  const setRepairStatus = (status: RepairState['status']) => updateRepairState({ status });
+  const setProposal = (value: RepairState['proposal'] | null) => {
+    setSaved((current) => ({
+      ...current,
+      repair: updateRepairRecoveryState(current.repair, {
+        proposal: value ?? undefined,
+        status: value
+          ? 'staged'
+          : current.repair.rejectedProposalSpec
+            ? 'rejected'
+            : 'idle',
+      }),
+    }));
+  };
+  const setProposalValidation = (value: RepairState['proposalValidation'] | null) =>
+    updateRepairState({
+      proposalValidation: value
+        ? {
+            errors: value.errors.slice(0, 40).map((finding) => finding.slice(0, 3000)),
+            warnings: value.warnings.slice(0, 40).map((warning) => warning.slice(0, 3000)),
+            ...(value.topologyErrors
+              ? { topologyErrors: value.topologyErrors.slice(0, 40).map((item) => item.slice(0, 3000)) }
+              : {}),
+            ...(value.topologyWarnings
+              ? { topologyWarnings: value.topologyWarnings.slice(0, 40).map((item) => item.slice(0, 3000)) }
+              : {}),
+          }
+        : undefined,
+    });
+  const setProposalRepairLesson = (value: RepairState['proposalRepairLesson'] | null) =>
+    updateRepairState({
+      proposalRepairLesson: value
+        ? {
+            ...value,
+            findings: value.findings.slice(0, 12).map((finding) => finding.slice(0, 700)),
+            ...(value.context ? { context: value.context.slice(0, 1600) } : {}),
+            content: value.content?.slice(0, 300) ?? null,
+          }
+        : undefined,
+    });
+  const setRejectedProposalSpec = (value: CircuitBuildChatInput['currentSpec'] | null) =>
+    updateRepairState({
+      rejectedProposalSpec: value ?? undefined,
+      status: value ? 'rejected' : proposal ? 'staged' : 'idle',
+    });
+  const setExternalFixDraft = (value: string) =>
+    updateRepairState({ externalFixDraft: value.slice(0, 50000) });
+  const setComposerDraft = (value: string) =>
+    updateRepairState({ composerDraft: value.slice(0, 10000) });
+  const setLastRequest = (value: CircuitBuildChatInput | null) =>
+    updateRepairState({ lastRequest: value ?? undefined });
+  const setLastProtectedElementsBaseSpec = (
+    value: CircuitBuildChatInput['currentSpec'] | null,
+  ) => updateRepairState({ lastProtectedElementsBaseSpec: value ?? undefined });
+  const setRetryAttempt = (value: number) => updateRepairState({ retryAttempt: value });
+  const setRetryKind = (value: BuildRetryKind | null) =>
+    updateRepairState({ retryKind: value ?? undefined });
+  const setRetryFeedback = (value: RetryFeedback | null) =>
+    updateRepairState({
+      retryFeedback: value
+        ? {
+            ...value,
+            message: value.message.slice(0, 3000),
+            ...(value.validationFindings
+              ? { validationFindings: value.validationFindings.slice(0, 40).map((item) => item.slice(0, 3000)) }
+              : {}),
+            ...(value.validationWarnings
+              ? { validationWarnings: value.validationWarnings.slice(0, 40).map((item) => item.slice(0, 3000)) }
+              : {}),
+          }
+        : undefined,
+    });
+  const setRepairDiagnostics = (value: RepairState['repairDiagnostics']) =>
+    updateRepairState({
+      repairDiagnostics: value.slice(-20).map((diagnostic) => ({
+        ...diagnostic,
+        validationErrors: diagnostic.validationErrors.slice(0, 40).map((item) => item.slice(0, 3000)),
+        validationWarnings: diagnostic.validationWarnings.slice(0, 40).map((item) => item.slice(0, 3000)),
+      })),
+    });
   const composerRef = useRef<CircuitBuilderComposerHandle>(null);
   const handledJsonRepairRequestRef = useRef<number | null>(null);
   const observedWorkbenchRepairRef = useRef<{
@@ -682,7 +818,9 @@ export function CircuitBuilderChat({
   );
   const historyImportAttemptedForUser = useRef<string | null>(null);
   const historyBootstrapCompleteRef = useRef(false);
-  const lastHistorySaveSignatureRef = useRef('');
+  const lastHistorySaveSignatureRef = useRef(new Map<string, string>());
+  const pendingHistorySyncSignatureRef = useRef(new Map<string, string>());
+  const pendingHistorySyncTimersRef = useRef(new Map<string, number>());
   const activeSession = sessions.find((session) => session.id === activeSessionId) ?? historyBootstrap.active;
   const historyForMemory = useMemo(() => {
     const currentSession = createBuilderHistorySession({
@@ -1131,7 +1269,7 @@ export function CircuitBuilderChat({
     const fallbackSession = deletedSessionIds.has(historyBootstrap.active.id)
       ? createBuilderHistorySession({
           id: createHistoryId(),
-          saved: { brief: emptyBrief(), aiBrief: emptyBrief(), messages: [initialMessage] },
+          saved: normalizeSavedState(null),
           currentSpec,
           mode: 'chat',
         })
@@ -1237,6 +1375,29 @@ export function CircuitBuilderChat({
     onProposalStateChange(!!proposal);
   }, [proposal, onProposalStateChange]);
 
+  useEffect(() => () => {
+    for (const timer of pendingHistorySyncTimersRef.current.values()) {
+      window.clearTimeout(timer);
+    }
+    pendingHistorySyncTimersRef.current.clear();
+    pendingHistorySyncSignatureRef.current.clear();
+  }, []);
+
+  useEffect(() => {
+    if (!proposal) {
+      setProposalSvg('');
+      return;
+    }
+    const inspection = inspectProposal(proposal.spec);
+    setProposalSvg(inspection.svg);
+    if (!proposalValidation) setProposalValidation(inspection.validation);
+  }, [proposal]);
+
+  useEffect(() => {
+    setRejectedProposalSvg(renderRejectedProposalPreview(rejectedProposalSpec));
+    if (!rejectedProposalSpec) setRejectedPreviewOpen(false);
+  }, [rejectedProposalSpec]);
+
   useLayoutEffect(() => {
     try {
       window.localStorage.setItem(storageKey, JSON.stringify(saved));
@@ -1265,7 +1426,7 @@ export function CircuitBuilderChat({
       saved,
       currentSpec,
       mode,
-      now: Date.now(),
+      now: getNextBuilderHistoryTimestamp(existing?.updatedAt),
       createdAt: existing?.createdAt,
     });
     const sessionChanged = !existing ||
@@ -1302,15 +1463,32 @@ export function CircuitBuilderChat({
     ) return;
 
     const signature = JSON.stringify(activeSession);
-    if (lastHistorySaveSignatureRef.current === signature) return;
-    lastHistorySaveSignatureRef.current = signature;
+    if (
+      lastHistorySaveSignatureRef.current.get(activeSession.id) === signature ||
+      pendingHistorySyncSignatureRef.current.get(activeSession.id) === signature
+    ) return;
 
-    void syncHistorySessions([activeSession])
-      .then(() => setHistorySaveError(''))
-      .catch(() => {
-        lastHistorySaveSignatureRef.current = '';
-        setHistorySaveError('Could not sync conversation history to your account. This device still has its local copy.');
-      });
+    pendingHistorySyncSignatureRef.current.set(activeSession.id, signature);
+    const previousTimer = pendingHistorySyncTimersRef.current.get(activeSession.id);
+    if (previousTimer !== undefined) window.clearTimeout(previousTimer);
+    const sessionToSync = activeSession;
+    const timer = window.setTimeout(() => {
+      pendingHistorySyncTimersRef.current.delete(sessionToSync.id);
+      if (
+        pendingHistorySyncSignatureRef.current.get(sessionToSync.id) !== signature
+      ) return;
+      pendingHistorySyncSignatureRef.current.delete(sessionToSync.id);
+      lastHistorySaveSignatureRef.current.set(sessionToSync.id, signature);
+      void syncHistorySessions([sessionToSync])
+        .then(() => setHistorySaveError(''))
+        .catch(() => {
+          if (lastHistorySaveSignatureRef.current.get(sessionToSync.id) === signature) {
+            lastHistorySaveSignatureRef.current.delete(sessionToSync.id);
+          }
+          setHistorySaveError('Could not sync conversation history to your account. This device still has its local copy.');
+        });
+    }, 450);
+    pendingHistorySyncTimersRef.current.set(activeSession.id, timer);
   }, [
     activeSession,
     currentSpec,
@@ -1497,6 +1675,7 @@ export function CircuitBuilderChat({
     setRejectedSpecCopyState('idle');
     setRetryAttempt(0);
     setRetryKind(null);
+    setRepairStatus('running');
     setRequestCycleActive(true);
     chatMutation.reset();
     let latestBrief = safeRequest.brief ?? emptyBrief();
@@ -1595,6 +1774,7 @@ export function CircuitBuilderChat({
           });
         }
         setSaved((current) => ({
+          ...current,
           brief: mergeBriefPreservingManualEdits(current.aiBrief, current.brief, nextBrief),
           aiBrief: nextBrief,
           messages: [
@@ -1612,6 +1792,7 @@ export function CircuitBuilderChat({
           setRejectedProposalSvg('');
         }
         setRepairDiagnostics(completedRepairDiagnostics);
+        setRepairStatus(hasStagedRepair ? 'staged' : preserveRejectedProposal ? 'rejected' : 'idle');
         if (nextMode === 'build' && response.proposal && proposalInspection) {
           setProposal(response.proposal);
           setProposalError('');
@@ -1731,6 +1912,7 @@ export function CircuitBuilderChat({
             : {}),
         });
       }
+      setRepairStatus('rejected');
     } finally {
       composerRef.current?.clearDraftIfUnchanged(draftRevisionAtStart, safeRequest.message);
       setRequestCycleActive(false);
@@ -2036,39 +2218,34 @@ export function CircuitBuilderChat({
 
   const clearTransientConversationState = () => {
     chatMutation.reset();
-    setLastRequest(null);
-    setLastProtectedElementsBaseSpec(null);
-    setProposal(null);
+    setSaved((current) => ({
+      ...current,
+      repair: createEmptyRepairRecoveryState<CircuitSpec, CircuitBuildChatInput>(),
+    }));
     setProposalSvg('');
-    setProposalValidation(null);
-    setProposalRepairLesson(null);
     setProposalError('');
-    setRejectedProposalSpec(null);
+    setRepairLessonNotice(null);
+    clearProposalQualityReview();
     setRejectedProposalSvg('');
+    setRejectedPreviewOpen(false);
     setRejectedSpecCopyState('idle');
     setExternalFixCopiedContextKey(null);
     setExternalFixCopyState('idle');
-    setExternalFixDraft('');
-    setRetryFeedback(null);
-    setRepairDiagnostics([]);
-    setRetryAttempt(0);
-    setRetryKind(null);
     setBriefEditing(false);
-    composerRef.current?.setDraft('');
   };
 
   const clearCurrentConversation = () => {
     if (chatMutation.isPending || requestCycleActive) return;
-    setSaved({ brief: emptyBrief(), aiBrief: emptyBrief(), messages: [initialMessage] });
-    setMode('chat');
     clearTransientConversationState();
+    setSaved(normalizeSavedState(null));
+    setMode('chat');
     setHistoryOpen(false);
     setClearChatOpen(false);
   };
 
   const startNewConversation = () => {
     if (chatMutation.isPending || requestCycleActive) return;
-    const now = Date.now();
+    const now = getNextBuilderHistoryTimestamp(activeSession.updatedAt);
     const currentSession = createBuilderHistorySession({
       id: activeSessionId,
       saved,
@@ -2079,19 +2256,18 @@ export function CircuitBuilderChat({
     });
     const nextSession = createBuilderHistorySession({
       id: createHistoryId(),
-      saved: { brief: emptyBrief(), aiBrief: emptyBrief(), messages: [initialMessage] },
+      saved: normalizeSavedState(null),
       currentSpec,
       mode: 'chat',
-      now,
     });
     setSessions((current) => upsertBuilderHistorySession(
       upsertBuilderHistorySession(current, currentSession),
       nextSession,
     ));
+    clearTransientConversationState();
     setActiveSessionId(nextSession.id);
     setSaved(nextSession.saved);
     setMode('chat');
-    clearTransientConversationState();
     setHistoryOpen(false);
   };
 
@@ -2104,7 +2280,7 @@ export function CircuitBuilderChat({
       setHistoryOpen(false);
       return;
     }
-    const now = Date.now();
+    const now = getNextBuilderHistoryTimestamp(activeSession.updatedAt);
     const currentSession = createBuilderHistorySession({
       id: activeSessionId,
       saved,
@@ -2119,11 +2295,11 @@ export function CircuitBuilderChat({
       specSignature: JSON.stringify(session.currentSpec),
       spec: session.currentSpec,
     };
+    clearTransientConversationState();
     setActiveSessionId(session.id);
     setSaved(session.saved);
     setMode(session.mode);
     onApplySpec(session.currentSpec, 'history');
-    clearTransientConversationState();
     setHistoryOpen(false);
   };
 
@@ -2145,16 +2321,16 @@ export function CircuitBuilderChat({
       if (target.id === activeSessionId) {
         const nextSession = createBuilderHistorySession({
           id: createHistoryId(),
-          saved: { brief: emptyBrief(), aiBrief: emptyBrief(), messages: [initialMessage] },
+          saved: normalizeSavedState(null),
           currentSpec,
           mode: 'chat',
         });
         nextSessions.unshift(nextSession);
         pendingRestoreRef.current = null;
+        clearTransientConversationState();
         setActiveSessionId(nextSession.id);
         setSaved(nextSession.saved);
         setMode('chat');
-        clearTransientConversationState();
       }
 
       setSessions(nextSessions);
@@ -2204,10 +2380,11 @@ export function CircuitBuilderChat({
   };
 
   const discardProposal = () => {
-    setProposal(null);
+    setSaved((current) => ({
+      ...current,
+      repair: discardStagedRepairProposal(current.repair),
+    }));
     setProposalSvg('');
-    setProposalValidation(null);
-    setProposalRepairLesson(null);
     clearProposalQualityReview();
   };
 
@@ -2282,17 +2459,15 @@ export function CircuitBuilderChat({
     });
     onApplySpec(proposal.spec);
     if (proposalRepairLesson) void saveRepairLesson(proposalRepairLesson);
-    setProposalRepairLesson(null);
-    setProposal(null);
+    setSaved((current) => ({
+      ...current,
+      repair: clearAppliedRepairRecovery(current.repair),
+    }));
     setProposalSvg('');
-    setProposalValidation(null);
     clearProposalQualityReview();
-    setRetryFeedback(null);
-    setRejectedProposalSpec(null);
     setRejectedProposalSvg('');
     setExternalFixCopiedContextKey(null);
     setExternalFixCopyState('idle');
-    setExternalFixDraft('');
   };
 
   const errorMessage = retryFeedback?.message ?? (
@@ -2705,6 +2880,7 @@ export function CircuitBuilderChat({
                   <textarea
                     id="external-circuit-fix-json"
                     value={externalFixDraft}
+                    maxLength={50000}
                     onChange={(event) => setExternalFixDraft(event.target.value)}
                     disabled={chatMutation.isPending || requestCycleActive}
                     spellCheck={false}
@@ -2871,6 +3047,8 @@ export function CircuitBuilderChat({
           <CircuitBuilderComposer
             key="circuit-builder-composer"
             ref={composerRef}
+            draft={composerDraft}
+            onDraftChange={setComposerDraft}
             mode={externalFixProcessing ? 'chat' : mode}
             isWorking={
               chatMutation.isPending ||

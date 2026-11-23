@@ -179,7 +179,7 @@ export function mergeBuilderHistorySessions<SavedState, CircuitSpec>(
 
   for (const localSession of localSessions) {
     const accountSession = merged.get(localSession.id);
-    if (!accountSession || localSession.updatedAt >= accountSession.updatedAt) {
+    if (!accountSession || localSession.updatedAt > accountSession.updatedAt) {
       merged.set(localSession.id, localSession);
     }
   }
@@ -202,7 +202,7 @@ export function getBuilderHistorySyncCandidates<SavedState, CircuitSpec>(
   return localSessions.filter((localSession) => {
     const accountSession = accountById.get(localSession.id);
     return !accountSession || (
-      localSession.updatedAt >= accountSession.updatedAt &&
+      localSession.updatedAt > accountSession.updatedAt &&
       JSON.stringify(localSession) !== JSON.stringify(accountSession)
     );
   });

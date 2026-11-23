@@ -419,6 +419,129 @@ export interface CircuitBuilderHistoryMessage {
     suggestedActions?: CircuitBuilderSuggestedAction[];
     buildApprovalRequest?: boolean;
 }
+export interface CircuitBuilderRepairValidation {
+    /**
+       * @maxItems 40
+       * @items.maxLength 3000
+       */
+    errors: string[];
+    /**
+       * @maxItems 40
+       * @items.maxLength 3000
+       */
+    warnings: string[];
+    /**
+       * @maxItems 40
+       * @items.maxLength 3000
+       */
+    topologyErrors?: string[];
+    /**
+       * @maxItems 40
+       * @items.maxLength 3000
+       */
+    topologyWarnings?: string[];
+}
+export interface CircuitBuilderRepairRetryFeedback {
+    /** @maxLength 3000 */
+    message: string;
+    canRetryManually: boolean;
+    /**
+       * @maxItems 40
+       * @items.maxLength 3000
+       */
+    validationFindings?: string[];
+    /**
+       * @maxItems 40
+       * @items.maxLength 3000
+       */
+    validationWarnings?: string[];
+}
+export type CircuitBuilderRepairDiagnosticOutcome = typeof CircuitBuilderRepairDiagnosticOutcome[keyof typeof CircuitBuilderRepairDiagnosticOutcome];
+export declare const CircuitBuilderRepairDiagnosticOutcome: {
+    readonly reconstructed: "reconstructed";
+    readonly validated: "validated";
+    readonly rejected: "rejected";
+    readonly exhausted: "exhausted";
+    readonly stopped: "stopped";
+};
+export interface CircuitBuilderRepairDiagnostic {
+    /**
+       * @minimum 0
+       * @maximum 100
+       */
+    attempt: number;
+    outcome: CircuitBuilderRepairDiagnosticOutcome;
+    nonWireElementsModified: boolean;
+    metadataModified: boolean;
+    /**
+       * @maxItems 40
+       * @items.maxLength 3000
+       */
+    validationErrors: string[];
+    /**
+       * @maxItems 40
+       * @items.maxLength 3000
+       */
+    validationWarnings: string[];
+}
+export interface CircuitBuilderRepairLessonDraft {
+    beforeSpec: CircuitSpec;
+    afterSpec: CircuitSpec;
+    /**
+       * @minItems 1
+       * @maxItems 12
+       * @items.minLength 1
+       * @items.maxLength 700
+       */
+    findings: string[];
+    /** @maxLength 1600 */
+    context?: string;
+    /**
+       * @maxLength 300
+       * @nullable
+       */
+    content: string | null;
+}
+export type CircuitBuilderRepairRecoveryStateVersion = typeof CircuitBuilderRepairRecoveryStateVersion[keyof typeof CircuitBuilderRepairRecoveryStateVersion];
+export declare const CircuitBuilderRepairRecoveryStateVersion: {
+    readonly NUMBER_1: 1;
+};
+export type CircuitBuilderRepairRecoveryStateStatus = typeof CircuitBuilderRepairRecoveryStateStatus[keyof typeof CircuitBuilderRepairRecoveryStateStatus];
+export declare const CircuitBuilderRepairRecoveryStateStatus: {
+    readonly idle: "idle";
+    readonly running: "running";
+    readonly staged: "staged";
+    readonly rejected: "rejected";
+};
+export type CircuitBuilderRepairRecoveryStateRetryKind = typeof CircuitBuilderRepairRecoveryStateRetryKind[keyof typeof CircuitBuilderRepairRecoveryStateRetryKind];
+export declare const CircuitBuilderRepairRecoveryStateRetryKind: {
+    readonly generation: "generation";
+    readonly repair: "repair";
+    readonly format: "format";
+};
+export interface CircuitBuilderRepairRecoveryState {
+    version: CircuitBuilderRepairRecoveryStateVersion;
+    status: CircuitBuilderRepairRecoveryStateStatus;
+    proposal?: CircuitBuildProposal;
+    proposalValidation?: CircuitBuilderRepairValidation;
+    rejectedProposalSpec?: CircuitSpec;
+    retryFeedback?: CircuitBuilderRepairRetryFeedback;
+    /** @maxItems 20 */
+    repairDiagnostics: CircuitBuilderRepairDiagnostic[];
+    /**
+       * @minimum 0
+       * @maximum 100
+       */
+    retryAttempt: number;
+    retryKind?: CircuitBuilderRepairRecoveryStateRetryKind;
+    lastRequest?: CircuitBuildChatInput;
+    lastProtectedElementsBaseSpec?: CircuitSpec;
+    proposalRepairLesson?: CircuitBuilderRepairLessonDraft;
+    /** @maxLength 50000 */
+    externalFixDraft: string;
+    /** @maxLength 10000 */
+    composerDraft: string;
+}
 export interface CircuitBuilderSavedState {
     brief: CircuitDesignBrief;
     aiBrief: CircuitDesignBrief;
@@ -427,6 +550,7 @@ export interface CircuitBuilderSavedState {
        * @maxItems 60
        */
     messages: CircuitBuilderHistoryMessage[];
+    repair?: CircuitBuilderRepairRecoveryState;
 }
 export type CircuitBuilderHistorySessionMode = typeof CircuitBuilderHistorySessionMode[keyof typeof CircuitBuilderHistorySessionMode];
 export declare const CircuitBuilderHistorySessionMode: {

@@ -2,7 +2,6 @@ import {
   forwardRef,
   useImperativeHandle,
   useRef,
-  useState,
   type FormEvent,
   type KeyboardEvent,
 } from 'react';
@@ -19,6 +18,8 @@ export type CircuitBuilderComposerHandle = {
 };
 
 type CircuitBuilderComposerProps = {
+  draft: string;
+  onDraftChange: (value: string) => void;
   mode: ChatMode;
   isWorking: boolean;
   allowSendWhileWorking?: boolean;
@@ -36,6 +37,8 @@ const CircuitBuilderComposer = forwardRef<
   CircuitBuilderComposerHandle,
   CircuitBuilderComposerProps
 >(function CircuitBuilderComposer({
+  draft,
+  onDraftChange,
   mode,
   isWorking,
   allowSendWhileWorking = false,
@@ -48,7 +51,6 @@ const CircuitBuilderComposer = forwardRef<
   isHistoryLoading,
   onSubmitMessage,
 }, ref) {
-  const [draft, setDraft] = useState('');
   const draftRevisionRef = useRef(0);
   const canSend = draft.trim().length > 0 &&
     (!isWorking || allowSendWhileWorking) &&
@@ -61,21 +63,17 @@ const CircuitBuilderComposer = forwardRef<
     getDraftRevision: () => draftRevisionRef.current,
     setDraft: (value) => {
       draftRevisionRef.current += 1;
-      setDraft(value);
+      onDraftChange(value);
     },
     clearDraftIfUnchanged: (revisionAtStart, submittedText) => {
-      setDraft((current) =>
-        shouldClearSubmittedDraft(
+      if (shouldClearSubmittedDraft(
           revisionAtStart,
           draftRevisionRef.current,
-          current,
+          draft,
           submittedText,
-        )
-          ? ''
-          : current,
-      );
+        )) onDraftChange('');
     },
-  }), []);
+  }), [draft, onDraftChange]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -125,9 +123,10 @@ const CircuitBuilderComposer = forwardRef<
       <textarea
         id="builder-chat-input"
         value={draft}
+        maxLength={10000}
         onChange={(event) => {
           draftRevisionRef.current += 1;
-          setDraft(event.target.value);
+          onDraftChange(event.target.value);
         }}
         onKeyDown={handleKeyDown}
         placeholder={mode === 'chat' ? 'Describe what you are trying to make…' : 'What should we add or change?'}

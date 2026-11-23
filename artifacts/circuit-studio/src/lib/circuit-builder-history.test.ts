@@ -135,6 +135,29 @@ test('account history wins over stale local sessions and newer local sessions sy
   assert.deepEqual(candidates.map((session) => session.id), ['local-only']);
 });
 
+test('equal-timestamp local copies cannot overwrite newer account history', () => {
+  const local = createBuilderHistorySession({
+    id: 'same-session',
+    saved: { messages: [{ role: 'user', content: 'Stale local repair preview.' }] },
+    currentSpec: { title: 'Stale local', elements: [] },
+    mode: 'build',
+    now: 300,
+    createdAt: 50,
+  });
+  const account = createBuilderHistorySession({
+    id: 'same-session',
+    saved: { messages: [{ role: 'user', content: 'Current account repair preview.' }] },
+    currentSpec: { title: 'Current account', elements: [] },
+    mode: 'build',
+    now: 300,
+    createdAt: 50,
+  });
+
+  assert.equal(mergeBuilderHistorySessions([local], [account])[0]?.saved.messages[0]?.content,
+    'Current account repair preview.');
+  assert.deepEqual(getBuilderHistorySyncCandidates([local], [account]), []);
+});
+
 test('account deletion markers filter stale local history before it can sync again', () => {
   const sessions = [
     { id: 'keep-this', title: 'Current conversation' },

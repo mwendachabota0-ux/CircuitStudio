@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { CircuitBuilderHistoryMessage } from './circuitBuilderHistoryMessage';
+import type { CircuitBuilderRepairRecoveryState } from './circuitBuilderRepairRecoveryState';
 import type { CircuitDesignBrief } from './circuitDesignBrief';
 export interface CircuitBuilderSavedState {
     brief: CircuitDesignBrief;
@@ -15,5 +16,6 @@ export interface CircuitBuilderSavedState {
        * @maxItems 60
        */
     messages: CircuitBuilderHistoryMessage[];
+    repair?: CircuitBuilderRepairRecoveryState;
 }
 //# sourceMappingURL=circuitBuilderSavedState.d.ts.map

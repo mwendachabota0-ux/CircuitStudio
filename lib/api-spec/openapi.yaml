@@ -1208,6 +1208,163 @@ components:
           type: boolean
       required: [id, role, content, createdAt]
       additionalProperties: false
+    CircuitBuilderRepairValidation:
+      type: object
+      properties:
+        errors:
+          type: array
+          maxItems: 40
+          items:
+            type: string
+            maxLength: 3000
+        warnings:
+          type: array
+          maxItems: 40
+          items:
+            type: string
+            maxLength: 3000
+        topologyErrors:
+          type: array
+          maxItems: 40
+          items:
+            type: string
+            maxLength: 3000
+        topologyWarnings:
+          type: array
+          maxItems: 40
+          items:
+            type: string
+            maxLength: 3000
+      required: [errors, warnings]
+      additionalProperties: false
+    CircuitBuilderRepairRetryFeedback:
+      type: object
+      properties:
+        message:
+          type: string
+          maxLength: 3000
+        canRetryManually:
+          type: boolean
+        validationFindings:
+          type: array
+          maxItems: 40
+          items:
+            type: string
+            maxLength: 3000
+        validationWarnings:
+          type: array
+          maxItems: 40
+          items:
+            type: string
+            maxLength: 3000
+      required: [message, canRetryManually]
+      additionalProperties: false
+    CircuitBuilderRepairDiagnostic:
+      type: object
+      properties:
+        attempt:
+          type: integer
+          minimum: 0
+          maximum: 100
+        outcome:
+          type: string
+          enum: [reconstructed, validated, rejected, exhausted, stopped]
+        nonWireElementsModified:
+          type: boolean
+        metadataModified:
+          type: boolean
+        validationErrors:
+          type: array
+          maxItems: 40
+          items:
+            type: string
+            maxLength: 3000
+        validationWarnings:
+          type: array
+          maxItems: 40
+          items:
+            type: string
+            maxLength: 3000
+      required:
+        - attempt
+        - outcome
+        - nonWireElementsModified
+        - metadataModified
+        - validationErrors
+        - validationWarnings
+      additionalProperties: false
+    CircuitBuilderRepairLessonDraft:
+      type: object
+      properties:
+        beforeSpec:
+          $ref: "#/components/schemas/CircuitSpec"
+        afterSpec:
+          $ref: "#/components/schemas/CircuitSpec"
+        findings:
+          type: array
+          minItems: 1
+          maxItems: 12
+          items:
+            type: string
+            minLength: 1
+            maxLength: 700
+        context:
+          type: string
+          maxLength: 1600
+        content:
+          type: ["string", "null"]
+          maxLength: 300
+      required: [beforeSpec, afterSpec, findings, content]
+      additionalProperties: false
+    CircuitBuilderRepairRecoveryState:
+      type: object
+      properties:
+        version:
+          type: integer
+          enum: [1]
+        status:
+          type: string
+          enum: [idle, running, staged, rejected]
+        proposal:
+          $ref: "#/components/schemas/CircuitBuildProposal"
+        proposalValidation:
+          $ref: "#/components/schemas/CircuitBuilderRepairValidation"
+        rejectedProposalSpec:
+          $ref: "#/components/schemas/CircuitSpec"
+        retryFeedback:
+          $ref: "#/components/schemas/CircuitBuilderRepairRetryFeedback"
+        repairDiagnostics:
+          type: array
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/CircuitBuilderRepairDiagnostic"
+        retryAttempt:
+          type: integer
+          minimum: 0
+          maximum: 100
+        retryKind:
+          type: string
+          enum: [generation, repair, format]
+        lastRequest:
+          $ref: "#/components/schemas/CircuitBuildChatInput"
+        lastProtectedElementsBaseSpec:
+          $ref: "#/components/schemas/CircuitSpec"
+        proposalRepairLesson:
+          $ref: "#/components/schemas/CircuitBuilderRepairLessonDraft"
+        externalFixDraft:
+          type: string
+          maxLength: 50000
+        composerDraft:
+          type: string
+          maxLength: 10000
+      required:
+        - version
+        - status
+        - repairDiagnostics
+        - retryAttempt
+        - externalFixDraft
+        - composerDraft
+      additionalProperties: false
     CircuitBuilderSavedState:
       type: object
       properties:
@@ -1221,6 +1378,8 @@ components:
           maxItems: 60
           items:
             $ref: "#/components/schemas/CircuitBuilderHistoryMessage"
+        repair:
+          $ref: "#/components/schemas/CircuitBuilderRepairRecoveryState"
       required: [brief, aiBrief, messages]
       additionalProperties: false
     CircuitBuilderHistorySession:

@@ -5,7 +5,7 @@ import {
   SyncCircuitBuilderHistoryBody,
   SyncCircuitBuilderHistoryResponse,
 } from "@workspace/api-zod";
-import { and, desc, eq, lte } from "drizzle-orm";
+import { and, desc, eq, lt } from "drizzle-orm";
 import { getAuth } from "@clerk/express";
 import { Router, type IRouter, type RequestHandler } from "express";
 import {
@@ -126,7 +126,7 @@ router.put(
               createdAt: new Date(session.createdAt),
               updatedAt,
             },
-            setWhere: lte(circuitBuilderHistory.updatedAt, updatedAt),
+            setWhere: lt(circuitBuilderHistory.updatedAt, updatedAt),
           })
           .returning({ sessionId: circuitBuilderHistory.sessionId });
 

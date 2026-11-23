@@ -54589,6 +54589,194 @@ var listCircuitBuilderHistoryResponseSavedMessagesItemSuggestedActionsItemPrompt
 var listCircuitBuilderHistoryResponseSavedMessagesItemSuggestedActionsItemReplyToMax = 300;
 var listCircuitBuilderHistoryResponseSavedMessagesItemSuggestedActionsMax = 2;
 var listCircuitBuilderHistoryResponseSavedMessagesMax = 60;
+var listCircuitBuilderHistoryResponseSavedRepairProposalSummaryMax = 500;
+var listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemFromMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemFromMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemToMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemToMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemAtMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemAtMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolIdRegExp = new RegExp("^[^:\\s]+:[^:\\s]+$");
+var listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemPinsItemPointMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemPinsItemPointMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemPinsMax = 512;
+var listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin = 0;
+var listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin = 0;
+var listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin = 0;
+var listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsMax = 2048;
+var listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsMax = 256;
+var listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemPointsItemMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemPointsItemMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemLabelNudgeMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemLabelNudgeMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemLabelAtMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemLabelAtMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalValidationErrorsItemMax = 3e3;
+var listCircuitBuilderHistoryResponseSavedRepairProposalValidationErrorsMax = 40;
+var listCircuitBuilderHistoryResponseSavedRepairProposalValidationWarningsItemMax = 3e3;
+var listCircuitBuilderHistoryResponseSavedRepairProposalValidationWarningsMax = 40;
+var listCircuitBuilderHistoryResponseSavedRepairProposalValidationTopologyErrorsItemMax = 3e3;
+var listCircuitBuilderHistoryResponseSavedRepairProposalValidationTopologyErrorsMax = 40;
+var listCircuitBuilderHistoryResponseSavedRepairProposalValidationTopologyWarningsItemMax = 3e3;
+var listCircuitBuilderHistoryResponseSavedRepairProposalValidationTopologyWarningsMax = 40;
+var listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemFromMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemFromMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemToMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemToMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemAtMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemAtMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolIdRegExp = new RegExp("^[^:\\s]+:[^:\\s]+$");
+var listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemPinsItemPointMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemPinsItemPointMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemPinsMax = 512;
+var listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin = 0;
+var listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin = 0;
+var listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin = 0;
+var listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsMax = 2048;
+var listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsMax = 256;
+var listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemPointsItemMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemPointsItemMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemLabelNudgeMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemLabelNudgeMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemLabelAtMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemLabelAtMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairRetryFeedbackMessageMax = 3e3;
+var listCircuitBuilderHistoryResponseSavedRepairRetryFeedbackValidationFindingsItemMax = 3e3;
+var listCircuitBuilderHistoryResponseSavedRepairRetryFeedbackValidationFindingsMax = 40;
+var listCircuitBuilderHistoryResponseSavedRepairRetryFeedbackValidationWarningsItemMax = 3e3;
+var listCircuitBuilderHistoryResponseSavedRepairRetryFeedbackValidationWarningsMax = 40;
+var listCircuitBuilderHistoryResponseSavedRepairRepairDiagnosticsItemAttemptMin = 0;
+var listCircuitBuilderHistoryResponseSavedRepairRepairDiagnosticsItemAttemptMax = 100;
+var listCircuitBuilderHistoryResponseSavedRepairRepairDiagnosticsItemValidationErrorsItemMax = 3e3;
+var listCircuitBuilderHistoryResponseSavedRepairRepairDiagnosticsItemValidationErrorsMax = 40;
+var listCircuitBuilderHistoryResponseSavedRepairRepairDiagnosticsItemValidationWarningsItemMax = 3e3;
+var listCircuitBuilderHistoryResponseSavedRepairRepairDiagnosticsItemValidationWarningsMax = 40;
+var listCircuitBuilderHistoryResponseSavedRepairRepairDiagnosticsMax = 20;
+var listCircuitBuilderHistoryResponseSavedRepairRetryAttemptMin = 0;
+var listCircuitBuilderHistoryResponseSavedRepairRetryAttemptMax = 100;
+var listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemFromMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemFromMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemToMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemToMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemAtMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemAtMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolIdRegExp = new RegExp("^[^:\\s]+:[^:\\s]+$");
+var listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemPinsItemPointMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemPinsItemPointMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemPinsMax = 512;
+var listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin = 0;
+var listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin = 0;
+var listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin = 0;
+var listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsMax = 2048;
+var listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsMax = 256;
+var listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemPointsItemMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemPointsItemMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemLabelNudgeMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemLabelNudgeMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemLabelAtMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemLabelAtMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairLastRequestHistoryItemContentMax = 3e3;
+var listCircuitBuilderHistoryResponseSavedRepairLastRequestHistoryMax = 8;
+var listCircuitBuilderHistoryResponseSavedRepairLastRequestBriefGoalMax = 1e3;
+var listCircuitBuilderHistoryResponseSavedRepairLastRequestBriefRequirementsItemMax = 300;
+var listCircuitBuilderHistoryResponseSavedRepairLastRequestBriefRequirementsMax = 12;
+var listCircuitBuilderHistoryResponseSavedRepairLastRequestBriefAssumptionsItemMax = 300;
+var listCircuitBuilderHistoryResponseSavedRepairLastRequestBriefAssumptionsMax = 12;
+var listCircuitBuilderHistoryResponseSavedRepairLastRequestBriefOpenQuestionsItemMax = 300;
+var listCircuitBuilderHistoryResponseSavedRepairLastRequestBriefOpenQuestionsMax = 12;
+var listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemFromMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemFromMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemToMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemToMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemAtMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemAtMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolIdRegExp = new RegExp("^[^:\\s]+:[^:\\s]+$");
+var listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemPinsItemPointMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemPinsItemPointMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemPinsMax = 512;
+var listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin = 0;
+var listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin = 0;
+var listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin = 0;
+var listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsMax = 2048;
+var listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsMax = 256;
+var listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemPointsItemMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemPointsItemMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemLabelNudgeMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemLabelNudgeMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemLabelAtMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemLabelAtMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemFromMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemFromMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemToMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemToMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemAtMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemAtMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolIdRegExp = new RegExp("^[^:\\s]+:[^:\\s]+$");
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemPinsItemPointMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemPinsItemPointMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemPinsMax = 512;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin = 0;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin = 0;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin = 0;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsMax = 2048;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsMax = 256;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemPointsItemMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemPointsItemMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemLabelNudgeMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemLabelNudgeMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemLabelAtMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemLabelAtMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemFromMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemFromMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemToMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemToMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemAtMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemAtMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolIdRegExp = new RegExp("^[^:\\s]+:[^:\\s]+$");
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemPinsItemPointMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemPinsItemPointMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemPinsMax = 512;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin = 0;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin = 0;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin = 0;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsMax = 2048;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsMax = 256;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemPointsItemMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemPointsItemMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemLabelNudgeMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemLabelNudgeMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemLabelAtMin = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemLabelAtMax = 2;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonFindingsItemMax = 700;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonFindingsMax = 12;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonContextMax = 1600;
+var listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonContentMax = 300;
+var listCircuitBuilderHistoryResponseSavedRepairExternalFixDraftMax = 5e4;
+var listCircuitBuilderHistoryResponseSavedRepairComposerDraftMax = 1e4;
 var listCircuitBuilderHistoryResponseCurrentSpecElementsItemFromMin = 2;
 var listCircuitBuilderHistoryResponseCurrentSpecElementsItemFromMax = 2;
 var listCircuitBuilderHistoryResponseCurrentSpecElementsItemToMin = 2;
@@ -54644,7 +54832,454 @@ var ListCircuitBuilderHistoryResponseItem = objectType({
         "replyTo": stringType().min(1).max(listCircuitBuilderHistoryResponseSavedMessagesItemSuggestedActionsItemReplyToMax).optional().describe("Exact assistant question this suggested reply answers.")
       })).max(listCircuitBuilderHistoryResponseSavedMessagesItemSuggestedActionsMax).optional(),
       "buildApprovalRequest": booleanType().optional()
-    })).min(1).max(listCircuitBuilderHistoryResponseSavedMessagesMax)
+    })).min(1).max(listCircuitBuilderHistoryResponseSavedMessagesMax),
+    "repair": objectType({
+      "version": literalType(1),
+      "status": enumType(["idle", "running", "staged", "rejected"]),
+      "proposal": objectType({
+        "summary": stringType().min(1).max(listCircuitBuilderHistoryResponseSavedRepairProposalSummaryMax),
+        "spec": objectType({
+          "title": stringType(),
+          "width": numberType().optional(),
+          "height": numberType().optional(),
+          "elements": arrayType(objectType({
+            "type": stringType(),
+            "id": stringType().optional(),
+            "label": stringType().optional(),
+            "value": stringType().optional(),
+            "from": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemFromMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemFromMax).optional(),
+            "to": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemToMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemToMax).optional(),
+            "at": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemAtMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemAtMax).optional(),
+            "symbolId": stringType().regex(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolIdRegExp).optional(),
+            "unit": numberType().int().min(1).optional(),
+            "bodyStyle": numberType().int().min(1).optional(),
+            "rotation": numberType().optional().describe("Any finite rotation angle in degrees, including fractional and negative angles."),
+            "symbolData": objectType({
+              "id": stringType(),
+              "units": arrayType(objectType({
+                "unit": numberType().int().min(1),
+                "bodyStyle": numberType().int().min(1),
+                "pins": arrayType(objectType({
+                  "number": stringType(),
+                  "name": stringType(),
+                  "electricalType": stringType(),
+                  "shape": stringType(),
+                  "point": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemPinsItemPointMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemPinsItemPointMax),
+                  "bodyPoint": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax),
+                  "showName": booleanType(),
+                  "showNumber": booleanType()
+                })).max(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemPinsMax),
+                "graphics": arrayType(objectType({
+                  "type": enumType(["polyline", "rectangle", "circle", "arc", "bezier", "text"]),
+                  "points": arrayType(arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax)).optional(),
+                  "radius": numberType().min(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin).optional(),
+                  "text": stringType().optional(),
+                  "fontSize": numberType().min(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin).optional(),
+                  "strokeWidth": numberType().min(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin).optional(),
+                  "fillType": enumType(["none", "background", "outline"]).optional(),
+                  "closed": booleanType().optional()
+                })).max(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsMax)
+              })).min(1).max(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsMax)
+            }).optional(),
+            "points": arrayType(arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemPointsItemMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemPointsItemMax)).optional(),
+            "x": numberType().optional(),
+            "y": numberType().optional(),
+            "w": numberType().optional(),
+            "h": numberType().optional(),
+            "height": numberType().optional(),
+            "open": booleanType().optional(),
+            "closed": booleanType().optional(),
+            "flip": booleanType().optional(),
+            "circle": booleanType().optional(),
+            "swap": booleanType().optional(),
+            "style": stringType().optional(),
+            "labelPos": stringType().optional(),
+            "labelNudge": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemLabelNudgeMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemLabelNudgeMax).optional(),
+            "labelAt": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemLabelAtMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemLabelAtMax).optional(),
+            "labelAnchor": stringType().optional(),
+            "text": stringType().optional(),
+            "anchor": stringType().optional(),
+            "size": numberType().optional(),
+            "bold": booleanType().optional(),
+            "muted": booleanType().optional()
+          }))
+        })
+      }).optional(),
+      "proposalValidation": objectType({
+        "errors": arrayType(stringType().max(listCircuitBuilderHistoryResponseSavedRepairProposalValidationErrorsItemMax)).max(listCircuitBuilderHistoryResponseSavedRepairProposalValidationErrorsMax),
+        "warnings": arrayType(stringType().max(listCircuitBuilderHistoryResponseSavedRepairProposalValidationWarningsItemMax)).max(listCircuitBuilderHistoryResponseSavedRepairProposalValidationWarningsMax),
+        "topologyErrors": arrayType(stringType().max(listCircuitBuilderHistoryResponseSavedRepairProposalValidationTopologyErrorsItemMax)).max(listCircuitBuilderHistoryResponseSavedRepairProposalValidationTopologyErrorsMax).optional(),
+        "topologyWarnings": arrayType(stringType().max(listCircuitBuilderHistoryResponseSavedRepairProposalValidationTopologyWarningsItemMax)).max(listCircuitBuilderHistoryResponseSavedRepairProposalValidationTopologyWarningsMax).optional()
+      }).optional(),
+      "rejectedProposalSpec": objectType({
+        "title": stringType(),
+        "width": numberType().optional(),
+        "height": numberType().optional(),
+        "elements": arrayType(objectType({
+          "type": stringType(),
+          "id": stringType().optional(),
+          "label": stringType().optional(),
+          "value": stringType().optional(),
+          "from": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemFromMin).max(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemFromMax).optional(),
+          "to": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemToMin).max(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemToMax).optional(),
+          "at": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemAtMin).max(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemAtMax).optional(),
+          "symbolId": stringType().regex(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolIdRegExp).optional(),
+          "unit": numberType().int().min(1).optional(),
+          "bodyStyle": numberType().int().min(1).optional(),
+          "rotation": numberType().optional().describe("Any finite rotation angle in degrees, including fractional and negative angles."),
+          "symbolData": objectType({
+            "id": stringType(),
+            "units": arrayType(objectType({
+              "unit": numberType().int().min(1),
+              "bodyStyle": numberType().int().min(1),
+              "pins": arrayType(objectType({
+                "number": stringType(),
+                "name": stringType(),
+                "electricalType": stringType(),
+                "shape": stringType(),
+                "point": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemPinsItemPointMin).max(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemPinsItemPointMax),
+                "bodyPoint": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin).max(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax),
+                "showName": booleanType(),
+                "showNumber": booleanType()
+              })).max(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemPinsMax),
+              "graphics": arrayType(objectType({
+                "type": enumType(["polyline", "rectangle", "circle", "arc", "bezier", "text"]),
+                "points": arrayType(arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin).max(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax)).optional(),
+                "radius": numberType().min(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin).optional(),
+                "text": stringType().optional(),
+                "fontSize": numberType().min(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin).optional(),
+                "strokeWidth": numberType().min(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin).optional(),
+                "fillType": enumType(["none", "background", "outline"]).optional(),
+                "closed": booleanType().optional()
+              })).max(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsMax)
+            })).min(1).max(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsMax)
+          }).optional(),
+          "points": arrayType(arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemPointsItemMin).max(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemPointsItemMax)).optional(),
+          "x": numberType().optional(),
+          "y": numberType().optional(),
+          "w": numberType().optional(),
+          "h": numberType().optional(),
+          "height": numberType().optional(),
+          "open": booleanType().optional(),
+          "closed": booleanType().optional(),
+          "flip": booleanType().optional(),
+          "circle": booleanType().optional(),
+          "swap": booleanType().optional(),
+          "style": stringType().optional(),
+          "labelPos": stringType().optional(),
+          "labelNudge": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemLabelNudgeMin).max(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemLabelNudgeMax).optional(),
+          "labelAt": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemLabelAtMin).max(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemLabelAtMax).optional(),
+          "labelAnchor": stringType().optional(),
+          "text": stringType().optional(),
+          "anchor": stringType().optional(),
+          "size": numberType().optional(),
+          "bold": booleanType().optional(),
+          "muted": booleanType().optional()
+        }))
+      }).optional(),
+      "retryFeedback": objectType({
+        "message": stringType().max(listCircuitBuilderHistoryResponseSavedRepairRetryFeedbackMessageMax),
+        "canRetryManually": booleanType(),
+        "validationFindings": arrayType(stringType().max(listCircuitBuilderHistoryResponseSavedRepairRetryFeedbackValidationFindingsItemMax)).max(listCircuitBuilderHistoryResponseSavedRepairRetryFeedbackValidationFindingsMax).optional(),
+        "validationWarnings": arrayType(stringType().max(listCircuitBuilderHistoryResponseSavedRepairRetryFeedbackValidationWarningsItemMax)).max(listCircuitBuilderHistoryResponseSavedRepairRetryFeedbackValidationWarningsMax).optional()
+      }).optional(),
+      "repairDiagnostics": arrayType(objectType({
+        "attempt": numberType().int().min(listCircuitBuilderHistoryResponseSavedRepairRepairDiagnosticsItemAttemptMin).max(listCircuitBuilderHistoryResponseSavedRepairRepairDiagnosticsItemAttemptMax),
+        "outcome": enumType(["reconstructed", "validated", "rejected", "exhausted", "stopped"]),
+        "nonWireElementsModified": booleanType(),
+        "metadataModified": booleanType(),
+        "validationErrors": arrayType(stringType().max(listCircuitBuilderHistoryResponseSavedRepairRepairDiagnosticsItemValidationErrorsItemMax)).max(listCircuitBuilderHistoryResponseSavedRepairRepairDiagnosticsItemValidationErrorsMax),
+        "validationWarnings": arrayType(stringType().max(listCircuitBuilderHistoryResponseSavedRepairRepairDiagnosticsItemValidationWarningsItemMax)).max(listCircuitBuilderHistoryResponseSavedRepairRepairDiagnosticsItemValidationWarningsMax)
+      })).max(listCircuitBuilderHistoryResponseSavedRepairRepairDiagnosticsMax),
+      "retryAttempt": numberType().int().min(listCircuitBuilderHistoryResponseSavedRepairRetryAttemptMin).max(listCircuitBuilderHistoryResponseSavedRepairRetryAttemptMax),
+      "retryKind": enumType(["generation", "repair", "format"]).optional(),
+      "lastRequest": objectType({
+        "message": stringType().min(1),
+        "mode": enumType(["chat", "build"]),
+        "responseFormatRetry": booleanType().optional().describe("Indicates a retry for correcting a previously truncated or malformed model response."),
+        "currentSpec": objectType({
+          "title": stringType(),
+          "width": numberType().optional(),
+          "height": numberType().optional(),
+          "elements": arrayType(objectType({
+            "type": stringType(),
+            "id": stringType().optional(),
+            "label": stringType().optional(),
+            "value": stringType().optional(),
+            "from": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemFromMin).max(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemFromMax).optional(),
+            "to": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemToMin).max(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemToMax).optional(),
+            "at": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemAtMin).max(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemAtMax).optional(),
+            "symbolId": stringType().regex(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolIdRegExp).optional(),
+            "unit": numberType().int().min(1).optional(),
+            "bodyStyle": numberType().int().min(1).optional(),
+            "rotation": numberType().optional().describe("Any finite rotation angle in degrees, including fractional and negative angles."),
+            "symbolData": objectType({
+              "id": stringType(),
+              "units": arrayType(objectType({
+                "unit": numberType().int().min(1),
+                "bodyStyle": numberType().int().min(1),
+                "pins": arrayType(objectType({
+                  "number": stringType(),
+                  "name": stringType(),
+                  "electricalType": stringType(),
+                  "shape": stringType(),
+                  "point": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemPinsItemPointMin).max(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemPinsItemPointMax),
+                  "bodyPoint": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin).max(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax),
+                  "showName": booleanType(),
+                  "showNumber": booleanType()
+                })).max(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemPinsMax),
+                "graphics": arrayType(objectType({
+                  "type": enumType(["polyline", "rectangle", "circle", "arc", "bezier", "text"]),
+                  "points": arrayType(arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin).max(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax)).optional(),
+                  "radius": numberType().min(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin).optional(),
+                  "text": stringType().optional(),
+                  "fontSize": numberType().min(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin).optional(),
+                  "strokeWidth": numberType().min(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin).optional(),
+                  "fillType": enumType(["none", "background", "outline"]).optional(),
+                  "closed": booleanType().optional()
+                })).max(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsMax)
+              })).min(1).max(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsMax)
+            }).optional(),
+            "points": arrayType(arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemPointsItemMin).max(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemPointsItemMax)).optional(),
+            "x": numberType().optional(),
+            "y": numberType().optional(),
+            "w": numberType().optional(),
+            "h": numberType().optional(),
+            "height": numberType().optional(),
+            "open": booleanType().optional(),
+            "closed": booleanType().optional(),
+            "flip": booleanType().optional(),
+            "circle": booleanType().optional(),
+            "swap": booleanType().optional(),
+            "style": stringType().optional(),
+            "labelPos": stringType().optional(),
+            "labelNudge": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemLabelNudgeMin).max(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemLabelNudgeMax).optional(),
+            "labelAt": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemLabelAtMin).max(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemLabelAtMax).optional(),
+            "labelAnchor": stringType().optional(),
+            "text": stringType().optional(),
+            "anchor": stringType().optional(),
+            "size": numberType().optional(),
+            "bold": booleanType().optional(),
+            "muted": booleanType().optional()
+          }))
+        }),
+        "history": arrayType(objectType({
+          "role": enumType(["user", "assistant"]),
+          "content": stringType().max(listCircuitBuilderHistoryResponseSavedRepairLastRequestHistoryItemContentMax)
+        })).max(listCircuitBuilderHistoryResponseSavedRepairLastRequestHistoryMax).optional(),
+        "brief": objectType({
+          "goal": stringType().max(listCircuitBuilderHistoryResponseSavedRepairLastRequestBriefGoalMax),
+          "requirements": arrayType(stringType().max(listCircuitBuilderHistoryResponseSavedRepairLastRequestBriefRequirementsItemMax)).max(listCircuitBuilderHistoryResponseSavedRepairLastRequestBriefRequirementsMax),
+          "assumptions": arrayType(stringType().max(listCircuitBuilderHistoryResponseSavedRepairLastRequestBriefAssumptionsItemMax)).max(listCircuitBuilderHistoryResponseSavedRepairLastRequestBriefAssumptionsMax),
+          "openQuestions": arrayType(stringType().max(listCircuitBuilderHistoryResponseSavedRepairLastRequestBriefOpenQuestionsItemMax)).max(listCircuitBuilderHistoryResponseSavedRepairLastRequestBriefOpenQuestionsMax)
+        }).optional()
+      }).optional(),
+      "lastProtectedElementsBaseSpec": objectType({
+        "title": stringType(),
+        "width": numberType().optional(),
+        "height": numberType().optional(),
+        "elements": arrayType(objectType({
+          "type": stringType(),
+          "id": stringType().optional(),
+          "label": stringType().optional(),
+          "value": stringType().optional(),
+          "from": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemFromMin).max(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemFromMax).optional(),
+          "to": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemToMin).max(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemToMax).optional(),
+          "at": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemAtMin).max(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemAtMax).optional(),
+          "symbolId": stringType().regex(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolIdRegExp).optional(),
+          "unit": numberType().int().min(1).optional(),
+          "bodyStyle": numberType().int().min(1).optional(),
+          "rotation": numberType().optional().describe("Any finite rotation angle in degrees, including fractional and negative angles."),
+          "symbolData": objectType({
+            "id": stringType(),
+            "units": arrayType(objectType({
+              "unit": numberType().int().min(1),
+              "bodyStyle": numberType().int().min(1),
+              "pins": arrayType(objectType({
+                "number": stringType(),
+                "name": stringType(),
+                "electricalType": stringType(),
+                "shape": stringType(),
+                "point": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemPinsItemPointMin).max(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemPinsItemPointMax),
+                "bodyPoint": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin).max(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax),
+                "showName": booleanType(),
+                "showNumber": booleanType()
+              })).max(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemPinsMax),
+              "graphics": arrayType(objectType({
+                "type": enumType(["polyline", "rectangle", "circle", "arc", "bezier", "text"]),
+                "points": arrayType(arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin).max(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax)).optional(),
+                "radius": numberType().min(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin).optional(),
+                "text": stringType().optional(),
+                "fontSize": numberType().min(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin).optional(),
+                "strokeWidth": numberType().min(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin).optional(),
+                "fillType": enumType(["none", "background", "outline"]).optional(),
+                "closed": booleanType().optional()
+              })).max(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsMax)
+            })).min(1).max(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsMax)
+          }).optional(),
+          "points": arrayType(arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemPointsItemMin).max(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemPointsItemMax)).optional(),
+          "x": numberType().optional(),
+          "y": numberType().optional(),
+          "w": numberType().optional(),
+          "h": numberType().optional(),
+          "height": numberType().optional(),
+          "open": booleanType().optional(),
+          "closed": booleanType().optional(),
+          "flip": booleanType().optional(),
+          "circle": booleanType().optional(),
+          "swap": booleanType().optional(),
+          "style": stringType().optional(),
+          "labelPos": stringType().optional(),
+          "labelNudge": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemLabelNudgeMin).max(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemLabelNudgeMax).optional(),
+          "labelAt": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemLabelAtMin).max(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemLabelAtMax).optional(),
+          "labelAnchor": stringType().optional(),
+          "text": stringType().optional(),
+          "anchor": stringType().optional(),
+          "size": numberType().optional(),
+          "bold": booleanType().optional(),
+          "muted": booleanType().optional()
+        }))
+      }).optional(),
+      "proposalRepairLesson": objectType({
+        "beforeSpec": objectType({
+          "title": stringType(),
+          "width": numberType().optional(),
+          "height": numberType().optional(),
+          "elements": arrayType(objectType({
+            "type": stringType(),
+            "id": stringType().optional(),
+            "label": stringType().optional(),
+            "value": stringType().optional(),
+            "from": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemFromMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemFromMax).optional(),
+            "to": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemToMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemToMax).optional(),
+            "at": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemAtMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemAtMax).optional(),
+            "symbolId": stringType().regex(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolIdRegExp).optional(),
+            "unit": numberType().int().min(1).optional(),
+            "bodyStyle": numberType().int().min(1).optional(),
+            "rotation": numberType().optional().describe("Any finite rotation angle in degrees, including fractional and negative angles."),
+            "symbolData": objectType({
+              "id": stringType(),
+              "units": arrayType(objectType({
+                "unit": numberType().int().min(1),
+                "bodyStyle": numberType().int().min(1),
+                "pins": arrayType(objectType({
+                  "number": stringType(),
+                  "name": stringType(),
+                  "electricalType": stringType(),
+                  "shape": stringType(),
+                  "point": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemPinsItemPointMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemPinsItemPointMax),
+                  "bodyPoint": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax),
+                  "showName": booleanType(),
+                  "showNumber": booleanType()
+                })).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemPinsMax),
+                "graphics": arrayType(objectType({
+                  "type": enumType(["polyline", "rectangle", "circle", "arc", "bezier", "text"]),
+                  "points": arrayType(arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax)).optional(),
+                  "radius": numberType().min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin).optional(),
+                  "text": stringType().optional(),
+                  "fontSize": numberType().min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin).optional(),
+                  "strokeWidth": numberType().min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin).optional(),
+                  "fillType": enumType(["none", "background", "outline"]).optional(),
+                  "closed": booleanType().optional()
+                })).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsMax)
+              })).min(1).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsMax)
+            }).optional(),
+            "points": arrayType(arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemPointsItemMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemPointsItemMax)).optional(),
+            "x": numberType().optional(),
+            "y": numberType().optional(),
+            "w": numberType().optional(),
+            "h": numberType().optional(),
+            "height": numberType().optional(),
+            "open": booleanType().optional(),
+            "closed": booleanType().optional(),
+            "flip": booleanType().optional(),
+            "circle": booleanType().optional(),
+            "swap": booleanType().optional(),
+            "style": stringType().optional(),
+            "labelPos": stringType().optional(),
+            "labelNudge": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemLabelNudgeMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemLabelNudgeMax).optional(),
+            "labelAt": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemLabelAtMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemLabelAtMax).optional(),
+            "labelAnchor": stringType().optional(),
+            "text": stringType().optional(),
+            "anchor": stringType().optional(),
+            "size": numberType().optional(),
+            "bold": booleanType().optional(),
+            "muted": booleanType().optional()
+          }))
+        }),
+        "afterSpec": objectType({
+          "title": stringType(),
+          "width": numberType().optional(),
+          "height": numberType().optional(),
+          "elements": arrayType(objectType({
+            "type": stringType(),
+            "id": stringType().optional(),
+            "label": stringType().optional(),
+            "value": stringType().optional(),
+            "from": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemFromMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemFromMax).optional(),
+            "to": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemToMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemToMax).optional(),
+            "at": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemAtMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemAtMax).optional(),
+            "symbolId": stringType().regex(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolIdRegExp).optional(),
+            "unit": numberType().int().min(1).optional(),
+            "bodyStyle": numberType().int().min(1).optional(),
+            "rotation": numberType().optional().describe("Any finite rotation angle in degrees, including fractional and negative angles."),
+            "symbolData": objectType({
+              "id": stringType(),
+              "units": arrayType(objectType({
+                "unit": numberType().int().min(1),
+                "bodyStyle": numberType().int().min(1),
+                "pins": arrayType(objectType({
+                  "number": stringType(),
+                  "name": stringType(),
+                  "electricalType": stringType(),
+                  "shape": stringType(),
+                  "point": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemPinsItemPointMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemPinsItemPointMax),
+                  "bodyPoint": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax),
+                  "showName": booleanType(),
+                  "showNumber": booleanType()
+                })).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemPinsMax),
+                "graphics": arrayType(objectType({
+                  "type": enumType(["polyline", "rectangle", "circle", "arc", "bezier", "text"]),
+                  "points": arrayType(arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax)).optional(),
+                  "radius": numberType().min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin).optional(),
+                  "text": stringType().optional(),
+                  "fontSize": numberType().min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin).optional(),
+                  "strokeWidth": numberType().min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin).optional(),
+                  "fillType": enumType(["none", "background", "outline"]).optional(),
+                  "closed": booleanType().optional()
+                })).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsMax)
+              })).min(1).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsMax)
+            }).optional(),
+            "points": arrayType(arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemPointsItemMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemPointsItemMax)).optional(),
+            "x": numberType().optional(),
+            "y": numberType().optional(),
+            "w": numberType().optional(),
+            "h": numberType().optional(),
+            "height": numberType().optional(),
+            "open": booleanType().optional(),
+            "closed": booleanType().optional(),
+            "flip": booleanType().optional(),
+            "circle": booleanType().optional(),
+            "swap": booleanType().optional(),
+            "style": stringType().optional(),
+            "labelPos": stringType().optional(),
+            "labelNudge": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemLabelNudgeMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemLabelNudgeMax).optional(),
+            "labelAt": arrayType(numberType()).min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemLabelAtMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemLabelAtMax).optional(),
+            "labelAnchor": stringType().optional(),
+            "text": stringType().optional(),
+            "anchor": stringType().optional(),
+            "size": numberType().optional(),
+            "bold": booleanType().optional(),
+            "muted": booleanType().optional()
+          }))
+        }),
+        "findings": arrayType(stringType().min(1).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonFindingsItemMax)).min(1).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonFindingsMax),
+        "context": stringType().max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonContextMax).optional(),
+        "content": stringType().max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonContentMax).nullable()
+      }).optional(),
+      "externalFixDraft": stringType().max(listCircuitBuilderHistoryResponseSavedRepairExternalFixDraftMax),
+      "composerDraft": stringType().max(listCircuitBuilderHistoryResponseSavedRepairComposerDraftMax)
+    }).optional()
   }),
   "currentSpec": objectType({
     "title": stringType(),
@@ -54742,6 +55377,194 @@ var syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemSuggestedActionsIt
 var syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemSuggestedActionsItemReplyToMax = 300;
 var syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemSuggestedActionsMax = 2;
 var syncCircuitBuilderHistoryBodySessionsItemSavedMessagesMax = 60;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSummaryMax = 500;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemFromMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemFromMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemToMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemToMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemAtMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemAtMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolIdRegExp = new RegExp("^[^:\\s]+:[^:\\s]+$");
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemPinsItemPointMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemPinsItemPointMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemPinsMax = 512;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin = 0;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin = 0;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin = 0;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsMax = 2048;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsMax = 256;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemPointsItemMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemPointsItemMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemLabelNudgeMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemLabelNudgeMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemLabelAtMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemLabelAtMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalValidationErrorsItemMax = 3e3;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalValidationErrorsMax = 40;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalValidationWarningsItemMax = 3e3;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalValidationWarningsMax = 40;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalValidationTopologyErrorsItemMax = 3e3;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalValidationTopologyErrorsMax = 40;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalValidationTopologyWarningsItemMax = 3e3;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalValidationTopologyWarningsMax = 40;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemFromMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemFromMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemToMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemToMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemAtMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemAtMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolIdRegExp = new RegExp("^[^:\\s]+:[^:\\s]+$");
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemPinsItemPointMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemPinsItemPointMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemPinsMax = 512;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin = 0;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin = 0;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin = 0;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsMax = 2048;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsMax = 256;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemPointsItemMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemPointsItemMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemLabelNudgeMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemLabelNudgeMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemLabelAtMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemLabelAtMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairRetryFeedbackMessageMax = 3e3;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairRetryFeedbackValidationFindingsItemMax = 3e3;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairRetryFeedbackValidationFindingsMax = 40;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairRetryFeedbackValidationWarningsItemMax = 3e3;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairRetryFeedbackValidationWarningsMax = 40;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairRepairDiagnosticsItemAttemptMin = 0;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairRepairDiagnosticsItemAttemptMax = 100;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairRepairDiagnosticsItemValidationErrorsItemMax = 3e3;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairRepairDiagnosticsItemValidationErrorsMax = 40;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairRepairDiagnosticsItemValidationWarningsItemMax = 3e3;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairRepairDiagnosticsItemValidationWarningsMax = 40;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairRepairDiagnosticsMax = 20;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairRetryAttemptMin = 0;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairRetryAttemptMax = 100;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemFromMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemFromMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemToMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemToMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemAtMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemAtMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolIdRegExp = new RegExp("^[^:\\s]+:[^:\\s]+$");
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemPinsItemPointMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemPinsItemPointMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemPinsMax = 512;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin = 0;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin = 0;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin = 0;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsMax = 2048;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsMax = 256;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemPointsItemMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemPointsItemMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemLabelNudgeMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemLabelNudgeMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemLabelAtMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemLabelAtMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestHistoryItemContentMax = 3e3;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestHistoryMax = 8;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestBriefGoalMax = 1e3;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestBriefRequirementsItemMax = 300;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestBriefRequirementsMax = 12;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestBriefAssumptionsItemMax = 300;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestBriefAssumptionsMax = 12;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestBriefOpenQuestionsItemMax = 300;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestBriefOpenQuestionsMax = 12;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemFromMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemFromMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemToMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemToMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemAtMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemAtMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolIdRegExp = new RegExp("^[^:\\s]+:[^:\\s]+$");
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemPinsItemPointMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemPinsItemPointMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemPinsMax = 512;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin = 0;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin = 0;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin = 0;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsMax = 2048;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsMax = 256;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemPointsItemMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemPointsItemMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemLabelNudgeMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemLabelNudgeMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemLabelAtMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemLabelAtMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemFromMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemFromMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemToMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemToMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemAtMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemAtMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolIdRegExp = new RegExp("^[^:\\s]+:[^:\\s]+$");
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemPinsItemPointMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemPinsItemPointMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemPinsMax = 512;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin = 0;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin = 0;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin = 0;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsMax = 2048;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsMax = 256;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemPointsItemMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemPointsItemMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemLabelNudgeMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemLabelNudgeMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemLabelAtMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemLabelAtMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemFromMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemFromMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemToMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemToMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemAtMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemAtMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolIdRegExp = new RegExp("^[^:\\s]+:[^:\\s]+$");
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemPinsItemPointMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemPinsItemPointMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemPinsMax = 512;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin = 0;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin = 0;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin = 0;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsMax = 2048;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsMax = 256;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemPointsItemMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemPointsItemMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemLabelNudgeMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemLabelNudgeMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemLabelAtMin = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemLabelAtMax = 2;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonFindingsItemMax = 700;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonFindingsMax = 12;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonContextMax = 1600;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonContentMax = 300;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairExternalFixDraftMax = 5e4;
+var syncCircuitBuilderHistoryBodySessionsItemSavedRepairComposerDraftMax = 1e4;
 var syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemFromMin = 2;
 var syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemFromMax = 2;
 var syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemToMin = 2;
@@ -54799,7 +55622,454 @@ var SyncCircuitBuilderHistoryBody = objectType({
           "replyTo": stringType().min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemSuggestedActionsItemReplyToMax).optional().describe("Exact assistant question this suggested reply answers.")
         })).max(syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemSuggestedActionsMax).optional(),
         "buildApprovalRequest": booleanType().optional()
-      })).min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedMessagesMax)
+      })).min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedMessagesMax),
+      "repair": objectType({
+        "version": literalType(1),
+        "status": enumType(["idle", "running", "staged", "rejected"]),
+        "proposal": objectType({
+          "summary": stringType().min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSummaryMax),
+          "spec": objectType({
+            "title": stringType(),
+            "width": numberType().optional(),
+            "height": numberType().optional(),
+            "elements": arrayType(objectType({
+              "type": stringType(),
+              "id": stringType().optional(),
+              "label": stringType().optional(),
+              "value": stringType().optional(),
+              "from": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemFromMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemFromMax).optional(),
+              "to": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemToMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemToMax).optional(),
+              "at": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemAtMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemAtMax).optional(),
+              "symbolId": stringType().regex(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolIdRegExp).optional(),
+              "unit": numberType().int().min(1).optional(),
+              "bodyStyle": numberType().int().min(1).optional(),
+              "rotation": numberType().optional().describe("Any finite rotation angle in degrees, including fractional and negative angles."),
+              "symbolData": objectType({
+                "id": stringType(),
+                "units": arrayType(objectType({
+                  "unit": numberType().int().min(1),
+                  "bodyStyle": numberType().int().min(1),
+                  "pins": arrayType(objectType({
+                    "number": stringType(),
+                    "name": stringType(),
+                    "electricalType": stringType(),
+                    "shape": stringType(),
+                    "point": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemPinsItemPointMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemPinsItemPointMax),
+                    "bodyPoint": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax),
+                    "showName": booleanType(),
+                    "showNumber": booleanType()
+                  })).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemPinsMax),
+                  "graphics": arrayType(objectType({
+                    "type": enumType(["polyline", "rectangle", "circle", "arc", "bezier", "text"]),
+                    "points": arrayType(arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax)).optional(),
+                    "radius": numberType().min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin).optional(),
+                    "text": stringType().optional(),
+                    "fontSize": numberType().min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin).optional(),
+                    "strokeWidth": numberType().min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin).optional(),
+                    "fillType": enumType(["none", "background", "outline"]).optional(),
+                    "closed": booleanType().optional()
+                  })).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsMax)
+                })).min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsMax)
+              }).optional(),
+              "points": arrayType(arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemPointsItemMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemPointsItemMax)).optional(),
+              "x": numberType().optional(),
+              "y": numberType().optional(),
+              "w": numberType().optional(),
+              "h": numberType().optional(),
+              "height": numberType().optional(),
+              "open": booleanType().optional(),
+              "closed": booleanType().optional(),
+              "flip": booleanType().optional(),
+              "circle": booleanType().optional(),
+              "swap": booleanType().optional(),
+              "style": stringType().optional(),
+              "labelPos": stringType().optional(),
+              "labelNudge": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemLabelNudgeMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemLabelNudgeMax).optional(),
+              "labelAt": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemLabelAtMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemLabelAtMax).optional(),
+              "labelAnchor": stringType().optional(),
+              "text": stringType().optional(),
+              "anchor": stringType().optional(),
+              "size": numberType().optional(),
+              "bold": booleanType().optional(),
+              "muted": booleanType().optional()
+            }))
+          })
+        }).optional(),
+        "proposalValidation": objectType({
+          "errors": arrayType(stringType().max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalValidationErrorsItemMax)).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalValidationErrorsMax),
+          "warnings": arrayType(stringType().max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalValidationWarningsItemMax)).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalValidationWarningsMax),
+          "topologyErrors": arrayType(stringType().max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalValidationTopologyErrorsItemMax)).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalValidationTopologyErrorsMax).optional(),
+          "topologyWarnings": arrayType(stringType().max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalValidationTopologyWarningsItemMax)).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalValidationTopologyWarningsMax).optional()
+        }).optional(),
+        "rejectedProposalSpec": objectType({
+          "title": stringType(),
+          "width": numberType().optional(),
+          "height": numberType().optional(),
+          "elements": arrayType(objectType({
+            "type": stringType(),
+            "id": stringType().optional(),
+            "label": stringType().optional(),
+            "value": stringType().optional(),
+            "from": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemFromMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemFromMax).optional(),
+            "to": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemToMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemToMax).optional(),
+            "at": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemAtMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemAtMax).optional(),
+            "symbolId": stringType().regex(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolIdRegExp).optional(),
+            "unit": numberType().int().min(1).optional(),
+            "bodyStyle": numberType().int().min(1).optional(),
+            "rotation": numberType().optional().describe("Any finite rotation angle in degrees, including fractional and negative angles."),
+            "symbolData": objectType({
+              "id": stringType(),
+              "units": arrayType(objectType({
+                "unit": numberType().int().min(1),
+                "bodyStyle": numberType().int().min(1),
+                "pins": arrayType(objectType({
+                  "number": stringType(),
+                  "name": stringType(),
+                  "electricalType": stringType(),
+                  "shape": stringType(),
+                  "point": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemPinsItemPointMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemPinsItemPointMax),
+                  "bodyPoint": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax),
+                  "showName": booleanType(),
+                  "showNumber": booleanType()
+                })).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemPinsMax),
+                "graphics": arrayType(objectType({
+                  "type": enumType(["polyline", "rectangle", "circle", "arc", "bezier", "text"]),
+                  "points": arrayType(arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax)).optional(),
+                  "radius": numberType().min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin).optional(),
+                  "text": stringType().optional(),
+                  "fontSize": numberType().min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin).optional(),
+                  "strokeWidth": numberType().min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin).optional(),
+                  "fillType": enumType(["none", "background", "outline"]).optional(),
+                  "closed": booleanType().optional()
+                })).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsMax)
+              })).min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsMax)
+            }).optional(),
+            "points": arrayType(arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemPointsItemMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemPointsItemMax)).optional(),
+            "x": numberType().optional(),
+            "y": numberType().optional(),
+            "w": numberType().optional(),
+            "h": numberType().optional(),
+            "height": numberType().optional(),
+            "open": booleanType().optional(),
+            "closed": booleanType().optional(),
+            "flip": booleanType().optional(),
+            "circle": booleanType().optional(),
+            "swap": booleanType().optional(),
+            "style": stringType().optional(),
+            "labelPos": stringType().optional(),
+            "labelNudge": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemLabelNudgeMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemLabelNudgeMax).optional(),
+            "labelAt": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemLabelAtMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemLabelAtMax).optional(),
+            "labelAnchor": stringType().optional(),
+            "text": stringType().optional(),
+            "anchor": stringType().optional(),
+            "size": numberType().optional(),
+            "bold": booleanType().optional(),
+            "muted": booleanType().optional()
+          }))
+        }).optional(),
+        "retryFeedback": objectType({
+          "message": stringType().max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRetryFeedbackMessageMax),
+          "canRetryManually": booleanType(),
+          "validationFindings": arrayType(stringType().max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRetryFeedbackValidationFindingsItemMax)).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRetryFeedbackValidationFindingsMax).optional(),
+          "validationWarnings": arrayType(stringType().max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRetryFeedbackValidationWarningsItemMax)).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRetryFeedbackValidationWarningsMax).optional()
+        }).optional(),
+        "repairDiagnostics": arrayType(objectType({
+          "attempt": numberType().int().min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRepairDiagnosticsItemAttemptMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRepairDiagnosticsItemAttemptMax),
+          "outcome": enumType(["reconstructed", "validated", "rejected", "exhausted", "stopped"]),
+          "nonWireElementsModified": booleanType(),
+          "metadataModified": booleanType(),
+          "validationErrors": arrayType(stringType().max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRepairDiagnosticsItemValidationErrorsItemMax)).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRepairDiagnosticsItemValidationErrorsMax),
+          "validationWarnings": arrayType(stringType().max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRepairDiagnosticsItemValidationWarningsItemMax)).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRepairDiagnosticsItemValidationWarningsMax)
+        })).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRepairDiagnosticsMax),
+        "retryAttempt": numberType().int().min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRetryAttemptMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRetryAttemptMax),
+        "retryKind": enumType(["generation", "repair", "format"]).optional(),
+        "lastRequest": objectType({
+          "message": stringType().min(1),
+          "mode": enumType(["chat", "build"]),
+          "responseFormatRetry": booleanType().optional().describe("Indicates a retry for correcting a previously truncated or malformed model response."),
+          "currentSpec": objectType({
+            "title": stringType(),
+            "width": numberType().optional(),
+            "height": numberType().optional(),
+            "elements": arrayType(objectType({
+              "type": stringType(),
+              "id": stringType().optional(),
+              "label": stringType().optional(),
+              "value": stringType().optional(),
+              "from": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemFromMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemFromMax).optional(),
+              "to": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemToMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemToMax).optional(),
+              "at": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemAtMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemAtMax).optional(),
+              "symbolId": stringType().regex(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolIdRegExp).optional(),
+              "unit": numberType().int().min(1).optional(),
+              "bodyStyle": numberType().int().min(1).optional(),
+              "rotation": numberType().optional().describe("Any finite rotation angle in degrees, including fractional and negative angles."),
+              "symbolData": objectType({
+                "id": stringType(),
+                "units": arrayType(objectType({
+                  "unit": numberType().int().min(1),
+                  "bodyStyle": numberType().int().min(1),
+                  "pins": arrayType(objectType({
+                    "number": stringType(),
+                    "name": stringType(),
+                    "electricalType": stringType(),
+                    "shape": stringType(),
+                    "point": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemPinsItemPointMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemPinsItemPointMax),
+                    "bodyPoint": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax),
+                    "showName": booleanType(),
+                    "showNumber": booleanType()
+                  })).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemPinsMax),
+                  "graphics": arrayType(objectType({
+                    "type": enumType(["polyline", "rectangle", "circle", "arc", "bezier", "text"]),
+                    "points": arrayType(arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax)).optional(),
+                    "radius": numberType().min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin).optional(),
+                    "text": stringType().optional(),
+                    "fontSize": numberType().min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin).optional(),
+                    "strokeWidth": numberType().min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin).optional(),
+                    "fillType": enumType(["none", "background", "outline"]).optional(),
+                    "closed": booleanType().optional()
+                  })).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsMax)
+                })).min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsMax)
+              }).optional(),
+              "points": arrayType(arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemPointsItemMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemPointsItemMax)).optional(),
+              "x": numberType().optional(),
+              "y": numberType().optional(),
+              "w": numberType().optional(),
+              "h": numberType().optional(),
+              "height": numberType().optional(),
+              "open": booleanType().optional(),
+              "closed": booleanType().optional(),
+              "flip": booleanType().optional(),
+              "circle": booleanType().optional(),
+              "swap": booleanType().optional(),
+              "style": stringType().optional(),
+              "labelPos": stringType().optional(),
+              "labelNudge": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemLabelNudgeMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemLabelNudgeMax).optional(),
+              "labelAt": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemLabelAtMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemLabelAtMax).optional(),
+              "labelAnchor": stringType().optional(),
+              "text": stringType().optional(),
+              "anchor": stringType().optional(),
+              "size": numberType().optional(),
+              "bold": booleanType().optional(),
+              "muted": booleanType().optional()
+            }))
+          }),
+          "history": arrayType(objectType({
+            "role": enumType(["user", "assistant"]),
+            "content": stringType().max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestHistoryItemContentMax)
+          })).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestHistoryMax).optional(),
+          "brief": objectType({
+            "goal": stringType().max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestBriefGoalMax),
+            "requirements": arrayType(stringType().max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestBriefRequirementsItemMax)).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestBriefRequirementsMax),
+            "assumptions": arrayType(stringType().max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestBriefAssumptionsItemMax)).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestBriefAssumptionsMax),
+            "openQuestions": arrayType(stringType().max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestBriefOpenQuestionsItemMax)).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestBriefOpenQuestionsMax)
+          }).optional()
+        }).optional(),
+        "lastProtectedElementsBaseSpec": objectType({
+          "title": stringType(),
+          "width": numberType().optional(),
+          "height": numberType().optional(),
+          "elements": arrayType(objectType({
+            "type": stringType(),
+            "id": stringType().optional(),
+            "label": stringType().optional(),
+            "value": stringType().optional(),
+            "from": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemFromMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemFromMax).optional(),
+            "to": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemToMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemToMax).optional(),
+            "at": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemAtMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemAtMax).optional(),
+            "symbolId": stringType().regex(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolIdRegExp).optional(),
+            "unit": numberType().int().min(1).optional(),
+            "bodyStyle": numberType().int().min(1).optional(),
+            "rotation": numberType().optional().describe("Any finite rotation angle in degrees, including fractional and negative angles."),
+            "symbolData": objectType({
+              "id": stringType(),
+              "units": arrayType(objectType({
+                "unit": numberType().int().min(1),
+                "bodyStyle": numberType().int().min(1),
+                "pins": arrayType(objectType({
+                  "number": stringType(),
+                  "name": stringType(),
+                  "electricalType": stringType(),
+                  "shape": stringType(),
+                  "point": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemPinsItemPointMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemPinsItemPointMax),
+                  "bodyPoint": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax),
+                  "showName": booleanType(),
+                  "showNumber": booleanType()
+                })).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemPinsMax),
+                "graphics": arrayType(objectType({
+                  "type": enumType(["polyline", "rectangle", "circle", "arc", "bezier", "text"]),
+                  "points": arrayType(arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax)).optional(),
+                  "radius": numberType().min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin).optional(),
+                  "text": stringType().optional(),
+                  "fontSize": numberType().min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin).optional(),
+                  "strokeWidth": numberType().min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin).optional(),
+                  "fillType": enumType(["none", "background", "outline"]).optional(),
+                  "closed": booleanType().optional()
+                })).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsMax)
+              })).min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsMax)
+            }).optional(),
+            "points": arrayType(arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemPointsItemMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemPointsItemMax)).optional(),
+            "x": numberType().optional(),
+            "y": numberType().optional(),
+            "w": numberType().optional(),
+            "h": numberType().optional(),
+            "height": numberType().optional(),
+            "open": booleanType().optional(),
+            "closed": booleanType().optional(),
+            "flip": booleanType().optional(),
+            "circle": booleanType().optional(),
+            "swap": booleanType().optional(),
+            "style": stringType().optional(),
+            "labelPos": stringType().optional(),
+            "labelNudge": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemLabelNudgeMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemLabelNudgeMax).optional(),
+            "labelAt": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemLabelAtMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemLabelAtMax).optional(),
+            "labelAnchor": stringType().optional(),
+            "text": stringType().optional(),
+            "anchor": stringType().optional(),
+            "size": numberType().optional(),
+            "bold": booleanType().optional(),
+            "muted": booleanType().optional()
+          }))
+        }).optional(),
+        "proposalRepairLesson": objectType({
+          "beforeSpec": objectType({
+            "title": stringType(),
+            "width": numberType().optional(),
+            "height": numberType().optional(),
+            "elements": arrayType(objectType({
+              "type": stringType(),
+              "id": stringType().optional(),
+              "label": stringType().optional(),
+              "value": stringType().optional(),
+              "from": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemFromMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemFromMax).optional(),
+              "to": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemToMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemToMax).optional(),
+              "at": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemAtMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemAtMax).optional(),
+              "symbolId": stringType().regex(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolIdRegExp).optional(),
+              "unit": numberType().int().min(1).optional(),
+              "bodyStyle": numberType().int().min(1).optional(),
+              "rotation": numberType().optional().describe("Any finite rotation angle in degrees, including fractional and negative angles."),
+              "symbolData": objectType({
+                "id": stringType(),
+                "units": arrayType(objectType({
+                  "unit": numberType().int().min(1),
+                  "bodyStyle": numberType().int().min(1),
+                  "pins": arrayType(objectType({
+                    "number": stringType(),
+                    "name": stringType(),
+                    "electricalType": stringType(),
+                    "shape": stringType(),
+                    "point": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemPinsItemPointMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemPinsItemPointMax),
+                    "bodyPoint": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax),
+                    "showName": booleanType(),
+                    "showNumber": booleanType()
+                  })).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemPinsMax),
+                  "graphics": arrayType(objectType({
+                    "type": enumType(["polyline", "rectangle", "circle", "arc", "bezier", "text"]),
+                    "points": arrayType(arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax)).optional(),
+                    "radius": numberType().min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin).optional(),
+                    "text": stringType().optional(),
+                    "fontSize": numberType().min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin).optional(),
+                    "strokeWidth": numberType().min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin).optional(),
+                    "fillType": enumType(["none", "background", "outline"]).optional(),
+                    "closed": booleanType().optional()
+                  })).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsMax)
+                })).min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsMax)
+              }).optional(),
+              "points": arrayType(arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemPointsItemMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemPointsItemMax)).optional(),
+              "x": numberType().optional(),
+              "y": numberType().optional(),
+              "w": numberType().optional(),
+              "h": numberType().optional(),
+              "height": numberType().optional(),
+              "open": booleanType().optional(),
+              "closed": booleanType().optional(),
+              "flip": booleanType().optional(),
+              "circle": booleanType().optional(),
+              "swap": booleanType().optional(),
+              "style": stringType().optional(),
+              "labelPos": stringType().optional(),
+              "labelNudge": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemLabelNudgeMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemLabelNudgeMax).optional(),
+              "labelAt": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemLabelAtMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemLabelAtMax).optional(),
+              "labelAnchor": stringType().optional(),
+              "text": stringType().optional(),
+              "anchor": stringType().optional(),
+              "size": numberType().optional(),
+              "bold": booleanType().optional(),
+              "muted": booleanType().optional()
+            }))
+          }),
+          "afterSpec": objectType({
+            "title": stringType(),
+            "width": numberType().optional(),
+            "height": numberType().optional(),
+            "elements": arrayType(objectType({
+              "type": stringType(),
+              "id": stringType().optional(),
+              "label": stringType().optional(),
+              "value": stringType().optional(),
+              "from": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemFromMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemFromMax).optional(),
+              "to": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemToMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemToMax).optional(),
+              "at": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemAtMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemAtMax).optional(),
+              "symbolId": stringType().regex(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolIdRegExp).optional(),
+              "unit": numberType().int().min(1).optional(),
+              "bodyStyle": numberType().int().min(1).optional(),
+              "rotation": numberType().optional().describe("Any finite rotation angle in degrees, including fractional and negative angles."),
+              "symbolData": objectType({
+                "id": stringType(),
+                "units": arrayType(objectType({
+                  "unit": numberType().int().min(1),
+                  "bodyStyle": numberType().int().min(1),
+                  "pins": arrayType(objectType({
+                    "number": stringType(),
+                    "name": stringType(),
+                    "electricalType": stringType(),
+                    "shape": stringType(),
+                    "point": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemPinsItemPointMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemPinsItemPointMax),
+                    "bodyPoint": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax),
+                    "showName": booleanType(),
+                    "showNumber": booleanType()
+                  })).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemPinsMax),
+                  "graphics": arrayType(objectType({
+                    "type": enumType(["polyline", "rectangle", "circle", "arc", "bezier", "text"]),
+                    "points": arrayType(arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax)).optional(),
+                    "radius": numberType().min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin).optional(),
+                    "text": stringType().optional(),
+                    "fontSize": numberType().min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin).optional(),
+                    "strokeWidth": numberType().min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin).optional(),
+                    "fillType": enumType(["none", "background", "outline"]).optional(),
+                    "closed": booleanType().optional()
+                  })).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsMax)
+                })).min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsMax)
+              }).optional(),
+              "points": arrayType(arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemPointsItemMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemPointsItemMax)).optional(),
+              "x": numberType().optional(),
+              "y": numberType().optional(),
+              "w": numberType().optional(),
+              "h": numberType().optional(),
+              "height": numberType().optional(),
+              "open": booleanType().optional(),
+              "closed": booleanType().optional(),
+              "flip": booleanType().optional(),
+              "circle": booleanType().optional(),
+              "swap": booleanType().optional(),
+              "style": stringType().optional(),
+              "labelPos": stringType().optional(),
+              "labelNudge": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemLabelNudgeMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemLabelNudgeMax).optional(),
+              "labelAt": arrayType(numberType()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemLabelAtMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemLabelAtMax).optional(),
+              "labelAnchor": stringType().optional(),
+              "text": stringType().optional(),
+              "anchor": stringType().optional(),
+              "size": numberType().optional(),
+              "bold": booleanType().optional(),
+              "muted": booleanType().optional()
+            }))
+          }),
+          "findings": arrayType(stringType().min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonFindingsItemMax)).min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonFindingsMax),
+          "context": stringType().max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonContextMax).optional(),
+          "content": stringType().max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonContentMax).nullable()
+        }).optional(),
+        "externalFixDraft": stringType().max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairExternalFixDraftMax),
+        "composerDraft": stringType().max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairComposerDraftMax)
+      }).optional()
     }),
     "currentSpec": objectType({
       "title": stringType(),
@@ -76251,12 +77521,13 @@ function parseGraphic(value) {
   }
   if (type === "circle") {
     const center = point2(value, "center");
+    const radius = childNumber(value, "radius");
     const edge = point2(value, "end");
-    if (!center || !edge) return void 0;
+    if (!center || radius === void 0 && !edge) return void 0;
     return {
       type: "circle",
       points: [toCanvasPoint(center)],
-      radius: Math.hypot(edge[0] - center[0], edge[1] - center[1]) * PIXELS_PER_MILLIMETER,
+      radius: radius === void 0 ? Math.hypot(edge[0] - center[0], edge[1] - center[1]) * PIXELS_PER_MILLIMETER : Math.abs(radius) * PIXELS_PER_MILLIMETER,
       strokeWidth: width,
       fillType: fill
     };
@@ -76365,32 +77636,56 @@ function parseKicadSymbolSource(source) {
       });
     }
   }
-  const units = [...unitsByKey.values()].map((unit) => {
+  const commonUnits = [...commonByStyle.entries()].map(
+    ([bodyStyle, common]) => ({ bodyStyle, ...common })
+  );
+  const parsedUnits = [...unitsByKey.values()];
+  let units;
+  if (extendsName) {
+    units = parsedUnits;
+  } else if (parsedUnits.length) {
+    units = parsedUnits.map((unit) => {
+      const common = commonByStyle.get(unit.bodyStyle);
+      if (!common) return unit;
+      return {
+        ...unit,
+        pins: mergePins(common.pins, unit.pins),
+        graphics: [...common.graphics, ...unit.graphics]
+      };
+    });
+  } else {
+    units = commonUnits.map((common) => ({ unit: 1, ...common }));
+  }
+  return {
+    ...extendsName ? { extendsName } : {},
+    ...extendsName && commonUnits.length ? { commonUnits } : {},
+    units
+  };
+}
+function mergeInheritedKicadUnits(inherited, own, commonUnits = []) {
+  const commonByStyle = new Map(
+    commonUnits.map((unit) => [unit.bodyStyle, unit])
+  );
+  const byKey = new Map(inherited.map((unit) => {
     const common = commonByStyle.get(unit.bodyStyle);
-    if (!common) return unit;
-    return {
+    const merged = common ? {
       ...unit,
       pins: mergePins(common.pins, unit.pins),
       graphics: [...common.graphics, ...unit.graphics]
-    };
-  });
-  return { ...extendsName ? { extendsName } : {}, units };
-}
-function mergeInheritedKicadUnits(inherited, own) {
-  const byKey = new Map(
-    inherited.map((unit) => [`${unit.unit}:${unit.bodyStyle}`, unit])
-  );
+    } : unit;
+    return [`${unit.unit}:${unit.bodyStyle}`, merged];
+  }));
   for (const unit of own) {
     const key = `${unit.unit}:${unit.bodyStyle}`;
     const parent = byKey.get(key);
-    if (!parent) {
-      byKey.set(key, unit);
-      continue;
-    }
+    const common = commonByStyle.get(unit.bodyStyle);
     byKey.set(key, {
       ...unit,
-      pins: mergePins(parent.pins, unit.pins),
-      graphics: [...parent.graphics, ...unit.graphics]
+      pins: mergePins(parent?.pins ?? common?.pins ?? [], unit.pins),
+      graphics: [
+        ...parent?.graphics ?? common?.graphics ?? [],
+        ...unit.graphics
+      ]
     });
   }
   return [...byKey.values()].sort(
@@ -77125,7 +78420,11 @@ async function fetchSymbolData(id, visited) {
       throw new Error(`Base symbol ${parsed.extendsName} is missing from the KiCad index.`);
     }
     const parentData = await fetchSymbolData(parentEntry.id, visited);
-    units = mergeInheritedKicadUnits(parentData.units, units);
+    units = mergeInheritedKicadUnits(
+      parentData.units,
+      units,
+      parsed.commonUnits
+    );
   }
   if (!units.length) {
     throw new Error("The KiCad symbol did not contain usable drawing units.");
@@ -78905,7 +80204,7 @@ router6.put(
             createdAt: new Date(session.createdAt),
             updatedAt
           },
-          setWhere: lte(circuitBuilderHistory.updatedAt, updatedAt)
+          setWhere: lt(circuitBuilderHistory.updatedAt, updatedAt)
         }).returning({ sessionId: circuitBuilderHistory.sessionId });
         if (saved) savedCount += 1;
       }

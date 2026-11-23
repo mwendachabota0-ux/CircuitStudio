@@ -1405,6 +1405,345 @@ export const listCircuitBuilderHistoryResponseSavedMessagesItemSuggestedActionsM
 
 export const listCircuitBuilderHistoryResponseSavedMessagesMax = 60;
 
+export const listCircuitBuilderHistoryResponseSavedRepairProposalSummaryMax = 500;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemFromMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemFromMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemToMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemToMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemAtMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemAtMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolIdRegExp = new RegExp('^[^:\\s]+:[^:\\s]+$');
+
+
+
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemPinsItemPointMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemPinsItemPointMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemPinsMax = 512;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin = 0;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin = 0;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin = 0;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsMax = 2048;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsMax = 256;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemPointsItemMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemPointsItemMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemLabelNudgeMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemLabelNudgeMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemLabelAtMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemLabelAtMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalValidationErrorsItemMax = 3000;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalValidationErrorsMax = 40;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalValidationWarningsItemMax = 3000;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalValidationWarningsMax = 40;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalValidationTopologyErrorsItemMax = 3000;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalValidationTopologyErrorsMax = 40;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalValidationTopologyWarningsItemMax = 3000;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalValidationTopologyWarningsMax = 40;
+
+export const listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemFromMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemFromMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemToMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemToMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemAtMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemAtMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolIdRegExp = new RegExp('^[^:\\s]+:[^:\\s]+$');
+
+
+
+
+export const listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemPinsItemPointMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemPinsItemPointMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemPinsMax = 512;
+
+export const listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin = 0;
+
+export const listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin = 0;
+
+export const listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin = 0;
+
+export const listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsMax = 2048;
+
+export const listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsMax = 256;
+
+export const listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemPointsItemMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemPointsItemMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemLabelNudgeMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemLabelNudgeMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemLabelAtMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemLabelAtMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairRetryFeedbackMessageMax = 3000;
+
+export const listCircuitBuilderHistoryResponseSavedRepairRetryFeedbackValidationFindingsItemMax = 3000;
+
+export const listCircuitBuilderHistoryResponseSavedRepairRetryFeedbackValidationFindingsMax = 40;
+
+export const listCircuitBuilderHistoryResponseSavedRepairRetryFeedbackValidationWarningsItemMax = 3000;
+
+export const listCircuitBuilderHistoryResponseSavedRepairRetryFeedbackValidationWarningsMax = 40;
+
+export const listCircuitBuilderHistoryResponseSavedRepairRepairDiagnosticsItemAttemptMin = 0;
+export const listCircuitBuilderHistoryResponseSavedRepairRepairDiagnosticsItemAttemptMax = 100;
+
+export const listCircuitBuilderHistoryResponseSavedRepairRepairDiagnosticsItemValidationErrorsItemMax = 3000;
+
+export const listCircuitBuilderHistoryResponseSavedRepairRepairDiagnosticsItemValidationErrorsMax = 40;
+
+export const listCircuitBuilderHistoryResponseSavedRepairRepairDiagnosticsItemValidationWarningsItemMax = 3000;
+
+export const listCircuitBuilderHistoryResponseSavedRepairRepairDiagnosticsItemValidationWarningsMax = 40;
+
+export const listCircuitBuilderHistoryResponseSavedRepairRepairDiagnosticsMax = 20;
+
+export const listCircuitBuilderHistoryResponseSavedRepairRetryAttemptMin = 0;
+export const listCircuitBuilderHistoryResponseSavedRepairRetryAttemptMax = 100;
+
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemFromMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemFromMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemToMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemToMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemAtMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemAtMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolIdRegExp = new RegExp('^[^:\\s]+:[^:\\s]+$');
+
+
+
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemPinsItemPointMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemPinsItemPointMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemPinsMax = 512;
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin = 0;
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin = 0;
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin = 0;
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsMax = 2048;
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsMax = 256;
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemPointsItemMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemPointsItemMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemLabelNudgeMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemLabelNudgeMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemLabelAtMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemLabelAtMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastRequestHistoryItemContentMax = 3000;
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastRequestHistoryMax = 8;
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastRequestBriefGoalMax = 1000;
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastRequestBriefRequirementsItemMax = 300;
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastRequestBriefRequirementsMax = 12;
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastRequestBriefAssumptionsItemMax = 300;
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastRequestBriefAssumptionsMax = 12;
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastRequestBriefOpenQuestionsItemMax = 300;
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastRequestBriefOpenQuestionsMax = 12;
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemFromMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemFromMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemToMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemToMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemAtMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemAtMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolIdRegExp = new RegExp('^[^:\\s]+:[^:\\s]+$');
+
+
+
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemPinsItemPointMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemPinsItemPointMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemPinsMax = 512;
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin = 0;
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin = 0;
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin = 0;
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsMax = 2048;
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsMax = 256;
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemPointsItemMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemPointsItemMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemLabelNudgeMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemLabelNudgeMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemLabelAtMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemLabelAtMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemFromMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemFromMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemToMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemToMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemAtMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemAtMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolIdRegExp = new RegExp('^[^:\\s]+:[^:\\s]+$');
+
+
+
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemPinsItemPointMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemPinsItemPointMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemPinsMax = 512;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin = 0;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin = 0;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin = 0;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsMax = 2048;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsMax = 256;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemPointsItemMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemPointsItemMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemLabelNudgeMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemLabelNudgeMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemLabelAtMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemLabelAtMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemFromMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemFromMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemToMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemToMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemAtMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemAtMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolIdRegExp = new RegExp('^[^:\\s]+:[^:\\s]+$');
+
+
+
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemPinsItemPointMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemPinsItemPointMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemPinsMax = 512;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin = 0;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin = 0;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin = 0;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsMax = 2048;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsMax = 256;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemPointsItemMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemPointsItemMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemLabelNudgeMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemLabelNudgeMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemLabelAtMin = 2;
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemLabelAtMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonFindingsItemMax = 700;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonFindingsMax = 12;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonContextMax = 1600;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonContentMax = 300;
+
+export const listCircuitBuilderHistoryResponseSavedRepairExternalFixDraftMax = 50000;
+
+export const listCircuitBuilderHistoryResponseSavedRepairComposerDraftMax = 10000;
+
 export const listCircuitBuilderHistoryResponseCurrentSpecElementsItemFromMin = 2;
 export const listCircuitBuilderHistoryResponseCurrentSpecElementsItemFromMax = 2;
 
@@ -1481,7 +1820,454 @@ export const ListCircuitBuilderHistoryResponseItem = zod.object({
   "replyTo": zod.string().min(1).max(listCircuitBuilderHistoryResponseSavedMessagesItemSuggestedActionsItemReplyToMax).optional().describe('Exact assistant question this suggested reply answers.')
 })).max(listCircuitBuilderHistoryResponseSavedMessagesItemSuggestedActionsMax).optional(),
   "buildApprovalRequest": zod.boolean().optional()
-})).min(1).max(listCircuitBuilderHistoryResponseSavedMessagesMax)
+})).min(1).max(listCircuitBuilderHistoryResponseSavedMessagesMax),
+  "repair": zod.object({
+  "version": zod.literal(1),
+  "status": zod.enum(['idle', 'running', 'staged', 'rejected']),
+  "proposal": zod.object({
+  "summary": zod.string().min(1).max(listCircuitBuilderHistoryResponseSavedRepairProposalSummaryMax),
+  "spec": zod.object({
+  "title": zod.string(),
+  "width": zod.number().optional(),
+  "height": zod.number().optional(),
+  "elements": zod.array(zod.object({
+  "type": zod.string(),
+  "id": zod.string().optional(),
+  "label": zod.string().optional(),
+  "value": zod.string().optional(),
+  "from": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemFromMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemFromMax).optional(),
+  "to": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemToMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemToMax).optional(),
+  "at": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemAtMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemAtMax).optional(),
+  "symbolId": zod.string().regex(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolIdRegExp).optional(),
+  "unit": zod.number().int().min(1).optional(),
+  "bodyStyle": zod.number().int().min(1).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
+  "symbolData": zod.object({
+  "id": zod.string(),
+  "units": zod.array(zod.object({
+  "unit": zod.number().int().min(1),
+  "bodyStyle": zod.number().int().min(1),
+  "pins": zod.array(zod.object({
+  "number": zod.string(),
+  "name": zod.string(),
+  "electricalType": zod.string(),
+  "shape": zod.string(),
+  "point": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemPinsItemPointMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemPinsItemPointMax),
+  "bodyPoint": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax),
+  "showName": zod.boolean(),
+  "showNumber": zod.boolean()
+})).max(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemPinsMax),
+  "graphics": zod.array(zod.object({
+  "type": zod.enum(['polyline', 'rectangle', 'circle', 'arc', 'bezier', 'text']),
+  "points": zod.array(zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax)).optional(),
+  "radius": zod.number().min(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin).optional(),
+  "text": zod.string().optional(),
+  "fontSize": zod.number().min(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin).optional(),
+  "strokeWidth": zod.number().min(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin).optional(),
+  "fillType": zod.enum(['none', 'background', 'outline']).optional(),
+  "closed": zod.boolean().optional()
+})).max(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsMax)
+})).min(1).max(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemSymbolDataUnitsMax)
+}).optional(),
+  "points": zod.array(zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemPointsItemMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemPointsItemMax)).optional(),
+  "x": zod.number().optional(),
+  "y": zod.number().optional(),
+  "w": zod.number().optional(),
+  "h": zod.number().optional(),
+  "height": zod.number().optional(),
+  "open": zod.boolean().optional(),
+  "closed": zod.boolean().optional(),
+  "flip": zod.boolean().optional(),
+  "circle": zod.boolean().optional(),
+  "swap": zod.boolean().optional(),
+  "style": zod.string().optional(),
+  "labelPos": zod.string().optional(),
+  "labelNudge": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemLabelNudgeMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemLabelNudgeMax).optional(),
+  "labelAt": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemLabelAtMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemLabelAtMax).optional(),
+  "labelAnchor": zod.string().optional(),
+  "text": zod.string().optional(),
+  "anchor": zod.string().optional(),
+  "size": zod.number().optional(),
+  "bold": zod.boolean().optional(),
+  "muted": zod.boolean().optional()
+}))
+})
+}).optional(),
+  "proposalValidation": zod.object({
+  "errors": zod.array(zod.string().max(listCircuitBuilderHistoryResponseSavedRepairProposalValidationErrorsItemMax)).max(listCircuitBuilderHistoryResponseSavedRepairProposalValidationErrorsMax),
+  "warnings": zod.array(zod.string().max(listCircuitBuilderHistoryResponseSavedRepairProposalValidationWarningsItemMax)).max(listCircuitBuilderHistoryResponseSavedRepairProposalValidationWarningsMax),
+  "topologyErrors": zod.array(zod.string().max(listCircuitBuilderHistoryResponseSavedRepairProposalValidationTopologyErrorsItemMax)).max(listCircuitBuilderHistoryResponseSavedRepairProposalValidationTopologyErrorsMax).optional(),
+  "topologyWarnings": zod.array(zod.string().max(listCircuitBuilderHistoryResponseSavedRepairProposalValidationTopologyWarningsItemMax)).max(listCircuitBuilderHistoryResponseSavedRepairProposalValidationTopologyWarningsMax).optional()
+}).optional(),
+  "rejectedProposalSpec": zod.object({
+  "title": zod.string(),
+  "width": zod.number().optional(),
+  "height": zod.number().optional(),
+  "elements": zod.array(zod.object({
+  "type": zod.string(),
+  "id": zod.string().optional(),
+  "label": zod.string().optional(),
+  "value": zod.string().optional(),
+  "from": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemFromMin).max(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemFromMax).optional(),
+  "to": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemToMin).max(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemToMax).optional(),
+  "at": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemAtMin).max(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemAtMax).optional(),
+  "symbolId": zod.string().regex(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolIdRegExp).optional(),
+  "unit": zod.number().int().min(1).optional(),
+  "bodyStyle": zod.number().int().min(1).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
+  "symbolData": zod.object({
+  "id": zod.string(),
+  "units": zod.array(zod.object({
+  "unit": zod.number().int().min(1),
+  "bodyStyle": zod.number().int().min(1),
+  "pins": zod.array(zod.object({
+  "number": zod.string(),
+  "name": zod.string(),
+  "electricalType": zod.string(),
+  "shape": zod.string(),
+  "point": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemPinsItemPointMin).max(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemPinsItemPointMax),
+  "bodyPoint": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin).max(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax),
+  "showName": zod.boolean(),
+  "showNumber": zod.boolean()
+})).max(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemPinsMax),
+  "graphics": zod.array(zod.object({
+  "type": zod.enum(['polyline', 'rectangle', 'circle', 'arc', 'bezier', 'text']),
+  "points": zod.array(zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin).max(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax)).optional(),
+  "radius": zod.number().min(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin).optional(),
+  "text": zod.string().optional(),
+  "fontSize": zod.number().min(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin).optional(),
+  "strokeWidth": zod.number().min(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin).optional(),
+  "fillType": zod.enum(['none', 'background', 'outline']).optional(),
+  "closed": zod.boolean().optional()
+})).max(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsMax)
+})).min(1).max(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsMax)
+}).optional(),
+  "points": zod.array(zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemPointsItemMin).max(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemPointsItemMax)).optional(),
+  "x": zod.number().optional(),
+  "y": zod.number().optional(),
+  "w": zod.number().optional(),
+  "h": zod.number().optional(),
+  "height": zod.number().optional(),
+  "open": zod.boolean().optional(),
+  "closed": zod.boolean().optional(),
+  "flip": zod.boolean().optional(),
+  "circle": zod.boolean().optional(),
+  "swap": zod.boolean().optional(),
+  "style": zod.string().optional(),
+  "labelPos": zod.string().optional(),
+  "labelNudge": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemLabelNudgeMin).max(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemLabelNudgeMax).optional(),
+  "labelAt": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemLabelAtMin).max(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemLabelAtMax).optional(),
+  "labelAnchor": zod.string().optional(),
+  "text": zod.string().optional(),
+  "anchor": zod.string().optional(),
+  "size": zod.number().optional(),
+  "bold": zod.boolean().optional(),
+  "muted": zod.boolean().optional()
+}))
+}).optional(),
+  "retryFeedback": zod.object({
+  "message": zod.string().max(listCircuitBuilderHistoryResponseSavedRepairRetryFeedbackMessageMax),
+  "canRetryManually": zod.boolean(),
+  "validationFindings": zod.array(zod.string().max(listCircuitBuilderHistoryResponseSavedRepairRetryFeedbackValidationFindingsItemMax)).max(listCircuitBuilderHistoryResponseSavedRepairRetryFeedbackValidationFindingsMax).optional(),
+  "validationWarnings": zod.array(zod.string().max(listCircuitBuilderHistoryResponseSavedRepairRetryFeedbackValidationWarningsItemMax)).max(listCircuitBuilderHistoryResponseSavedRepairRetryFeedbackValidationWarningsMax).optional()
+}).optional(),
+  "repairDiagnostics": zod.array(zod.object({
+  "attempt": zod.number().int().min(listCircuitBuilderHistoryResponseSavedRepairRepairDiagnosticsItemAttemptMin).max(listCircuitBuilderHistoryResponseSavedRepairRepairDiagnosticsItemAttemptMax),
+  "outcome": zod.enum(['reconstructed', 'validated', 'rejected', 'exhausted', 'stopped']),
+  "nonWireElementsModified": zod.boolean(),
+  "metadataModified": zod.boolean(),
+  "validationErrors": zod.array(zod.string().max(listCircuitBuilderHistoryResponseSavedRepairRepairDiagnosticsItemValidationErrorsItemMax)).max(listCircuitBuilderHistoryResponseSavedRepairRepairDiagnosticsItemValidationErrorsMax),
+  "validationWarnings": zod.array(zod.string().max(listCircuitBuilderHistoryResponseSavedRepairRepairDiagnosticsItemValidationWarningsItemMax)).max(listCircuitBuilderHistoryResponseSavedRepairRepairDiagnosticsItemValidationWarningsMax)
+})).max(listCircuitBuilderHistoryResponseSavedRepairRepairDiagnosticsMax),
+  "retryAttempt": zod.number().int().min(listCircuitBuilderHistoryResponseSavedRepairRetryAttemptMin).max(listCircuitBuilderHistoryResponseSavedRepairRetryAttemptMax),
+  "retryKind": zod.enum(['generation', 'repair', 'format']).optional(),
+  "lastRequest": zod.object({
+  "message": zod.string().min(1),
+  "mode": zod.enum(['chat', 'build']),
+  "responseFormatRetry": zod.boolean().optional().describe('Indicates a retry for correcting a previously truncated or malformed model response.'),
+  "currentSpec": zod.object({
+  "title": zod.string(),
+  "width": zod.number().optional(),
+  "height": zod.number().optional(),
+  "elements": zod.array(zod.object({
+  "type": zod.string(),
+  "id": zod.string().optional(),
+  "label": zod.string().optional(),
+  "value": zod.string().optional(),
+  "from": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemFromMin).max(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemFromMax).optional(),
+  "to": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemToMin).max(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemToMax).optional(),
+  "at": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemAtMin).max(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemAtMax).optional(),
+  "symbolId": zod.string().regex(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolIdRegExp).optional(),
+  "unit": zod.number().int().min(1).optional(),
+  "bodyStyle": zod.number().int().min(1).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
+  "symbolData": zod.object({
+  "id": zod.string(),
+  "units": zod.array(zod.object({
+  "unit": zod.number().int().min(1),
+  "bodyStyle": zod.number().int().min(1),
+  "pins": zod.array(zod.object({
+  "number": zod.string(),
+  "name": zod.string(),
+  "electricalType": zod.string(),
+  "shape": zod.string(),
+  "point": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemPinsItemPointMin).max(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemPinsItemPointMax),
+  "bodyPoint": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin).max(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax),
+  "showName": zod.boolean(),
+  "showNumber": zod.boolean()
+})).max(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemPinsMax),
+  "graphics": zod.array(zod.object({
+  "type": zod.enum(['polyline', 'rectangle', 'circle', 'arc', 'bezier', 'text']),
+  "points": zod.array(zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin).max(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax)).optional(),
+  "radius": zod.number().min(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin).optional(),
+  "text": zod.string().optional(),
+  "fontSize": zod.number().min(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin).optional(),
+  "strokeWidth": zod.number().min(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin).optional(),
+  "fillType": zod.enum(['none', 'background', 'outline']).optional(),
+  "closed": zod.boolean().optional()
+})).max(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsMax)
+})).min(1).max(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsMax)
+}).optional(),
+  "points": zod.array(zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemPointsItemMin).max(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemPointsItemMax)).optional(),
+  "x": zod.number().optional(),
+  "y": zod.number().optional(),
+  "w": zod.number().optional(),
+  "h": zod.number().optional(),
+  "height": zod.number().optional(),
+  "open": zod.boolean().optional(),
+  "closed": zod.boolean().optional(),
+  "flip": zod.boolean().optional(),
+  "circle": zod.boolean().optional(),
+  "swap": zod.boolean().optional(),
+  "style": zod.string().optional(),
+  "labelPos": zod.string().optional(),
+  "labelNudge": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemLabelNudgeMin).max(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemLabelNudgeMax).optional(),
+  "labelAt": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemLabelAtMin).max(listCircuitBuilderHistoryResponseSavedRepairLastRequestCurrentSpecElementsItemLabelAtMax).optional(),
+  "labelAnchor": zod.string().optional(),
+  "text": zod.string().optional(),
+  "anchor": zod.string().optional(),
+  "size": zod.number().optional(),
+  "bold": zod.boolean().optional(),
+  "muted": zod.boolean().optional()
+}))
+}),
+  "history": zod.array(zod.object({
+  "role": zod.enum(['user', 'assistant']),
+  "content": zod.string().max(listCircuitBuilderHistoryResponseSavedRepairLastRequestHistoryItemContentMax)
+})).max(listCircuitBuilderHistoryResponseSavedRepairLastRequestHistoryMax).optional(),
+  "brief": zod.object({
+  "goal": zod.string().max(listCircuitBuilderHistoryResponseSavedRepairLastRequestBriefGoalMax),
+  "requirements": zod.array(zod.string().max(listCircuitBuilderHistoryResponseSavedRepairLastRequestBriefRequirementsItemMax)).max(listCircuitBuilderHistoryResponseSavedRepairLastRequestBriefRequirementsMax),
+  "assumptions": zod.array(zod.string().max(listCircuitBuilderHistoryResponseSavedRepairLastRequestBriefAssumptionsItemMax)).max(listCircuitBuilderHistoryResponseSavedRepairLastRequestBriefAssumptionsMax),
+  "openQuestions": zod.array(zod.string().max(listCircuitBuilderHistoryResponseSavedRepairLastRequestBriefOpenQuestionsItemMax)).max(listCircuitBuilderHistoryResponseSavedRepairLastRequestBriefOpenQuestionsMax)
+}).optional()
+}).optional(),
+  "lastProtectedElementsBaseSpec": zod.object({
+  "title": zod.string(),
+  "width": zod.number().optional(),
+  "height": zod.number().optional(),
+  "elements": zod.array(zod.object({
+  "type": zod.string(),
+  "id": zod.string().optional(),
+  "label": zod.string().optional(),
+  "value": zod.string().optional(),
+  "from": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemFromMin).max(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemFromMax).optional(),
+  "to": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemToMin).max(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemToMax).optional(),
+  "at": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemAtMin).max(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemAtMax).optional(),
+  "symbolId": zod.string().regex(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolIdRegExp).optional(),
+  "unit": zod.number().int().min(1).optional(),
+  "bodyStyle": zod.number().int().min(1).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
+  "symbolData": zod.object({
+  "id": zod.string(),
+  "units": zod.array(zod.object({
+  "unit": zod.number().int().min(1),
+  "bodyStyle": zod.number().int().min(1),
+  "pins": zod.array(zod.object({
+  "number": zod.string(),
+  "name": zod.string(),
+  "electricalType": zod.string(),
+  "shape": zod.string(),
+  "point": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemPinsItemPointMin).max(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemPinsItemPointMax),
+  "bodyPoint": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin).max(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax),
+  "showName": zod.boolean(),
+  "showNumber": zod.boolean()
+})).max(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemPinsMax),
+  "graphics": zod.array(zod.object({
+  "type": zod.enum(['polyline', 'rectangle', 'circle', 'arc', 'bezier', 'text']),
+  "points": zod.array(zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin).max(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax)).optional(),
+  "radius": zod.number().min(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin).optional(),
+  "text": zod.string().optional(),
+  "fontSize": zod.number().min(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin).optional(),
+  "strokeWidth": zod.number().min(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin).optional(),
+  "fillType": zod.enum(['none', 'background', 'outline']).optional(),
+  "closed": zod.boolean().optional()
+})).max(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsMax)
+})).min(1).max(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsMax)
+}).optional(),
+  "points": zod.array(zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemPointsItemMin).max(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemPointsItemMax)).optional(),
+  "x": zod.number().optional(),
+  "y": zod.number().optional(),
+  "w": zod.number().optional(),
+  "h": zod.number().optional(),
+  "height": zod.number().optional(),
+  "open": zod.boolean().optional(),
+  "closed": zod.boolean().optional(),
+  "flip": zod.boolean().optional(),
+  "circle": zod.boolean().optional(),
+  "swap": zod.boolean().optional(),
+  "style": zod.string().optional(),
+  "labelPos": zod.string().optional(),
+  "labelNudge": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemLabelNudgeMin).max(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemLabelNudgeMax).optional(),
+  "labelAt": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemLabelAtMin).max(listCircuitBuilderHistoryResponseSavedRepairLastProtectedElementsBaseSpecElementsItemLabelAtMax).optional(),
+  "labelAnchor": zod.string().optional(),
+  "text": zod.string().optional(),
+  "anchor": zod.string().optional(),
+  "size": zod.number().optional(),
+  "bold": zod.boolean().optional(),
+  "muted": zod.boolean().optional()
+}))
+}).optional(),
+  "proposalRepairLesson": zod.object({
+  "beforeSpec": zod.object({
+  "title": zod.string(),
+  "width": zod.number().optional(),
+  "height": zod.number().optional(),
+  "elements": zod.array(zod.object({
+  "type": zod.string(),
+  "id": zod.string().optional(),
+  "label": zod.string().optional(),
+  "value": zod.string().optional(),
+  "from": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemFromMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemFromMax).optional(),
+  "to": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemToMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemToMax).optional(),
+  "at": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemAtMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemAtMax).optional(),
+  "symbolId": zod.string().regex(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolIdRegExp).optional(),
+  "unit": zod.number().int().min(1).optional(),
+  "bodyStyle": zod.number().int().min(1).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
+  "symbolData": zod.object({
+  "id": zod.string(),
+  "units": zod.array(zod.object({
+  "unit": zod.number().int().min(1),
+  "bodyStyle": zod.number().int().min(1),
+  "pins": zod.array(zod.object({
+  "number": zod.string(),
+  "name": zod.string(),
+  "electricalType": zod.string(),
+  "shape": zod.string(),
+  "point": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemPinsItemPointMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemPinsItemPointMax),
+  "bodyPoint": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax),
+  "showName": zod.boolean(),
+  "showNumber": zod.boolean()
+})).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemPinsMax),
+  "graphics": zod.array(zod.object({
+  "type": zod.enum(['polyline', 'rectangle', 'circle', 'arc', 'bezier', 'text']),
+  "points": zod.array(zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax)).optional(),
+  "radius": zod.number().min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin).optional(),
+  "text": zod.string().optional(),
+  "fontSize": zod.number().min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin).optional(),
+  "strokeWidth": zod.number().min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin).optional(),
+  "fillType": zod.enum(['none', 'background', 'outline']).optional(),
+  "closed": zod.boolean().optional()
+})).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsMax)
+})).min(1).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsMax)
+}).optional(),
+  "points": zod.array(zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemPointsItemMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemPointsItemMax)).optional(),
+  "x": zod.number().optional(),
+  "y": zod.number().optional(),
+  "w": zod.number().optional(),
+  "h": zod.number().optional(),
+  "height": zod.number().optional(),
+  "open": zod.boolean().optional(),
+  "closed": zod.boolean().optional(),
+  "flip": zod.boolean().optional(),
+  "circle": zod.boolean().optional(),
+  "swap": zod.boolean().optional(),
+  "style": zod.string().optional(),
+  "labelPos": zod.string().optional(),
+  "labelNudge": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemLabelNudgeMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemLabelNudgeMax).optional(),
+  "labelAt": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemLabelAtMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonBeforeSpecElementsItemLabelAtMax).optional(),
+  "labelAnchor": zod.string().optional(),
+  "text": zod.string().optional(),
+  "anchor": zod.string().optional(),
+  "size": zod.number().optional(),
+  "bold": zod.boolean().optional(),
+  "muted": zod.boolean().optional()
+}))
+}),
+  "afterSpec": zod.object({
+  "title": zod.string(),
+  "width": zod.number().optional(),
+  "height": zod.number().optional(),
+  "elements": zod.array(zod.object({
+  "type": zod.string(),
+  "id": zod.string().optional(),
+  "label": zod.string().optional(),
+  "value": zod.string().optional(),
+  "from": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemFromMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemFromMax).optional(),
+  "to": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemToMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemToMax).optional(),
+  "at": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemAtMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemAtMax).optional(),
+  "symbolId": zod.string().regex(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolIdRegExp).optional(),
+  "unit": zod.number().int().min(1).optional(),
+  "bodyStyle": zod.number().int().min(1).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
+  "symbolData": zod.object({
+  "id": zod.string(),
+  "units": zod.array(zod.object({
+  "unit": zod.number().int().min(1),
+  "bodyStyle": zod.number().int().min(1),
+  "pins": zod.array(zod.object({
+  "number": zod.string(),
+  "name": zod.string(),
+  "electricalType": zod.string(),
+  "shape": zod.string(),
+  "point": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemPinsItemPointMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemPinsItemPointMax),
+  "bodyPoint": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax),
+  "showName": zod.boolean(),
+  "showNumber": zod.boolean()
+})).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemPinsMax),
+  "graphics": zod.array(zod.object({
+  "type": zod.enum(['polyline', 'rectangle', 'circle', 'arc', 'bezier', 'text']),
+  "points": zod.array(zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax)).optional(),
+  "radius": zod.number().min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin).optional(),
+  "text": zod.string().optional(),
+  "fontSize": zod.number().min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin).optional(),
+  "strokeWidth": zod.number().min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin).optional(),
+  "fillType": zod.enum(['none', 'background', 'outline']).optional(),
+  "closed": zod.boolean().optional()
+})).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsMax)
+})).min(1).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsMax)
+}).optional(),
+  "points": zod.array(zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemPointsItemMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemPointsItemMax)).optional(),
+  "x": zod.number().optional(),
+  "y": zod.number().optional(),
+  "w": zod.number().optional(),
+  "h": zod.number().optional(),
+  "height": zod.number().optional(),
+  "open": zod.boolean().optional(),
+  "closed": zod.boolean().optional(),
+  "flip": zod.boolean().optional(),
+  "circle": zod.boolean().optional(),
+  "swap": zod.boolean().optional(),
+  "style": zod.string().optional(),
+  "labelPos": zod.string().optional(),
+  "labelNudge": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemLabelNudgeMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemLabelNudgeMax).optional(),
+  "labelAt": zod.array(zod.number()).min(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemLabelAtMin).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonAfterSpecElementsItemLabelAtMax).optional(),
+  "labelAnchor": zod.string().optional(),
+  "text": zod.string().optional(),
+  "anchor": zod.string().optional(),
+  "size": zod.number().optional(),
+  "bold": zod.boolean().optional(),
+  "muted": zod.boolean().optional()
+}))
+}),
+  "findings": zod.array(zod.string().min(1).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonFindingsItemMax)).min(1).max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonFindingsMax),
+  "context": zod.string().max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonContextMax).optional(),
+  "content": zod.string().max(listCircuitBuilderHistoryResponseSavedRepairProposalRepairLessonContentMax).nullable()
+}).optional(),
+  "externalFixDraft": zod.string().max(listCircuitBuilderHistoryResponseSavedRepairExternalFixDraftMax),
+  "composerDraft": zod.string().max(listCircuitBuilderHistoryResponseSavedRepairComposerDraftMax)
+}).optional()
 }),
   "currentSpec": zod.object({
   "title": zod.string(),
@@ -1610,6 +2396,345 @@ export const syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemSuggested
 
 export const syncCircuitBuilderHistoryBodySessionsItemSavedMessagesMax = 60;
 
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSummaryMax = 500;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemFromMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemFromMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemToMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemToMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemAtMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemAtMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolIdRegExp = new RegExp('^[^:\\s]+:[^:\\s]+$');
+
+
+
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemPinsItemPointMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemPinsItemPointMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemPinsMax = 512;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin = 0;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin = 0;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin = 0;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsMax = 2048;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsMax = 256;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemPointsItemMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemPointsItemMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemLabelNudgeMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemLabelNudgeMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemLabelAtMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemLabelAtMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalValidationErrorsItemMax = 3000;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalValidationErrorsMax = 40;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalValidationWarningsItemMax = 3000;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalValidationWarningsMax = 40;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalValidationTopologyErrorsItemMax = 3000;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalValidationTopologyErrorsMax = 40;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalValidationTopologyWarningsItemMax = 3000;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalValidationTopologyWarningsMax = 40;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemFromMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemFromMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemToMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemToMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemAtMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemAtMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolIdRegExp = new RegExp('^[^:\\s]+:[^:\\s]+$');
+
+
+
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemPinsItemPointMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemPinsItemPointMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemPinsMax = 512;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin = 0;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin = 0;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin = 0;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsMax = 2048;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsMax = 256;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemPointsItemMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemPointsItemMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemLabelNudgeMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemLabelNudgeMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemLabelAtMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemLabelAtMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRetryFeedbackMessageMax = 3000;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRetryFeedbackValidationFindingsItemMax = 3000;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRetryFeedbackValidationFindingsMax = 40;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRetryFeedbackValidationWarningsItemMax = 3000;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRetryFeedbackValidationWarningsMax = 40;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRepairDiagnosticsItemAttemptMin = 0;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRepairDiagnosticsItemAttemptMax = 100;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRepairDiagnosticsItemValidationErrorsItemMax = 3000;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRepairDiagnosticsItemValidationErrorsMax = 40;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRepairDiagnosticsItemValidationWarningsItemMax = 3000;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRepairDiagnosticsItemValidationWarningsMax = 40;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRepairDiagnosticsMax = 20;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRetryAttemptMin = 0;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRetryAttemptMax = 100;
+
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemFromMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemFromMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemToMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemToMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemAtMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemAtMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolIdRegExp = new RegExp('^[^:\\s]+:[^:\\s]+$');
+
+
+
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemPinsItemPointMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemPinsItemPointMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemPinsMax = 512;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin = 0;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin = 0;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin = 0;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsMax = 2048;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsMax = 256;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemPointsItemMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemPointsItemMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemLabelNudgeMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemLabelNudgeMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemLabelAtMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemLabelAtMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestHistoryItemContentMax = 3000;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestHistoryMax = 8;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestBriefGoalMax = 1000;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestBriefRequirementsItemMax = 300;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestBriefRequirementsMax = 12;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestBriefAssumptionsItemMax = 300;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestBriefAssumptionsMax = 12;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestBriefOpenQuestionsItemMax = 300;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestBriefOpenQuestionsMax = 12;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemFromMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemFromMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemToMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemToMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemAtMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemAtMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolIdRegExp = new RegExp('^[^:\\s]+:[^:\\s]+$');
+
+
+
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemPinsItemPointMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemPinsItemPointMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemPinsMax = 512;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin = 0;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin = 0;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin = 0;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsMax = 2048;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsMax = 256;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemPointsItemMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemPointsItemMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemLabelNudgeMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemLabelNudgeMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemLabelAtMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemLabelAtMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemFromMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemFromMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemToMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemToMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemAtMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemAtMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolIdRegExp = new RegExp('^[^:\\s]+:[^:\\s]+$');
+
+
+
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemPinsItemPointMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemPinsItemPointMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemPinsMax = 512;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin = 0;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin = 0;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin = 0;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsMax = 2048;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsMax = 256;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemPointsItemMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemPointsItemMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemLabelNudgeMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemLabelNudgeMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemLabelAtMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemLabelAtMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemFromMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemFromMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemToMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemToMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemAtMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemAtMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolIdRegExp = new RegExp('^[^:\\s]+:[^:\\s]+$');
+
+
+
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemPinsItemPointMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemPinsItemPointMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemPinsMax = 512;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin = 0;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin = 0;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin = 0;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsMax = 2048;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsMax = 256;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemPointsItemMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemPointsItemMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemLabelNudgeMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemLabelNudgeMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemLabelAtMin = 2;
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemLabelAtMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonFindingsItemMax = 700;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonFindingsMax = 12;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonContextMax = 1600;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonContentMax = 300;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairExternalFixDraftMax = 50000;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairComposerDraftMax = 10000;
+
 export const syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemFromMin = 2;
 export const syncCircuitBuilderHistoryBodySessionsItemCurrentSpecElementsItemFromMax = 2;
 
@@ -1689,7 +2814,454 @@ export const SyncCircuitBuilderHistoryBody = zod.object({
   "replyTo": zod.string().min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemSuggestedActionsItemReplyToMax).optional().describe('Exact assistant question this suggested reply answers.')
 })).max(syncCircuitBuilderHistoryBodySessionsItemSavedMessagesItemSuggestedActionsMax).optional(),
   "buildApprovalRequest": zod.boolean().optional()
-})).min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedMessagesMax)
+})).min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedMessagesMax),
+  "repair": zod.object({
+  "version": zod.literal(1),
+  "status": zod.enum(['idle', 'running', 'staged', 'rejected']),
+  "proposal": zod.object({
+  "summary": zod.string().min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSummaryMax),
+  "spec": zod.object({
+  "title": zod.string(),
+  "width": zod.number().optional(),
+  "height": zod.number().optional(),
+  "elements": zod.array(zod.object({
+  "type": zod.string(),
+  "id": zod.string().optional(),
+  "label": zod.string().optional(),
+  "value": zod.string().optional(),
+  "from": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemFromMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemFromMax).optional(),
+  "to": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemToMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemToMax).optional(),
+  "at": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemAtMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemAtMax).optional(),
+  "symbolId": zod.string().regex(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolIdRegExp).optional(),
+  "unit": zod.number().int().min(1).optional(),
+  "bodyStyle": zod.number().int().min(1).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
+  "symbolData": zod.object({
+  "id": zod.string(),
+  "units": zod.array(zod.object({
+  "unit": zod.number().int().min(1),
+  "bodyStyle": zod.number().int().min(1),
+  "pins": zod.array(zod.object({
+  "number": zod.string(),
+  "name": zod.string(),
+  "electricalType": zod.string(),
+  "shape": zod.string(),
+  "point": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemPinsItemPointMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemPinsItemPointMax),
+  "bodyPoint": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax),
+  "showName": zod.boolean(),
+  "showNumber": zod.boolean()
+})).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemPinsMax),
+  "graphics": zod.array(zod.object({
+  "type": zod.enum(['polyline', 'rectangle', 'circle', 'arc', 'bezier', 'text']),
+  "points": zod.array(zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax)).optional(),
+  "radius": zod.number().min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin).optional(),
+  "text": zod.string().optional(),
+  "fontSize": zod.number().min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin).optional(),
+  "strokeWidth": zod.number().min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin).optional(),
+  "fillType": zod.enum(['none', 'background', 'outline']).optional(),
+  "closed": zod.boolean().optional()
+})).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsItemGraphicsMax)
+})).min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemSymbolDataUnitsMax)
+}).optional(),
+  "points": zod.array(zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemPointsItemMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemPointsItemMax)).optional(),
+  "x": zod.number().optional(),
+  "y": zod.number().optional(),
+  "w": zod.number().optional(),
+  "h": zod.number().optional(),
+  "height": zod.number().optional(),
+  "open": zod.boolean().optional(),
+  "closed": zod.boolean().optional(),
+  "flip": zod.boolean().optional(),
+  "circle": zod.boolean().optional(),
+  "swap": zod.boolean().optional(),
+  "style": zod.string().optional(),
+  "labelPos": zod.string().optional(),
+  "labelNudge": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemLabelNudgeMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemLabelNudgeMax).optional(),
+  "labelAt": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemLabelAtMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemLabelAtMax).optional(),
+  "labelAnchor": zod.string().optional(),
+  "text": zod.string().optional(),
+  "anchor": zod.string().optional(),
+  "size": zod.number().optional(),
+  "bold": zod.boolean().optional(),
+  "muted": zod.boolean().optional()
+}))
+})
+}).optional(),
+  "proposalValidation": zod.object({
+  "errors": zod.array(zod.string().max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalValidationErrorsItemMax)).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalValidationErrorsMax),
+  "warnings": zod.array(zod.string().max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalValidationWarningsItemMax)).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalValidationWarningsMax),
+  "topologyErrors": zod.array(zod.string().max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalValidationTopologyErrorsItemMax)).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalValidationTopologyErrorsMax).optional(),
+  "topologyWarnings": zod.array(zod.string().max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalValidationTopologyWarningsItemMax)).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalValidationTopologyWarningsMax).optional()
+}).optional(),
+  "rejectedProposalSpec": zod.object({
+  "title": zod.string(),
+  "width": zod.number().optional(),
+  "height": zod.number().optional(),
+  "elements": zod.array(zod.object({
+  "type": zod.string(),
+  "id": zod.string().optional(),
+  "label": zod.string().optional(),
+  "value": zod.string().optional(),
+  "from": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemFromMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemFromMax).optional(),
+  "to": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemToMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemToMax).optional(),
+  "at": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemAtMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemAtMax).optional(),
+  "symbolId": zod.string().regex(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolIdRegExp).optional(),
+  "unit": zod.number().int().min(1).optional(),
+  "bodyStyle": zod.number().int().min(1).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
+  "symbolData": zod.object({
+  "id": zod.string(),
+  "units": zod.array(zod.object({
+  "unit": zod.number().int().min(1),
+  "bodyStyle": zod.number().int().min(1),
+  "pins": zod.array(zod.object({
+  "number": zod.string(),
+  "name": zod.string(),
+  "electricalType": zod.string(),
+  "shape": zod.string(),
+  "point": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemPinsItemPointMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemPinsItemPointMax),
+  "bodyPoint": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax),
+  "showName": zod.boolean(),
+  "showNumber": zod.boolean()
+})).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemPinsMax),
+  "graphics": zod.array(zod.object({
+  "type": zod.enum(['polyline', 'rectangle', 'circle', 'arc', 'bezier', 'text']),
+  "points": zod.array(zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax)).optional(),
+  "radius": zod.number().min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin).optional(),
+  "text": zod.string().optional(),
+  "fontSize": zod.number().min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin).optional(),
+  "strokeWidth": zod.number().min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin).optional(),
+  "fillType": zod.enum(['none', 'background', 'outline']).optional(),
+  "closed": zod.boolean().optional()
+})).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsItemGraphicsMax)
+})).min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemSymbolDataUnitsMax)
+}).optional(),
+  "points": zod.array(zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemPointsItemMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemPointsItemMax)).optional(),
+  "x": zod.number().optional(),
+  "y": zod.number().optional(),
+  "w": zod.number().optional(),
+  "h": zod.number().optional(),
+  "height": zod.number().optional(),
+  "open": zod.boolean().optional(),
+  "closed": zod.boolean().optional(),
+  "flip": zod.boolean().optional(),
+  "circle": zod.boolean().optional(),
+  "swap": zod.boolean().optional(),
+  "style": zod.string().optional(),
+  "labelPos": zod.string().optional(),
+  "labelNudge": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemLabelNudgeMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemLabelNudgeMax).optional(),
+  "labelAt": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemLabelAtMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemLabelAtMax).optional(),
+  "labelAnchor": zod.string().optional(),
+  "text": zod.string().optional(),
+  "anchor": zod.string().optional(),
+  "size": zod.number().optional(),
+  "bold": zod.boolean().optional(),
+  "muted": zod.boolean().optional()
+}))
+}).optional(),
+  "retryFeedback": zod.object({
+  "message": zod.string().max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRetryFeedbackMessageMax),
+  "canRetryManually": zod.boolean(),
+  "validationFindings": zod.array(zod.string().max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRetryFeedbackValidationFindingsItemMax)).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRetryFeedbackValidationFindingsMax).optional(),
+  "validationWarnings": zod.array(zod.string().max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRetryFeedbackValidationWarningsItemMax)).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRetryFeedbackValidationWarningsMax).optional()
+}).optional(),
+  "repairDiagnostics": zod.array(zod.object({
+  "attempt": zod.number().int().min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRepairDiagnosticsItemAttemptMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRepairDiagnosticsItemAttemptMax),
+  "outcome": zod.enum(['reconstructed', 'validated', 'rejected', 'exhausted', 'stopped']),
+  "nonWireElementsModified": zod.boolean(),
+  "metadataModified": zod.boolean(),
+  "validationErrors": zod.array(zod.string().max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRepairDiagnosticsItemValidationErrorsItemMax)).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRepairDiagnosticsItemValidationErrorsMax),
+  "validationWarnings": zod.array(zod.string().max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRepairDiagnosticsItemValidationWarningsItemMax)).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRepairDiagnosticsItemValidationWarningsMax)
+})).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRepairDiagnosticsMax),
+  "retryAttempt": zod.number().int().min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRetryAttemptMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRetryAttemptMax),
+  "retryKind": zod.enum(['generation', 'repair', 'format']).optional(),
+  "lastRequest": zod.object({
+  "message": zod.string().min(1),
+  "mode": zod.enum(['chat', 'build']),
+  "responseFormatRetry": zod.boolean().optional().describe('Indicates a retry for correcting a previously truncated or malformed model response.'),
+  "currentSpec": zod.object({
+  "title": zod.string(),
+  "width": zod.number().optional(),
+  "height": zod.number().optional(),
+  "elements": zod.array(zod.object({
+  "type": zod.string(),
+  "id": zod.string().optional(),
+  "label": zod.string().optional(),
+  "value": zod.string().optional(),
+  "from": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemFromMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemFromMax).optional(),
+  "to": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemToMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemToMax).optional(),
+  "at": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemAtMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemAtMax).optional(),
+  "symbolId": zod.string().regex(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolIdRegExp).optional(),
+  "unit": zod.number().int().min(1).optional(),
+  "bodyStyle": zod.number().int().min(1).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
+  "symbolData": zod.object({
+  "id": zod.string(),
+  "units": zod.array(zod.object({
+  "unit": zod.number().int().min(1),
+  "bodyStyle": zod.number().int().min(1),
+  "pins": zod.array(zod.object({
+  "number": zod.string(),
+  "name": zod.string(),
+  "electricalType": zod.string(),
+  "shape": zod.string(),
+  "point": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemPinsItemPointMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemPinsItemPointMax),
+  "bodyPoint": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax),
+  "showName": zod.boolean(),
+  "showNumber": zod.boolean()
+})).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemPinsMax),
+  "graphics": zod.array(zod.object({
+  "type": zod.enum(['polyline', 'rectangle', 'circle', 'arc', 'bezier', 'text']),
+  "points": zod.array(zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax)).optional(),
+  "radius": zod.number().min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin).optional(),
+  "text": zod.string().optional(),
+  "fontSize": zod.number().min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin).optional(),
+  "strokeWidth": zod.number().min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin).optional(),
+  "fillType": zod.enum(['none', 'background', 'outline']).optional(),
+  "closed": zod.boolean().optional()
+})).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsItemGraphicsMax)
+})).min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemSymbolDataUnitsMax)
+}).optional(),
+  "points": zod.array(zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemPointsItemMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemPointsItemMax)).optional(),
+  "x": zod.number().optional(),
+  "y": zod.number().optional(),
+  "w": zod.number().optional(),
+  "h": zod.number().optional(),
+  "height": zod.number().optional(),
+  "open": zod.boolean().optional(),
+  "closed": zod.boolean().optional(),
+  "flip": zod.boolean().optional(),
+  "circle": zod.boolean().optional(),
+  "swap": zod.boolean().optional(),
+  "style": zod.string().optional(),
+  "labelPos": zod.string().optional(),
+  "labelNudge": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemLabelNudgeMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemLabelNudgeMax).optional(),
+  "labelAt": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemLabelAtMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestCurrentSpecElementsItemLabelAtMax).optional(),
+  "labelAnchor": zod.string().optional(),
+  "text": zod.string().optional(),
+  "anchor": zod.string().optional(),
+  "size": zod.number().optional(),
+  "bold": zod.boolean().optional(),
+  "muted": zod.boolean().optional()
+}))
+}),
+  "history": zod.array(zod.object({
+  "role": zod.enum(['user', 'assistant']),
+  "content": zod.string().max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestHistoryItemContentMax)
+})).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestHistoryMax).optional(),
+  "brief": zod.object({
+  "goal": zod.string().max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestBriefGoalMax),
+  "requirements": zod.array(zod.string().max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestBriefRequirementsItemMax)).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestBriefRequirementsMax),
+  "assumptions": zod.array(zod.string().max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestBriefAssumptionsItemMax)).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestBriefAssumptionsMax),
+  "openQuestions": zod.array(zod.string().max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestBriefOpenQuestionsItemMax)).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastRequestBriefOpenQuestionsMax)
+}).optional()
+}).optional(),
+  "lastProtectedElementsBaseSpec": zod.object({
+  "title": zod.string(),
+  "width": zod.number().optional(),
+  "height": zod.number().optional(),
+  "elements": zod.array(zod.object({
+  "type": zod.string(),
+  "id": zod.string().optional(),
+  "label": zod.string().optional(),
+  "value": zod.string().optional(),
+  "from": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemFromMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemFromMax).optional(),
+  "to": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemToMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemToMax).optional(),
+  "at": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemAtMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemAtMax).optional(),
+  "symbolId": zod.string().regex(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolIdRegExp).optional(),
+  "unit": zod.number().int().min(1).optional(),
+  "bodyStyle": zod.number().int().min(1).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
+  "symbolData": zod.object({
+  "id": zod.string(),
+  "units": zod.array(zod.object({
+  "unit": zod.number().int().min(1),
+  "bodyStyle": zod.number().int().min(1),
+  "pins": zod.array(zod.object({
+  "number": zod.string(),
+  "name": zod.string(),
+  "electricalType": zod.string(),
+  "shape": zod.string(),
+  "point": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemPinsItemPointMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemPinsItemPointMax),
+  "bodyPoint": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax),
+  "showName": zod.boolean(),
+  "showNumber": zod.boolean()
+})).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemPinsMax),
+  "graphics": zod.array(zod.object({
+  "type": zod.enum(['polyline', 'rectangle', 'circle', 'arc', 'bezier', 'text']),
+  "points": zod.array(zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax)).optional(),
+  "radius": zod.number().min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin).optional(),
+  "text": zod.string().optional(),
+  "fontSize": zod.number().min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin).optional(),
+  "strokeWidth": zod.number().min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin).optional(),
+  "fillType": zod.enum(['none', 'background', 'outline']).optional(),
+  "closed": zod.boolean().optional()
+})).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsItemGraphicsMax)
+})).min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemSymbolDataUnitsMax)
+}).optional(),
+  "points": zod.array(zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemPointsItemMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemPointsItemMax)).optional(),
+  "x": zod.number().optional(),
+  "y": zod.number().optional(),
+  "w": zod.number().optional(),
+  "h": zod.number().optional(),
+  "height": zod.number().optional(),
+  "open": zod.boolean().optional(),
+  "closed": zod.boolean().optional(),
+  "flip": zod.boolean().optional(),
+  "circle": zod.boolean().optional(),
+  "swap": zod.boolean().optional(),
+  "style": zod.string().optional(),
+  "labelPos": zod.string().optional(),
+  "labelNudge": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemLabelNudgeMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemLabelNudgeMax).optional(),
+  "labelAt": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemLabelAtMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairLastProtectedElementsBaseSpecElementsItemLabelAtMax).optional(),
+  "labelAnchor": zod.string().optional(),
+  "text": zod.string().optional(),
+  "anchor": zod.string().optional(),
+  "size": zod.number().optional(),
+  "bold": zod.boolean().optional(),
+  "muted": zod.boolean().optional()
+}))
+}).optional(),
+  "proposalRepairLesson": zod.object({
+  "beforeSpec": zod.object({
+  "title": zod.string(),
+  "width": zod.number().optional(),
+  "height": zod.number().optional(),
+  "elements": zod.array(zod.object({
+  "type": zod.string(),
+  "id": zod.string().optional(),
+  "label": zod.string().optional(),
+  "value": zod.string().optional(),
+  "from": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemFromMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemFromMax).optional(),
+  "to": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemToMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemToMax).optional(),
+  "at": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemAtMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemAtMax).optional(),
+  "symbolId": zod.string().regex(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolIdRegExp).optional(),
+  "unit": zod.number().int().min(1).optional(),
+  "bodyStyle": zod.number().int().min(1).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
+  "symbolData": zod.object({
+  "id": zod.string(),
+  "units": zod.array(zod.object({
+  "unit": zod.number().int().min(1),
+  "bodyStyle": zod.number().int().min(1),
+  "pins": zod.array(zod.object({
+  "number": zod.string(),
+  "name": zod.string(),
+  "electricalType": zod.string(),
+  "shape": zod.string(),
+  "point": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemPinsItemPointMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemPinsItemPointMax),
+  "bodyPoint": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax),
+  "showName": zod.boolean(),
+  "showNumber": zod.boolean()
+})).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemPinsMax),
+  "graphics": zod.array(zod.object({
+  "type": zod.enum(['polyline', 'rectangle', 'circle', 'arc', 'bezier', 'text']),
+  "points": zod.array(zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax)).optional(),
+  "radius": zod.number().min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin).optional(),
+  "text": zod.string().optional(),
+  "fontSize": zod.number().min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin).optional(),
+  "strokeWidth": zod.number().min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin).optional(),
+  "fillType": zod.enum(['none', 'background', 'outline']).optional(),
+  "closed": zod.boolean().optional()
+})).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsItemGraphicsMax)
+})).min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemSymbolDataUnitsMax)
+}).optional(),
+  "points": zod.array(zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemPointsItemMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemPointsItemMax)).optional(),
+  "x": zod.number().optional(),
+  "y": zod.number().optional(),
+  "w": zod.number().optional(),
+  "h": zod.number().optional(),
+  "height": zod.number().optional(),
+  "open": zod.boolean().optional(),
+  "closed": zod.boolean().optional(),
+  "flip": zod.boolean().optional(),
+  "circle": zod.boolean().optional(),
+  "swap": zod.boolean().optional(),
+  "style": zod.string().optional(),
+  "labelPos": zod.string().optional(),
+  "labelNudge": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemLabelNudgeMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemLabelNudgeMax).optional(),
+  "labelAt": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemLabelAtMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonBeforeSpecElementsItemLabelAtMax).optional(),
+  "labelAnchor": zod.string().optional(),
+  "text": zod.string().optional(),
+  "anchor": zod.string().optional(),
+  "size": zod.number().optional(),
+  "bold": zod.boolean().optional(),
+  "muted": zod.boolean().optional()
+}))
+}),
+  "afterSpec": zod.object({
+  "title": zod.string(),
+  "width": zod.number().optional(),
+  "height": zod.number().optional(),
+  "elements": zod.array(zod.object({
+  "type": zod.string(),
+  "id": zod.string().optional(),
+  "label": zod.string().optional(),
+  "value": zod.string().optional(),
+  "from": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemFromMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemFromMax).optional(),
+  "to": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemToMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemToMax).optional(),
+  "at": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemAtMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemAtMax).optional(),
+  "symbolId": zod.string().regex(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolIdRegExp).optional(),
+  "unit": zod.number().int().min(1).optional(),
+  "bodyStyle": zod.number().int().min(1).optional(),
+  "rotation": zod.number().optional().describe('Any finite rotation angle in degrees, including fractional and negative angles.'),
+  "symbolData": zod.object({
+  "id": zod.string(),
+  "units": zod.array(zod.object({
+  "unit": zod.number().int().min(1),
+  "bodyStyle": zod.number().int().min(1),
+  "pins": zod.array(zod.object({
+  "number": zod.string(),
+  "name": zod.string(),
+  "electricalType": zod.string(),
+  "shape": zod.string(),
+  "point": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemPinsItemPointMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemPinsItemPointMax),
+  "bodyPoint": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemPinsItemBodyPointMax),
+  "showName": zod.boolean(),
+  "showNumber": zod.boolean()
+})).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemPinsMax),
+  "graphics": zod.array(zod.object({
+  "type": zod.enum(['polyline', 'rectangle', 'circle', 'arc', 'bezier', 'text']),
+  "points": zod.array(zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemPointsItemMax)).optional(),
+  "radius": zod.number().min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemRadiusMin).optional(),
+  "text": zod.string().optional(),
+  "fontSize": zod.number().min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemFontSizeMin).optional(),
+  "strokeWidth": zod.number().min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsItemStrokeWidthMin).optional(),
+  "fillType": zod.enum(['none', 'background', 'outline']).optional(),
+  "closed": zod.boolean().optional()
+})).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsItemGraphicsMax)
+})).min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemSymbolDataUnitsMax)
+}).optional(),
+  "points": zod.array(zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemPointsItemMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemPointsItemMax)).optional(),
+  "x": zod.number().optional(),
+  "y": zod.number().optional(),
+  "w": zod.number().optional(),
+  "h": zod.number().optional(),
+  "height": zod.number().optional(),
+  "open": zod.boolean().optional(),
+  "closed": zod.boolean().optional(),
+  "flip": zod.boolean().optional(),
+  "circle": zod.boolean().optional(),
+  "swap": zod.boolean().optional(),
+  "style": zod.string().optional(),
+  "labelPos": zod.string().optional(),
+  "labelNudge": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemLabelNudgeMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemLabelNudgeMax).optional(),
+  "labelAt": zod.array(zod.number()).min(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemLabelAtMin).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonAfterSpecElementsItemLabelAtMax).optional(),
+  "labelAnchor": zod.string().optional(),
+  "text": zod.string().optional(),
+  "anchor": zod.string().optional(),
+  "size": zod.number().optional(),
+  "bold": zod.boolean().optional(),
+  "muted": zod.boolean().optional()
+}))
+}),
+  "findings": zod.array(zod.string().min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonFindingsItemMax)).min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonFindingsMax),
+  "context": zod.string().max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonContextMax).optional(),
+  "content": zod.string().max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalRepairLessonContentMax).nullable()
+}).optional(),
+  "externalFixDraft": zod.string().max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairExternalFixDraftMax),
+  "composerDraft": zod.string().max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairComposerDraftMax)
+}).optional()
 }),
   "currentSpec": zod.object({
   "title": zod.string(),

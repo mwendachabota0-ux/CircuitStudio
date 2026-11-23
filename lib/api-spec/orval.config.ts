@@ -30,11 +30,11 @@ export default defineConfig({
       clean: true,
       prettier: true,
       override: {
-        query: {
-          version: 5,
-        },
         fetch: {
           includeHttpResponseReturnType: false,
+        },
+        query: {
+          version: 5,
         },
         mutator: {
           path: path.resolve(apiClientReactSrc, "custom-fetch.ts"),
@@ -60,7 +60,10 @@ export default defineConfig({
       prettier: true,
       override: {
         zod: {
-          version: 4,
+          // Orval resolves `auto` from lib/api-spec/package.json, which has no
+          // zod dependency, so orval >= 8.23 falls back to Zod 4 syntax while
+          // the catalog installs zod 3. Pin to match the catalog.
+          version: 3,
           coerce: {
             query: ['boolean', 'number', 'string'],
             param: ['boolean', 'number', 'string'],

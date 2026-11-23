@@ -79096,19 +79096,7 @@ function normalizeCircuitBuilderResponse(value, fallbackBrief) {
 }
 
 // src/lib/circuitBuilderPermission.ts
-var BUILD_PERMISSION_QUESTION = "Would you like me to switch to Build and prepare an editable schematic now?";
-var BUILD_PERMISSION_ACTIONS = [
-  {
-    label: "Yes, prepare a draft",
-    prompt: "Yes, please switch to Build and prepare an editable schematic for the circuit we discussed.",
-    replyTo: BUILD_PERMISSION_QUESTION
-  },
-  {
-    label: "Not yet",
-    prompt: "Not yet. Keep discussing the circuit with me in Chat; do not create a schematic.",
-    replyTo: BUILD_PERMISSION_QUESTION
-  }
-];
+var BUILD_PERMISSION_QUESTION = "This request is on standby. Click Build mode above when you're ready, and I'll start the schematic.";
 function isBuildPermissionQuestion(text3) {
   return text3.trim().toLowerCase().endsWith(BUILD_PERMISSION_QUESTION.toLowerCase());
 }
@@ -79131,10 +79119,10 @@ function enforceBuildPermission(response, requestedMode, history, latestUserMess
     result.answer = "Understood. I'll stay in Chat and won't create a schematic yet.";
     return result;
   }
-  if (response.nextMode === "build" && response.proposal) {
+  if (response.proposal) {
     delete result.proposal;
     result.answer = BUILD_PERMISSION_QUESTION;
-    result.suggestedActions = BUILD_PERMISSION_ACTIONS;
+    result.suggestedActions = [];
     result.buildApprovalRequested = true;
     return result;
   }
@@ -79145,9 +79133,10 @@ function enforceBuildPermission(response, requestedMode, history, latestUserMess
   }
   if (isBuildPermissionQuestion(response.answer)) {
     delete result.proposal;
-    result.suggestedActions = BUILD_PERMISSION_ACTIONS;
+    result.suggestedActions = [];
     result.buildApprovalRequested = true;
   }
+  delete result.proposal;
   return result;
 }
 
@@ -79565,7 +79554,7 @@ Use memoryUpdates sparingly to preserve only concise, reusable information that 
 
 Only when the latest request includes explicit structural validation findings and you are proposing a correction, include repairLesson as a concise "Mistake: ... Fix: ... Avoid next time: ..." note. Base it only on the reported findings and the proposed correction; do not claim electrical correctness or safety. If there is no clear reusable lesson, omit it or set it to null. Never put repair lessons in memoryUpdates; Circuit Studio saves them only after its checks pass and the user applies the proposal.
 
-Treat the requested mode as an authorization boundary. "Mode: build" means the user explicitly selected Build, directly requested a schematic, or approved a permission question; only then may you return nextMode "build" or a proposal. "Mode: chat" means permission has not been granted. In Chat, do not switch modes or return a proposal based on inferred intent, even when the user describes a concrete circuit goal or says an idea sounds right. Continue clarifying in Chat. When the design is ready for a schematic, ask exactly "Would you like me to switch to Build and prepare an editable schematic now?" and offer up to two direct yes/no replies whose replyTo exactly matches that question. Do not set buildApprovalRequested; it is server-owned. If the user asks an explanation, compares possibilities, brainstorms, speaks hypothetically, or asks to wait, answer in Chat without asking for build approval.
+Treat the requested mode as an authorization boundary. Only a manually selected Build tab allows a proposal. "Mode: chat" means no schematic may be returned, even if the user directly asks for one, says yes, or the model can already draft it. Keep the request on standby and ask the user to click Build mode using this exact sentence: "This request is on standby. Click Build mode above when you're ready, and I'll start the schematic." Do not offer a yes/no action that can start the build. Do not set buildApprovalRequested; it is server-owned. If the user asks an explanation, compares possibilities, brainstorms, speaks hypothetically, or asks to wait, answer in Chat without asking them to switch modes.
 
 A greeting or other social opener by itself is not a circuit request. Reply briefly in chat; do not treat an existing brief or current schematic as a new instruction to build. Never infer approval from a prior brief, current schematic, or an ambiguous positive reaction.
 

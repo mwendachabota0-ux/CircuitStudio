@@ -9,20 +9,7 @@ type BuilderResponse = {
 };
 
 export const BUILD_PERMISSION_QUESTION =
-  "Would you like me to switch to Build and prepare an editable schematic now?";
-
-const BUILD_PERMISSION_ACTIONS = [
-  {
-    label: "Yes, prepare a draft",
-    prompt: "Yes, please switch to Build and prepare an editable schematic for the circuit we discussed.",
-    replyTo: BUILD_PERMISSION_QUESTION,
-  },
-  {
-    label: "Not yet",
-    prompt: "Not yet. Keep discussing the circuit with me in Chat; do not create a schematic.",
-    replyTo: BUILD_PERMISSION_QUESTION,
-  },
-];
+  "This request is on standby. Click Build mode above when you're ready, and I'll start the schematic.";
 
 function isBuildPermissionQuestion(text: string): boolean {
   return text.trim().toLowerCase().endsWith(BUILD_PERMISSION_QUESTION.toLowerCase());
@@ -61,10 +48,10 @@ export function enforceBuildPermission<T extends BuilderResponse>(
     return result;
   }
 
-  if (response.nextMode === "build" && response.proposal) {
+  if (response.proposal) {
     delete result.proposal;
     result.answer = BUILD_PERMISSION_QUESTION;
-    result.suggestedActions = BUILD_PERMISSION_ACTIONS;
+    result.suggestedActions = [];
     result.buildApprovalRequested = true;
     return result;
   }
@@ -77,9 +64,10 @@ export function enforceBuildPermission<T extends BuilderResponse>(
 
   if (isBuildPermissionQuestion(response.answer)) {
     delete result.proposal;
-    result.suggestedActions = BUILD_PERMISSION_ACTIONS;
+    result.suggestedActions = [];
     result.buildApprovalRequested = true;
   }
 
+  delete result.proposal;
   return result;
 }

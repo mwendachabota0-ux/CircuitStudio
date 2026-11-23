@@ -52,7 +52,6 @@ import {
   getPinToNetSignature,
   hasStablePinConnectivitySignature,
   formatRepairAttemptSummary,
-  getModeAfterFailedRequest,
   getRetryRecoveryKind,
   MAX_AUTO_RETRIES,
   normalizeCircuitBuildRequest,
@@ -73,8 +72,7 @@ import {
 import { getLocalBuilderModeIntent } from '../lib/circuit-build-intent';
 import {
   enforceBuilderResponseMode,
-  isExplicitBuildApproval,
-  isExplicitBuildRequest,
+  isBuildApprovalDeclined,
 } from '../lib/circuit-build-authorization';
 import {
   getContextualSuggestedActions,
@@ -148,6 +146,7 @@ type SavedState = {
   aiBrief: CircuitDesignBrief;
   messages: ThreadMessage[];
   repair: RepairState;
+  standbyBuildWork: StandbyBuildWork | null;
 };
 type BuilderHistoryEntry = BuilderHistorySession<SavedState, CircuitBuildChatInput['currentSpec']>;
 type ValidationReport = {
@@ -183,6 +182,15 @@ type RepairLessonEvidence = {
   findings: string[];
   context?: string;
 };
+type StandbyBuildWork = {
+  request: CircuitBuildChatInput;
+  protectedElementsBaseSpec?: NonNullable<CircuitBuildChatInput['currentSpec']>;
+  preserveRejectedProposal?: boolean;
+  rememberForRetry?: boolean;
+  repairLessonSeed?: RepairLessonEvidence;
+  preservedRejectedProposalOverride?: CircuitBuildChatInput['currentSpec'];
+  allowConnectivityChange?: boolean;
+};
 type ProposalRepairLesson = RepairLessonEvidence & {
   afterSpec: CircuitSpec;
   content: string | null;
@@ -205,6 +213,8 @@ const initialMessage: ThreadMessage = {
   content: 'Tell me what you want this circuit to do. We can sort out the details first, then shape an editable draft when you are ready.',
   createdAt: 0,
 };
+const BUILD_MODE_STANDBY_MESSAGE =
+  "This request is on standby. Click Build mode above when you're ready, and I'll start the schematic.";
 
 const isStringList = (value: unknown): value is string[] =>
   Array.isArray(value) && value.every((item) => typeof item === 'string');
@@ -370,6 +380,46 @@ function mergeBriefPreservingManualEdits(
   };
 }
 
+function isShortBuildApprovalReply(text: string): boolean {
+  return /^(?:yes|yeah|yep|sure|okay|ok|sounds good|that works|go ahead|please do|do it|build it|create it|draw it|generate it|draft it|let'?s do it)\b/i
+    .test(text.trim());
+}
+
+function normalizeStandbyBuildWork(value: unknown): StandbyBuildWork | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const work = value as Partial<StandbyBuildWork>;
+  if (!isCircuitBuildRequest(work.request)) return null;
+  return {
+    ...work,
+    request: normalizeCircuitBuildRequest({ ...work.request, mode: 'build' }),
+  } as StandbyBuildWork;
+}
+
+function getLegacyStandbyBuildWork(
+  messages: ThreadMessage[],
+  currentSpec: CircuitBuildChatInput['currentSpec'],
+  brief: CircuitDesignBrief,
+): StandbyBuildWork | null {
+  const approval = messages.at(-1);
+  if (approval?.role !== 'assistant' || approval.buildApprovalRequest !== true) return null;
+  for (let index = messages.length - 2; index >= 0; index--) {
+    const message = messages[index];
+    if (message.role !== 'user' || isShortBuildApprovalReply(message.content)) continue;
+    return {
+      request: {
+        message: message.content,
+        mode: 'build',
+        currentSpec,
+        brief,
+        history: messages.slice(0, index)
+          .slice(-8)
+          .map(({ role, content }) => ({ role, content })),
+      },
+    };
+  }
+  return null;
+}
+
 function normalizeSavedState(value: unknown): SavedState {
   const parsed = value && typeof value === 'object' && !Array.isArray(value)
     ? value as Partial<SavedState>
@@ -402,6 +452,7 @@ function normalizeSavedState(value: unknown): SavedState {
     brief,
     aiBrief,
     messages: messages.length ? messages : [initialMessage],
+    standbyBuildWork: normalizeStandbyBuildWork(parsed.standbyBuildWork),
     repair: normalizeRepairRecoveryState(
       parsed.repair,
       isCircuitSpec,
@@ -677,7 +728,7 @@ export function CircuitBuilderChat({
   const [sessions, setSessions] = useState<BuilderHistoryEntry[]>(historyBootstrap.sessions);
   const [activeSessionId, setActiveSessionId] = useState(historyBootstrap.active.id);
   const [saved, setSaved] = useState<SavedState>(historyBootstrap.active.saved);
-  const [mode, setMode] = useState<ChatMode>(historyBootstrap.active.mode);
+  const [mode, setMode] = useState<ChatMode>('chat');
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyDeleteTarget, setHistoryDeleteTarget] = useState<BuilderHistoryEntry | null>(null);
   const [historyDeleteError, setHistoryDeleteError] = useState('');
@@ -1369,7 +1420,7 @@ export function CircuitBuilderChat({
     setSessions(availableSessions);
     setActiveSessionId(restoredSession.id);
     setSaved(restoredSession.saved);
-    setMode(restoredSession.mode);
+    setMode('chat');
     if (accountSessions.length) historyImportAttemptedForUser.current = userId;
 
     try {
@@ -1721,7 +1772,6 @@ export function CircuitBuilderChat({
       ) return;
       const inspection = inspectProposal(correctedSpec);
       const lessonFindings = getExternalCircuitFixLessonFindings(externalFixContext);
-      setMode('build');
       setProposal({
         summary: candidate.summary,
         spec: correctedSpec,
@@ -1776,8 +1826,33 @@ export function CircuitBuilderChat({
     repairLessonSeed?: RepairLessonEvidence,
     preservedRejectedProposalOverride?: CircuitBuildChatInput['currentSpec'],
     allowConnectivityChange = false,
+    manuallyStartedBuild = false,
   ) => {
     const safeRequest = normalizeCircuitBuildRequest(request);
+    if (safeRequest.mode === 'build' && mode !== 'build' && !manuallyStartedBuild) {
+      const standbyBuildWork: StandbyBuildWork = {
+        request: safeRequest,
+        ...(protectedElementsBaseSpec ? { protectedElementsBaseSpec } : {}),
+        preserveRejectedProposal,
+        rememberForRetry,
+        ...(repairLessonSeed ? { repairLessonSeed } : {}),
+        ...(preservedRejectedProposalOverride
+          ? { preservedRejectedProposalOverride }
+          : {}),
+        allowConnectivityChange,
+      };
+      setSaved((current) => ({
+        ...current,
+        standbyBuildWork,
+        messages: [
+          ...current.messages,
+          newMessage('assistant', BUILD_MODE_STANDBY_MESSAGE, undefined, {
+            buildApprovalRequest: true,
+          }),
+        ].slice(-60),
+      }));
+      return;
+    }
     stopRepairAfterAttemptRef.current = false;
     setRepairStopRequested(false);
     setRepairStopAvailable(Boolean(preserveRejectedProposal || protectedElementsBaseSpec));
@@ -1881,7 +1956,16 @@ export function CircuitBuilderChat({
           !!response.proposal &&
           !!proposalInspection;
 
-        setMode(nextMode);
+        if (nextMode === 'chat') setMode('chat');
+        const previousMessage = saved.messages.at(-1);
+        const approvalWasPending =
+          previousMessage?.role === 'assistant' &&
+          previousMessage.buildApprovalRequest === true;
+        const preserveStandbyForApprovalReply =
+          approvalWasPending && isShortBuildApprovalReply(safeRequest.message);
+        const declinedStandbyRequest =
+          approvalWasPending &&
+          isBuildApprovalDeclined(safeRequest.message);
         if (hasStagedRepair || !preserveRejectedProposal) {
           setRetryFeedback(null);
         } else {
@@ -1906,6 +1990,20 @@ export function CircuitBuilderChat({
           ...current,
           brief: mergeBriefPreservingManualEdits(current.aiBrief, current.brief, nextBrief),
           aiBrief: nextBrief,
+          standbyBuildWork: response.buildApprovalRequested
+            ? preserveStandbyForApprovalReply
+              ? current.standbyBuildWork ??
+                getLegacyStandbyBuildWork(saved.messages, currentSpec, current.brief)
+              : {
+                  request: normalizeCircuitBuildRequest({
+                    ...safeRequest,
+                    mode: 'build',
+                    brief: nextBrief,
+                  }),
+                }
+            : declinedStandbyRequest
+              ? null
+              : current.standbyBuildWork,
           messages: [
             ...current.messages,
             newMessage(
@@ -1979,7 +2077,6 @@ export function CircuitBuilderChat({
         brief: mergeBriefPreservingManualEdits(current.aiBrief, current.brief, latestBrief),
         aiBrief: latestBrief,
       }));
-      setMode((currentMode) => getModeAfterFailedRequest(currentMode, safeRequest.mode));
       if (error instanceof CircuitBuildAttemptError) {
         const rejectedSpec = asCircuitSpec(error.rejectedProposal) ??
           (preserveRejectedProposal
@@ -2081,18 +2178,7 @@ export function CircuitBuilderChat({
       return;
     }
 
-    const lastMessage = saved.messages.at(-1);
-    const approvalIsPending =
-      lastMessage?.role === 'assistant' && lastMessage.buildApprovalRequest === true;
-    const buildIsAuthorized =
-      mode === 'build' ||
-      intent === 'build' ||
-      isExplicitBuildRequest(normalizedContent) ||
-      isExplicitBuildApproval(normalizedContent, approvalIsPending);
-    const requestMode: ChatMode = buildIsAuthorized ? 'build' : mode;
-    // Direct build requests and explicit approvals may enter Build mode. An
-    // inferred request stays in Chat until the user approves the question.
-    setMode(requestMode);
+    const requestMode = mode;
     const userMessage = newMessage('user', normalizedContent);
     setSaved((current) => ({
       ...current,
@@ -2198,7 +2284,6 @@ export function CircuitBuilderChat({
       .slice(-8)
       .map(({ role, content }) => ({ role, content }));
     const userMessage = newMessage('user', message);
-    setMode('build');
     setSaved((current) => ({
       ...current,
       messages: [...current.messages, userMessage].slice(-60),
@@ -2247,7 +2332,6 @@ export function CircuitBuilderChat({
       .slice(-8)
       .map(({ role, content }) => ({ role, content }));
     const userMessage = newMessage('user', message);
-    setMode('build');
     setSaved((current) => ({
       ...current,
       messages: [...current.messages, userMessage].slice(-60),
@@ -2376,7 +2460,7 @@ export function CircuitBuilderChat({
     clearTransientConversationState();
     setActiveSessionId(session.id);
     setSaved(session.saved);
-    setMode(session.mode);
+    setMode('chat');
     onApplySpec(session.currentSpec, 'history');
     setHistoryOpen(false);
   };
@@ -2427,7 +2511,6 @@ export function CircuitBuilderChat({
   const prepareComponentPrompt = (
     entry: CircuitComponentLibraryEntry | CircuitSymbolSearchItem,
   ) => {
-    setMode('build');
     if ('id' in entry) {
       const description = [
         entry.shortDescription || entry.description,
@@ -2451,10 +2534,29 @@ export function CircuitBuilderChat({
 
   const prepareSuggestedAction = (
     action: CircuitBuilderSuggestedAction,
-    isReplyToQuestion: boolean,
   ) => {
-    if (!isReplyToQuestion && isExplicitBuildRequest(action.prompt)) setMode('build');
     composerRef.current?.setDraft(action.prompt);
+  };
+
+  const selectBuildMode = () => {
+    if (!historyHydrated || chatMutation.isPending || requestCycleActive) return;
+    setMode('build');
+    const standby = saved.standbyBuildWork ??
+      getLegacyStandbyBuildWork(saved.messages, currentSpec, saved.brief);
+    if (!standby) return;
+
+    setSaved((current) => ({ ...current, standbyBuildWork: null }));
+    void runRequest(
+      { ...standby.request, mode: 'build' },
+      composerRef.current?.getDraftRevision() ?? 0,
+      standby.protectedElementsBaseSpec,
+      standby.preserveRejectedProposal ?? false,
+      standby.rememberForRetry ?? true,
+      standby.repairLessonSeed,
+      standby.preservedRejectedProposalOverride,
+      standby.allowConnectivityChange ?? false,
+      true,
+    );
   };
 
   const discardProposal = () => {
@@ -2505,7 +2607,6 @@ export function CircuitBuilderChat({
     };
     setRejectedProposalSpec(revisionSpec);
     setRejectedProposalSvg(renderRejectedProposalPreview(revisionSpec));
-    setMode('build');
     setSaved((current) => ({
       ...current,
       messages: [...current.messages, newMessage('user', revisionPrompt)].slice(-60),
@@ -2731,10 +2832,10 @@ export function CircuitBuilderChat({
 
       <div className="builder-chat__mode-row">
         <div className="builder-chat__mode-tabs" role="tablist" aria-label="Conversation mode" data-testid="group-builder-modes">
-          <button type="button" role="tab" aria-selected={mode === 'chat'} className={mode === 'chat' ? 'is-active' : ''} onClick={() => setMode('chat')} disabled={!historyHydrated} data-testid="button-builder-mode-chat">
+          <button type="button" role="tab" aria-selected={mode === 'chat'} className={mode === 'chat' ? 'is-active' : ''} onClick={() => setMode('chat')} disabled={!historyHydrated || chatMutation.isPending || requestCycleActive} data-testid="button-builder-mode-chat">
             <MessageCircle aria-hidden="true" /> Chat
           </button>
-          <button type="button" role="tab" aria-selected={mode === 'build'} className={mode === 'build' ? 'is-active' : ''} onClick={() => setMode('build')} disabled={!historyHydrated} data-testid="button-builder-mode-build">
+          <button type="button" role="tab" aria-selected={mode === 'build'} className={mode === 'build' ? 'is-active' : ''} onClick={selectBuildMode} disabled={!historyHydrated || chatMutation.isPending || requestCycleActive} data-testid="button-builder-mode-build">
             <Wrench aria-hidden="true" /> Build
           </button>
         </div>
@@ -2801,7 +2902,7 @@ export function CircuitBuilderChat({
                         <button
                           key={`${message.id}-action-${actionIndex}`}
                           type="button"
-                          onClick={() => prepareSuggestedAction(action, !!assistantQuestion)}
+                          onClick={() => prepareSuggestedAction(action)}
                           data-testid={`button-builder-suggested-action-${index}-${actionIndex}`}
                         >
                           {action.label}

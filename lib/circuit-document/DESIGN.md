@@ -96,19 +96,3 @@ Future proposal lifecycle work can attach separate staged, applied, and
 rejected `CircuitDocumentV2` snapshots keyed by proposal/revision identity,
 without replacing the current draft until Apply. Undo/redo and proposal
 revision history are not implemented in this phase.
-
-### Verified legacy persistence paths
-
-The existing `/circuit-builder/history` API continues to read and write the
-legacy history table's `saved_state` and `current_spec`, scoped by Clerk
-`user_id` and `session_id`. The v2 repository uses a separate table and never
-updates those rows. If no v2 record exists for a session, the existing history
-record remains the source of truth; there is no read-triggered import.
-
-The live workbench continues to save and restore its unwrapped legacy
-`CircuitSpec` at `circuit-studio-draft-v1:<userId>`. The v2 browser adapter uses
-the separate `circuit-studio-document-v2-v1:<userId>` key, validates its tagged
-envelope, and does not rewrite or delete the legacy key. The current workbench
-does not yet select or synchronize v2 drafts; that integration is intentionally
-deferred so this persistence phase cannot change the active renderer or draft
-format.

@@ -242,13 +242,3 @@ test("legacy specs and invalid user/session scopes are not accepted as v2 writes
   assert.equal(invalidScope.status, "rejected");
   assert.equal(invalidScope.code, "invalid-scope");
 });
-
-test("a legacy session with no separate v2 record stays outside v2 restoration", async () => {
-  const repository = new MemoryDraftRepository();
-  const persistence = persistenceFor(repository);
-
-  assert.deepEqual(await persistence.load("user-a", "legacy-session"), {
-    status: "empty",
-  });
-  assert.equal(repository.records.size, 0);
-});

@@ -25,3 +25,5 @@ channel = "stable-25_05"
 [userenv]
 
 [userenv.development]
+VITE_ENABLE_CIRCUIT_DOCUMENT_V2_LAB = "true"
+VITE_ENABLE_CIRCUIT_DOCUMENT_V2_SERVER_SYNC = "false"

@@ -290,3 +290,36 @@ dense layouts, and the existing single-transistor fixture's control net can be
 blocked by `route-collinear-overlap`; the pipeline reports that result without
 changing the router or existing manual routes. V2 preview/workbench integration
 is the next separately scoped dependency.
+
+## Batch 11 Phase 4A V2 electrical generation
+
+The API server exposes a separate authenticated
+`POST /api/circuit-documents/v2/generate` operation. Its OpenAPI contract accepts a
+user description and returns a staged `{ status: "proposed", document, design,
+validation }` result. The model supplies only electrical intent: supported
+components and their properties, stable net IDs, exact component-pin
+memberships, explicit no-connect/unassigned states, a concise summary,
+assumptions, uncertainties, and material questions.
+
+The server treats model output as untrusted. It rejects unsupported component
+types, duplicate identities, unknown or contradictory pin references,
+incomplete pin states, malformed data, and drawing geometry (including
+geometry-bearing compound property names). It derives canonical pins from
+`getCircuitPinDefinitions`, builds a V2 document with a stable ID and an empty
+drawing section, and validates the result before returning it. The result is
+not persisted or applied, and this operation does not call
+`prepareCircuitDocumentDrawing`.
+
+Generation reuses the existing Gemini `gemini-2.5-flash` client, account-usage
+tracking, key fallback, rate limit, and request authorization. A
+`MAX_TOKENS` response is continued once from its partial output using the
+existing lower-thinking-budget retry, starting after the key used by the
+truncated attempt. Prompt/response lengths, finish status, token counts, and
+document counts are logged without logging raw prompt or model text.
+
+The API reports structural validation only; it does not establish electrical
+correctness, ERC compliance, simulation, component ratings, or safety. Native
+rendering and workbench integration remain separate work. A future V2 flow may
+submit the staged electrical document to the deterministic drawing-preparation
+pipeline for a distinct drawing proposal; legacy CircuitSpec generation and
+behavior remain unchanged.

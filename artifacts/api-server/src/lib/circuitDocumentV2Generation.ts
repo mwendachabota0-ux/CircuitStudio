@@ -47,6 +47,25 @@ const FORBIDDEN_PROPERTY_KEYS = new Set([
   "x",
   "y",
 ]);
+const FORBIDDEN_PROPERTY_KEY_FRAGMENTS = [
+  "coordinate",
+  "position",
+  "bound",
+  "geometry",
+  "path",
+  "route",
+  "junction",
+  "crossing",
+  "svg",
+  "placement",
+  "canvas",
+  "anchor",
+  "wirepoint",
+  "pinpoint",
+  "rotation",
+  "width",
+  "height",
+];
 const DRAWING_ONLY_TYPES = new Set<string>(CIRCUIT_DOCUMENT_DRAWING_TYPES);
 
 export type CircuitDocumentV2GenerationDiagnostic = {
@@ -210,7 +229,12 @@ function assertNoDrawingProperties(value: unknown, path: string): void {
 
   for (const [key, entry] of Object.entries(value)) {
     const normalized = key.toLocaleLowerCase().replace(/[_-]/g, "");
-    if (FORBIDDEN_PROPERTY_KEYS.has(normalized)) {
+    if (
+      FORBIDDEN_PROPERTY_KEYS.has(normalized) ||
+      FORBIDDEN_PROPERTY_KEY_FRAGMENTS.some((fragment) =>
+        normalized.includes(fragment)
+      )
+    ) {
       fail(
         "drawing-data-not-allowed",
         "Generation output may describe electrical data only; drawing geometry is created by deterministic application code.",

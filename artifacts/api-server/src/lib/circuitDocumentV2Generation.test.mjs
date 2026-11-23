@@ -263,6 +263,25 @@ test("handles malformed, incomplete, and geometry-bearing model responses safely
   );
 });
 
+test("rejects drawing geometry hidden in compound component property names", async () => {
+  for (const key of [
+    "wirePath",
+    "symbolBounds",
+    "junctionCoordinates",
+    "crossingCoordinates",
+    "xCoordinate",
+  ]) {
+    const proposal = seriesLedProposal();
+    proposal.components[0].properties[key] = [[12, 34], [56, 78]];
+
+    await assert.rejects(
+      generate(proposal),
+      (error) => error instanceof CircuitDocumentV2GenerationError &&
+        error.code === "drawing-data-not-allowed",
+    );
+  }
+});
+
 test("prompt forbids generated geometry and lists distinct source types", () => {
   const prompt = buildCircuitDocumentV2GenerationPrompt("Make a low-voltage LED circuit.");
 

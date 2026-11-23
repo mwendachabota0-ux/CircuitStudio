@@ -14,6 +14,13 @@ import {
   type CircuitDocumentV2ModelResponse,
 } from "../lib/circuitDocumentV2Generation.ts";
 import { isMainsChargerBuildRequest } from "../lib/circuitBuilderSafety.ts";
+import {
+  generateWithThinkingBudgetFallback,
+  getBuilderThinkingBudgets,
+} from "../lib/circuitBuilderGeneration.ts";
+
+type GenerateWithAccountUsage =
+  typeof import("../lib/circuitAi.ts").generateWithAccountUsage;
 
 type GenerationRouterOptions = {
   resolveUserId?: (request: Request) => string | null | undefined;
@@ -21,7 +28,17 @@ type GenerationRouterOptions = {
     request: CircuitDocumentV2ModelRequest,
   ) => Promise<CircuitDocumentV2ModelResponse>;
   createDocumentId?: () => string;
+  generateWithAccountUsage?: GenerateWithAccountUsage;
 };
+
+function buildContinuationContents(prompt: string, partialOutput: string): string {
+  return `${prompt}
+
+The previous Gemini attempt reached its output limit. Continue from its partial work below. Preserve useful electrical details, repair incomplete JSON, and return one complete valid JSON object that follows the required electrical-only schema. Do not add drawing geometry or repeat the partial text as a separate answer.
+
+Partial assistant output:
+${partialOutput || "(The previous attempt returned no text.)"}`;
+}
 
 function summarizeUsage(response: GenerateContentResponse): Record<string, number> {
   const usage = response.usageMetadata;
@@ -46,34 +63,61 @@ export function createCircuitDocumentV2GenerationRouter(
   const resolveUserId =
     options.resolveUserId ?? ((request: Request) => getAuth(request).userId);
   const generateModel = options.generateModel ?? (async (input) => {
-    const { generateWithAccountUsage } = await import("../lib/circuitAi.ts");
-    const response = await generateWithAccountUsage(
-      input.userId,
-      {
-        inputText: `${input.systemInstruction}\n\n${input.prompt}`,
-        maxOutputTokens: 8192,
-        onKeyFallback: (failedKeyNumber, nextKeyNumber) => {
-          input.onKeyFallback?.(failedKeyNumber, nextKeyNumber);
-        },
-      },
-      async (client) => {
-        return client.models.generateContent({
-          model: CIRCUIT_DOCUMENT_V2_GENERATION_MODEL,
-          contents: input.prompt,
-          config: {
-            systemInstruction: input.systemInstruction,
-            responseMimeType: "application/json",
+    const generateWithAccountUsage = options.generateWithAccountUsage ??
+      (await import("../lib/circuitAi.ts")).generateWithAccountUsage;
+    let lastUsedKeyNumber: number | undefined;
+    let continuedFromOutputLength = 0;
+    const generation = await generateWithThinkingBudgetFallback({
+      budgets: getBuilderThinkingBudgets(false),
+      generate: async (thinkingBudget, continuation) => {
+        const contents = continuation
+          ? buildContinuationContents(input.prompt, continuation.partialOutput)
+          : input.prompt;
+        if (continuation) {
+          continuedFromOutputLength = continuation.partialOutput.length;
+        }
+        return generateWithAccountUsage(
+          input.userId,
+          {
+            inputText: `${input.systemInstruction}\n\n${contents}`,
             maxOutputTokens: 8192,
-            temperature: 0.2,
+            ...(continuation && lastUsedKeyNumber !== undefined
+              ? { afterKeyNumber: lastUsedKeyNumber }
+              : {}),
+            onKeyUsed: (keyNumber) => {
+              lastUsedKeyNumber = keyNumber;
+            },
+            onKeyFallback: (failedKeyNumber, nextKeyNumber) => {
+              input.onKeyFallback?.(failedKeyNumber, nextKeyNumber);
+            },
           },
-        });
+          (client) =>
+            client.models.generateContent({
+              model: CIRCUIT_DOCUMENT_V2_GENERATION_MODEL,
+              contents,
+              config: {
+                systemInstruction: input.systemInstruction,
+                responseMimeType: "application/json",
+                maxOutputTokens: 8192,
+                temperature: 0.2,
+                thinkingConfig: { thinkingBudget },
+              },
+            }),
+        );
       },
-    );
+      isMaxTokens: (response) =>
+        response.candidates?.[0]?.finishReason === "MAX_TOKENS",
+      getPartialOutput: (response) => response.text,
+    });
+    const response = generation.response;
     return {
       text: response.text ?? "",
       metadata: {
         finishReason: response.candidates?.[0]?.finishReason ?? "unknown",
         responseCharacters: response.text?.length ?? 0,
+        continuationAttempts: generation.attemptedBudgets.length - 1,
+        continuedFromOutputLength,
+        thinkingBudgets: generation.attemptedBudgets.join(","),
         ...summarizeUsage(response),
       },
     };
@@ -159,8 +203,12 @@ export function createCircuitDocumentV2GenerationRouter(
               ? modelMetadata.responseCharacters
               : undefined,
             finishReason: modelMetadata.finishReason,
+            continuationAttempts: modelMetadata.continuationAttempts,
+            continuedFromOutputLength: modelMetadata.continuedFromOutputLength,
+            thinkingBudgets: modelMetadata.thinkingBudgets,
             promptTokenCount: modelMetadata.promptTokenCount,
             candidatesTokenCount: modelMetadata.candidatesTokenCount,
+            thoughtsTokenCount: modelMetadata.thoughtsTokenCount,
             totalTokenCount: modelMetadata.totalTokenCount,
             documentId: proposal.document.id,
             componentCount: proposal.document.electrical.components.length,

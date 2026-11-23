@@ -1,8 +1,8 @@
 # CircuitStudio local implementation handoff
 
-**Audit date:** 2026-11-22
+**Audit date:** 2026-11-23
 
-**Original audit scope:** Read-only review of the local workspace, tests, builds, and application wiring. This file now also records Batch 4 Phase 1C implementation and verification checkpoints below.
+**Original audit scope:** Read-only review of the local workspace, tests, builds, and application wiring. This file also records implementation and verification checkpoints through Batch 11 Phase 4A below.
 
 ## Workspace snapshot and provenance
 
@@ -22,8 +22,10 @@
 | Authenticated V2 document API | **IMPLEMENTED** | Separate Clerk-authenticated read/write endpoints use atomic storage revisions and generated contracts. |
 | Isolated V2 Draft Lab | **IMPLEMENTED** | Opt-in authenticated route supports trusted copy creation, read-only summary/preview, and separate local save/restore. |
 | Optional V2 server sync | **IMPLEMENTED / BLOCKED BY DATABASE VERIFICATION** | Existing authenticated GET/PUT API is integrated behind a second opt-in flag; runtime readiness remains hard-disabled. |
+| V2 electrical-generation API | **IMPLEMENTED / VERIFIED** | Separate authenticated endpoint returns a staged, structurally validated electrical proposal with an empty drawing; it does not save or apply it. |
+| Deterministic V2 placement and routing | **IMPLEMENTED AS LIBRARIES** | Placement, routing, and drawing-preparation operations exist, but are not called by the live workbench. |
 | Ordinary workbench V2 integration | **NOT STARTED** | Normal generation, editing, history, drawing, and exports still use legacy `CircuitSpec`. |
-| Deterministic placement, automatic routing, V2 generation/rendering | **NOT STARTED** | No such implementation was found. |
+| Native V2 rendering and workbench integration | **NOT STARTED** | The ordinary workbench still renders and edits legacy `CircuitSpec`. |
 
 ### Phase 0 — verified
 
@@ -81,6 +83,7 @@ stopped at Drizzle's AWS Data API configuration validation (`database` was missi
 The current application remains legacy-first:
 
 - `artifacts/api-server/src/routes/circuits.ts` generates legacy `CircuitSpec` output. `artifacts/api-server/src/routes/circuitBuilder.ts` accepts and returns legacy circuit proposals.
+- `artifacts/api-server/src/routes/circuitDocumentV2Generation.ts` separately exposes `POST /api/circuit-documents/v2/generate`; it returns an authenticated staged V2 electrical proposal and does not save or apply it.
 - `artifacts/circuit-studio/src/App.tsx` uses `CircuitDraw.render`, validation, netlist, and sheet-building functions with `CircuitSpec`. The workbench draft remains in the legacy `circuit-studio-draft-v1:${userId}` local-storage slot.
 - Builder proposals are staged for review and only replace the draft after the user applies them. Account history stores legacy `currentSpec` snapshots and restores them through the same legacy path.
 - The V2 persistence service is exposed through authenticated read/write API routes, but those routes are not called by the workbench. V2 browser storage is not the live draft store.
@@ -90,12 +93,12 @@ The current application remains legacy-first:
 
 ## Architectural work still outstanding
 
-All items below are **NOT STARTED** unless noted:
+Status is stated per item:
 
-- **Deterministic component placement:** AI output supplies component coordinates; current layout analysis reports overlaps but does not place or reposition parts algorithmically.
-- **Automatic wire routing/pathfinding:** AI output supplies route coordinates. CircuitDraw auto-fixes a narrowly defined set of endpoint/tail issues; there is no obstacle-avoiding router or A* implementation.
-- **Collision avoidance and route optimization:** current checks warn about overlapping bodies, labels, and wires. They do not automatically resolve collisions or optimize routes.
-- **V2-aware generation and rendering:** model/API contracts and the live renderer still use legacy `CircuitSpec`.
+- **Deterministic component placement:** implemented as an isolated V2 library operation. Legacy generation still supplies coordinates, and the live workbench does not call the V2 placer.
+- **Automatic wire routing/pathfinding:** implemented as an isolated V2 router and preparation pipeline. Legacy generation still supplies route coordinates, and the live workbench does not call the V2 pipeline.
+- **Collision avoidance and route optimization:** V2 placement/routing apply deterministic collision and route-impact checks, but the bounded router can return blocked or partial results; legacy diagnostics remain advisory.
+- **V2-aware generation and rendering:** a separate staged electrical-generation API is implemented. Native V2 rendering and ordinary workbench integration are not started.
 - **General electrical rule checking:** there are targeted topology and structural checks, including astable-flasher checks, but no general-purpose ERC.
 - **Circuit simulation:** none found.
 - **Direct canvas editing:** none found beyond viewport controls.
@@ -126,7 +129,7 @@ After the V2 table is verified in an isolated development database:
 2. Handle empty V2 records, stale revision conflicts, and quarantined local/server copies without silently converting or overwriting a legacy session.
 3. Keep V2 persistence integration separate from generation, drawing, placement, routing, and exports until each receives its own migration plan and tests.
 
-**Current acceptance boundary:** authenticated V2 API contracts and service behavior are implemented and tested. The development table is not confirmed, and the live workbench is not connected. No production/shared database was changed.
+**Current acceptance boundary:** authenticated V2 persistence and electrical-generation APIs are implemented and tested. The development table is not confirmed, and the live workbench is not connected. No production/shared database was changed.
 
 ---
 
@@ -530,3 +533,31 @@ Current focused recheck: `node --experimental-strip-types --test lib/circuit-doc
 - The existing router can reject a routable-looking branch arrangement when its deterministic candidate overlaps or touches another route ambiguously. The single-transistor fixture's control net currently returns `route-collinear-overlap`; the pipeline reports partial completion and does not change the router.
 - The pipeline is library-only. The next dependency is a separately scoped V2 route-preview/workbench integration; no live workbench, UI, persistence, or AI generation was changed.
 - No GitHub or remote file access was used.
+
+## Batch 11 — Phase 4A V2 electrical generation
+
+**Status:** Implemented and verified locally. The separate V2 service and endpoint were already present; this batch filled the remaining gaps by continuing truncated Gemini output through the existing next-key/lower-thinking-budget path and by rejecting compound geometry-property names. The legacy generation route remains untouched.
+
+### Implemented contract
+
+1. `POST /api/circuit-documents/v2/generate` accepts a validated prompt, requires Clerk authentication, applies the existing per-minute generation limit, and blocks unsupported mains-side charger requests.
+2. The model response describes the title/summary, catalog component types and properties, stable net IDs and exact pin memberships, explicit no-connect/unassigned pins, assumptions, uncertainties, and material questions.
+3. The service strictly parses the untrusted response, checks supported component types and every model pin name against `getCircuitPinDefinitions`, derives canonical pin IDs, requires every pin to have exactly one explicit state, then validates the V2 document.
+4. The response is a staged `{ status: "proposed", document, design, validation }` result. The document has a stable ID and an empty drawing section. Validation is explicitly `document-structure-only`; generation neither saves nor applies the result, changes a legacy draft, nor invokes drawing preparation.
+5. When Gemini reports `MAX_TOKENS`, the service retries once with the existing lower thinking budget, includes the partial output for continuation, and starts after the key used for the truncated attempt. If the continuation is still malformed or incomplete, normal strict parsing returns a structured failure rather than a partial document.
+6. Prompt and response metadata are logged without raw prompt/response content or credentials. No new provider, key, dependency, database operation, or production access was added.
+
+### Verification
+
+| Check | Result |
+| --- | --- |
+| `pnpm --filter @workspace/api-server test` | **PASS** — 95 tests, including V2 service/route and truncated-output continuation coverage |
+| `pnpm --filter @workspace/circuit-document test` | **PASS** — 105 tests |
+| `pnpm run typecheck` | **PASS** — workspace libraries, API, Studio, sandbox, and scripts |
+
+### Remaining limitations
+
+- Structural validation is not electrical rule checking, simulation, or proof of safety.
+- The generated document is not laid out or routed in this batch. A later isolated V2 flow may pass it to `prepareCircuitDocumentDrawing` for a separate user-reviewed drawing proposal.
+- The existing ordinary workbench and legacy `CircuitSpec` generation, storage, rendering, and history remain unchanged.
+- No GitHub, remote repository, database, or production service was accessed.

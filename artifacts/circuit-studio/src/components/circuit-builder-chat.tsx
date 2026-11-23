@@ -246,7 +246,7 @@ function inspectProposal(spec: CircuitBuildChatInput['currentSpec']): {
     };
   }
   try {
-    const circuitValidation = window.CircuitDraw.validate(spec);
+    const circuitValidation = window.CircuitDraw.validate(spec, { requireConnectedWireEnds: true });
     const layoutWarnings = window.CircuitDraw.layoutWarnings(spec);
     const validation = classifyProposalValidation({
       ...circuitValidation,

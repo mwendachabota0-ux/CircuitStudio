@@ -300,7 +300,8 @@
     return element.type === 'relay' && (pinName === 'NC' || pinName === 'NO');
   }
 
-  function analyse(spec) {
+  function analyse(spec, options) {
+    var requireConnectedWireEnds = !!(options && options.requireConnectedWireEnds);
     var res = { errors: [], warnings: [], junctions: [], crossings: [], bbox: null, freeEnds: [] };
     var ends = {}, segs = [], allPins = [];
     var bb = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
@@ -476,12 +477,23 @@
       });
     });
 
+    spec.elements.forEach(function (el, i) {
+      if (!el || el.type !== 'junction' || !isNum(el.x) || !isNum(el.y)) return;
+      var point = [el.x, el.y];
+      var node = ends[key(el.x, el.y)];
+      var touchesWire = (node && node.wireOwners.length > 0) ||
+        segs.some(function (segment) {
+          return onSegInterior(el.x, el.y, segment.a, segment.b);
+        });
+      if (touchesWire) addEnd(point, elementName(el, i), 'junction');
+    });
+
     // degree of every point = segment ends touching it + 2 for every wire passing straight through it
     Object.keys(ends).forEach(function (k) {
       var e = ends[k], deg = e.n;
       segs.forEach(function (sg) { if (onSegInterior(e.x, e.y, sg.a, sg.b)) deg += 2; });
       if (deg >= 3 && spec.autoJunctions !== false) res.junctions.push([e.x, e.y]);
-      if (deg === 1 && !e.open) {
+      if (deg === 1 && (!e.open || requireConnectedWireEnds)) {
         var owner = e.owners[0];
         var point = [e.x, e.y];
         var nearest = nearestPin(point, allPins, e.pinOwners.indexOf(owner) >= 0 ? owner : null);
@@ -521,8 +533,8 @@
     return res;
   }
 
-  function validate(spec) {
-    var a = analyse(spec);
+  function validate(spec, options) {
+    var a = analyse(spec, options);
     var topology = circuitTopologyFindings(spec);
     var topologyErrors = astableTopologyFindings(spec).concat(topology.errors);
     return {

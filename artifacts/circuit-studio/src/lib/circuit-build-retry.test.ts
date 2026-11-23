@@ -308,7 +308,8 @@ test('rewiring starts without old routing elements and preserves the component s
   assert.equal(request.currentSpec?.width, 900);
   assert.equal(request.currentSpec?.height, 600);
   assert.match(request.message, /Start its wiring over/);
-  assert.match(request.message, /Preserve every component, value, label, ID, orientation, position/);
+  assert.match(request.message, /move or rotate existing parts only when needed/);
+  assert.match(request.message, /Never leave a floating endpoint/);
   assert.match(request.message, /Wire W1 endpoint at \(220,100\) is not connected/);
   assert.equal(request.history?.at(-1)?.content, baseRequest.message);
   assert.deepEqual(request.brief, updatedBrief);
@@ -317,7 +318,8 @@ test('rewiring starts without old routing elements and preserves the component s
 test('wire-rebuild prompt is explicit about rebuilding connections only', () => {
   const message = buildWireRebuildMessage(['A required pin is not connected.']);
   assert.match(message, /all previous wires and wire-routing markers as discarded/);
-  assert.match(message, /Do not add, remove, or redesign circuit parts/);
+  assert.match(message, /do not add or remove parts/);
+  assert.match(message, /Never leave a floating endpoint/);
 });
 
 test('chooses recovery only for exhausted repairs and matching blocker types', () => {
@@ -829,7 +831,7 @@ test('allows wire-only repairs while preserving every component position', async
   assert.equal(inspected, 2);
 });
 
-test('restores the original component before validating a repair that moves it', async () => {
+test('allows necessary component movement during a wiring repair', async () => {
   const initialSpec = {
     title: 'Draft',
     elements: [{ type: 'npn', id: 'Q1', at: [100, 100] }],
@@ -837,7 +839,7 @@ test('restores the original component before validating a repair that moves it',
   const movedSpec = {
     title: 'Draft',
     elements: [
-      { type: 'npn', id: 'Q1', at: [120, 100] },
+      { type: 'npn', id: 'Q1', at: [120, 100], rotation: 90 },
       { type: 'wire', id: 'W1', points: [[50, 50], [60, 50]] },
     ],
   };
@@ -885,9 +887,10 @@ test('restores the original component before validating a repair that moves it',
   });
 
   assert.equal(sends, 2);
-  assert.deepEqual(result.response.proposal.spec.elements[0].at, [100, 100]);
+  assert.deepEqual(result.response.proposal.spec.elements[0].at, [120, 100]);
+  assert.equal(result.response.proposal.spec.elements[0].rotation, 90);
   assert.deepEqual(result.response.proposal.spec.elements[1].points, [[50, 50], [60, 50]]);
-  assert.equal(result.repairDiagnostics[1].nonWireElementsModified, true);
+  assert.equal(result.repairDiagnostics[1].nonWireElementsModified, false);
 });
 
 test('every retry restores non-wire data from an immutable original snapshot', async () => {
@@ -1061,7 +1064,7 @@ test('protects components while accepting rebuilt wires and routing markers', ()
 
   assert.equal(getProtectedCircuitSignature(baseline), getProtectedCircuitSignature(routedProposal));
   assert.deepEqual(restored.elements, [
-    baseline.elements[0],
+    { type: 'resistor', id: 'R1', value: '1k', x: 250, y: 100 },
     alteredProposal.elements[1],
     alteredProposal.elements[2],
     alteredProposal.elements[3],
@@ -1069,7 +1072,7 @@ test('protects components while accepting rebuilt wires and routing markers', ()
   assert.equal(restored.title, baseline.title);
 });
 
-test('restores original components when a repair response redesigns the circuit', async () => {
+test('protects component details while accepting needed placement changes', async () => {
   const currentSpec = {
     title: 'User draft',
     width: 680,
@@ -1095,10 +1098,10 @@ test('restores original components when a repair response redesigns the circuit'
   assert.equal(restored.title, currentSpec.title);
   assert.equal(restored.width, currentSpec.width);
   assert.equal(restored.height, currentSpec.height);
-  assert.deepEqual(
-    restored.elements.filter((element) => element.type !== 'wire'),
-    currentSpec.elements.filter((element) => element.type !== 'wire'),
-  );
+  assert.deepEqual(restored.elements.filter((element) => element.type !== 'wire'), [
+    { type: 'npn', id: 'Q1', at: [120, 100], value: '2N3904' },
+    { type: 'ground', id: 'GND', at: [100, 300] },
+  ]);
   assert.deepEqual(
     restored.elements.filter((element) => element.type === 'wire'),
     changedProposal.elements.filter((element) => element.type === 'wire'),

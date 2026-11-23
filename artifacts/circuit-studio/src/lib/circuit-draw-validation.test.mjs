@@ -506,6 +506,34 @@ test("disconnected wire errors identify the nearest pin and distance", () => {
   );
 });
 
+test("strict proposal validation rejects floating wire ends even when marked open", () => {
+  const spec = {
+    title: "Floating endpoint",
+    elements: [
+      { type: "wire", id: "W1", open: true, points: [[100, 100], [140, 100]] },
+    ],
+  };
+
+  assert.deepEqual(Array.from(CircuitDraw.validate(spec).errors), []);
+  const strictReport = CircuitDraw.validate(spec, { requireConnectedWireEnds: true });
+  assert.ok(strictReport.errors.some((error) =>
+    error.includes('wire "W1"') && error.includes("endpoint") && error.includes("not connected"),
+  ));
+
+  const connectedSpec = {
+    title: "Wire tied to a terminal and junction",
+    elements: [
+      { type: "wire", id: "W2", open: true, points: [[100, 100], [140, 100]] },
+      { type: "junction", id: "J1", x: 100, y: 100 },
+      { type: "terminal", id: "OUT", label: "OUT", at: [140, 100] },
+    ],
+  };
+  assert.deepEqual(
+    Array.from(CircuitDraw.validate(connectedSpec, { requireConnectedWireEnds: true }).errors),
+    [],
+  );
+});
+
 test("unconnected DC source and potentiometer pins are blocking errors", () => {
   const report = CircuitDraw.validate({
     title: "Required supply and wiper connections",

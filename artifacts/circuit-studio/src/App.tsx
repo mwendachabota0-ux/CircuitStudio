@@ -57,7 +57,7 @@ type CircuitDrawRenderOptions = {
 };
 type CircuitDrawApi = {
   render: (spec: CircuitSpec, options?: CircuitDrawRenderOptions) => string;
-  validate: (spec: CircuitSpec) => ValidationReport;
+  validate: (spec: CircuitSpec, options?: { requireConnectedWireEnds?: boolean }) => ValidationReport;
   layoutWarnings: (spec: CircuitSpec) => string[];
   autoFix: (spec: CircuitSpec) => { spec: CircuitSpec; changes: string[] };
   netlist: (spec: CircuitSpec, allowStructuralErrors?: boolean) => {
@@ -780,7 +780,7 @@ function Studio({ userId }: { userId: string }) {
 
   const report = useMemo<ValidationReport>(() => {
     if (!window.CircuitDraw || !spec) return { errors: [], warnings: [] };
-    try { return window.CircuitDraw.validate(spec); }
+    try { return window.CircuitDraw.validate(spec, { requireConnectedWireEnds: true }); }
     catch (error) { return { errors: [error instanceof Error ? error.message : 'Could not validate this drawing.'], warnings: [] }; }
   }, [spec, libraryReady]);
   const bomRows = useMemo(
@@ -911,7 +911,7 @@ function Studio({ userId }: { userId: string }) {
 
     let validation: ValidationReport = { errors: [], warnings: [] };
     try {
-      if (window.CircuitDraw) validation = window.CircuitDraw.validate(parsed.spec);
+      if (window.CircuitDraw) validation = window.CircuitDraw.validate(parsed.spec, { requireConnectedWireEnds: true });
     } catch (error) {
       validation = {
         errors: [error instanceof Error ? error.message : 'The drawing structure could not be checked.'],
@@ -1482,7 +1482,7 @@ function TutorAnswer({ response, onApply, applied, libraryReady }: { response: T
     const proposedSpec = response.proposedEdit?.spec;
     if (!proposedSpec || !libraryReady || !window.CircuitDraw) return { state: 'loading' as const, svg: '', errors: [], warnings: [] };
     try {
-      const validation = window.CircuitDraw.validate(proposedSpec);
+      const validation = window.CircuitDraw.validate(proposedSpec, { requireConnectedWireEnds: true });
       if (validation.errors.length) return { state: 'invalid' as const, svg: '', errors: validation.errors, warnings: validation.warnings };
       return { state: 'ready' as const, svg: window.CircuitDraw.render(proposedSpec), errors: [], warnings: validation.warnings };
     } catch {

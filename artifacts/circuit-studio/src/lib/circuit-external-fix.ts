@@ -289,7 +289,7 @@ export function buildExternalCircuitFixPrompt(
   context: ExternalCircuitFixContext,
 ): string {
   return [
-    'Correct the listed CircuitStudio drawing findings. Return one complete CircuitSpec as JSON only, with no Markdown or explanation. Preserve the intended circuit and change only what is needed.',
+    'Correct the listed CircuitStudio drawing findings. Return one complete CircuitSpec as JSON only, with no Markdown or explanation. Preserve the intended circuit and change only what is needed. Every wire endpoint must connect to a component pin, terminal, junction, or another wire; never leave a floating endpoint or use open:true to bypass this rule. Route around obstacles, and move or rotate a part only when needed to expose its terminals or make a shorter clear route. Preserve part identity, values, symbol source, and intended pin-to-net connections.',
     JSON.stringify({
       request: context.originalRequest.slice(0, 600),
       brief: {

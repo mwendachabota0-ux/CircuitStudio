@@ -208,7 +208,7 @@ export function shouldClearSubmittedDraft(
 export function buildRepairMessage(findings: string[]): string {
   return buildFindingsMessage(
     'The supplied current CircuitSpec is the last failing AI proposal, not the user’s workbench draft. Edit that proposal in place. Fix every validator finding below and return a complete corrected CircuitSpec:',
-    'Preserve every non-wire element exactly, including all positions and orientations. Do not redesign the layout; only add, remove, reroute, or snap wires. Preserve the requested behavior.',
+    'Preserve every existing part, identity, value, symbol source, pin definition, and electrical connection. You may move or rotate a part only when needed to expose a terminal or make a short, clear route possible. Do not add or remove parts or change the intended pin-to-net connections. Every wire endpoint must connect exactly to a component pin, terminal, junction, or another wire; never leave a floating endpoint or use open:true to bypass this rule. Route around component bodies and keep segments orthogonal.',
     findings,
   );
 }
@@ -235,7 +235,7 @@ function buildFindingsMessage(
 export function buildWireRebuildMessage(findings: string[]): string {
   return buildFindingsMessage(
     'The supplied current CircuitSpec contains the correct circuit parts, but its wiring has failed validation. Start its wiring over: create a complete new set of connections from the current design brief and original user request. Treat all previous wires and wire-routing markers as discarded.',
-    'Preserve every component, value, label, ID, orientation, position, note, and canvas setting exactly. Do not add, remove, or redesign circuit parts. Rebuild only the wires and their routing markers. Fix every blocking finding below; structural checks do not prove electrical operation or safety.',
+    'Preserve every component, value, label, ID, symbol source, and pin definition. You may move or rotate existing parts only when needed to expose terminals or make short, clear routes possible; do not add or remove parts or change intended pin-to-net connections. Rebuild the wires and routing markers so every wire endpoint connects exactly to a component pin, terminal, junction, or another wire. Never leave a floating endpoint or use open:true to bypass this rule. Route around component bodies with orthogonal segments. Fix every blocking finding below; structural checks do not prove electrical operation or safety.',
     findings,
   );
 }
@@ -423,7 +423,7 @@ export function getProtectedCircuitSignature(
 ): string {
   return JSON.stringify({
     metadata: getMetadataSignature(spec),
-    nonWireElements: getNonWireElementsSignature(spec),
+    nonWireElements: getLayoutInvariantElementsSignature(spec),
   });
 }
 
@@ -554,7 +554,7 @@ export function getProtectedCircuitChanges(
   return {
     metadataModified: getMetadataSignature(protectedSpec) !== getMetadataSignature(proposedSpec),
     nonWireElementsModified:
-      getNonWireElementsSignature(protectedSpec) !== getNonWireElementsSignature(proposedSpec),
+      getLayoutInvariantElementsSignature(protectedSpec) !== getLayoutInvariantElementsSignature(proposedSpec),
   };
 }
 
@@ -574,12 +574,45 @@ export function restoreProtectedNonWireElements(
   proposedSpec: NonNullable<CircuitBuildChatInput['currentSpec']>,
 ): NonNullable<CircuitBuildChatInput['currentSpec']> {
   const { elements: protectedElements, ...protectedMetadata } = protectedSpec;
+  const candidateElements = proposedSpec.elements.filter((element) => !isWireRoutingElement(element));
+  const candidateByIdentity = new Map<string, (typeof candidateElements)[number]>();
+  const candidateTypeCounts = new Map<string, number>();
+  candidateElements.forEach((element) => {
+    const type = element.type;
+    const identity = typeof element.id === 'string' && element.id
+      ? `${type}:id:${element.id}`
+      : typeof element.label === 'string' && element.label
+        ? `${type}:label:${element.label}`
+        : `${type}:index:${candidateTypeCounts.get(type) ?? 0}`;
+    candidateTypeCounts.set(type, (candidateTypeCounts.get(type) ?? 0) + 1);
+    candidateByIdentity.set(identity, element);
+  });
+  const protectedTypeCounts = new Map<string, number>();
+  const restoredElements = protectedElements
+    .filter((element) => !isWireRoutingElement(element))
+    .map((element) => {
+      const type = element.type;
+      const identity = typeof element.id === 'string' && element.id
+        ? `${type}:id:${element.id}`
+        : typeof element.label === 'string' && element.label
+          ? `${type}:label:${element.label}`
+          : `${type}:index:${protectedTypeCounts.get(type) ?? 0}`;
+      protectedTypeCounts.set(type, (protectedTypeCounts.get(type) ?? 0) + 1);
+      const candidate = candidateByIdentity.get(identity);
+      if (!candidate) return structuredClone(element);
+      const restored = structuredClone(element) as Record<string, unknown>;
+      const candidateRecord = candidate as Record<string, unknown>;
+      for (const property of layoutOnlyProperties) {
+        if (Object.prototype.hasOwnProperty.call(candidateRecord, property)) {
+          restored[property] = structuredClone(candidateRecord[property]);
+        }
+      }
+      return restored as typeof element;
+    });
   return {
     ...structuredClone(protectedMetadata),
     elements: [
-      ...protectedElements
-        .filter((element) => !isWireRoutingElement(element))
-        .map((element) => structuredClone(element)),
+      ...restoredElements,
       ...proposedSpec.elements
         .filter(isWireRoutingElement)
         .map((element) => structuredClone(element)),
@@ -627,7 +660,7 @@ export function buildLayoutRepairRequest(
     history,
     message: `The user has requested a visual layout improvement for this proposed circuit. This is an explicitly authorized layout-only change: you may reposition and rotate existing symbols, adjust label placement, resize the sheet, and reroute existing wires.
 
-Keep the circuit's parts and electrical design unchanged. Preserve every component's type, ID, reference, value, symbolId, unit, bodyStyle, pin definitions, and all non-layout properties. Do not add or remove parts, change component values or switch state, or change which pins share a net. The final pin-to-pin netlist must remain exactly the same. You may reroute, split, or merge wires as needed to preserve those same connections.
+Keep the circuit's parts and electrical design unchanged. Preserve every component's type, ID, reference, value, symbolId, unit, bodyStyle, pin definitions, and all non-layout properties. Do not add or remove parts, change component values or switch state, or change which pins share a net. The final pin-to-pin netlist must remain exactly the same. You may reroute, split, or merge wires as needed to preserve those same connections. Every wire endpoint must connect to a component pin, terminal, junction, or another wire; never leave a floating endpoint or use open:true to bypass this rule.
 
 Improve visual hierarchy and whitespace; leave at least 20 px between distinct symbol bodies where possible, and avoid a single long row when a balanced arrangement fits better. Keep related parts grouped, use clear orthogonal routes, reserve label and pin-name space, and prevent labels, pins, symbols, and wires from overlapping. Resize the canvas when needed to keep the full drawing in view. Return a complete CircuitSpec, not an SVG.
 

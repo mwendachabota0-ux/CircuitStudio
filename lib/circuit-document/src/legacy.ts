@@ -10,11 +10,11 @@ import {
   type CircuitDocumentDiagnostic,
   type CircuitDocumentV2,
   type CircuitPinReference,
-} from "./model.js";
+} from "./model.ts";
 import {
   checkCircuitDrawingConsistency,
   validateCircuitDocumentV2,
-} from "./validation.js";
+} from "./validation.ts";
 
 export type LegacyCircuitElement = Record<string, unknown> & { type: string };
 export type LegacyCircuitSpec = Record<string, unknown> & {
@@ -277,7 +277,11 @@ export function importLegacyCircuitSpec(
     ));
     return blockImport(original, diagnostics);
   }
-  if (!legacyNetlist.pinMembership || !legacyNetlist.routeMembership) {
+  if (
+    !isRecord(legacyNetlist) ||
+    !Array.isArray(legacyNetlist.pinMembership) ||
+    !Array.isArray(legacyNetlist.routeMembership)
+  ) {
     diagnostics.push(diagnostic(
       "legacy-membership-missing",
       "error",
@@ -411,6 +415,7 @@ export function importLegacyCircuitSpec(
     return group;
   };
   const assignedPins = new Set<string>();
+  const reportedPins = new Set<string>();
   const unassignedPins: CircuitPinReference[] = [];
 
   legacyNetlist.pinMembership.forEach((membership) => {
@@ -434,6 +439,31 @@ export function importLegacyCircuitSpec(
       ));
       return;
     }
+    const membershipKey = `${reference.componentId}\u0000${reference.pinId}`;
+    if (reportedPins.has(membershipKey)) {
+      diagnostics.push(diagnostic(
+        "legacy-pin-membership-duplicate",
+        "error",
+        `elements.${membership.elementIndex}`,
+        `Legacy connectivity reports ${component.id}.${reference.pinId} more than once.`,
+      ));
+      return;
+    }
+    reportedPins.add(membershipKey);
+    if (
+      typeof membership.connected !== "boolean" ||
+      typeof membership.netKey !== "string" ||
+      membership.netKey.length === 0 ||
+      typeof membership.netName !== "string"
+    ) {
+      diagnostics.push(diagnostic(
+        "legacy-pin-membership-invalid",
+        "error",
+        `elements.${membership.elementIndex}`,
+        `Legacy connectivity has an incomplete net assignment for ${component.id}.${reference.pinId}.`,
+      ));
+      return;
+    }
     if (!membership.connected) {
       unassignedPins.push(reference);
       return;
@@ -452,6 +482,19 @@ export function importLegacyCircuitSpec(
     getNetGroup(membership.netKey, membership.netName).members.push(reference);
   });
 
+  components.forEach((component) => {
+    component.pins.forEach((pin) => {
+      if (!reportedPins.has(`${component.id}\u0000${pin.id}`)) {
+        diagnostics.push(diagnostic(
+          "legacy-pin-membership-incomplete",
+          "error",
+          `electrical.components.${component.id}.pins.${pin.id}`,
+          `Legacy connectivity did not report a state for ${component.id}.${pin.id}; conversion will not infer it.`,
+        ));
+      }
+    });
+  });
+
   const routeElementByIndex = new Map<number, LegacyCircuitElement>();
   original.elements.forEach((element, elementIndex) => {
     if (element.type === "wire") routeElementByIndex.set(elementIndex, element);
@@ -459,6 +502,7 @@ export function importLegacyCircuitSpec(
   const routes: CircuitDocumentV2["drawing"]["routes"] = [];
   const routeNetKeyById = new Map<string, string>();
   const routeIdsByElementIndex = new Map<number, string>();
+  const reportedRouteIndexes = new Set<number>();
   legacyNetlist.routeMembership.forEach((membership, routeOrdinal) => {
     const element = routeElementByIndex.get(membership.elementIndex);
     if (!element || !Array.isArray(element.points)) {
@@ -467,6 +511,29 @@ export function importLegacyCircuitSpec(
         "error",
         `elements.${membership.elementIndex}`,
         "Legacy connectivity references a route that is missing from the original document.",
+      ));
+      return;
+    }
+    if (reportedRouteIndexes.has(membership.elementIndex)) {
+      diagnostics.push(diagnostic(
+        "legacy-route-membership-duplicate",
+        "error",
+        `elements.${membership.elementIndex}`,
+        "Legacy connectivity reports the same wire more than once.",
+      ));
+      return;
+    }
+    reportedRouteIndexes.add(membership.elementIndex);
+    if (
+      typeof membership.netKey !== "string" ||
+      membership.netKey.length === 0 ||
+      typeof membership.netName !== "string"
+    ) {
+      diagnostics.push(diagnostic(
+        "legacy-route-membership-invalid",
+        "error",
+        `elements.${membership.elementIndex}`,
+        "Legacy connectivity has an incomplete net assignment for a wire.",
       ));
       return;
     }
@@ -503,6 +570,16 @@ export function importLegacyCircuitSpec(
     routeNetKeyById.set(routeId, membership.netKey);
     routeIdsByElementIndex.set(membership.elementIndex, routeId);
     void routeOrdinal;
+  });
+  routeElementByIndex.forEach((_element, elementIndex) => {
+    if (!reportedRouteIndexes.has(elementIndex)) {
+      diagnostics.push(diagnostic(
+        "legacy-route-membership-incomplete",
+        "error",
+        `elements.${elementIndex}`,
+        "Legacy connectivity did not report this wire's net; conversion will not drop or infer its route.",
+      ));
+    }
   });
 
   if (diagnostics.some((entry) => entry.severity === "error")) {

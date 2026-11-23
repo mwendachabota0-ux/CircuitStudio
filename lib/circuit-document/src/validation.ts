@@ -8,8 +8,9 @@ import {
   type CircuitComponentV2,
   type CircuitDocumentDiagnostic,
   type CircuitDocumentV2,
+  type CircuitPoint,
   type CircuitPinReference,
-} from "./model.js";
+} from "./model.ts";
 
 export type CircuitDocumentValidationResult = {
   schemaErrors: CircuitDocumentDiagnostic[];
@@ -264,11 +265,13 @@ function validateDrawing(
 
   const checkAnnotationRoutes = (
     id: string,
+    at: CircuitPoint,
     routeIds: string[],
     path: string,
     kind: "junction" | "crossing",
   ) => {
     const referencedNets = new Set<string>();
+    const uniqueRouteIds = new Set(routeIds);
     routeIds.forEach((routeId, routeIndex) => {
       const route = routeById.get(routeId);
       if (!route) {
@@ -280,7 +283,21 @@ function validateDrawing(
         return;
       }
       referencedNets.add(route.netId);
+      if (!routeTouches(route, at)) {
+        errors.push(errorDiagnostic(
+          `${kind}-route-not-at-point`,
+          `${path}.routeIds.${routeIndex}`,
+          `${kind} "${id}" references route "${routeId}" that does not pass through its annotation point.`,
+        ));
+      }
     });
+    if (uniqueRouteIds.size !== routeIds.length) {
+      errors.push(errorDiagnostic(
+        `${kind}-route-duplicate`,
+        `${path}.routeIds`,
+        `${kind} "${id}" repeats a route reference.`,
+      ));
+    }
     if (kind === "junction" && referencedNets.size > 1) {
       errors.push(errorDiagnostic(
         "junction-crosses-nets",
@@ -288,7 +305,7 @@ function validateDrawing(
         `Junction "${id}" visually touches routes from different net IDs; it cannot merge them.`,
       ));
     } else if (kind === "junction" && routeIds.length < 2) {
-      warnings.push(warningDiagnostic(
+      errors.push(errorDiagnostic(
         "junction-under-specified",
         path,
         `Junction "${id}" references fewer than two routes.`,
@@ -300,7 +317,7 @@ function validateDrawing(
         `Crossing "${id}" visually separates routes assigned to the same net ID.`,
       ));
     } else if (kind === "crossing" && routeIds.length < 2) {
-      warnings.push(warningDiagnostic(
+      errors.push(errorDiagnostic(
         "crossing-under-specified",
         path,
         `Crossing "${id}" references fewer than two routes.`,
@@ -311,6 +328,7 @@ function validateDrawing(
   document.drawing.junctions.forEach((junction, index) => {
     checkAnnotationRoutes(
       junction.id,
+      junction.at as CircuitPoint,
       junction.routeIds,
       `drawing.junctions.${index}`,
       "junction",
@@ -319,6 +337,7 @@ function validateDrawing(
   document.drawing.crossings.forEach((crossing, index) => {
     checkAnnotationRoutes(
       crossing.id,
+      crossing.at as CircuitPoint,
       crossing.routeIds,
       `drawing.crossings.${index}`,
       "crossing",

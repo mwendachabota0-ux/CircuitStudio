@@ -1,3 +1,4 @@
-export * from "./model.js";
-export * from "./validation.js";
-export * from "./legacy.js";
+export * from "./model.ts";
+export * from "./validation.ts";
+export * from "./legacy.ts";
+export * from "./persistence.ts";

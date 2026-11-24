@@ -245,6 +245,14 @@ export interface CircuitBuildProposal {
      * @maxLength 500
      */
   summary: string;
+  /**
+     * Optional intended pin groups; each entry lists DESIGNATOR.PIN references that must share one drawn net. Intents exceeding any size limit are omitted and reported in the assistant answer (60 nets, 12 pins per net, 24 characters per pin).
+     * @maxItems 60
+     * @items.maxItems 12
+     * @items.items.minLength 1
+     * @items.items.maxLength 24
+     */
+  intent?: string[][];
   spec: CircuitSpec;
 }
 
@@ -612,6 +620,13 @@ export interface CircuitBuilderRepairRecoveryState {
   proposal?: CircuitBuildProposal;
   proposalValidation?: CircuitBuilderRepairValidation;
   rejectedProposalSpec?: CircuitSpec;
+  /**
+     * @maxItems 60
+     * @items.maxItems 12
+     * @items.items.minLength 1
+     * @items.items.maxLength 24
+     */
+  rejectedProposalIntent?: string[][];
   retryFeedback?: CircuitBuilderRepairRetryFeedback;
   /** @maxItems 20 */
   repairDiagnostics: CircuitBuilderRepairDiagnostic[];

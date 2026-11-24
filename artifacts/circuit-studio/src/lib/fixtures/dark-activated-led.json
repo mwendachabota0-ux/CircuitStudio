@@ -1,0 +1,170 @@
+{
+ "title": "Dark-activated LED (LDR night light)",
+ "elements": [
+  {
+   "type": "terminal",
+   "label": "+5V",
+   "at": [
+    100,
+    50
+   ],
+   "labelPos": "above"
+  },
+  {
+   "type": "wire",
+   "points": [
+    [
+     100,
+     50
+    ],
+    [
+     355,
+     50
+    ]
+   ]
+  },
+  {
+   "type": "resistor",
+   "id": "R1",
+   "label": "R1",
+   "value": "10kΩ",
+   "from": [
+    180,
+    50
+   ],
+   "to": [
+    180,
+    140
+   ],
+   "labelPos": "left"
+  },
+  {
+   "type": "wire",
+   "points": [
+    [
+     180,
+     140
+    ],
+    [
+     180,
+     250
+    ]
+   ]
+  },
+  {
+   "type": "wire",
+   "points": [
+    [
+     180,
+     250
+    ],
+    [
+     305,
+     250
+    ]
+   ]
+  },
+  {
+   "type": "photoresistor",
+   "id": "LDR1",
+   "label": "LDR1",
+   "value": "Light sensor",
+   "from": [
+    180,
+    250
+   ],
+   "to": [
+    180,
+    350
+   ],
+   "labelPos": "left"
+  },
+  {
+   "type": "wire",
+   "points": [
+    [
+     180,
+     350
+    ],
+    [
+     180,
+     440
+    ]
+   ]
+  },
+  {
+   "type": "resistor",
+   "id": "R2",
+   "label": "R2",
+   "value": "330Ω",
+   "from": [
+    355,
+    50
+   ],
+   "to": [
+    355,
+    120
+   ],
+   "labelPos": "left"
+  },
+  {
+   "type": "led",
+   "id": "LED1",
+   "label": "LED1",
+   "value": "Red",
+   "from": [
+    355,
+    120
+   ],
+   "to": [
+    355,
+    206
+   ],
+   "labelPos": "left"
+  },
+  {
+   "type": "npn",
+   "id": "Q1",
+   "label": "Q1",
+   "value": "2N2222 / BC547",
+   "at": [
+    330,
+    250
+   ]
+  },
+  {
+   "type": "wire",
+   "points": [
+    [
+     355,
+     294
+    ],
+    [
+     355,
+     440
+    ]
+   ]
+  },
+  {
+   "type": "wire",
+   "points": [
+    [
+     180,
+     440
+    ],
+    [
+     355,
+     440
+    ]
+   ]
+  },
+  {
+   "type": "ground",
+   "at": [
+    267,
+    440
+   ],
+   "label": "GND"
+  }
+ ]
+}

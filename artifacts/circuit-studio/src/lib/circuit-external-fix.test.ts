@@ -24,6 +24,7 @@ const rejectedSpec = {
 
 const context = {
   rejectedSpec,
+  intent: [['R1.2', 'D1.A'], ['D1.K', 'GND']],
   reportedProblems: ['Wire W1 at (80,100) is disconnected.'],
   advisoryWarnings: ['A wire segment is diagonal; this is a layout note.'],
   originalRequest: 'Build a low-voltage LED indicator.',
@@ -42,6 +43,7 @@ test('external-help context stays concise while including the exact circuit and 
   assert.match(prompt, /A wire segment is diagonal; this is a layout note/);
   assert.match(prompt, /Build a low-voltage LED indicator/);
   assert.match(prompt, /Return one complete CircuitSpec as JSON only/);
+  assert.match(prompt, /"intendedConnections":\[\["R1.2","D1.A"\],\["D1.K","GND"\]\]/);
   assert.doesNotMatch(prompt, /Recent conversation context|supported components and repair constraints/i);
   assert.ok(prompt.includes(JSON.stringify(rejectedSpec)));
 });

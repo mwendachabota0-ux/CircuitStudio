@@ -45,10 +45,13 @@ they do not add pins. Optional drawing fields are not electrical models.
 - Auto-fix only snaps a wire endpoint when exactly one pin is within 8 px. It
   can also trim a narrow class of dangling power/ground rail tails. It does not
   invent components, infer missing pins, or reroute arbitrary wires.
-- Electrical topology checks are specialized (currently including known
-  two-transistor astable circuits). There is no general electrical rules
-  engine, circuit simulation, or safety check. A rendered schematic is not
-  evidence that a circuit is electrically correct or safe.
+- Conservative electrical sanity checks compare intended pin-to-net groups
+  and flag selected cases such as shorted two-terminal parts, shorted BJT
+  pins, a BJT base hard-wired to a rail, a likely missing LED series resistor,
+  and missing ground. Specialized topology checks also cover known
+  two-transistor astable circuits. These heuristics do not model arbitrary
+  components, component values, circuit operation, or safety. A rendered
+  schematic is not evidence that a circuit is electrically correct or safe.
 
 Unsupported types must be reported rather than silently substituted or assigned
 imaginary pins. In particular, generic `ic`, `potentiometer`, and `mosfet`

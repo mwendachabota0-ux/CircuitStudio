@@ -63,7 +63,80 @@ test("build proposals are retained for strict schema and circuit validation", ()
     proposal,
   }, brief);
 
-  assert.equal(result.proposal, proposal);
+  assert.deepEqual(result.proposal, proposal);
+});
+
+test("valid proposal intent survives response normalization", () => {
+  const intent = [["R1.2", "LED1.A"], ["LED1.K", "B1.-"]];
+  const result = normalizeCircuitBuilderResponse({
+    nextMode: "build",
+    answer: "Here is a draft.",
+    brief,
+    proposal: { summary: "Draft", spec: { title: "Draft", elements: [] }, intent },
+  }, brief);
+
+  assert.deepEqual(result.proposal.intent, intent);
+});
+
+test("empty and single-pin-only proposal intents are dropped", () => {
+  for (const intent of [[], [["R1.1"]]]) {
+    const result = normalizeCircuitBuilderResponse({
+      nextMode: "build",
+      answer: "Here is a draft.",
+      brief,
+      proposal: { summary: "Draft", spec: { title: "Draft", elements: [] }, intent },
+    }, brief);
+
+    assert.equal("intent" in result.proposal, false);
+  }
+});
+
+test("a 60-net proposal intent survives response normalization", () => {
+  const intent = Array.from({ length: 60 }, (_, index) => [
+    `R${index + 1}.1`,
+    `R${index + 1}.2`,
+  ]);
+  const result = normalizeCircuitBuilderResponse({
+    nextMode: "build",
+    answer: "Here is a draft.",
+    brief,
+    proposal: { summary: "Draft", spec: { title: "Draft", elements: [] }, intent },
+  }, brief);
+
+  assert.deepEqual(result.proposal.intent, intent);
+});
+
+test("an over-limit proposal intent is dropped with a visible notice", () => {
+  const intent = Array.from({ length: 61 }, (_, index) => [
+    `R${index + 1}.1`,
+    `R${index + 1}.2`,
+  ]);
+  const result = normalizeCircuitBuilderResponse({
+    nextMode: "build",
+    answer: "Here is a draft.",
+    brief,
+    proposal: { summary: "Draft", spec: { title: "Draft", elements: [] }, intent },
+  }, brief);
+
+  assert.equal("intent" in result.proposal, false);
+  assert.match(result.answer, /intent checking was skipped.*60 nets/i);
+});
+
+test("invalid proposal intent is dropped without discarding the proposal", () => {
+  const proposal = {
+    summary: "Draft",
+    spec: { title: "Draft", elements: [] },
+    intent: [["R1.2", 7]],
+  };
+  const result = normalizeCircuitBuilderResponse({
+    nextMode: "build",
+    answer: "Here is a draft.",
+    brief,
+    proposal,
+  }, brief);
+
+  assert.equal("intent" in result.proposal, false);
+  assert.equal(result.proposal.summary, proposal.summary);
 });
 
 test("valid suggested actions survive response normalization", () => {

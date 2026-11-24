@@ -2,6 +2,7 @@ import type {
   CircuitBuildChatInput,
   CircuitDesignBrief,
 } from '@workspace/api-client-react';
+import { getCircuitPins } from '@workspace/circuit-geometry';
 
 export const MAX_AUTO_RETRIES = 3;
 export const EXTERNAL_REPAIR_REFERENCE_MARKER =
@@ -15,6 +16,7 @@ export type BuildValidation = {
   topologyErrors?: string[];
   topologyWarnings?: string[];
 };
+export type BuildIntent = string[][];
 export type BuildProposalInspection = {
   validation: BuildValidation;
   canRepair: boolean;
@@ -74,6 +76,7 @@ export class CircuitBuildAttemptError extends Error {
   readonly repairAttemptCount: number;
   readonly repairDiagnostics: RepairAttemptDiagnostic[];
   readonly rejectedProposal: unknown;
+  readonly rejectedProposalIntent: BuildIntent | undefined;
   readonly stoppedByUser: boolean;
   readonly cause: unknown;
 
@@ -87,6 +90,7 @@ export class CircuitBuildAttemptError extends Error {
     repairAttemptCount?: number;
     repairDiagnostics?: RepairAttemptDiagnostic[];
     rejectedProposal?: unknown;
+    rejectedProposalIntent?: BuildIntent;
     stoppedByUser?: boolean;
   }) {
     super('Circuit build attempts did not produce a usable result.');
@@ -99,6 +103,7 @@ export class CircuitBuildAttemptError extends Error {
     this.repairAttemptCount = options.repairAttemptCount ?? 0;
     this.repairDiagnostics = options.repairDiagnostics ?? [];
     this.rejectedProposal = options.rejectedProposal;
+    this.rejectedProposalIntent = options.rejectedProposalIntent;
     this.stoppedByUser = options.stoppedByUser ?? false;
     this.cause = options.cause;
   }
@@ -205,11 +210,12 @@ export function shouldClearSubmittedDraft(
     currentDraft.trim() === submittedMessage;
 }
 
-export function buildRepairMessage(findings: string[]): string {
+export function buildRepairMessage(findings: string[], intent?: BuildIntent): string {
   return buildFindingsMessage(
     'The supplied current CircuitSpec is the last failing AI proposal, not the user’s workbench draft. Edit that proposal in place. Fix every validator finding below and return a complete corrected CircuitSpec:',
     'Preserve every existing part, identity, value, symbol source, pin definition, and electrical connection. You may move or rotate a part only when needed to expose a terminal or make a short, clear route possible. Do not add or remove parts or change the intended pin-to-net connections. Every wire endpoint must connect exactly to a component pin, terminal, junction, or another wire; never leave a floating endpoint or use open:true to bypass this rule. Route around component bodies and keep segments orthogonal.',
     findings,
+    intent,
   );
 }
 
@@ -217,27 +223,112 @@ function buildFindingsMessage(
   preamble: string,
   footer: string,
   findings: string[],
+  intent?: BuildIntent,
+  findingLength = 240,
 ): string {
+  const intentText = intent === undefined
+    ? ''
+    : `\nThe intended connections are: ${intent.map((net) => net.join(',')).join(';')}. Fix the drawing so the connections match exactly. Do not change the intent.`;
   const included: string[] = [];
-  let length = preamble.length + footer.length + 2;
+  let length = preamble.length + footer.length + intentText.length + 2;
   for (const finding of findings) {
-    const line = `- ${finding.slice(0, 240)}`;
+    const line = `- ${finding.slice(0, findingLength)}`;
     if (length + line.length + 1 > 5_850) {
-      included.push(`- ${findings.length - included.length} additional validation finding(s) were omitted; repair all remaining structural issues.`);
+      const omitted = `- ${findings.length - included.length} additional validation finding(s) were omitted; repair all remaining structural issues.`;
+      if (length + omitted.length + 1 <= 5_850) included.push(omitted);
       break;
     }
     included.push(line);
     length += line.length + 1;
   }
-  return `${preamble}\n${included.join('\n')}\n${footer}`.slice(0, 6_000);
+  return `${preamble}\n${included.join('\n')}${intentText}\n${footer}`.slice(0, 6_000);
 }
 
-export function buildWireRebuildMessage(findings: string[]): string {
+export function buildWireRebuildMessage(findings: string[], intent?: BuildIntent): string {
   return buildFindingsMessage(
     'The supplied current CircuitSpec contains the correct circuit parts, but its wiring has failed validation. Start its wiring over: create a complete new set of connections from the current design brief and original user request. Treat all previous wires and wire-routing markers as discarded.',
     'Preserve every component, value, label, ID, symbol source, and pin definition. You may move or rotate existing parts only when needed to expose terminals or make short, clear routes possible; do not add or remove parts or change intended pin-to-net connections. Rebuild the wires and routing markers so every wire endpoint connects exactly to a component pin, terminal, junction, or another wire. Never leave a floating endpoint or use open:true to bypass this rule. Route around component bodies with orthogonal segments. Fix every blocking finding below; structural checks do not prove electrical operation or safety.',
     findings,
+    intent,
   );
+}
+
+function getWireEndpointTrimHint(
+  spec: NonNullable<CircuitBuildChatInput['currentSpec']>,
+  finding: string,
+): string | null {
+  const match = finding.match(
+    /\bwire #(\d+) endpoint at \((-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)\) is not connected\b/i,
+  );
+  if (!match) return null;
+
+  const elementIndex = Number(match[1]) - 1;
+  const wire = spec.elements[elementIndex];
+  if (!wire || wire.type !== 'wire' || !Array.isArray(wire.points) || wire.points.length < 2) {
+    return null;
+  }
+  const endpoint: [number, number] = [Number(match[2]), Number(match[3])];
+  const endpointIndex = wire.points.findIndex((point) =>
+    point[0] === endpoint[0] && point[1] === endpoint[1],
+  );
+  if (endpointIndex !== 0 && endpointIndex !== wire.points.length - 1) return null;
+  const adjacentIndex = endpointIndex === 0 ? 1 : wire.points.length - 2;
+  const adjacent = wire.points[adjacentIndex];
+  const horizontal = adjacent[1] === endpoint[1];
+  const vertical = adjacent[0] === endpoint[0];
+  if (!horizontal && !vertical) return null;
+
+  const coordinate = horizontal ? 0 : 1;
+  const start = adjacent[coordinate];
+  const end = endpoint[coordinate];
+  const direction = Math.sign(end - start);
+  if (direction === 0) return null;
+  const candidates: Array<{ point: [number, number]; description: string }> = [];
+
+  for (const element of spec.elements) {
+    if (element.type === 'wire' && Array.isArray(element.points)) {
+      for (const point of element.points) {
+        candidates.push({ point: [point[0], point[1]], description: 'the last connected wire point on this rail' });
+      }
+    } else if (element.type === 'junction' && typeof element.x === 'number' && typeof element.y === 'number') {
+      candidates.push({ point: [element.x, element.y], description: 'the last connected junction on this rail' });
+    } else {
+      const name = element.label || element.id || element.type;
+      for (const pin of getCircuitPins(element)) {
+        candidates.push({
+          point: pin.point,
+          description: `pin ${name}.${pin.name} on this rail`,
+        });
+      }
+    }
+  }
+
+  const eligible = candidates.filter(({ point }) => {
+    const onLine = horizontal
+      ? point[1] === endpoint[1]
+      : point[0] === endpoint[0];
+    const position = point[coordinate];
+    return onLine &&
+      position !== end &&
+      direction * (position - start) > 0 &&
+      direction * (end - position) > 0;
+  }).sort((left, right) =>
+    direction * (right.point[coordinate] - left.point[coordinate]),
+  );
+  const target = eligible[0];
+  if (!target) return null;
+
+  return `Shorten wire #${match[1]} so it ends at (${target.point[0]},${target.point[1]}), ${target.description}.`;
+}
+
+export function enrichFindings(
+  spec: NonNullable<CircuitBuildChatInput['currentSpec']>,
+  findings: string[],
+): string[] {
+  return findings.map((finding) => {
+    const hint = getWireEndpointTrimHint(spec, finding);
+    return hint ? `${finding} ${hint}` : finding;
+  });
 }
 
 function compactHistoryContent(content: string): string {
@@ -269,6 +360,7 @@ export function buildRepairRequest(
   brief: CircuitDesignBrief,
   findings: string[],
   failingProposal: CircuitBuildChatInput['currentSpec'] = originalRequest.currentSpec,
+  intent?: BuildIntent,
 ): CircuitBuildChatInput {
   const history = [
     ...(originalRequest.history ?? []),
@@ -288,7 +380,7 @@ export function buildRepairRequest(
     brief,
     history,
     message: [
-      buildRepairMessage(findings),
+      buildRepairMessage(enrichFindings(failingProposal, findings), intent),
       externalReference,
     ].filter(Boolean).join('\n\n'),
   });
@@ -299,10 +391,11 @@ export function buildManualRetryRequest(
   brief: CircuitDesignBrief,
   rejectedProposal: CircuitBuildChatInput['currentSpec'] | null,
   findings: string[],
+  intent?: BuildIntent,
 ): CircuitBuildChatInput {
   const safeRequest = normalizeCircuitBuildRequest(originalRequest);
   if (rejectedProposal && findings.length > 0) {
-    return buildRepairRequest(safeRequest, brief, findings, rejectedProposal);
+    return buildRepairRequest(safeRequest, brief, findings, rejectedProposal, intent);
   }
   return safeRequest;
 }
@@ -318,6 +411,7 @@ export function buildWireRebuildRequest(
   brief: CircuitDesignBrief,
   failingProposal: NonNullable<CircuitBuildChatInput['currentSpec']>,
   findings: string[],
+  intent?: BuildIntent,
 ): CircuitBuildChatInput {
   const history = [
     ...(originalRequest.history ?? []),
@@ -337,19 +431,27 @@ export function buildWireRebuildRequest(
     currentSpec,
     brief,
     history,
-    message: buildWireRebuildMessage(findings),
+    message: buildWireRebuildMessage(enrichFindings(failingProposal, findings), intent),
   });
 }
 
 export function buildWholeCircuitRetryRequest(
   originalRequest: CircuitBuildChatInput,
   brief: CircuitDesignBrief,
+  intent?: BuildIntent,
 ): CircuitBuildChatInput {
+  const intentMessage = intent === undefined
+    ? ''
+    : `\nThe intended connections are: ${intent.map((net) => net.join(',')).join(';')}. Do not change the intent or connect pins across separate intended nets.`;
+  const message = intentMessage
+    ? `${originalRequest.message.slice(0, 6_000 - intentMessage.length)}${intentMessage}`
+    : originalRequest.message;
   return normalizeCircuitBuildRequest({
     ...originalRequest,
     mode: 'build',
     brief,
     responseFormatRetry: false,
+    message,
   });
 }
 
@@ -498,7 +600,7 @@ export function getLayoutInvariantChanges(
 }
 
 export type CircuitNetlistSnapshot = {
-  parts: Array<{ designator: string; type: string; value: string }>;
+  parts: Array<{ designator: string; type: string; value?: string }>;
   nets: Array<{ name: string; pins: string[] }>;
 };
 
@@ -641,15 +743,13 @@ export function buildLayoutRepairRequest(
   brief: CircuitDesignBrief,
   spec: NonNullable<CircuitBuildChatInput['currentSpec']>,
   findings: string[],
+  intent?: BuildIntent,
 ): CircuitBuildChatInput {
   const history = [
     ...(originalRequest.history ?? []),
     { role: 'user' as const, content: originalRequest.message },
   ].slice(-8);
-  const findingText = findings
-    .slice(0, 10)
-    .map((finding) => `- ${finding.slice(0, 400)}`)
-    .join('\n');
+  const enrichedFindings = enrichFindings(spec, findings).slice(0, 10);
 
   return normalizeCircuitBuildRequest({
     ...originalRequest,
@@ -658,16 +758,13 @@ export function buildLayoutRepairRequest(
     currentSpec: spec,
     responseFormatRetry: false,
     history,
-    message: `The user has requested a visual layout improvement for this proposed circuit. This is an explicitly authorized layout-only change: you may reposition and rotate existing symbols, adjust label placement, resize the sheet, and reroute existing wires.
-
-Keep the circuit's parts and electrical design unchanged. Preserve every component's type, ID, reference, value, symbolId, unit, bodyStyle, pin definitions, and all non-layout properties. Do not add or remove parts, change component values or switch state, or change which pins share a net. The final pin-to-pin netlist must remain exactly the same. You may reroute, split, or merge wires as needed to preserve those same connections. Every wire endpoint must connect to a component pin, terminal, junction, or another wire; never leave a floating endpoint or use open:true to bypass this rule.
-
-Improve visual hierarchy and whitespace; leave at least 20 px between distinct symbol bodies where possible, and avoid a single long row when a balanced arrangement fits better. Keep related parts grouped, use clear orthogonal routes, reserve label and pin-name space, and prevent labels, pins, symbols, and wires from overlapping. Resize the canvas when needed to keep the full drawing in view. Return a complete CircuitSpec, not an SVG.
-
-Readability findings:
-${findingText || '- Improve the overall arrangement and label clearance.'}
-
-Original user request: ${originalRequest.message.slice(0, 1200)}`,
+    message: buildFindingsMessage(
+      `The user requested a visual layout improvement. This is an explicitly authorized layout-only change. Reposition/rotate symbols, adjust labels, resize the sheet, and reroute wires only as needed. Preserve every component's type, ID, reference, value, symbolId, unit, bodyStyle, pin definitions, and all non-layout properties. Do not add/remove parts or change values, switch state, or pin-to-net connections. The final pin-to-pin netlist must remain exactly the same. Every wire endpoint must connect to a pin, terminal, junction, or another wire; never leave a floating endpoint or use open:true. Use orthogonal routes around component bodies. Improve whitespace and grouping, leave at least 20 px between symbol bodies where possible, reserve label/pin-name space, and resize the canvas to keep the drawing in view.`,
+      'Readability findings and original request are in the conversation history.',
+      enrichedFindings.length ? enrichedFindings : ['Improve the overall arrangement and label clearance.'],
+      intent,
+      400,
+    ),
   });
 }
 
@@ -676,7 +773,10 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
     initialRequest: TRequest;
     send: (request: TRequest) => Promise<TResponse>;
     getProposal: (response: TResponse) => TProposal | null | undefined;
-    inspectProposal: (proposal: TProposal) => TInspection;
+    inspectProposal: (proposal: TProposal, intent?: BuildIntent) => TInspection;
+    getProposalIntent?: (response: TResponse) => BuildIntent | undefined;
+    initialIntent?: BuildIntent;
+    restoreProposalIntent?: (response: TResponse, intent?: BuildIntent) => TResponse;
     prepareResponse?: (response: TResponse) => TResponse;
     initialProtectedSpec?: TProposal;
     getProtectedCircuitSignature?: (proposal: TProposal) => string;
@@ -707,6 +807,7 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
   let workingRequest = options.initialRequest;
   let outputRepairAttempted = false;
   let lastInvalidProposal: TProposal | null = null;
+  let lastInvalidIntent: BuildIntent | undefined;
   let lastInvalidFindings: string[] = [];
   let lastInvalidWarnings: string[] = [];
   let protectedSpec = options.initialProtectedSpec === undefined
@@ -718,6 +819,9 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
   let protectedConnectivitySignature = protectedSpec !== undefined && options.getConnectivitySignature
     ? options.getConnectivitySignature(protectedSpec)
     : undefined;
+  let protectedIntent = options.initialIntent === undefined
+    ? undefined
+    : freezeSnapshot(options.initialIntent);
   let isRepairAttempt = protectedSpec !== undefined;
   let repairAttemptCount = 0;
   const repairDiagnostics: RepairAttemptDiagnostic[] = [];
@@ -746,6 +850,7 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
       repairAttemptCount,
       repairDiagnostics: [...repairDiagnostics],
       rejectedProposal: lastInvalidProposal ?? undefined,
+      rejectedProposalIntent: lastInvalidIntent,
       stoppedByUser: true,
     });
   };
@@ -787,6 +892,7 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
           validationFindings: lastInvalidFindings,
           validationWarnings: lastInvalidWarnings,
           rejectedProposal: lastInvalidProposal ?? undefined,
+          rejectedProposalIntent: lastInvalidIntent,
           repairAttemptCount,
           repairDiagnostics: isRepairAttempt
             ? [
@@ -820,6 +926,7 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
         validationFindings: lastInvalidFindings,
         validationWarnings: lastInvalidWarnings,
         rejectedProposal: lastInvalidProposal ?? undefined,
+        rejectedProposalIntent: lastInvalidIntent,
         repairAttemptCount,
         repairDiagnostics: isRepairAttempt
           ? [
@@ -865,6 +972,7 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
           repairAttemptCount,
           repairDiagnostics,
           rejectedProposal: lastInvalidProposal,
+          rejectedProposalIntent: lastInvalidIntent,
         });
       }
       options.onResponse?.(response);
@@ -901,6 +1009,7 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
         failureKind: 'validation',
         validationFindings: ['The protected CircuitSpec could not be reconstructed before validation.'],
         rejectedProposal: proposal,
+        rejectedProposalIntent: protectedIntent ?? options.getProposalIntent?.(response),
         repairAttemptCount,
         repairDiagnostics,
       });
@@ -910,6 +1019,11 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
       response = options.restoreProtectedSpec(response, protectedSpec);
     }
     response = options.prepareResponse?.(response) ?? response;
+    const responseIntent = options.getProposalIntent?.(response);
+    if (protectedIntent === undefined && responseIntent !== undefined) {
+      protectedIntent = freezeSnapshot(responseIntent);
+    }
+    response = options.restoreProposalIntent?.(response, protectedIntent) ?? response;
     proposal = options.getProposal(response);
     options.onResponse?.(response);
     if (proposal == null) {
@@ -933,6 +1047,7 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
           repairAttemptCount,
           repairDiagnostics,
           rejectedProposal: lastInvalidProposal,
+          rejectedProposalIntent: lastInvalidIntent,
         });
       }
       return {
@@ -977,12 +1092,16 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
         failureKind: 'validation',
         validationFindings: ['The reconstructed CircuitSpec did not preserve its immutable baseline.'],
         rejectedProposal: proposal,
+        rejectedProposalIntent: protectedIntent ?? responseIntent,
         repairAttemptCount,
         repairDiagnostics,
       });
     }
 
-    const proposalInspection = options.inspectProposal(proposal);
+    const proposalInspection = options.inspectProposal(
+      proposal,
+      protectedIntent ?? responseIntent,
+    );
     // Warnings are advisory layout notes. Structural and connectivity findings
     // consume repair attempts and must be cleared before a proposal is staged.
     let findings = proposalInspection.validation.errors;
@@ -1036,6 +1155,7 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
       };
     }
     lastInvalidProposal = proposal;
+    lastInvalidIntent = protectedIntent ?? responseIntent;
 
     if (isRepairAttempt && options.shouldStopRepair?.()) {
       throwRepairStopped();
@@ -1052,6 +1172,7 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
         repairAttemptCount,
         repairDiagnostics,
         rejectedProposal: proposal,
+        rejectedProposalIntent: lastInvalidIntent,
       });
     }
     if (retries >= MAX_AUTO_RETRIES) {
@@ -1065,6 +1186,7 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
         repairAttemptCount,
         repairDiagnostics,
         rejectedProposal: proposal,
+        rejectedProposalIntent: lastInvalidIntent,
       });
     }
 

@@ -23,7 +23,7 @@ import {
 import { ErrorBoundary } from '@/components/error-boundary';
 import CircuitBuilderChat, { type JsonRepairRequest } from './components/circuit-builder-chat';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
@@ -36,6 +36,7 @@ import {
   type BomMetadataField,
   type BomOverrides,
 } from './lib/bill-of-materials';
+import { runElectricalChecks, type ElectricalFinding } from './lib/circuit-electrical-checks';
 import { Redirect, Route, Switch, useLocation, Link, Router as WouterRouter } from 'wouter';
 
 type ValidationReport = {
@@ -45,6 +46,11 @@ type ValidationReport = {
   topologyWarnings?: string[];
 };
 type CircuitSpec = ApiCircuitSpec;
+type JsonEditConfirmation = {
+  beforeSpec: CircuitSpec;
+  nextSpec: CircuitSpec;
+  findings: ElectricalFinding[];
+};
 type CircuitDrawRenderOptions = {
   allowStructuralErrors?: boolean;
   padding?: number;
@@ -62,7 +68,7 @@ type CircuitDrawApi = {
   layoutWarnings: (spec: CircuitSpec) => string[];
   autoFix: (spec: CircuitSpec) => { spec: CircuitSpec; changes: string[] };
   netlist: (spec: CircuitSpec, allowStructuralErrors?: boolean) => {
-    parts: Array<{ designator: string; type: string; value: string }>;
+    parts: Array<{ designator: string; type: string; value?: string }>;
     nets: Array<{ name: string; pins: string[] }>;
   };
   buildSheet: (spec: CircuitSpec) => string;
@@ -721,6 +727,7 @@ function Studio({ userId }: { userId: string }) {
   const [jsonError, setJsonError] = useState('');
   const [jsonEditorDirty, setJsonEditorDirty] = useState(false);
   const [jsonRepairRequest, setJsonRepairRequest] = useState<JsonRepairRequest | null>(null);
+  const [jsonEditConfirmation, setJsonEditConfirmation] = useState<JsonEditConfirmation | null>(null);
   const jsonRepairRequestIdRef = useRef(0);
   const [hasStagedBuilderProposal, setHasStagedBuilderProposal] = useState(false);
   const [schematicFeedbackHost, setSchematicFeedbackHost] = useState<HTMLDivElement | null>(null);
@@ -998,8 +1005,8 @@ function Studio({ userId }: { userId: string }) {
     const repairBaseSpec = getBuilderCompatibleSpec(parsed.spec, spec);
     const beforeSpec = spec;
     const changed = !areCircuitSpecsEqual(beforeSpec, parsed.spec);
-    acceptSpec(parsed.spec);
     if (validation.errors.length) {
+      acceptSpec(parsed.spec);
       setJsonRepairRequest({
         id: ++jsonRepairRequestIdRef.current,
         rawJson: jsonText,
@@ -1012,12 +1019,54 @@ function Studio({ userId }: { userId: string }) {
     }
 
     if (!changed) {
+      acceptSpec(parsed.spec);
       setToast('CircuitSpec edit applied. The preview and Studio AI now use this draft.');
       return;
     }
 
+    if (!window.CircuitDraw) {
+      setToast('Drawing checks are not ready. The edit was not applied.');
+      return;
+    }
+
+    let electricalFindings: ElectricalFinding[];
+    try {
+      electricalFindings = runElectricalChecks(
+        window.CircuitDraw.netlist(parsed.spec, true),
+      ).findings;
+    } catch (error) {
+      setToast(error instanceof Error
+        ? `Electrical checks could not run. The edit was not applied: ${error.message}`
+        : 'Electrical checks could not run. The edit was not applied.');
+      return;
+    }
+
+    if (electricalFindings.length) {
+      setJsonEditConfirmation({
+        beforeSpec,
+        nextSpec: parsed.spec,
+        findings: electricalFindings,
+      });
+      setToast('Review the electrical findings before applying this edit.');
+      return;
+    }
+
+    acceptSpec(parsed.spec);
     setToast('CircuitSpec edit applied. Checking it for reusable shared guidance…');
     shareCircuitSpecLearning(beforeSpec, parsed.spec, report.errors);
+  };
+  const confirmJsonEdit = () => {
+    const pending = jsonEditConfirmation;
+    if (!pending) return;
+
+    setJsonEditConfirmation(null);
+    acceptSpec(pending.nextSpec);
+    setToast('CircuitSpec edit applied after reviewing electrical findings.');
+    shareCircuitSpecLearning(
+      pending.beforeSpec,
+      pending.nextSpec,
+      pending.findings.map((finding) => `${finding.severity.toUpperCase()}: ${finding.message}`),
+    );
   };
 
   const download = (filename: string, content: BlobPart, type: string) => {
@@ -1293,7 +1342,7 @@ function Studio({ userId }: { userId: string }) {
 
           <div className="panel details-panel">
             <div className="panel-heading"><h2 className="section-title"><span className="section-icon"><Code2 /></span>Editable CircuitSpec</h2><span className="count-badge">JSON</span></div>
-            <textarea className="json-editor" data-testid="input-circuit-json" aria-label="Editable CircuitSpec JSON" spellCheck={false} value={jsonText} disabled={!!jsonRepairRequest || hasStagedBuilderProposal} onChange={(event) => onJsonChange(event.target.value)} />
+            <textarea className="json-editor" data-testid="input-circuit-json" aria-label="Editable CircuitSpec JSON" spellCheck={false} value={jsonText} disabled={!!jsonRepairRequest || !!jsonEditConfirmation || hasStagedBuilderProposal} onChange={(event) => onJsonChange(event.target.value)} />
             <p className="json-learning-note">Meaningful edits that pass drawing checks may contribute a generalized lesson to all users. Your raw circuit and chat are not shared.</p>
             <div className="editor-footer">
               {(hasStagedBuilderProposal || jsonRepairRequest || jsonError || jsonEditorDirty) && (
@@ -1302,6 +1351,8 @@ function Studio({ userId }: { userId: string }) {
                     ? 'Review or discard the staged proposal before applying JSON edits.'
                     : jsonRepairRequest
                     ? 'Studio AI is interpreting this edit…'
+                    : jsonEditConfirmation
+                      ? 'Review electrical findings before applying this edit.'
                     : jsonError
                       ? `${jsonError} Click Apply edit to ask Studio AI.`
                       : 'Unapplied edits'}
@@ -1312,7 +1363,7 @@ function Studio({ userId }: { userId: string }) {
                   className="editor-apply-button"
                   type="button"
                   data-testid="button-apply-json-edit"
-                  disabled={hasStagedBuilderProposal || !!jsonRepairRequest || (!jsonEditorDirty && !jsonError)}
+                  disabled={hasStagedBuilderProposal || !!jsonRepairRequest || !!jsonEditConfirmation || (!jsonEditorDirty && !jsonError)}
                   onClick={applyJsonEdit}
                 >
                   <Check aria-hidden="true" /> Apply edit
@@ -1354,6 +1405,52 @@ function Studio({ userId }: { userId: string }) {
           <div className="easyeda-sheet-footer">
             <button className="quiet-button" type="button" onClick={copySheet} disabled={!easyedaSheet}><Clipboard /> {copied ? 'Copied' : 'Copy sheet'}</button>
           </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={!!jsonEditConfirmation}
+        onOpenChange={(open) => {
+          if (!open) setJsonEditConfirmation(null);
+        }}
+      >
+        <DialogContent data-testid="dialog-json-edit-electrical-confirmation">
+          <DialogHeader>
+            <DialogTitle>Review electrical findings?</DialogTitle>
+            <DialogDescription>
+              The drawing structure passed, but these electrical checks found items to review. The edit stays unapplied until you confirm.
+            </DialogDescription>
+          </DialogHeader>
+          {jsonEditConfirmation && (
+            <ul className="validation-list" data-testid="list-json-edit-electrical-findings">
+              {jsonEditConfirmation.findings.map((finding, index) => (
+                <li
+                  className={finding.severity === 'error' ? 'error' : undefined}
+                  key={`${finding.code}-${index}`}
+                >
+                  <strong>{finding.severity === 'error' ? 'Issue: ' : 'Review: '}</strong>
+                  {finding.message}
+                </li>
+              ))}
+            </ul>
+          )}
+          <DialogFooter>
+            <button
+              type="button"
+              className="quiet-button"
+              data-testid="button-cancel-json-edit-confirmation"
+              onClick={() => setJsonEditConfirmation(null)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="primary-button"
+              data-testid="button-confirm-json-edit"
+              onClick={confirmJsonEdit}
+            >
+              Apply edit anyway
+            </button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
       {toast && <div className="status-toast" role="status" data-testid="status-toast">{toast}</div>}
@@ -1457,6 +1554,29 @@ function Tutor({ userId }: { userId: string }) {
   };
   const applyProposal = () => {
     if (!response?.proposedEdit) return;
+    if (!window.CircuitDraw) {
+      setFormError('Drawing checks are not ready. The proposal was not applied.');
+      return;
+    }
+    try {
+      const structural = window.CircuitDraw.validate(response.proposedEdit.spec, {
+        requireConnectedWireEnds: true,
+      });
+      const electrical = runElectricalChecks(
+        window.CircuitDraw.netlist(response.proposedEdit.spec, true),
+      );
+      if (structural.errors.length || electrical.errors.length) {
+        setFormError('This proposal still has blocking findings and was not applied.');
+        return;
+      }
+    } catch (error) {
+      setFormError(
+        error instanceof Error
+          ? `This proposal could not be checked and was not applied: ${error.message}`
+          : 'This proposal could not be checked and was not applied.',
+      );
+      return;
+    }
     try {
       localStorage.setItem(`circuit-studio-draft-v1:${userId}`, JSON.stringify(response.proposedEdit.spec));
       setApplied(true);
@@ -1568,8 +1688,15 @@ function TutorAnswer({ response, onApply, applied, libraryReady }: { response: T
     if (!proposedSpec || !libraryReady || !window.CircuitDraw) return { state: 'loading' as const, svg: '', errors: [], warnings: [] };
     try {
       const validation = window.CircuitDraw.validate(proposedSpec, { requireConnectedWireEnds: true });
-      if (validation.errors.length) return { state: 'invalid' as const, svg: '', errors: validation.errors, warnings: validation.warnings };
-      return { state: 'ready' as const, svg: window.CircuitDraw.render(proposedSpec), errors: [], warnings: validation.warnings };
+      const electrical = runElectricalChecks(window.CircuitDraw.netlist(proposedSpec, true));
+      const errors = [...validation.errors, ...electrical.errors];
+      const warnings = [
+        ...validation.warnings,
+        ...electrical.warnings,
+        'No intent was supplied; only general checks ran.',
+      ];
+      if (errors.length) return { state: 'invalid' as const, svg: '', errors, warnings };
+      return { state: 'ready' as const, svg: window.CircuitDraw.render(proposedSpec), errors: [], warnings };
     } catch {
       return { state: 'invalid' as const, svg: '', errors: ['The proposed schematic could not be rendered.'], warnings: [] };
     }

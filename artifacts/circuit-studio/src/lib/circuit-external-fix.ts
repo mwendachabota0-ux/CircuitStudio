@@ -6,6 +6,7 @@ import type {
 
 export type ExternalCircuitFixContext = {
   rejectedSpec: CircuitSpec;
+  intent?: string[][];
   reportedProblems: string[];
   advisoryWarnings: string[];
   originalRequest: string;
@@ -298,6 +299,7 @@ export function buildExternalCircuitFixPrompt(
       },
       findings: context.reportedProblems.slice(0, 8).map((item) => item.slice(0, 500)),
       advisoryWarnings: context.advisoryWarnings.slice(0, 4).map((item) => item.slice(0, 300)),
+      ...(context.intent ? { intendedConnections: context.intent } : {}),
       circuitSpec: context.rejectedSpec,
     }),
   ].join('\n');

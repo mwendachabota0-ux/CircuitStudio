@@ -30,11 +30,13 @@ import type {
   CircuitBuildChatInput,
   CircuitBuildChatMessage,
   CircuitBuilderRepairLessonInput,
+  CircuitBuildChatResponse,
   CircuitDesignBrief,
   CircuitSpec,
   CircuitSymbolSearchItem,
 } from '@workspace/api-client-react';
 import type { CircuitComponentLibraryEntry } from '@workspace/circuit-geometry';
+import { runElectricalChecks } from '../lib/circuit-electrical-checks';
 import {
   buildManualRetryRequest,
   buildLayoutRepairRequest,
@@ -58,6 +60,7 @@ import {
   restoreProtectedNonWireElements,
   runCircuitBuildAttempts,
   type BuildRetryKind,
+  type BuildIntent,
 } from '../lib/circuit-build-retry';
 import {
   clearAppliedRepairRecovery,
@@ -161,7 +164,11 @@ type ProposalQualityReviewState =
 type LayoutRepairOutcome =
   | {
       kind: 'success';
-      proposal: { summary: string; spec: NonNullable<CircuitBuildChatInput['currentSpec']> };
+      proposal: {
+        summary: string;
+        spec: NonNullable<CircuitBuildChatInput['currentSpec']>;
+        intent?: BuildIntent;
+      };
       inspection: ReturnType<typeof inspectProposal>;
     }
   | { kind: 'failure'; message: string };
@@ -242,7 +249,10 @@ function normalizeBrief(value: Partial<CircuitDesignBrief> | undefined): Circuit
   };
 }
 
-function inspectProposal(spec: CircuitBuildChatInput['currentSpec']): {
+function inspectProposal(
+  spec: CircuitBuildChatInput['currentSpec'],
+  intent?: BuildIntent,
+): {
   svg: string;
   validation: ValidationReport;
   canRepair: boolean;
@@ -257,9 +267,32 @@ function inspectProposal(spec: CircuitBuildChatInput['currentSpec']): {
   try {
     const circuitValidation = window.CircuitDraw.validate(spec, { requireConnectedWireEnds: true });
     const layoutWarnings = window.CircuitDraw.layoutWarnings(spec);
+    const electricalValidation = runElectricalChecks(
+      window.CircuitDraw.netlist(spec, true),
+      intent,
+    );
+    const electricalWarnings = [
+      ...electricalValidation.warnings,
+      ...(intent === undefined
+        ? ['No intent was supplied; only general checks ran.']
+        : []),
+    ];
     const validation = classifyProposalValidation({
       ...circuitValidation,
-      warnings: [...new Set([...circuitValidation.warnings, ...layoutWarnings])],
+      errors: [...circuitValidation.errors, ...electricalValidation.errors],
+      warnings: [...new Set([
+        ...circuitValidation.warnings,
+        ...layoutWarnings,
+        ...electricalWarnings,
+      ])],
+      topologyErrors: [
+        ...(circuitValidation.topologyErrors ?? []),
+        ...electricalValidation.errors,
+      ],
+      topologyWarnings: [
+        ...(circuitValidation.topologyWarnings ?? []),
+        ...electricalWarnings,
+      ],
     });
     if (validation.errors.length) return { svg: '', validation, canRepair: true };
     const svg = window.CircuitDraw.render(spec);
@@ -295,12 +328,12 @@ function getConnectivitySignature(spec: CircuitSpec, allowStructuralErrors = fal
   }
 }
 
-function inspectLayoutProposal(spec: CircuitSpec): {
+function inspectLayoutProposal(spec: CircuitSpec, intent?: BuildIntent): {
   svg: string;
   validation: ValidationReport;
   canRepair: boolean;
 } {
-  const inspection = inspectProposal(spec);
+  const inspection = inspectProposal(spec, intent);
   if (!inspection.svg || !window.CircuitDraw) return inspection;
 
   const layoutFindings = window.CircuitDraw.layoutWarnings(spec)
@@ -776,6 +809,7 @@ export function CircuitBuilderChat({
   const proposalValidation = repairState.proposalValidation ?? null;
   const proposalRepairLesson = repairState.proposalRepairLesson ?? null;
   const rejectedProposalSpec = repairState.rejectedProposalSpec ?? null;
+  const rejectedProposalIntent = repairState.rejectedProposalIntent;
   const externalFixDraft = repairState.externalFixDraft;
   const externalFixDraftRef = useRef(externalFixDraft);
   externalFixDraftRef.current = externalFixDraft;
@@ -836,8 +870,11 @@ export function CircuitBuilderChat({
   const setRejectedProposalSpec = (value: CircuitBuildChatInput['currentSpec'] | null) =>
     updateRepairState({
       rejectedProposalSpec: value ?? undefined,
+      ...(value ? {} : { rejectedProposalIntent: undefined }),
       status: value ? 'rejected' : proposal ? 'staged' : 'idle',
     });
+  const setRejectedProposalIntent = (value: string[][] | null) =>
+    updateRepairState({ rejectedProposalIntent: value ?? undefined });
   const setExternalFixDraft = (value: string) =>
     updateRepairState({ externalFixDraft: value.slice(0, 50000) });
   const setComposerDraft = (value: string) =>
@@ -1023,6 +1060,7 @@ export function CircuitBuilderChat({
     originalRequest: CircuitBuildChatInput,
     brief: CircuitDesignBrief,
     findings: string[],
+    intent?: BuildIntent,
   ): Promise<LayoutRepairOutcome> => {
     if (!window.CircuitDraw) {
       return {
@@ -1035,6 +1073,7 @@ export function CircuitBuilderChat({
       brief,
       spec,
       findings,
+      intent,
     );
     const abortController = new AbortController();
     buildAbortControllerRef.current = abortController;
@@ -1044,15 +1083,33 @@ export function CircuitBuilderChat({
     chatMutation.reset();
 
     try {
-      const result = await runCircuitBuildAttempts({
+      const result = await runCircuitBuildAttempts<
+        CircuitBuildChatInput,
+        CircuitBuildChatResponse,
+        CircuitSpec,
+        ReturnType<typeof inspectLayoutProposal>
+      >({
         initialRequest: layoutRequest,
         initialProtectedSpec: spec,
+        initialIntent: intent,
+        getProposalIntent: (response) => response.proposal?.intent,
+        restoreProposalIntent: (response, originalIntent) => {
+          if (!response.proposal) return response;
+          const { intent: _candidateIntent, ...proposalWithoutIntent } = response.proposal;
+          return {
+            ...response,
+            proposal: originalIntent === undefined
+              ? proposalWithoutIntent
+              : { ...proposalWithoutIntent, intent: originalIntent },
+          };
+        },
         signal: abortController.signal,
         getConnectivitySignature: (candidate) =>
           getConnectivitySignature(candidate as CircuitSpec),
         send: (workingRequest) => chatMutation.mutateAsync({ data: workingRequest }),
         getProposal: (response) => response.proposal?.spec ?? null,
-        inspectProposal: inspectLayoutProposal,
+        inspectProposal: (candidate, candidateIntent) =>
+          inspectLayoutProposal(candidate as CircuitSpec, candidateIntent),
         prepareResponse: (response) => {
           if (!response.proposal?.spec || !window.CircuitDraw) return response;
           const beforeConnectivity = getConnectivitySignature(response.proposal.spec, true);
@@ -1078,6 +1135,7 @@ export function CircuitBuilderChat({
           latestBrief,
           response.proposal?.spec ?? spec,
           validationFindings,
+          intent,
         ),
         makeOutputRepairRequest: buildOutputRepairRequest,
         onResponse: (response) => {
@@ -1130,6 +1188,7 @@ export function CircuitBuilderChat({
         proposal: {
           summary: candidate.summary,
           spec: candidateSpec,
+          ...(candidate.intent !== undefined ? { intent: candidate.intent } : {}),
         },
         inspection,
       };
@@ -1158,6 +1217,7 @@ export function CircuitBuilderChat({
     options?: {
       automaticLayoutRepair?: boolean;
       buildRequest?: CircuitBuildChatInput;
+      intent?: BuildIntent;
     },
   ) => {
     const runId = ++proposalReviewRunIdRef.current;
@@ -1209,6 +1269,7 @@ export function CircuitBuilderChat({
           options.buildRequest,
           brief,
           initialReview.readabilityWarnings,
+          options.intent,
         );
       } finally {
         proposalReviewLayoutRepairActiveRef.current = false;
@@ -1294,7 +1355,7 @@ export function CircuitBuilderChat({
       spec,
       buildRequest.message,
       brief,
-      { automaticLayoutRepair: true, buildRequest },
+      { automaticLayoutRepair: true, buildRequest, intent: proposal?.intent },
     );
   };
 
@@ -1531,7 +1592,7 @@ export function CircuitBuilderChat({
       setProposalSvg('');
       return;
     }
-    const inspection = inspectProposal(proposal.spec);
+    const inspection = inspectProposal(proposal.spec, proposal.intent);
     setProposalSvg(inspection.svg);
     if (!proposalValidation) setProposalValidation(inspection.validation);
   }, [proposal]);
@@ -1668,12 +1729,13 @@ export function CircuitBuilderChat({
     );
     return {
       rejectedSpec: rejectedProposalSpec as CircuitSpec,
+      ...(rejectedProposalIntent ? { intent: rejectedProposalIntent } : {}),
       reportedProblems,
       advisoryWarnings,
       originalRequest: lastRequest?.message ?? '',
       designBrief: saved.brief,
     };
-  }, [rejectedProposalSpec, retryFeedback, lastRequest, saved.brief]);
+  }, [rejectedProposalSpec, rejectedProposalIntent, retryFeedback, lastRequest, saved.brief]);
   const externalFixContextKey = externalFixContext
     ? getExternalCircuitFixContextKey(externalFixContext)
     : '';
@@ -1779,11 +1841,12 @@ export function CircuitBuilderChat({
         externalFixContextKeyRef.current !== contextKeyAtStart ||
         (learnBeforeApply && externalFixDraftRef.current.trim() !== draftValue.trim())
       ) return;
-      const inspection = inspectProposal(correctedSpec);
+      const inspection = inspectProposal(correctedSpec, rejectedProposalIntent);
       const lessonFindings = getExternalCircuitFixLessonFindings(externalFixContext);
       setProposal({
         summary: candidate.summary,
         spec: correctedSpec,
+        ...(rejectedProposalIntent ? { intent: rejectedProposalIntent } : {}),
       });
       setProposalValidation(inspection.validation);
       setProposalSvg(inspection.svg);
@@ -1901,13 +1964,30 @@ export function CircuitBuilderChat({
         request: completedRequest,
         repairDiagnostics: completedRepairDiagnostics,
         repairLessonContext,
-      } = await runCircuitBuildAttempts({
+      } = await runCircuitBuildAttempts<
+        CircuitBuildChatInput,
+        CircuitBuildChatResponse,
+        CircuitSpec,
+        ReturnType<typeof inspectProposal>
+      >({
         initialRequest: safeRequest,
         allowConnectivityChange,
+        initialIntent: preserveRejectedProposal ? rejectedProposalIntent : undefined,
+        getProposalIntent: (result) => result.proposal?.intent,
+        restoreProposalIntent: (result, originalIntent) => {
+          if (!result.proposal) return result;
+          const { intent: _candidateIntent, ...proposalWithoutIntent } = result.proposal;
+          return {
+            ...result,
+            proposal: originalIntent === undefined
+              ? proposalWithoutIntent
+              : { ...proposalWithoutIntent, intent: originalIntent },
+          };
+        },
         signal: abortController.signal,
         send: (workingRequest) => chatMutation.mutateAsync({ data: workingRequest }),
         getProposal: (result) => result.proposal?.spec ?? null,
-        inspectProposal,
+        inspectProposal: (candidate, intent) => inspectProposal(candidate as CircuitSpec, intent),
         prepareResponse: (result) => {
           const authorizedResult = enforceBuilderResponseMode(result, safeRequest.mode);
           if (!authorizedResult.proposal?.spec || !window.CircuitDraw) return authorizedResult;
@@ -1950,6 +2030,7 @@ export function CircuitBuilderChat({
           latestBrief,
           findings,
           result.proposal?.spec ?? request.currentSpec,
+          result.proposal?.intent,
         ),
         makeOutputRepairRequest: buildOutputRepairRequest,
         onResponse: (result) => {
@@ -2045,7 +2126,11 @@ export function CircuitBuilderChat({
               response.proposal.spec,
               safeRequest.message,
               nextBrief,
-              { automaticLayoutRepair: true, buildRequest: safeRequest },
+              {
+                automaticLayoutRepair: true,
+                buildRequest: safeRequest,
+                intent: response.proposal.intent,
+              },
             );
           }
           const automaticSeed = repairLessonContext
@@ -2096,6 +2181,13 @@ export function CircuitBuilderChat({
             ? asCircuitSpec(preservedRejectedProposalOverride) ?? rejectedProposalSpec
             : null);
         setRejectedProposalSpec(rejectedSpec);
+        setRejectedProposalIntent(
+          error.rejectedProposal !== undefined
+            ? error.rejectedProposalIntent ?? null
+            : preserveRejectedProposal
+              ? rejectedProposalIntent ?? null
+              : null,
+        );
         setRejectedProposalSvg(renderRejectedProposalPreview(rejectedSpec));
         setRepairDiagnostics(error.repairDiagnostics);
         const validationFindings = error.validationFindings.length
@@ -2218,6 +2310,7 @@ export function CircuitBuilderChat({
       saved.brief,
       rejectedProposalSpec,
       findings,
+      rejectedProposalIntent,
     );
     await runRequest(
       request,
@@ -2255,8 +2348,8 @@ export function CircuitBuilderChat({
         }
       : undefined;
     const request = recoveryKind === 'rewire'
-      ? buildWireRebuildRequest(lastRequest, saved.brief, rejectedSpec, findings)
-      : buildWholeCircuitRetryRequest(lastRequest, saved.brief);
+      ? buildWireRebuildRequest(lastRequest, saved.brief, rejectedSpec, findings, rejectedProposalIntent)
+      : buildWholeCircuitRetryRequest(lastRequest, saved.brief, rejectedProposalIntent);
     const protectedBaseline = recoveryKind === 'rewire'
       ? asCircuitSpec(request.currentSpec)
       : null;
@@ -2265,10 +2358,10 @@ export function CircuitBuilderChat({
       request,
       composerRef.current?.getDraftRevision() ?? 0,
       protectedBaseline ?? undefined,
-      recoveryKind === 'rewire',
+      true,
       true,
       repairLessonSeed,
-      undefined,
+      rejectedSpec,
       recoveryKind === 'rewire',
     );
   };

@@ -10,9 +10,14 @@ import {
   useQuery
 } from '@tanstack/react-query';
 import type {
+  DataTag,
+  DefinedInitialDataOptions,
+  DefinedUseQueryResult,
   MutationFunction,
+  QueryClient,
   QueryFunction,
   QueryKey,
+  UndefinedInitialDataOptions,
   UseMutationOptions,
   UseMutationResult,
   UseQueryOptions,
@@ -114,7 +119,7 @@ export const getHealthCheckQueryKey = () => {
     }
 
 
-export const getHealthCheckQueryOptions = <TData = Awaited<ReturnType<typeof healthCheck>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getHealthCheckQueryOptions = <TData = Awaited<ReturnType<typeof healthCheck>>, TError = ErrorType<unknown>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -129,25 +134,49 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData> & { queryKey: QueryKey }
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type HealthCheckQueryResult = NonNullable<Awaited<ReturnType<typeof healthCheck>>>
 export type HealthCheckQueryError = ErrorType<unknown>
 
 
+export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, TError = ErrorType<unknown>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof healthCheck>>,
+          TError,
+          Awaited<ReturnType<typeof healthCheck>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof healthCheck>>,
+          TError,
+          Awaited<ReturnType<typeof healthCheck>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
  * @summary Health check
  */
 
 export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getHealthCheckQueryOptions(options)
 
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   return withQueryKey(query, queryOptions.queryKey);
 }
@@ -238,13 +267,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
  */
 export const useGenerateCircuit = <TError = ErrorType<ApiError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateCircuit>>, TError,GenerateCircuitMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
+ , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof generateCircuit>>,
         TError,
         GenerateCircuitMutationVariables,
         TContext
       > => {
-      return useMutation(getGenerateCircuitMutationOptions(options));
+      return useMutation(getGenerateCircuitMutationOptions(options), queryClient);
     }
 
 export const getSearchCircuitSymbolsUrl = (params?: SearchCircuitSymbolsParams,) => {
@@ -287,7 +316,7 @@ export const getSearchCircuitSymbolsQueryKey = (params?: SearchCircuitSymbolsPar
     }
 
 
-export const getSearchCircuitSymbolsQueryOptions = <TData = Awaited<ReturnType<typeof searchCircuitSymbols>>, TError = ErrorType<ApiError>>(params?: SearchCircuitSymbolsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchCircuitSymbols>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getSearchCircuitSymbolsQueryOptions = <TData = Awaited<ReturnType<typeof searchCircuitSymbols>>, TError = ErrorType<ApiError>>(params?: SearchCircuitSymbolsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchCircuitSymbols>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -302,25 +331,49 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof searchCircuitSymbols>>, TError, TData> & { queryKey: QueryKey }
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof searchCircuitSymbols>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type SearchCircuitSymbolsQueryResult = NonNullable<Awaited<ReturnType<typeof searchCircuitSymbols>>>
 export type SearchCircuitSymbolsQueryError = ErrorType<ApiError>
 
 
+export function useSearchCircuitSymbols<TData = Awaited<ReturnType<typeof searchCircuitSymbols>>, TError = ErrorType<ApiError>>(
+ params: undefined |  SearchCircuitSymbolsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchCircuitSymbols>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof searchCircuitSymbols>>,
+          TError,
+          Awaited<ReturnType<typeof searchCircuitSymbols>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useSearchCircuitSymbols<TData = Awaited<ReturnType<typeof searchCircuitSymbols>>, TError = ErrorType<ApiError>>(
+ params?: SearchCircuitSymbolsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchCircuitSymbols>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof searchCircuitSymbols>>,
+          TError,
+          Awaited<ReturnType<typeof searchCircuitSymbols>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useSearchCircuitSymbols<TData = Awaited<ReturnType<typeof searchCircuitSymbols>>, TError = ErrorType<ApiError>>(
+ params?: SearchCircuitSymbolsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchCircuitSymbols>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
  * @summary Search the KiCad schematic symbol library
  */
 
 export function useSearchCircuitSymbols<TData = Awaited<ReturnType<typeof searchCircuitSymbols>>, TError = ErrorType<ApiError>>(
- params?: SearchCircuitSymbolsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchCircuitSymbols>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+ params?: SearchCircuitSymbolsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchCircuitSymbols>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getSearchCircuitSymbolsQueryOptions(params,options)
 
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   return withQueryKey(query, queryOptions.queryKey);
 }
@@ -371,7 +424,7 @@ export const getGetCircuitSymbolDataQueryKey = (params?: GetCircuitSymbolDataPar
     }
 
 
-export const getGetCircuitSymbolDataQueryOptions = <TData = Awaited<ReturnType<typeof getCircuitSymbolData>>, TError = ErrorType<ApiError>>(params: GetCircuitSymbolDataParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCircuitSymbolData>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetCircuitSymbolDataQueryOptions = <TData = Awaited<ReturnType<typeof getCircuitSymbolData>>, TError = ErrorType<ApiError>>(params: GetCircuitSymbolDataParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCircuitSymbolData>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -386,25 +439,49 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCircuitSymbolData>>, TError, TData> & { queryKey: QueryKey }
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCircuitSymbolData>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type GetCircuitSymbolDataQueryResult = NonNullable<Awaited<ReturnType<typeof getCircuitSymbolData>>>
 export type GetCircuitSymbolDataQueryError = ErrorType<ApiError>
 
 
+export function useGetCircuitSymbolData<TData = Awaited<ReturnType<typeof getCircuitSymbolData>>, TError = ErrorType<ApiError>>(
+ params: GetCircuitSymbolDataParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCircuitSymbolData>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCircuitSymbolData>>,
+          TError,
+          Awaited<ReturnType<typeof getCircuitSymbolData>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetCircuitSymbolData<TData = Awaited<ReturnType<typeof getCircuitSymbolData>>, TError = ErrorType<ApiError>>(
+ params: GetCircuitSymbolDataParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCircuitSymbolData>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCircuitSymbolData>>,
+          TError,
+          Awaited<ReturnType<typeof getCircuitSymbolData>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetCircuitSymbolData<TData = Awaited<ReturnType<typeof getCircuitSymbolData>>, TError = ErrorType<ApiError>>(
+ params: GetCircuitSymbolDataParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCircuitSymbolData>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
  * @summary Get source geometry for a KiCad symbol preview
  */
 
 export function useGetCircuitSymbolData<TData = Awaited<ReturnType<typeof getCircuitSymbolData>>, TError = ErrorType<ApiError>>(
- params: GetCircuitSymbolDataParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCircuitSymbolData>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+ params: GetCircuitSymbolDataParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCircuitSymbolData>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetCircuitSymbolDataQueryOptions(params,options)
 
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   return withQueryKey(query, queryOptions.queryKey);
 }
@@ -495,13 +572,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
  */
 export const useAskCircuitTutor = <TError = ErrorType<ApiError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askCircuitTutor>>, TError,AskCircuitTutorMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
+ , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof askCircuitTutor>>,
         TError,
         AskCircuitTutorMutationVariables,
         TContext
       > => {
-      return useMutation(getAskCircuitTutorMutationOptions(options));
+      return useMutation(getAskCircuitTutorMutationOptions(options), queryClient);
     }
 
 export const getChatWithCircuitBuilderUrl = () => {
@@ -584,13 +661,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
  */
 export const useChatWithCircuitBuilder = <TError = ErrorType<ApiError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof chatWithCircuitBuilder>>, TError,ChatWithCircuitBuilderMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
+ , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof chatWithCircuitBuilder>>,
         TError,
         ChatWithCircuitBuilderMutationVariables,
         TContext
       > => {
-      return useMutation(getChatWithCircuitBuilderMutationOptions(options));
+      return useMutation(getChatWithCircuitBuilderMutationOptions(options), queryClient);
     }
 
 export const getListCircuitBuilderMemoriesUrl = () => {
@@ -626,7 +703,7 @@ export const getListCircuitBuilderMemoriesQueryKey = () => {
     }
 
 
-export const getListCircuitBuilderMemoriesQueryOptions = <TData = Awaited<ReturnType<typeof listCircuitBuilderMemories>>, TError = ErrorType<ApiError>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCircuitBuilderMemories>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListCircuitBuilderMemoriesQueryOptions = <TData = Awaited<ReturnType<typeof listCircuitBuilderMemories>>, TError = ErrorType<ApiError>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCircuitBuilderMemories>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -641,25 +718,49 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCircuitBuilderMemories>>, TError, TData> & { queryKey: QueryKey }
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCircuitBuilderMemories>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type ListCircuitBuilderMemoriesQueryResult = NonNullable<Awaited<ReturnType<typeof listCircuitBuilderMemories>>>
 export type ListCircuitBuilderMemoriesQueryError = ErrorType<ApiError>
 
 
+export function useListCircuitBuilderMemories<TData = Awaited<ReturnType<typeof listCircuitBuilderMemories>>, TError = ErrorType<ApiError>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCircuitBuilderMemories>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCircuitBuilderMemories>>,
+          TError,
+          Awaited<ReturnType<typeof listCircuitBuilderMemories>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCircuitBuilderMemories<TData = Awaited<ReturnType<typeof listCircuitBuilderMemories>>, TError = ErrorType<ApiError>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCircuitBuilderMemories>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCircuitBuilderMemories>>,
+          TError,
+          Awaited<ReturnType<typeof listCircuitBuilderMemories>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCircuitBuilderMemories<TData = Awaited<ReturnType<typeof listCircuitBuilderMemories>>, TError = ErrorType<ApiError>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCircuitBuilderMemories>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
  * @summary List saved Circuit Studio assumptions
  */
 
 export function useListCircuitBuilderMemories<TData = Awaited<ReturnType<typeof listCircuitBuilderMemories>>, TError = ErrorType<ApiError>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCircuitBuilderMemories>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCircuitBuilderMemories>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListCircuitBuilderMemoriesQueryOptions(options)
 
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   return withQueryKey(query, queryOptions.queryKey);
 }
@@ -735,13 +836,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
  */
 export const useClearCircuitBuilderMemories = <TError = ErrorType<ApiError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clearCircuitBuilderMemories>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
+ , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof clearCircuitBuilderMemories>>,
         TError,
         void,
         TContext
       > => {
-      return useMutation(getClearCircuitBuilderMemoriesMutationOptions(options));
+      return useMutation(getClearCircuitBuilderMemoriesMutationOptions(options), queryClient);
     }
 
 export const getLearnFromCircuitBuilderHistoryUrl = () => {
@@ -824,13 +925,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
  */
 export const useLearnFromCircuitBuilderHistory = <TError = ErrorType<ApiError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof learnFromCircuitBuilderHistory>>, TError,LearnFromCircuitBuilderHistoryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
+ , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof learnFromCircuitBuilderHistory>>,
         TError,
         LearnFromCircuitBuilderHistoryMutationVariables,
         TContext
       > => {
-      return useMutation(getLearnFromCircuitBuilderHistoryMutationOptions(options));
+      return useMutation(getLearnFromCircuitBuilderHistoryMutationOptions(options), queryClient);
     }
 
 export const getSaveCircuitBuilderRepairLessonUrl = () => {
@@ -913,13 +1014,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
  */
 export const useSaveCircuitBuilderRepairLesson = <TError = ErrorType<ApiError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveCircuitBuilderRepairLesson>>, TError,SaveCircuitBuilderRepairLessonMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
+ , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof saveCircuitBuilderRepairLesson>>,
         TError,
         SaveCircuitBuilderRepairLessonMutationVariables,
         TContext
       > => {
-      return useMutation(getSaveCircuitBuilderRepairLessonMutationOptions(options));
+      return useMutation(getSaveCircuitBuilderRepairLessonMutationOptions(options), queryClient);
     }
 
 export const getSaveCircuitBuilderFeedbackUrl = () => {
@@ -1002,13 +1103,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
  */
 export const useSaveCircuitBuilderFeedback = <TError = ErrorType<ApiError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveCircuitBuilderFeedback>>, TError,SaveCircuitBuilderFeedbackMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
+ , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof saveCircuitBuilderFeedback>>,
         TError,
         SaveCircuitBuilderFeedbackMutationVariables,
         TContext
       > => {
-      return useMutation(getSaveCircuitBuilderFeedbackMutationOptions(options));
+      return useMutation(getSaveCircuitBuilderFeedbackMutationOptions(options), queryClient);
     }
 
 export const getListCircuitBuilderHistoryUrl = () => {
@@ -1045,7 +1146,7 @@ export const getListCircuitBuilderHistoryQueryKey = () => {
     }
 
 
-export const getListCircuitBuilderHistoryQueryOptions = <TData = Awaited<ReturnType<typeof listCircuitBuilderHistory>>, TError = ErrorType<ApiError>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCircuitBuilderHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListCircuitBuilderHistoryQueryOptions = <TData = Awaited<ReturnType<typeof listCircuitBuilderHistory>>, TError = ErrorType<ApiError>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCircuitBuilderHistory>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -1060,25 +1161,49 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCircuitBuilderHistory>>, TError, TData> & { queryKey: QueryKey }
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCircuitBuilderHistory>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type ListCircuitBuilderHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof listCircuitBuilderHistory>>>
 export type ListCircuitBuilderHistoryQueryError = ErrorType<ApiError>
 
 
+export function useListCircuitBuilderHistory<TData = Awaited<ReturnType<typeof listCircuitBuilderHistory>>, TError = ErrorType<ApiError>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCircuitBuilderHistory>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCircuitBuilderHistory>>,
+          TError,
+          Awaited<ReturnType<typeof listCircuitBuilderHistory>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCircuitBuilderHistory<TData = Awaited<ReturnType<typeof listCircuitBuilderHistory>>, TError = ErrorType<ApiError>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCircuitBuilderHistory>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCircuitBuilderHistory>>,
+          TError,
+          Awaited<ReturnType<typeof listCircuitBuilderHistory>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCircuitBuilderHistory<TData = Awaited<ReturnType<typeof listCircuitBuilderHistory>>, TError = ErrorType<ApiError>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCircuitBuilderHistory>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
  * @summary List saved Circuit Studio conversations
  */
 
 export function useListCircuitBuilderHistory<TData = Awaited<ReturnType<typeof listCircuitBuilderHistory>>, TError = ErrorType<ApiError>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCircuitBuilderHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCircuitBuilderHistory>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListCircuitBuilderHistoryQueryOptions(options)
 
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   return withQueryKey(query, queryOptions.queryKey);
 }
@@ -1169,13 +1294,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
  */
 export const useSyncCircuitBuilderHistory = <TError = ErrorType<ApiError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncCircuitBuilderHistory>>, TError,SyncCircuitBuilderHistoryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
+ , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof syncCircuitBuilderHistory>>,
         TError,
         SyncCircuitBuilderHistoryMutationVariables,
         TContext
       > => {
-      return useMutation(getSyncCircuitBuilderHistoryMutationOptions(options));
+      return useMutation(getSyncCircuitBuilderHistoryMutationOptions(options), queryClient);
     }
 
 export const getListDeletedCircuitBuilderHistoryUrl = () => {
@@ -1212,7 +1337,7 @@ export const getListDeletedCircuitBuilderHistoryQueryKey = () => {
     }
 
 
-export const getListDeletedCircuitBuilderHistoryQueryOptions = <TData = Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>, TError = ErrorType<ApiError>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListDeletedCircuitBuilderHistoryQueryOptions = <TData = Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>, TError = ErrorType<ApiError>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -1227,25 +1352,49 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>, TError, TData> & { queryKey: QueryKey }
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type ListDeletedCircuitBuilderHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>>
 export type ListDeletedCircuitBuilderHistoryQueryError = ErrorType<ApiError>
 
 
+export function useListDeletedCircuitBuilderHistory<TData = Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>, TError = ErrorType<ApiError>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>,
+          TError,
+          Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListDeletedCircuitBuilderHistory<TData = Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>, TError = ErrorType<ApiError>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>,
+          TError,
+          Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListDeletedCircuitBuilderHistory<TData = Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>, TError = ErrorType<ApiError>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
  * @summary List deleted Circuit Studio conversations
  */
 
 export function useListDeletedCircuitBuilderHistory<TData = Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>, TError = ErrorType<ApiError>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDeletedCircuitBuilderHistory>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListDeletedCircuitBuilderHistoryQueryOptions(options)
 
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   return withQueryKey(query, queryOptions.queryKey);
 }
@@ -1322,13 +1471,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
  */
 export const useDeleteCircuitBuilderHistory = <TError = ErrorType<ApiError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCircuitBuilderHistory>>, TError,DeleteCircuitBuilderHistoryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
+ , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof deleteCircuitBuilderHistory>>,
         TError,
         DeleteCircuitBuilderHistoryMutationVariables,
         TContext
       > => {
-      return useMutation(getDeleteCircuitBuilderHistoryMutationOptions(options));
+      return useMutation(getDeleteCircuitBuilderHistoryMutationOptions(options), queryClient);
     }
 
 export const getUpdateCircuitBuilderMemoryUrl = (id: number,) => {
@@ -1411,13 +1560,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
  */
 export const useUpdateCircuitBuilderMemory = <TError = ErrorType<ApiError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCircuitBuilderMemory>>, TError,UpdateCircuitBuilderMemoryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
+ , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof updateCircuitBuilderMemory>>,
         TError,
         UpdateCircuitBuilderMemoryMutationVariables,
         TContext
       > => {
-      return useMutation(getUpdateCircuitBuilderMemoryMutationOptions(options));
+      return useMutation(getUpdateCircuitBuilderMemoryMutationOptions(options), queryClient);
     }
 
 export const getDeleteCircuitBuilderMemoryUrl = (id: number,) => {
@@ -1485,13 +1634,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
  */
 export const useDeleteCircuitBuilderMemory = <TError = ErrorType<ApiError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCircuitBuilderMemory>>, TError,DeleteCircuitBuilderMemoryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
+ , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof deleteCircuitBuilderMemory>>,
         TError,
         DeleteCircuitBuilderMemoryMutationVariables,
         TContext
       > => {
-      return useMutation(getDeleteCircuitBuilderMemoryMutationOptions(options));
+      return useMutation(getDeleteCircuitBuilderMemoryMutationOptions(options), queryClient);
     }
 
 export const getReviewCircuitUrl = () => {
@@ -1574,13 +1723,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
  */
 export const useReviewCircuit = <TError = ErrorType<ApiError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewCircuit>>, TError,ReviewCircuitMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
+ , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof reviewCircuit>>,
         TError,
         ReviewCircuitMutationVariables,
         TContext
       > => {
-      return useMutation(getReviewCircuitMutationOptions(options));
+      return useMutation(getReviewCircuitMutationOptions(options), queryClient);
     }
 
 export const getReviewCircuitProposalUrl = () => {
@@ -1663,13 +1812,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
  */
 export const useReviewCircuitProposal = <TError = ErrorType<ApiError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewCircuitProposal>>, TError,ReviewCircuitProposalMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
+ , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof reviewCircuitProposal>>,
         TError,
         ReviewCircuitProposalMutationVariables,
         TContext
       > => {
-      return useMutation(getReviewCircuitProposalMutationOptions(options));
+      return useMutation(getReviewCircuitProposalMutationOptions(options), queryClient);
     }
 
 export const getGetAiUsageUrl = () => {
@@ -1705,7 +1854,7 @@ export const getGetAiUsageQueryKey = () => {
     }
 
 
-export const getGetAiUsageQueryOptions = <TData = Awaited<ReturnType<typeof getAiUsage>>, TError = ErrorType<ApiError>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAiUsage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetAiUsageQueryOptions = <TData = Awaited<ReturnType<typeof getAiUsage>>, TError = ErrorType<ApiError>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAiUsage>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -1720,25 +1869,49 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAiUsage>>, TError, TData> & { queryKey: QueryKey }
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAiUsage>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type GetAiUsageQueryResult = NonNullable<Awaited<ReturnType<typeof getAiUsage>>>
 export type GetAiUsageQueryError = ErrorType<ApiError>
 
 
+export function useGetAiUsage<TData = Awaited<ReturnType<typeof getAiUsage>>, TError = ErrorType<ApiError>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAiUsage>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAiUsage>>,
+          TError,
+          Awaited<ReturnType<typeof getAiUsage>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAiUsage<TData = Awaited<ReturnType<typeof getAiUsage>>, TError = ErrorType<ApiError>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAiUsage>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAiUsage>>,
+          TError,
+          Awaited<ReturnType<typeof getAiUsage>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAiUsage<TData = Awaited<ReturnType<typeof getAiUsage>>, TError = ErrorType<ApiError>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAiUsage>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
  * @summary Read the signed-in account's AI usage and selected key
  */
 
 export function useGetAiUsage<TData = Awaited<ReturnType<typeof getAiUsage>>, TError = ErrorType<ApiError>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAiUsage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAiUsage>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetAiUsageQueryOptions(options)
 
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   return withQueryKey(query, queryOptions.queryKey);
 }
@@ -1782,7 +1955,7 @@ export const getGetAiStatusQueryKey = () => {
     }
 
 
-export const getGetAiStatusQueryOptions = <TData = Awaited<ReturnType<typeof getAiStatus>>, TError = ErrorType<ApiError>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAiStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetAiStatusQueryOptions = <TData = Awaited<ReturnType<typeof getAiStatus>>, TError = ErrorType<ApiError>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAiStatus>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -1797,25 +1970,49 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAiStatus>>, TError, TData> & { queryKey: QueryKey }
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAiStatus>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type GetAiStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getAiStatus>>>
 export type GetAiStatusQueryError = ErrorType<ApiError>
 
 
+export function useGetAiStatus<TData = Awaited<ReturnType<typeof getAiStatus>>, TError = ErrorType<ApiError>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAiStatus>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAiStatus>>,
+          TError,
+          Awaited<ReturnType<typeof getAiStatus>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAiStatus<TData = Awaited<ReturnType<typeof getAiStatus>>, TError = ErrorType<ApiError>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAiStatus>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAiStatus>>,
+          TError,
+          Awaited<ReturnType<typeof getAiStatus>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAiStatus<TData = Awaited<ReturnType<typeof getAiStatus>>, TError = ErrorType<ApiError>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAiStatus>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
  * @summary Check Gemini model availability without generating content
  */
 
 export function useGetAiStatus<TData = Awaited<ReturnType<typeof getAiStatus>>, TError = ErrorType<ApiError>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAiStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAiStatus>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetAiStatusQueryOptions(options)
 
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   return withQueryKey(query, queryOptions.queryKey);
 }
@@ -1905,12 +2102,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
  */
 export const useSetAiKeySelection = <TError = ErrorType<ApiError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setAiKeySelection>>, TError,SetAiKeySelectionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
+ , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof setAiKeySelection>>,
         TError,
         SetAiKeySelectionMutationVariables,
         TContext
       > => {
-      return useMutation(getSetAiKeySelectionMutationOptions(options));
+      return useMutation(getSetAiKeySelectionMutationOptions(options), queryClient);
     }
 

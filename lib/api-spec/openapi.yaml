@@ -911,6 +911,17 @@ components:
           type: string
           minLength: 1
           maxLength: 500
+        intent:
+          type: array
+          maxItems: 60
+          description: Optional intended pin groups; each entry lists DESIGNATOR.PIN references that must share one drawn net. Intents exceeding any size limit are omitted and reported in the assistant answer (60 nets, 12 pins per net, 24 characters per pin).
+          items:
+            type: array
+            maxItems: 12
+            items:
+              type: string
+              minLength: 1
+              maxLength: 24
         spec:
           $ref: "#/components/schemas/CircuitSpec"
       required: [summary, spec]
@@ -1284,6 +1295,16 @@ components:
           $ref: "#/components/schemas/CircuitBuilderRepairValidation"
         rejectedProposalSpec:
           $ref: "#/components/schemas/CircuitSpec"
+        rejectedProposalIntent:
+          type: array
+          maxItems: 60
+          items:
+            type: array
+            maxItems: 12
+            items:
+              type: string
+              minLength: 1
+              maxLength: 24
         retryFeedback:
           $ref: "#/components/schemas/CircuitBuilderRepairRetryFeedback"
         repairDiagnostics:

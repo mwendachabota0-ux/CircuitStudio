@@ -139,6 +139,7 @@ test('staging an external correction preserves the rejected comparison baseline'
       version: 1,
       status: 'rejected',
       rejectedProposalSpec: rejectedSpec,
+      rejectedProposalIntent: [['R1.2', 'D1.A'], ['D1.K', 'B1.-']],
       repairDiagnostics: [],
       retryAttempt: 0,
       externalFixDraft: JSON.stringify(correctedSpec),
@@ -155,6 +156,7 @@ test('staging an external correction preserves the rejected comparison baseline'
   });
 
   assert.deepEqual(staged.rejectedProposalSpec, rejectedSpec);
+  assert.deepEqual(staged.rejectedProposalIntent, [['R1.2', 'D1.A'], ['D1.K', 'B1.-']]);
   assert.deepEqual(staged.proposal?.spec, correctedSpec);
   assert.equal(staged.status, 'staged');
 });

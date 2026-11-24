@@ -682,6 +682,12 @@ export const chatWithCircuitBuilderResponseBriefOpenQuestionsMax = 12;
 
 export const chatWithCircuitBuilderResponseProposalSummaryMax = 500;
 
+export const chatWithCircuitBuilderResponseProposalIntentItemItemMax = 24;
+
+export const chatWithCircuitBuilderResponseProposalIntentItemMax = 12;
+
+export const chatWithCircuitBuilderResponseProposalIntentMax = 60;
+
 export const chatWithCircuitBuilderResponseProposalSpecElementsItemFromMin = 2;
 export const chatWithCircuitBuilderResponseProposalSpecElementsItemFromMax = 2;
 
@@ -757,6 +763,7 @@ export const ChatWithCircuitBuilderResponse = zod.object({
 }),
   "proposal": zod.object({
   "summary": zod.string().min(1).max(chatWithCircuitBuilderResponseProposalSummaryMax),
+  "intent": zod.array(zod.array(zod.string().min(1).max(chatWithCircuitBuilderResponseProposalIntentItemItemMax)).max(chatWithCircuitBuilderResponseProposalIntentItemMax)).max(chatWithCircuitBuilderResponseProposalIntentMax).optional().describe('Optional intended pin groups; each entry lists DESIGNATOR.PIN references that must share one drawn net. Intents exceeding any size limit are omitted and reported in the assistant answer (60 nets, 12 pins per net, 24 characters per pin).'),
   "spec": zod.object({
   "title": zod.string(),
   "width": zod.number().optional(),
@@ -1230,6 +1237,12 @@ export const listCircuitBuilderHistoryResponseSavedMessagesMax = 60;
 
 export const listCircuitBuilderHistoryResponseSavedRepairProposalSummaryMax = 500;
 
+export const listCircuitBuilderHistoryResponseSavedRepairProposalIntentItemItemMax = 24;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalIntentItemMax = 12;
+
+export const listCircuitBuilderHistoryResponseSavedRepairProposalIntentMax = 60;
+
 export const listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemFromMin = 2;
 export const listCircuitBuilderHistoryResponseSavedRepairProposalSpecElementsItemFromMax = 2;
 
@@ -1333,6 +1346,12 @@ export const listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecEle
 
 export const listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemLabelAtMin = 2;
 export const listCircuitBuilderHistoryResponseSavedRepairRejectedProposalSpecElementsItemLabelAtMax = 2;
+
+export const listCircuitBuilderHistoryResponseSavedRepairRejectedProposalIntentItemItemMax = 24;
+
+export const listCircuitBuilderHistoryResponseSavedRepairRejectedProposalIntentItemMax = 12;
+
+export const listCircuitBuilderHistoryResponseSavedRepairRejectedProposalIntentMax = 60;
 
 export const listCircuitBuilderHistoryResponseSavedRepairRetryFeedbackMessageMax = 3000;
 
@@ -1649,6 +1668,7 @@ export const ListCircuitBuilderHistoryResponseItem = zod.object({
   "status": zod.enum(['idle', 'running', 'staged', 'rejected']),
   "proposal": zod.object({
   "summary": zod.string().min(1).max(listCircuitBuilderHistoryResponseSavedRepairProposalSummaryMax),
+  "intent": zod.array(zod.array(zod.string().min(1).max(listCircuitBuilderHistoryResponseSavedRepairProposalIntentItemItemMax)).max(listCircuitBuilderHistoryResponseSavedRepairProposalIntentItemMax)).max(listCircuitBuilderHistoryResponseSavedRepairProposalIntentMax).optional().describe('Optional intended pin groups; each entry lists DESIGNATOR.PIN references that must share one drawn net. Intents exceeding any size limit are omitted and reported in the assistant answer (60 nets, 12 pins per net, 24 characters per pin).'),
   "spec": zod.object({
   "title": zod.string(),
   "width": zod.number().optional(),
@@ -1788,6 +1808,7 @@ export const ListCircuitBuilderHistoryResponseItem = zod.object({
   "muted": zod.boolean().optional()
 }))
 }).optional(),
+  "rejectedProposalIntent": zod.array(zod.array(zod.string().min(1).max(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalIntentItemItemMax)).max(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalIntentItemMax)).max(listCircuitBuilderHistoryResponseSavedRepairRejectedProposalIntentMax).optional(),
   "retryFeedback": zod.object({
   "message": zod.string().max(listCircuitBuilderHistoryResponseSavedRepairRetryFeedbackMessageMax),
   "canRetryManually": zod.boolean(),
@@ -2221,6 +2242,12 @@ export const syncCircuitBuilderHistoryBodySessionsItemSavedMessagesMax = 60;
 
 export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSummaryMax = 500;
 
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalIntentItemItemMax = 24;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalIntentItemMax = 12;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalIntentMax = 60;
+
 export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemFromMin = 2;
 export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSpecElementsItemFromMax = 2;
 
@@ -2324,6 +2351,12 @@ export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposa
 
 export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemLabelAtMin = 2;
 export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalSpecElementsItemLabelAtMax = 2;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalIntentItemItemMax = 24;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalIntentItemMax = 12;
+
+export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalIntentMax = 60;
 
 export const syncCircuitBuilderHistoryBodySessionsItemSavedRepairRetryFeedbackMessageMax = 3000;
 
@@ -2643,6 +2676,7 @@ export const SyncCircuitBuilderHistoryBody = zod.object({
   "status": zod.enum(['idle', 'running', 'staged', 'rejected']),
   "proposal": zod.object({
   "summary": zod.string().min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalSummaryMax),
+  "intent": zod.array(zod.array(zod.string().min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalIntentItemItemMax)).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalIntentItemMax)).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairProposalIntentMax).optional().describe('Optional intended pin groups; each entry lists DESIGNATOR.PIN references that must share one drawn net. Intents exceeding any size limit are omitted and reported in the assistant answer (60 nets, 12 pins per net, 24 characters per pin).'),
   "spec": zod.object({
   "title": zod.string(),
   "width": zod.number().optional(),
@@ -2782,6 +2816,7 @@ export const SyncCircuitBuilderHistoryBody = zod.object({
   "muted": zod.boolean().optional()
 }))
 }).optional(),
+  "rejectedProposalIntent": zod.array(zod.array(zod.string().min(1).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalIntentItemItemMax)).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalIntentItemMax)).max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRejectedProposalIntentMax).optional(),
   "retryFeedback": zod.object({
   "message": zod.string().max(syncCircuitBuilderHistoryBodySessionsItemSavedRepairRetryFeedbackMessageMax),
   "canRetryManually": zod.boolean(),

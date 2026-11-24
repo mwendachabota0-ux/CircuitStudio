@@ -424,7 +424,23 @@ test("the valid astable flasher passes after safe rail-tail cleanup", () => {
 
   const repaired = CircuitDraw.autoFix(astableFlasher);
   assert.equal(repaired.changes.length, 2);
-  assert.deepEqual(Array.from(repaired.spec.elements.find((element) => element.id === "W_RAIL_TOP").points[1]), [530, 50]);
+  const topRail = repaired.spec.elements.find((element) => element.id === "W_RAIL_TOP");
+  assert.deepEqual(Array.from(topRail.points[1]), [530, 50]);
+  assert.ok(
+    ["R1", "R3", "R4", "R2"].every((id) => {
+      const resistor = repaired.spec.elements.find((element) => element.id === id);
+      const pin = resistor?.from;
+      return Array.isArray(pin) && pin[1] === 50 && topRail.points.some((start, index) => {
+        const end = topRail.points[index + 1];
+        return end &&
+          start[1] === 50 &&
+          end[1] === 50 &&
+          pin[0] >= Math.min(start[0], end[0]) &&
+          pin[0] <= Math.max(start[0], end[0]);
+      });
+    }),
+    "the top rail must still touch R1, R3, R4, and R2",
+  );
   assert.deepEqual(Array.from(repaired.spec.elements.find((element) => element.id === "W_RAIL_BOTTOM").points[1]), [480, 440]);
   const after = CircuitDraw.validate(repaired.spec);
   assert.deepEqual(Array.from(after.errors), []);

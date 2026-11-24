@@ -22,6 +22,13 @@ export interface CircuitBuilderRepairRecoveryState {
   proposal?: CircuitBuildProposal;
   proposalValidation?: CircuitBuilderRepairValidation;
   rejectedProposalSpec?: CircuitSpec;
+  /**
+     * @maxItems 60
+     * @items.maxItems 12
+     * @items.items.minLength 1
+     * @items.items.maxLength 24
+     */
+  rejectedProposalIntent?: string[][];
   retryFeedback?: CircuitBuilderRepairRetryFeedback;
   /** @maxItems 20 */
   repairDiagnostics: CircuitBuilderRepairDiagnostic[];

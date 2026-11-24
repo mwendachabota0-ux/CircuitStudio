@@ -5,6 +5,10 @@ type BuilderBrief = {
   openQuestions: string[];
 };
 
+const MAX_PROPOSAL_INTENT_NETS = 60;
+const INTENT_SIZE_NOTICE =
+  "Notice: Intent checking was skipped because the proposal exceeded an intent size limit (60 nets, 12 pins per net, or 24 characters per pin).";
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
 }
@@ -95,6 +99,53 @@ function normalizeMemoryRemovals(value: unknown): number[] {
   ))].slice(0, 10);
 }
 
+function normalizeProposalIntent(value: unknown): string[][] | undefined {
+  if (!Array.isArray(value) || value.length > MAX_PROPOSAL_INTENT_NETS) return undefined;
+  const intent: string[][] = [];
+  for (const net of value) {
+    if (!Array.isArray(net) || net.length > 12) return undefined;
+    const pins: string[] = [];
+    for (const pin of net) {
+      if (typeof pin !== 'string' || pin.length < 1 || pin.length > 24) {
+        return undefined;
+      }
+      pins.push(pin);
+    }
+    intent.push(pins);
+  }
+  if (!intent.some((net) => new Set(net).size >= 2)) return undefined;
+  return intent;
+}
+
+function proposalIntentExceedsSizeLimit(value: unknown): boolean {
+  return Array.isArray(value) && (
+    value.length > MAX_PROPOSAL_INTENT_NETS ||
+    value.some((net) =>
+      Array.isArray(net) &&
+      (net.length > 12 || net.some((pin) => typeof pin === "string" && pin.length > 24)),
+    )
+  );
+}
+
+function addIntentSizeNotice(answer: unknown): string {
+  const source = typeof answer === "string" ? answer.trim() : "";
+  if (source.includes(INTENT_SIZE_NOTICE)) return source.slice(0, 3000);
+
+  const finalQuestion = getFinalQuestion(source);
+  if (finalQuestion) {
+    const beforeQuestion = source.slice(0, source.lastIndexOf(finalQuestion)).trimEnd();
+    const questionBudget = Math.max(0, 3000 - INTENT_SIZE_NOTICE.length - 4);
+    const safeQuestion = finalQuestion.slice(-questionBudget);
+    const suffix = `\n\n${INTENT_SIZE_NOTICE}\n\n${safeQuestion}`;
+    const available = Math.max(0, 3000 - suffix.length);
+    return `${beforeQuestion.slice(0, available).trimEnd()}${suffix}`;
+  }
+
+  const suffix = `\n\n${INTENT_SIZE_NOTICE}`;
+  const available = Math.max(0, 3000 - suffix.length);
+  return `${source.slice(0, available).trimEnd()}${suffix}`;
+}
+
 export function normalizeCircuitBuilderResponse(
   value: unknown,
   fallbackBrief: BuilderBrief,
@@ -103,6 +154,20 @@ export function normalizeCircuitBuilderResponse(
   const response = { ...value };
   // This is set by the server after enforcing the build-permission boundary.
   delete response.buildApprovalRequested;
+  if (isRecord(response.proposal)) {
+    const proposal = { ...response.proposal };
+    const intentWasDroppedForSize = proposalIntentExceedsSizeLimit(proposal.intent);
+    const intent = normalizeProposalIntent(proposal.intent);
+    if (intent === undefined) {
+      delete proposal.intent;
+    } else {
+      proposal.intent = intent;
+    }
+    response.proposal = proposal;
+    if (intentWasDroppedForSize && response.nextMode !== "chat") {
+      response.answer = addIntentSizeNotice(response.answer);
+    }
+  }
   const modelBrief = isRecord(response.brief) ? response.brief : {};
 
   response.brief = {

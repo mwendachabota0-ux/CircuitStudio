@@ -1340,6 +1340,11 @@
         for (var pointIndex = 0; pointIndex < waypoints.length - 1; pointIndex++) {
           var from = waypoints[pointIndex], to = waypoints[pointIndex + 1];
           var intersectingBody = bodies.some(function (body) {
+            var connectedTerminal = body.element.type === 'terminal' &&
+              body.pins.some(function (pin) {
+                return samePoint(pin.point, from) || samePoint(pin.point, to);
+              });
+            if (connectedTerminal) return false;
             return segmentIntersectsBounds(from, to, body.bounds);
           });
           if (!intersectingBody) {
@@ -2102,8 +2107,9 @@
       return localBoundsAt(element, MULTI_BODY_BOUNDS[element.type]);
     }
     if (element.type === 'ic' || element.type === 'connector') {
-      var leftCount = element.pins.filter(function (pin) { return pin.side === 'left'; }).length;
-      var rightCount = element.pins.filter(function (pin) { return pin.side === 'right'; }).length;
+      var pins = Array.isArray(element.pins) ? element.pins : [];
+      var leftCount = pins.filter(function (pin) { return pin.side === 'left'; }).length;
+      var rightCount = pins.filter(function (pin) { return pin.side === 'right'; }).length;
       var height = Math.max(48, Math.max(leftCount, rightCount) * 24 + 16);
       return localBoundsAt(element, [-44, -height / 2, 44, height / 2]);
     }

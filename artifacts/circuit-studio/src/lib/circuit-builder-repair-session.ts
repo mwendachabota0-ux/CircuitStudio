@@ -41,6 +41,7 @@ export type RepairRecoveryLesson<TSpec> = {
 export type RepairRecoveryProposal<TSpec> = {
   summary: string;
   spec: TSpec;
+  intent?: string[][];
 };
 
 export type RepairRecoveryState<TSpec, TRequest> = {
@@ -49,6 +50,7 @@ export type RepairRecoveryState<TSpec, TRequest> = {
   proposal?: RepairRecoveryProposal<TSpec>;
   proposalValidation?: RepairRecoveryValidation;
   rejectedProposalSpec?: TSpec;
+  rejectedProposalIntent?: string[][];
   retryFeedback?: RepairRecoveryFeedback;
   repairDiagnostics: RepairRecoveryDiagnostic[];
   retryAttempt: number;
@@ -62,6 +64,23 @@ export type RepairRecoveryState<TSpec, TRequest> = {
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === 'object' && !Array.isArray(value);
+
+function normalizeIntent(value: unknown): string[][] | undefined {
+  if (!Array.isArray(value) || value.length > 16) return undefined;
+  const intent: string[][] = [];
+  for (const net of value) {
+    if (!Array.isArray(net) || net.length > 12) return undefined;
+    const pins: string[] = [];
+    for (const pin of net) {
+      if (typeof pin !== 'string' || pin.length < 1 || pin.length > 24) {
+        return undefined;
+      }
+      pins.push(pin);
+    }
+    intent.push(pins);
+  }
+  return intent;
+}
 
 const isRepairRecoveryStatus = (value: unknown): value is RepairRecoveryStatus =>
   value === 'idle' || value === 'running' || value === 'staged' || value === 'rejected';
@@ -167,16 +186,24 @@ export function normalizeRepairRecoveryState<TSpec, TRequest>(
     return createEmptyRepairRecoveryState<TSpec, TRequest>();
   }
 
+  const proposalIntent = isRecord(value.proposal)
+    ? normalizeIntent(value.proposal.intent)
+    : undefined;
   const proposal = isRecord(value.proposal) &&
     typeof value.proposal.summary === 'string' &&
     value.proposal.summary.length <= 500 &&
     isCircuitSpec(value.proposal.spec)
-    ? { summary: value.proposal.summary, spec: value.proposal.spec }
+    ? {
+        summary: value.proposal.summary,
+        spec: value.proposal.spec,
+        ...(proposalIntent !== undefined ? { intent: proposalIntent } : {}),
+      }
     : undefined;
   const proposalValidation = normalizeValidation(value.proposalValidation);
   const rejectedProposalSpec = isCircuitSpec(value.rejectedProposalSpec)
     ? value.rejectedProposalSpec
     : undefined;
+  const rejectedProposalIntent = normalizeIntent(value.rejectedProposalIntent);
   let retryFeedback = normalizeFeedback(value.retryFeedback);
   const repairDiagnostics = normalizeDiagnostics(value.repairDiagnostics);
   const retryAttempt = Number.isInteger(value.retryAttempt) && (value.retryAttempt as number) >= 0
@@ -247,6 +274,7 @@ export function normalizeRepairRecoveryState<TSpec, TRequest>(
     ...(proposal ? { proposal } : {}),
     ...(proposalValidation ? { proposalValidation } : {}),
     ...(rejectedProposalSpec ? { rejectedProposalSpec } : {}),
+    ...(rejectedProposalIntent ? { rejectedProposalIntent } : {}),
     ...(retryFeedback ? { retryFeedback } : {}),
     repairDiagnostics,
     retryAttempt,

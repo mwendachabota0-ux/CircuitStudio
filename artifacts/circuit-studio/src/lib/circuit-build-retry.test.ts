@@ -9,6 +9,7 @@ import {
   buildManualRetryRequest,
   buildOutputRepairRequest,
   buildRepairRequest,
+  buildRepairMessage,
   buildWireRebuildRequest,
   buildWireRebuildMessage,
   buildWholeCircuitRetryRequest,
@@ -92,17 +93,20 @@ test('compacts oversized history before retrying and repairs the rejected propos
 
   const rejectedProposal = { title: 'Partially wired flasher', elements: [] };
   const findings = ['The LED return wire is disconnected.'];
+  const intent = [['R1.2', 'D1.A'], ['D1.K', 'B1.-']];
   const retry = buildManualRetryRequest(
     { ...baseRequest, history: oversizedHistory },
     brief,
     rejectedProposal,
     findings,
+    intent,
   );
 
   assert.equal(retry.mode, 'build');
   assert.deepEqual(retry.currentSpec, rejectedProposal);
   assert.match(retry.message, /last failing AI proposal/);
   assert.match(retry.message, /The LED return wire is disconnected/);
+  assert.match(retry.message, /The intended connections are: R1\.2,D1\.A;D1\.K,B1\.-/);
   assert.ok(retry.history?.every((item) => item.content.length <= 3_000));
 });
 
@@ -130,6 +134,15 @@ test('whole-circuit rebuild uses the original request and updated brief', () => 
   assert.deepEqual(fresh.history, request.history);
   assert.deepEqual(fresh.brief, updatedBrief);
   assert.equal(fresh.responseFormatRetry, false);
+});
+
+test('whole-circuit rebuild keeps a rejected proposal intent in its bounded request', () => {
+  const intent = [['R1.2', 'D1.A'], ['D1.K', 'B1.-']];
+  const request = buildWholeCircuitRetryRequest(baseRequest, brief, intent);
+
+  assert.match(request.message, /The intended connections are: R1\.2,D1\.A;D1\.K,B1\.-/);
+  assert.match(request.message, /Do not change the intent/);
+  assert.ok(request.message.length <= 6_000);
 });
 
 test('layout repair authorizes visual movement while preserving the complete CircuitSpec as source', () => {
@@ -320,6 +333,61 @@ test('wire-rebuild prompt is explicit about rebuilding connections only', () => 
   assert.match(message, /all previous wires and wire-routing markers as discarded/);
   assert.match(message, /do not add or remove parts/);
   assert.match(message, /Never leave a floating endpoint/);
+});
+
+test('repair attempts retain the original intent and include it within the repair message cap', async () => {
+  const originalIntent = [['R1.2', 'D1.A'], ['D1.K', 'B1.-']];
+  const changedIntent = [['R1.2', 'D1.K'], ['D1.A', 'B1.-']];
+  const inspectedIntents: Array<string[][] | undefined> = [];
+  let sends = 0;
+  const result = await runCircuitBuildAttempts({
+    initialRequest: {},
+    send: async () => {
+      sends += 1;
+      return {
+        proposal: {
+          summary: 'Draft',
+          spec: { title: 'Indicator', elements: [] },
+          intent: sends === 1 ? originalIntent : changedIntent,
+        },
+      };
+    },
+    getProposal: (response) => response.proposal?.spec,
+    getProposalIntent: (response) => response.proposal?.intent,
+    restoreProposalIntent: (response, intent) => {
+      if (!response.proposal) return response;
+      const { intent: _candidateIntent, ...proposalWithoutIntent } = response.proposal;
+      return {
+        ...response,
+        proposal: intent === undefined
+          ? proposalWithoutIntent
+          : { ...proposalWithoutIntent, intent },
+      };
+    },
+    inspectProposal: (_spec, intent) => {
+      inspectedIntents.push(intent);
+      return {
+        validation: {
+          errors: inspectedIntents.length === 1 ? ['LED1.A is on the wrong net.'] : [],
+          warnings: [],
+        },
+        canRepair: true,
+      };
+    },
+    makeRepairRequest: (response) => {
+      assert.deepEqual(response.proposal?.intent, originalIntent);
+      return {};
+    },
+    wait: async () => {},
+  });
+
+  assert.equal(sends, 2);
+  assert.deepEqual(inspectedIntents, [originalIntent, originalIntent]);
+  assert.deepEqual(result.response.proposal?.intent, originalIntent);
+  const message = buildRepairMessage(['LED1.A is on the wrong net.'], originalIntent);
+  assert.match(message, /The intended connections are: R1\.2,D1\.A;D1\.K,B1\.-/);
+  assert.match(message, /Do not change the intent/);
+  assert.ok(message.length <= 6_000);
 });
 
 test('chooses recovery only for exhausted repairs and matching blocker types', () => {

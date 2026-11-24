@@ -28,3 +28,17 @@ mtime_ms = 1795285581801
 storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:72c46532-ab3f-4758-8466-6e316179cb00/7a2570f6-481e-4aa0-a34c-b939f60bc048/7ef16e14-7520-4243-a7d7-2db5e94006fd"
 storage_version_token = "1795285589162178"
 content_type = "text/plain"
+
+[[outputs]]
+id = "8RP2Q5JStmYbgjuQetIv_"
+uri = "file://.local/share/CircuitStudio-copilotEdits-report.txt"
+type = "text"
+title = "CircuitStudio copilot edits report"
+description = "Read-only diff results and complete contents of the three requested files."
+logical_id = "df2a09fc-0103-4e44-974f-70537fad7dac"
+content_hash = "sha256:0adb895cba104d2dd8b944f400db87e94cd41896ed5544f00184a75d6b82e770"
+size = 66597
+mtime_ms = 1795501271156
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:dd35761b-f96d-449f-b1d4-904fd2141329/df2a09fc-0103-4e44-974f-70537fad7dac/1063e581-96bb-4063-b263-99d90c3260d2"
+storage_version_token = "1795501271774074"
+content_type = "text/plain"

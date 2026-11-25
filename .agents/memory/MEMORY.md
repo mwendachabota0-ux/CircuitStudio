@@ -11,3 +11,4 @@
 - [External correction workflow](circuit-studio-external-corrections.md) — learn from pasted or directly edited specs; share only generalized lessons, never raw circuits or prompts.
 - [Native Node test imports](native-node-test-imports.md) — use explicit `.ts` generated-module imports when Node's strip-types runner cannot resolve extensionless package barrels.
 - [Vite package firewall](vite-package-firewall.md) — if Replit blocks the locked Vite tarball, update the shared catalog and lockfile to a compatible allowed release.
+- [Circuit Studio test fixtures](circuit-studio-test-fixtures.md) — keep discrete pins connected in validation fixtures and use valid topology-free specs for legacy compatibility.

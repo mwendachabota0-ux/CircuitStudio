@@ -9,6 +9,9 @@ const source = readFileSync(new URL("../../public/circuit-draw.js", import.meta.
 runInNewContext(source, { module: moduleStub, CircuitGeometry });
 const CircuitDraw = moduleStub.exports;
 const astableFlasher = JSON.parse(readFileSync(new URL("./fixtures/astable-flasher.json", import.meta.url), "utf8"));
+const historicalCoordinateCircuit = JSON.parse(
+  readFileSync(new URL("../exampleCircuit.json", import.meta.url), "utf8"),
+);
 
 function connectivitySignature(spec) {
   const membership = CircuitDraw.netlistWithMembership(spec, true);
@@ -351,6 +354,14 @@ test("KiCad symbols accept and render arbitrary fractional rotation angles", () 
       at: [200, 150],
       rotation: 37.5,
       symbolData,
+    }, {
+      type: "terminal",
+      id: "TP1",
+      at: [176.2, 131.74],
+    }, {
+      type: "terminal",
+      id: "TP2",
+      at: [223.8, 168.26],
     }],
   };
 
@@ -423,8 +434,15 @@ test("the valid astable flasher passes after safe rail-tail cleanup", () => {
   assert.equal(before.warnings.length, 0);
 
   const repaired = CircuitDraw.autoFix(astableFlasher);
-  assert.equal(repaired.changes.length, 2);
-  assert.deepEqual(Array.from(repaired.spec.elements.find((element) => element.id === "W_RAIL_TOP").points[1]), [530, 50]);
+  assert.equal(
+    repaired.changes.filter((change) => change.startsWith("Trimmed a dangling power/ground rail tail")).length,
+    2,
+  );
+  assert.ok(repaired.changes.includes('Rerouted wire "W_RAIL_TOP" around component bodies.'));
+  assert.deepEqual(
+    Array.from(repaired.spec.elements.find((element) => element.id === "W_RAIL_TOP").points.at(-1)),
+    [530, 50],
+  );
   assert.deepEqual(Array.from(repaired.spec.elements.find((element) => element.id === "W_RAIL_BOTTOM").points[1]), [480, 440]);
   const after = CircuitDraw.validate(repaired.spec);
   assert.deepEqual(Array.from(after.errors), []);
@@ -1098,7 +1116,7 @@ test("topology validation keeps separate crossings distinct and junction branche
 });
 
 test("historical coordinate-based CircuitSpecs remain directly renderable", () => {
-  const legacy = structuredClone(astableFlasher);
+  const legacy = structuredClone(historicalCoordinateCircuit);
   const validation = CircuitDraw.validate(legacy);
   assert.deepEqual(Array.from(validation.errors), []);
   assert.match(CircuitDraw.render(legacy), /^<svg/);

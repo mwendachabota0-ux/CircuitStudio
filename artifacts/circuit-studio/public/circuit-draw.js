@@ -2461,8 +2461,9 @@
       return localBoundsAt(element, MULTI_BODY_BOUNDS[element.type]);
     }
     if (element.type === 'ic' || element.type === 'connector') {
-      var leftCount = element.pins.filter(function (pin) { return pin.side === 'left'; }).length;
-      var rightCount = element.pins.filter(function (pin) { return pin.side === 'right'; }).length;
+      var componentPins = Array.isArray(element.pins) ? element.pins : [];
+      var leftCount = componentPins.filter(function (pin) { return pin.side === 'left'; }).length;
+      var rightCount = componentPins.filter(function (pin) { return pin.side === 'right'; }).length;
       var height = Math.max(48, Math.max(leftCount, rightCount) * 24 + 16);
       return localBoundsAt(element, [-44, -height / 2, 44, height / 2]);
     }

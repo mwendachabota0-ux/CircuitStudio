@@ -19,6 +19,7 @@ import {
   getNonWireElementSignature,
   getLayoutInvariantChanges,
   getLayoutInvariantSignature,
+  makeProposalFindingsAdvisory,
   getCircuitNetlistSignature,
   getPinToNetSignature,
   hasStablePinConnectivitySignature,
@@ -74,6 +75,26 @@ test('requires AI proposals to route wires orthogonally and around symbols', () 
   assert.deepEqual(result.warnings, [
     'relay "RL1".NC is intentionally unused.',
     'dcsource "V1": terminals are very close (50 px).',
+  ]);
+});
+
+test('keeps structural and topology findings visible without blocking proposals', () => {
+  const advisory = makeProposalFindingsAdvisory({
+    errors: ['Required pin R1.2 is open.'],
+    warnings: ['Wire W1 is diagonal.'],
+    topologyErrors: ['The routed net is disconnected.'],
+    topologyWarnings: ['An optional IC pin is unused.'],
+  });
+
+  assert.deepEqual(advisory.errors, []);
+  assert.deepEqual(advisory.warnings, [
+    'Wire W1 is diagonal.',
+    'Required pin R1.2 is open.',
+  ]);
+  assert.deepEqual(advisory.topologyErrors, []);
+  assert.deepEqual(advisory.topologyWarnings, [
+    'An optional IC pin is unused.',
+    'The routed net is disconnected.',
   ]);
 });
 

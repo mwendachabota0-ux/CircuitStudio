@@ -46,6 +46,7 @@ import {
   buildWholeCircuitRetryRequest,
   CircuitBuildAttemptError,
   classifyProposalValidation,
+  makeProposalFindingsAdvisory,
   getProtectedCircuitChanges,
   getProtectedCircuitSignature,
   getLayoutInvariantChanges,
@@ -216,6 +217,7 @@ const initialMessage: ThreadMessage = {
 };
 const BUILD_MODE_STANDBY_MESSAGE =
   "This request is on standby. Click Build mode above when you're ready, and I'll start the schematic.";
+const STRUCTURAL_CHECKS_BLOCKING = false; // Set true to restore blocking structural checks.
 
 const isStringList = (value: unknown): value is string[] =>
   Array.isArray(value) && value.every((item) => typeof item === 'string');
@@ -277,15 +279,20 @@ function inspectProposal(
       ...topologyValidation.warnings,
     ])];
     const layoutWarnings = window.CircuitDraw.layoutWarnings(spec);
-    const validation = classifyProposalValidation({
+    const checkedValidation = classifyProposalValidation({
       ...circuitValidation,
       errors: [...new Set([...circuitValidation.errors, ...topologyErrors])],
       warnings: [...new Set([...circuitValidation.warnings, ...layoutWarnings])],
       topologyErrors,
       topologyWarnings,
     });
+    const validation = STRUCTURAL_CHECKS_BLOCKING
+      ? checkedValidation
+      : makeProposalFindingsAdvisory(checkedValidation);
     if (validation.errors.length) return { svg: '', validation, canRepair: true };
-    const svg = window.CircuitDraw.render(spec);
+    const svg = window.CircuitDraw.render(spec, {
+      allowStructuralErrors: !STRUCTURAL_CHECKS_BLOCKING,
+    });
     if (!svg) {
       return {
         svg: '',
@@ -381,7 +388,14 @@ function inspectLayoutProposal(spec: CircuitSpec, topology?: CircuitTopology): {
         ...inspection,
         validation: {
           ...inspection.validation,
-          errors: [...inspection.validation.errors, ...layoutFindings],
+          ...(STRUCTURAL_CHECKS_BLOCKING
+            ? { errors: [...inspection.validation.errors, ...layoutFindings] }
+            : {
+                warnings: [...new Set([
+                  ...inspection.validation.warnings,
+                  ...layoutFindings,
+                ])],
+              }),
         },
       }
     : inspection;
@@ -844,7 +858,10 @@ export function CircuitBuilderChat({
   const [repairStopRequested, setRepairStopRequested] = useState(false);
   const repairState = saved.repair;
   const proposal = repairState.proposal ?? null;
-  const proposalValidation = repairState.proposalValidation ?? null;
+  const storedProposalValidation = repairState.proposalValidation ?? null;
+  const proposalValidation = storedProposalValidation && !STRUCTURAL_CHECKS_BLOCKING
+    ? makeProposalFindingsAdvisory(storedProposalValidation)
+    : storedProposalValidation;
   const proposalRepairLesson = repairState.proposalRepairLesson ?? null;
   const rejectedProposalSpec = repairState.rejectedProposalSpec ?? null;
   const externalFixDraft = repairState.externalFixDraft;
@@ -1120,7 +1137,7 @@ export function CircuitBuilderChat({
         initialProtectedSpec: spec,
         signal: abortController.signal,
         getConnectivitySignature: (candidate) =>
-          getConnectivitySignature(candidate as CircuitSpec),
+          getConnectivitySignature(candidate as CircuitSpec, true),
         send: (workingRequest) => chatMutation.mutateAsync({ data: workingRequest }),
         getProposal: (response) => response.proposal?.spec ?? null,
         inspectProposal: (candidate, response) =>
@@ -1182,7 +1199,7 @@ export function CircuitBuilderChat({
       if (!candidateSpec || !inspection || inspection.validation.errors.length || !inspection.svg) {
         return {
           kind: 'failure',
-          message: 'The layout attempt did not pass pin and wire checks; the original proposal was kept.',
+          message: 'The layout attempt could not be rendered; the original proposal was kept.',
         };
       }
 
@@ -1196,8 +1213,8 @@ export function CircuitBuilderChat({
       }
 
       try {
-        const beforeNetlist = getCircuitNetlistSignature(window.CircuitDraw.netlist(spec));
-        const afterNetlist = getCircuitNetlistSignature(window.CircuitDraw.netlist(candidateSpec));
+        const beforeNetlist = getCircuitNetlistSignature(window.CircuitDraw.netlist(spec, true));
+        const afterNetlist = getCircuitNetlistSignature(window.CircuitDraw.netlist(candidateSpec, true));
         if (beforeNetlist !== afterNetlist) {
           return {
             kind: 'failure',
@@ -1881,7 +1898,8 @@ export function CircuitBuilderChat({
           ? 'blocking-findings'
           : 'external-correction',
       });
-      const repairLesson = inspection.validation.errors.length ||
+      const repairLesson = !STRUCTURAL_CHECKS_BLOCKING ||
+        inspection.validation.errors.length ||
         !candidate.diff.hasElementChanges
         ? null
         : {
@@ -2020,7 +2038,7 @@ export function CircuitBuilderChat({
         inspectProposal: (candidate, response) =>
           inspectProposal(candidate, response.proposal?.topology),
         getConnectivitySignature: (candidate) =>
-          getConnectivitySignature(candidate as CircuitSpec),
+          getConnectivitySignature(candidate as CircuitSpec, true),
         initialProtectedSpec: protectedElementsBaseSpec ?? undefined,
         getProtectedCircuitSignature: (spec) =>
           getProtectedCircuitSignature(spec as NonNullable<CircuitBuildChatInput['currentSpec']>),
@@ -2742,7 +2760,6 @@ export function CircuitBuilderChat({
       !proposal ||
       !proposalSvg ||
       !proposalValidation ||
-      proposalValidation.errors.length ||
       proposalQualityReview.kind === 'loading'
     ) return;
     setAppliedProposalFeedback({
@@ -3275,7 +3292,10 @@ export function CircuitBuilderChat({
                     <ul>{proposalTopologyErrors.map((item, index) => <li className="is-error" key={`topology-error-${index}`}>{item}</li>)}</ul>
                   </div>
                 )}
-                {!proposalStructuralErrors.length && !proposalTopologyErrors.length && (
+                {!proposalStructuralErrors.length &&
+                  !proposalTopologyErrors.length &&
+                  !proposalTopologyWarnings.length &&
+                  !proposalLayoutWarnings.length && (
                   <div className="builder-chat__validation-group">
                     <CheckCircle2 aria-hidden="true" />
                     <strong>Pin and wire structure passed; no tested direct short was detected.</strong>
@@ -3289,7 +3309,7 @@ export function CircuitBuilderChat({
                 )}
                 {proposalLayoutWarnings.length > 0 && (
                   <div className="builder-chat__validation-group">
-                    <strong>Drawing and layout warnings</strong>
+                    <strong>Pin, wire, and drawing findings</strong>
                     <ul>{proposalLayoutWarnings.map((item, index) => <li key={`layout-warning-${index}`}>{item}</li>)}</ul>
                   </div>
                 )}
@@ -3373,7 +3393,7 @@ export function CircuitBuilderChat({
                 <button
                   type="button"
                   className="builder-chat__apply"
-                  disabled={!proposalSvg || !!proposalValidation?.errors.length || proposalQualityReview.kind === 'loading' || repairLessonMutation.isPending}
+                  disabled={!proposalSvg || proposalQualityReview.kind === 'loading' || repairLessonMutation.isPending}
                   onClick={applyProposal}
                   data-testid="button-apply-proposal"
                 >
@@ -3388,7 +3408,7 @@ export function CircuitBuilderChat({
                 ? 'Applying replaces the current workbench drawing with this corrected CircuitSpec. No AI repair runs; a generalized lesson may already be available to all users. '
                 : proposalRepairLesson
                   ? 'Applying this repair saves a reusable, generalized lesson when the correction can help other users. '
-                  : ''}The workbench drawing stays unchanged until you choose. Structural and AI checks do not prove circuit behavior, component ratings, or safety.</p>
+                  : ''}The workbench drawing stays unchanged until you choose. Structural checks are temporarily advisory; applying a flagged draft may put disconnected or otherwise invalid wiring on the workbench. Structural and AI checks do not prove circuit behavior, component ratings, or safety.</p>
             </section>
           )}
 

@@ -38,6 +38,22 @@ export function classifyProposalValidation(validation: BuildValidation): BuildVa
   };
 }
 
+export function makeProposalFindingsAdvisory(validation: BuildValidation): BuildValidation {
+  return {
+    errors: [],
+    warnings: [...new Set([...validation.warnings, ...validation.errors])],
+    ...(validation.topologyErrors || validation.topologyWarnings
+      ? {
+          topologyErrors: [],
+          topologyWarnings: [...new Set([
+            ...(validation.topologyWarnings ?? []),
+            ...(validation.topologyErrors ?? []),
+          ])],
+        }
+      : {}),
+  };
+}
+
 export type BuildAttemptFailureKind = 'generation' | 'validation' | 'output';
 export type CircuitBuildMode = CircuitBuildChatInput['mode'];
 export type RepairAttemptOutcome = 'reconstructed' | 'validated' | 'rejected' | 'exhausted' | 'stopped';

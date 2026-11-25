@@ -52,6 +52,10 @@ An account-gated circuit workspace for turning plain-language electronics ideas 
 
 Circuit Studio helps makers and engineers draft a clear schematic before moving the design into full CAD tools such as EasyEDA or KiCad. It is for sketching and reviewing a draft, not a CAD replacement, free-placement editor, or circuit simulator. Keep source symbol pin geometry visible and avoid implying that a structural drawing check proves electrical correctness or safety.
 
+## Future ideas
+
+- Make staged proposal review editable before applying, including component repositioning, rotation, and wire rerouting.
+
 ## User preferences
 
 - In Chat mode, inferred circuit intent must stay in Chat and ask permission before preparing a schematic. A direct build/draw/create request, manually selecting Build, or explicitly accepting the permission question counts as approval. Builder and working-note textareas must stay editable during every AI status, and responses must not overwrite text entered after a request starts.

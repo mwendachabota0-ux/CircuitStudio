@@ -295,9 +295,8 @@
   }
 
   function isAdvisoryUnconnectedPin(element, pinName) {
-    if (!element) return false;
-    if (element.type === 'ic' || element.type === 'connector' || element.type === 'kicad') return true;
-    return element.type === 'relay' && (pinName === 'NC' || pinName === 'NO');
+    if (!element || typeof CircuitGeometry.isAdvisoryUnconnectedCircuitPin !== 'function') return false;
+    return CircuitGeometry.isAdvisoryUnconnectedCircuitPin(element, pinName);
   }
 
   function analyse(spec, options) {

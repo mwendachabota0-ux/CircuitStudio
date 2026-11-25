@@ -601,6 +601,50 @@ export function getCircuitPins(element: CircuitElementGeometry): CircuitPin[] {
   return [];
 }
 
+const REQUIRED_KICAD_DISCRETE_PREFIXES = new Map<string, RegExp>([
+  [
+    'Device',
+    /^(?:R|C|L|D|LED|Fuse|Battery|Speaker|Buzzer|Crystal|R_Photo|D_Photo|Microphone|Motor|SolarCell|Thermistor|Varistor)(?:_|$)/i,
+  ],
+  ['Diode', /./],
+  ['Transistor_BJT', /./],
+  ['Transistor_FET', /./],
+  ['Motor', /./],
+]);
+
+/**
+ * Whether an unconnected pin is intentionally advisory.
+ *
+ * General KiCad symbols may include optional or intentionally unused pins, so
+ * they remain advisory by default. Common discrete-symbol libraries are the
+ * exception: their pins are required unless the source library explicitly
+ * marks that pin no-connect.
+ */
+export function isAdvisoryUnconnectedCircuitPin(
+  element: CircuitElementGeometry,
+  pinName: string,
+): boolean {
+  const type = typeof element.type === 'string' ? element.type : '';
+  if (type === 'ic' || type === 'connector') return true;
+  if (type === 'relay' && (pinName === 'NC' || pinName === 'NO')) return true;
+  if (type !== 'kicad') return false;
+
+  const symbolId = typeof element.symbolId === 'string' ? element.symbolId : '';
+  const [library, name] = symbolId.split(':', 2);
+  const requiredNames = library ? REQUIRED_KICAD_DISCRETE_PREFIXES.get(library) : undefined;
+  const requiredDiscretePin = !!requiredNames && requiredNames.test(name || '');
+
+  const data = element.symbolData as KicadSymbolData | undefined;
+  const unitNumber = Number.isInteger(element.unit) ? element.unit as number : 1;
+  const bodyStyle = Number.isInteger(element.bodyStyle) ? element.bodyStyle as number : 1;
+  const unit = data?.units.find(
+    (candidate) => candidate.unit === unitNumber && candidate.bodyStyle === bodyStyle,
+  );
+  const sourcePin = unit?.pins.find((pin) => pin.number === pinName);
+  if (sourcePin?.electricalType.toLowerCase() === 'no_connect') return true;
+  return !requiredDiscretePin;
+}
+
 export function formatCircuitPinGuide(): string {
   const lines = [
     'Two-terminal pin locations:',

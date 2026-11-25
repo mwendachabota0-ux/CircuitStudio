@@ -913,7 +913,52 @@ components:
           maxLength: 500
         spec:
           $ref: "#/components/schemas/CircuitSpec"
-      required: [summary, spec]
+        topology:
+          $ref: "#/components/schemas/CircuitTopology"
+      required: [summary, spec, topology]
+      additionalProperties: false
+    CircuitPinReference:
+      type: object
+      properties:
+        elementId:
+          type: string
+          minLength: 1
+          maxLength: 128
+        pin:
+          type: string
+          minLength: 1
+          maxLength: 128
+      required: [elementId, pin]
+      additionalProperties: false
+    CircuitNet:
+      type: object
+      properties:
+        id:
+          type: string
+          minLength: 1
+          maxLength: 128
+        pins:
+          type: array
+          minItems: 2
+          maxItems: 1000
+          items:
+            $ref: "#/components/schemas/CircuitPinReference"
+      required: [id, pins]
+      additionalProperties: false
+    CircuitTopology:
+      type: object
+      properties:
+        nets:
+          type: array
+          maxItems: 600
+          items:
+            $ref: "#/components/schemas/CircuitNet"
+        unconnectedPins:
+          type: array
+          maxItems: 3000
+          items:
+            $ref: "#/components/schemas/CircuitPinReference"
+      required: [nets, unconnectedPins]
       additionalProperties: false
     CircuitBuilderSuggestedAction:
       type: object

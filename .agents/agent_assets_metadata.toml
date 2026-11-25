@@ -1,0 +1,44 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "dzWHCXAmZSVaivjpuTIP_"
+uri = "file://generated-artifacts/circuit-studio-symbol-catalog-for-research.txt"
+type = "text"
+title = "Circuit Studio Symbol Catalog & Research Prompt"
+description = "The complete research handoff: all Studio/KiCad component rows, current description fields, AI context, and the prompt defining required research outputs."
+logical_id = "35701450-71c8-40f2-bffb-73a6de39b3f3"
+content_hash = "sha256:fe2d89900068822313d86e3f04496d5886f1961a1f2091b44a3f274723194735"
+size = 7207829
+mtime_ms = 1795268487172
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:ba529efc-9dbc-4004-b536-a3b5505a4c9c/35701450-71c8-40f2-bffb-73a6de39b3f3/7ae3200b-aef6-4b8b-b4ab-aa63aa0fac83"
+storage_version_token = "1795268750214045"
+content_type = "text/plain"
+
+[[outputs]]
+id = "v0g4F6Rc6Qy2ZEikjfrjF"
+uri = "file://CircuitStudio-architecture-audit.txt"
+type = "text"
+title = "CircuitStudio Architecture Audit"
+description = "Complete read-only architecture audit as a plain-text file."
+logical_id = "7a2570f6-481e-4aa0-a34c-b939f60bc048"
+content_hash = "sha256:6f4193aaa041098a34a2ce7628d6bb11359fb5dc593c2e79f71273dde899eead"
+size = 22853
+mtime_ms = 1795285581801
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:72c46532-ab3f-4758-8466-6e316179cb00/7a2570f6-481e-4aa0-a34c-b939f60bc048/7ef16e14-7520-4243-a7d7-2db5e94006fd"
+storage_version_token = "1795285589162178"
+content_type = "text/plain"
+
+[[outputs]]
+id = "8RP2Q5JStmYbgjuQetIv_"
+uri = "file://.local/share/CircuitStudio-copilotEdits-report.txt"
+type = "text"
+title = "CircuitStudio copilot edits report"
+description = "Read-only diff results and complete contents of the three requested files."
+logical_id = "df2a09fc-0103-4e44-974f-70537fad7dac"
+content_hash = "sha256:0adb895cba104d2dd8b944f400db87e94cd41896ed5544f00184a75d6b82e770"
+size = 66597
+mtime_ms = 1795501271156
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:dd35761b-f96d-449f-b1d4-904fd2141329/df2a09fc-0103-4e44-974f-70537fad7dac/1063e581-96bb-4063-b263-99d90c3260d2"
+storage_version_token = "1795501271774074"
+content_type = "text/plain"

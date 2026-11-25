@@ -1,0 +1,294 @@
+CIRCUITSTUDIO — READ-ONLY ARCHITECTURAL AUDIT
+
+1. EXECUTIVE SUMMARY
+
+Circuit Studio does not have a circuit-drawing engine that connects parts from an electrical design and then calculates where to draw them. Instead, Gemini returns a JSON CircuitSpec containing both component positions and wire coordinates. The browser checks that data, derives a netlist from the coordinates, and draws an SVG.
+
+That distinction matters: moving or repairing a wire can change which pins are electrically connected. There is a separate AI-assisted layout-repair path that checks whether pin connectivity stayed the same, but the regular blocking-error repair path does not enforce a general intended-netlist invariant.
+
+I confirmed a gap related to the flasher issue: the astable-circuit checks are enabled only when the circuit title contains certain words. Using the existing flasher fixture, I added a direct wire between Q1.B and Q2.B in memory. With the original flasher title, validation rejected it indirectly through capacitor-feedback checks. After changing the title to “Alternating LED indicator,” the same tied-base netlist passed CircuitDraw.validate with no errors or warnings. The separate visual-layout check did not add a warning for that wire. This was an investigation-only test; no project files were changed.
+
+The existing test suites passed: 92 Circuit Studio tests and 55 API server tests.
+
+
+2. CURRENT ARCHITECTURE DIAGRAM
+
+Browser: Circuit Studio at /studio
+  React + Vite + Clerk
+  ├─ Chat / Build proposal flow
+  ├─ JSON editor, schematic viewer, exports
+  ├─ CircuitDraw (public/circuit-draw.js)
+  │    ├─ shared CircuitGeometry pin definitions
+  │    ├─ structural and selected topology checks
+  │    ├─ geometry-derived netlist
+  │    └─ SVG rendering
+  └─ generated React Query client
+         │
+         ▼
+Express API at /api
+  ├─ authenticated circuit-builder and repair routes
+  ├─ tutor, proposal review, history, symbol catalog
+  ├─ Gemini 2.5 Flash calls and usage/key fallback
+  └─ Drizzle/PostgreSQL storage
+       ├─ builder history and current spec
+       ├─ AI usage/reservations
+       └─ saved circuit-builder memories
+
+The API routes are mounted under /api in artifacts/api-server/src/app.ts and src/routes/index.ts. The browser uses generated React Query hooks from lib/api-client-react; the API contract originates in lib/api-spec/openapi.yaml, with generated Zod types in lib/api-zod.
+
+
+3. ACTUAL SCHEMATIC-GENERATION WORKFLOW
+
+1. The user describes the circuit in Chat. The assistant can ask for missing details and update a design brief before building.
+2. Build requires clear permission. The app distinguishes discussion from a request to create or repair a schematic; a proposal is not applied automatically.
+3. The browser calls the authenticated builder endpoint. The primary flow uses POST /api/circuits/build-chat. The older /circuits/generate endpoint also exists.
+4. The server assembles the prompt. It includes the current CircuitSpec, design brief, recent conversation, relevant component information, applicable saved memories, and exact KiCad pin guidance where appropriate.
+5. Gemini returns JSON, not a drawing. The builder asks Gemini 2.5 Flash for a complete CircuitSpec; instructions request pixel coordinates, orthogonal wires, margins, and readable spacing. They are prompt instructions, not a routing engine.
+6. The server normalizes and checks the proposal. It parses the model response, verifies supported elements, and hydrates exact KiCad symbol data when needed. AI usage is recorded; the API can try configured Gemini keys and continue a truncated response.
+7. The browser checks and renders the proposal. It applies limited wire auto-fixes, validates the result, and renders an SVG preview. Blocking problems can start an automatic repair flow.
+8. The proposal is staged for review. The user can apply or reject it. Once applied, the updated spec becomes the workbench draft. Proposal review and any visual layout repair are separate from the initial generation.
+
+artifacts/api-server/src/routes/circuitBuilder.ts builds the prompt and makes the model call. The separate Tutor endpoint, src/routes/tutor.ts, can also send an uploaded image to Gemini.
+
+
+4. CIRCUITSPEC AND ELECTRICAL DATA MODEL
+
+The declared spec shape is deliberately broad: a CircuitSpec has a required title and elements, with optional canvas width and height. Elements have a required type, but the OpenAPI schema permits additional properties. Common fields include:
+
+- Component identity and labels: id, label, value
+- Component positions and pins: from, to, at
+- Wire geometry: points, open
+- Symbol variations: rotation, flip, unit, bodyStyle, symbolId, symbolData
+- Annotation and text placement: text, labelAt, labelPos, labelNudge, labelAnchor
+
+There is no declared first-class nets or electrical-connections collection in the current schema. Components, pins, wires, and drawing markers all live in the same elements array.
+
+The app calculates pins from shared geometry rules:
+
+- Two-terminal parts use from and to; polarity-sensitive parts follow that order.
+- BJTs use named B, C, and E pins at offsets from at.
+- ICs and connectors use named left/right pins.
+- Imported KiCad symbols use the selected symbol’s actual pin data and drawing geometry.
+
+The current netlist is derived at runtime from coordinate overlap and wire segments. Shared endpoints and pins on a segment can join a net; junction markers can connect crossing segments. A crossing marker is visual and does not join the nets. Ground symbols are merged into a global GND net. A terminal label names its local connected net, but repeating a terminal label does not by itself join two separate nets; plain text labels are annotations.
+
+CircuitDraw.netlist() therefore reports a computed view of the current geometry, not an independent electrical design that repairs must preserve.
+
+
+5. COMPONENT LIBRARY AND SYMBOL RENDERING
+
+The shared component reference and renderer support 51 exact element types, including dcsource. It is a real supported type with + and − pins; it is not an alias for battery.
+
+Grouped by use:
+
+- Passives, protection, and diodes: resistor, capacitor, electrolytic, inductor, diode, zener, led, photodiode, schottky, crystal, fuse, thermistor, photoresistor, varistor, potentiometer
+- Power: battery, acsource, dcsource, currentsource, solarcell, transformer
+- Active and control: npn, pnp, nmos, pmos, mosfet, njfet, pjfet, opamp, regulator, comparator, bridge, opto, ic, switch, relay
+- Input/output: mic, speaker, lamp, motor, buzzer, antenna
+- Other: ground, terminal, connector, kicad, wire, junction, crossing, label, box
+
+The 50 non-KiCad built-in types are described in lib/circuit-geometry/src/index.ts. KiCad symbols are a separate imported-symbol path: the API searches/parses library symbols and attaches their exact symbol geometry and pin data. That provides source symbol geometry, not verification of a physical part’s rating or suitability.
+
+Built-in symbol artwork is drawn by the browser-side artifacts/circuit-studio/public/circuit-draw.js. Shared geometry and component references define supported types and pins, but the renderer’s visual shapes and some bounds are still maintained separately.
+
+
+6. WIRE GENERATION AND ROUTING
+
+Gemini proposes wire coordinates. There is no deterministic pathfinding or collision-avoiding router. The model prompt requests a 10-pixel grid, orthogonal routes, clearance, and room for labels. Those constraints are advisory to the model; the coordinate system is not enforced as a grid.
+
+Wires are polylines described by points. The renderer uses those points as-is. Its netlist logic interprets endpoint and segment geometry; it does not calculate a new route.
+
+CircuitDraw.autoFix() is limited. It can snap a wire endpoint to a uniquely nearest pin within 8 pixels and can trim certain long, dangling, orthogonal supply/ground tails. It does not choose a new route around components or reposition parts.
+
+There are junction and crossing concepts, but no general route planner. layoutWarnings() checks approximate component-body and text overlaps; it is a warning system, not obstacle avoidance.
+
+
+7. VALIDATION, AUTO-FIX, AND REPAIR
+
+Validation checks supported element types, required geometry, pin connections, loose wire ends, selected wire/component conflicts, crossings, and a small set of topology cases. Some unconnected pins are errors; others—such as certain unused IC, connector, or relay pins—are advisory.
+
+The app also computes visual layout warnings separately. During proposal inspection, diagonal and zero-length wire segments are promoted to blocking drawing-quality findings even though CircuitDraw.validate() initially reports them as warnings.
+
+For ordinary blocking-error repairs, the prompt asks the model to change wires only. The client restores protected non-wire elements and metadata from the baseline proposal before validating the result. This helps prevent an AI repair from changing the components, values, or positions. It does not prove the repaired wires preserve the intended electrical connections. The layout-only repair path does compare derived pin connectivity before and after; that protection is not a general rule for all wire repairs.
+
+The automatic repair loop allows up to three client retry attempts across applicable retry/recovery cases. This is separate from API-level model continuation and Gemini-key fallback.
+
+Confirmed flasher validation gap
+
+astableTopologyFindings() in public/circuit-draw.js only runs when the title matches astable, multivibrator, alternating flasher, or flasher. I tested the existing fixture in memory:
+
+- With its flasher title, a Q1.B-to-Q2.B wire triggered four blocking findings, indirectly because the tied bases made the feedback capacitors look like same-side connections.
+- With the same circuit titled “Alternating LED indicator,” the same wire produced zero validation errors and zero validation warnings. The computed netlist included both Q1.B and Q2.B on one net.
+- The visual warning checker did not add a warning for the added base-to-base wire.
+
+There are tests for a base-to-collector short and incorrect astable feedback-capacitor connections, but none that assert that a base-to-base short is rejected when the title does not trigger the astable rules. This makes the check dependent on naming rather than a reliable circuit-family classification.
+
+
+8. SVG RENDERING AND EDITOR
+
+CircuitDraw.render(spec) generates SVG in the browser from the current JSON spec. Wires become SVG paths/polylines; built-in symbols are drawn by the renderer; KiCad symbols use their imported source geometry. SVG is regenerated when the React workbench spec changes.
+
+The schematic viewer supports viewing controls such as fit-to-view, zoom, pan, and fullscreen. These change the view, not the electrical design.
+
+The workbench does not provide direct canvas interactions for adding or deleting a component, moving a symbol, dragging a wire, or connecting/disconnecting pins. The user can edit the JSON representation or ask the AI for a proposal. Valid JSON edits update the workbench draft; structurally invalid edits can trigger a staged AI repair. AI proposals themselves require user review before being applied.
+
+
+9. DATA STORAGE AND EXPORTS
+
+The working draft is saved in browser localStorage, scoped to the signed-in user. Builder sessions also sync to PostgreSQL through Drizzle: each session stores JSONB saved_state and current_spec. The history shape holds the conversation/brief and the session’s current spec; it is not a per-edit version history. The staged and rejected proposal objects are separate component state, not separate persisted versions. I found no undo/redo history for individual edits.
+
+SVG is regenerated from the JSON; it is not stored as the design source.
+
+Exports are client-generated:
+
+- JSON: the current CircuitSpec.
+- SVG: the renderer’s SVG output.
+- PNG: the browser rasterizes that SVG to a canvas.
+- BOM CSV: grouped from component data plus browser-stored metadata overrides.
+- Technical-document HTML: includes the current SVG, BOM, and build sheet.
+- EasyEDA build sheet: Markdown parts and geometry-derived nets, for reference when rebuilding elsewhere. It is not a native EasyEDA project export.
+
+
+10. EXISTING TEST COVERAGE
+
+The relevant existing test suites passed:
+
+- Circuit Studio: 92 passed
+- API server: 55 passed
+- Total: 147 passed
+
+Coverage includes shared pin geometry and catalog compatibility; validation and layout warnings; selected crossing, astable, and relay behaviors; wire auto-fix; retry-loop behavior; preservation of non-wire elements; layout-repair netlist signatures; builder permissions and response normalization; KiCad parsing/catalog handling; and history helpers.
+
+Important limits:
+
+- Wire routing: no pathfinding or obstacle-avoidance algorithm exists to test. Tests check prompt wording and validation, not generated route quality.
+- Pin geometry: tested for shared definitions and selected symbols; this does not verify every real circuit connection.
+- Crossings and junctions: explicit crossing behavior is tested, including keeping two nets separate. I found no equivalent broad coverage of repair-generated junction cases.
+- Validation: many structural and selected topology rules are tested. There is no general electrical rule checker.
+- Repair loop: retries and non-wire preservation are tested. There is no regression test for the title-independent base-to-base case above.
+- Backward compatibility: a small fixture set is checked, including older examples that remain blocked for known compatibility issues. This is not a migration suite for a new electrical data model.
+- SVG: tests inspect generated SVG strings and selected symbol geometry, not end-to-end browser rendering across the full workbench.
+- Editor and integration: JSON parsing has unit tests, but I found no browser end-to-end tests for the editing flow, and no live Gemini/Clerk/database integration tests in these suites.
+
+I did not run a browser E2E suite, typecheck, or production build as part of this read-only audit.
+
+
+11. CONFIRMED ARCHITECTURAL WEAKNESSES
+
+Weakness: Connections are inferred from drawing coordinates.
+Impact: A wire edit or repair can change the circuit’s pin-to-net relationships.
+Relevant source: lib/api-spec/openapi.yaml; lib/circuit-geometry/src/index.ts; public/circuit-draw.js
+
+Weakness: Astable topology checks depend on the title.
+Impact: A base-to-base short passed validation after the same flasher fixture was given a non-matching title.
+Relevant source: public/circuit-draw.js; circuit-draw-validation.test.mjs
+
+Weakness: No deterministic router or placement engine.
+Impact: Wire paths and positions depend on model output; layout checks can warn after the fact but do not route around obstacles.
+Relevant source: routes/circuitBuilder.ts; public/circuit-draw.js
+
+Weakness: Validation is not general ERC or simulation.
+Impact: A structurally accepted drawing can still be electrically wrong; selected heuristics must not be described as safety or behavior verification.
+Relevant source: public/circuit-draw.js; routes/tutor.ts
+
+Weakness: Staged/rejected proposals are not saved as full revision snapshots.
+Impact: The persisted history is useful for sessions, but does not provide a reliable proposal-by-proposal undo or audit trail.
+Relevant source: src/components/circuit-builder-chat.tsx; lib/db/src/schema/circuitBuilderHistory.ts
+
+
+12. RECOMMENDED FUTURE ARCHITECTURE
+
+Option A — Separate electrical connectivity from drawing geometry
+
+Current: Pins, components, and wire paths share one coordinate-based spec; the netlist is derived.
+
+Develop: Add a versioned model for components, pins, and nets, with positions and wire routes represented separately. Make validation and repair operate on explicit pin-to-net connections.
+
+Affected: OpenAPI and generated types, circuit-geometry, API prompts/routes, CircuitDraw, the editor, history storage, and exports.
+
+Dependencies and risks: This is foundational for a deterministic router, meaningful topology invariants, and stronger rule checking. Existing crossings, labels, and repeated supply/ground conventions need explicit migration rules; ambiguous old geometry should be flagged instead of guessed.
+
+Backward compatibility: Possible with a versioned format and an adapter that infers connections from legacy geometry. Keep existing JSON readable and retain its appearance during migration.
+
+Option B — Deterministic automatic wire routing
+
+Current: The model supplies wire coordinates; the renderer draws them.
+
+Develop: A router that takes pin-to-net connections, symbol keep-outs, and layout positions and produces orthogonal routes. It must define crossing/junction behavior and route-failure handling.
+
+Affected: Geometry/routing modules, API prompt and repair logic, renderer, and wire editing/export flows.
+
+Dependencies and risks: Depends on explicit connectivity from A; benefits from the placement constraints in C. Multi-branch nets and dense layouts can create no-route or crowded results. Preserve manual routes or clearly show when the router replaces them.
+
+Backward compatibility: Existing routes can initially remain as imported/manual geometry.
+
+Option C — Dedicated layout engine
+
+Current: Gemini chooses positions, followed by approximate warnings and optional AI layout repair.
+
+Develop: A placement stage for spacing, orientation, grouping, labels, and power/signal organization before routing.
+
+Affected: Builder prompts, geometry/layout code, viewer/editor, and eventually routing.
+
+Dependencies and risks: A should define electrical grouping first; placement can then organize connected components. User-controlled positions and readability need to remain meaningful.
+
+Backward compatibility: Existing coordinates can be treated as an imported layout rather than automatically replaced.
+
+Option D — Separate AI visual reviewer
+
+Current: The Tutor endpoint already accepts PNG, JPEG, or WebP images and passes them to a vision-capable Gemini model. Proposal review is primarily based on the CircuitSpec.
+
+Develop: A reviewer that inspects a rendered schematic and returns findings only—not replacement geometry or electrical data. Keep the result separate from deterministic validation.
+
+Affected: Tutor/review routes, AI usage accounting, and proposal UI. Another Gemini vision model fits the existing provider family; a different provider would need an adapter because the API directly uses Google’s client.
+
+Dependencies and risks: Can be developed separately from A, but review quality will improve when the spec and rendered image can be compared. Keep findings advisory and account for model cost and false positives.
+
+Backward compatibility: Straightforward; review results can be transient and need not alter existing specs.
+
+Option E — Clear validation tiers and simulation readiness
+
+Current: Structural checks and a few topology heuristics exist. The app explicitly does not simulate electrical behavior or certify safety.
+
+Develop: Separate structural validity, electrical rule checks, and future simulation readiness. Simulation would require reliable net data plus component models and ratings—not just symbol types and values.
+
+Affected: Validation, component metadata, review UI, API responses, and any future simulator adapter.
+
+Dependencies and risks: Basic structure checks can be improved now; reliable circuit-wide rules and simulation depend on A and better component semantics. Clearly report unknown parameters instead of implying a simulation result.
+
+Backward compatibility: Preserve existing structural checks and label older or incomplete components as “not modeled,” rather than silently treating them as valid simulation parts.
+
+More urgent than these options: close the demonstrated title-dependent flasher validation gap and add a regression test. That is smaller than a netlist redesign and directly protects the failure mode examined in this audit.
+
+
+13. SUGGESTED DEVELOPMENT PHASES AND DEPENDENCIES
+
+1. Phase 0 — Lock down known failure cases. Add tests for the title-renamed base-to-base example and for repair outcomes on known circuits. Don’t compare a repair against an already-invalid netlist as though it were the user’s intended design.
+2. Phase 1 — Add explicit, versioned electrical connectivity. Define pin/net semantics and a legacy-spec adapter. This is the prerequisite for robust topology preservation.
+3. Phase 2 — Add deterministic placement constraints. Keep imported layouts intact unless the user asks to reflow; have new layouts produce stable component positions.
+4. Phase 3 — Add deterministic wire routing. Route explicit nets around placed symbols, with tested junction and crossing semantics and a clear failure path.
+5. Phase 4 — Strengthen electrical checks. Build general rules on the explicit netlist; add simulation only when suitable component models and parameter data exist.
+6. Parallel, optional — Add visual review. A vision reviewer can be developed separately, but it must not replace structural checks or directly overwrite the circuit.
+
+
+14. IMPORTANT UNRESOLVED QUESTIONS
+
+- Should repeated named terminals connect separate nets, or only label the local connected net as they do now?
+- Should all ground symbols always represent one global net?
+- Which circuit families need explicit topology rules, and how should a circuit’s intent be represented without relying on its title?
+- Should a future router preserve manual wire routes by default and reroute only when necessary?
+- Should the editor eventually support direct canvas placement and wire editing, or remain AI-plus-JSON?
+- Is the long-term export target a readable build sheet, native EDA files, or both?
+- What component model and rating data would be required before simulation is in scope?
+
+
+WHAT WE SHOULD NOT CHANGE YET
+
+- Do not replace or silently reinterpret existing CircuitSpec JSON before a versioned compatibility adapter and fixture tests exist.
+- Keep proposal staging and the user’s apply/reject choice; don’t apply AI output or wire repairs silently.
+- Keep wire-only repairs from changing component identities, values, or positions.
+- Keep the layout-repair connectivity comparison; extend protection rather than removing it during a refactor.
+- Preserve built-in symbol support, exact KiCad symbol geometry, and current JSON/SVG/PNG/BOM exports while a new model is introduced.
+- Keep the distinction between visual review, structural validation, electrical correctness, and safety. A rendered or structurally valid SVG is not proof that a circuit works or is safe.
+
+No source files were changed during the audit.

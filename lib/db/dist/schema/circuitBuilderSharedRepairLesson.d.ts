@@ -1,0 +1,121 @@
+import { z } from "zod/v4";
+export declare const circuitBuilderSharedRepairLessons: import("drizzle-orm/pg-core").PgTableWithColumns<{
+    name: "circuit_studio_shared_repair_lessons";
+    schema: undefined;
+    columns: {
+        id: import("drizzle-orm/pg-core").PgColumn<{
+            name: "id";
+            tableName: "circuit_studio_shared_repair_lessons";
+            dataType: "number";
+            columnType: "PgSerial";
+            data: number;
+            driverParam: number;
+            notNull: true;
+            hasDefault: true;
+            isPrimaryKey: true;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        content: import("drizzle-orm/pg-core").PgColumn<{
+            name: "content";
+            tableName: "circuit_studio_shared_repair_lessons";
+            dataType: "string";
+            columnType: "PgText";
+            data: string;
+            driverParam: string;
+            notNull: true;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        contentKey: import("drizzle-orm/pg-core").PgColumn<{
+            name: "content_key";
+            tableName: "circuit_studio_shared_repair_lessons";
+            dataType: "string";
+            columnType: "PgText";
+            data: string;
+            driverParam: string;
+            notNull: true;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        occurrenceCount: import("drizzle-orm/pg-core").PgColumn<{
+            name: "occurrence_count";
+            tableName: "circuit_studio_shared_repair_lessons";
+            dataType: "number";
+            columnType: "PgInteger";
+            data: number;
+            driverParam: string | number;
+            notNull: true;
+            hasDefault: true;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        createdAt: import("drizzle-orm/pg-core").PgColumn<{
+            name: "created_at";
+            tableName: "circuit_studio_shared_repair_lessons";
+            dataType: "date";
+            columnType: "PgTimestamp";
+            data: Date;
+            driverParam: string;
+            notNull: true;
+            hasDefault: true;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        updatedAt: import("drizzle-orm/pg-core").PgColumn<{
+            name: "updated_at";
+            tableName: "circuit_studio_shared_repair_lessons";
+            dataType: "date";
+            columnType: "PgTimestamp";
+            data: Date;
+            driverParam: string;
+            notNull: true;
+            hasDefault: true;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+    };
+    dialect: "pg";
+}>;
+export declare const insertCircuitBuilderSharedRepairLessonSchema: z.ZodObject<{
+    content: z.ZodString;
+    contentKey: z.ZodString;
+    occurrenceCount: z.ZodOptional<z.ZodInt>;
+}, {
+    out: {};
+    in: {};
+}>;
+export type InsertCircuitBuilderSharedRepairLesson = z.infer<typeof insertCircuitBuilderSharedRepairLessonSchema>;
+export type CircuitBuilderSharedRepairLesson = typeof circuitBuilderSharedRepairLessons.$inferSelect;
+//# sourceMappingURL=circuitBuilderSharedRepairLesson.d.ts.map

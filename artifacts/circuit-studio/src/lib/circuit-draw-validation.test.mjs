@@ -814,3 +814,293 @@ test("astable emitter resistors are accepted as a path to ground", () => {
   const report = CircuitDraw.validate(CircuitDraw.autoFix(emitterResistor).spec);
   assert.equal(report.errors.some((error) => error.includes("Q1.E must connect to ground")), false);
 });
+
+test("node-first proposals materialize named multi-pin nets as editable orthogonal branches", () => {
+  const spec = {
+    title: "Node-first branches",
+    elements: [
+      { type: "terminal", id: "A", at: [100, 100] },
+      { type: "terminal", id: "B", at: [300, 100] },
+      { type: "terminal", id: "C", at: [200, 260] },
+      { type: "terminal", id: "D", at: [100, 360] },
+      { type: "terminal", id: "E", at: [300, 360] },
+    ],
+  };
+  const topology = {
+    nets: [
+      {
+        id: "CONTROL",
+        pins: [
+          { elementId: "A", pin: "1" },
+          { elementId: "B", pin: "1" },
+          { elementId: "C", pin: "1" },
+        ],
+      },
+      {
+        id: "RETURN",
+        pins: [
+          { elementId: "D", pin: "1" },
+          { elementId: "E", pin: "1" },
+        ],
+      },
+    ],
+    unconnectedPins: [],
+  };
+
+  const result = CircuitDraw.materializeTopology(spec, topology);
+  assert.deepEqual(Array.from(result.errors), []);
+  assert.deepEqual(Array.from(CircuitDraw.validate(result.spec).errors), []);
+  const wireSpecs = result.spec.elements.filter((element) => element.type === "wire");
+  assert.ok(wireSpecs.length >= 3);
+  assert.ok(wireSpecs.every((wire) => !("netId" in wire)));
+  assert.ok(wireSpecs.every((wire) => wire.points.every((point, index) => {
+    const next = wire.points[index + 1];
+    return !next || point[0] === next[0] || point[1] === next[1];
+  })));
+
+  const memberships = CircuitDraw.netlistWithMembership(result.spec, true).pinMembership;
+  const netKey = (elementId, pin) => {
+    const member = memberships.find((entry) =>
+      result.spec.elements[entry.elementIndex].id === elementId &&
+      entry.pinName === pin,
+    );
+    return member?.netKey;
+  };
+  assert.equal(netKey("A", "1"), netKey("B", "1"));
+  assert.equal(netKey("A", "1"), netKey("C", "1"));
+  assert.notEqual(netKey("A", "1"), netKey("D", "1"));
+  assert.equal(netKey("D", "1"), netKey("E", "1"));
+});
+
+test("node-first topology cannot leave required discrete pins open", () => {
+  const result = CircuitDraw.materializeTopology(
+    {
+      title: "Open resistor pin",
+      elements: [
+        { type: "resistor", id: "R1", from: [100, 100], to: [160, 100] },
+        { type: "terminal", id: "P1", at: [300, 100] },
+      ],
+    },
+    {
+      nets: [{
+        id: "SIGNAL",
+        pins: [
+          { elementId: "R1", pin: "1" },
+          { elementId: "P1", pin: "1" },
+        ],
+      }],
+      unconnectedPins: [{ elementId: "R1", pin: "2" }],
+    },
+  );
+
+  assert.ok(result.errors.some((error) => error.includes("Required pin R1.2")));
+});
+
+test("unused IC, connector, and advisory KiCad pins remain allowed", () => {
+  const symbolData = {
+    id: "Custom:Advisory",
+    units: [{
+      unit: 1,
+      bodyStyle: 1,
+      pins: [{
+        number: "7",
+        name: "OPTIONAL",
+        electricalType: "input",
+        shape: "line",
+        point: [30, 0],
+        bodyPoint: [12, 0],
+        showName: true,
+        showNumber: true,
+      }],
+      graphics: [{
+        type: "rectangle",
+        points: [[-12, -16], [12, 16]],
+        strokeWidth: 2,
+        fillType: "background",
+      }],
+    }],
+  };
+  const spec = {
+    title: "Advisory unused pins",
+    elements: [
+      { type: "ic", id: "U1", at: [100, 100], pins: [
+        { name: "VCC", side: "left" },
+        { name: "NC", side: "right" },
+      ] },
+      { type: "terminal", id: "P1", at: [300, 100] },
+      { type: "connector", id: "J1", at: [450, 220], pins: [
+        { name: "1", side: "left" },
+        { name: "2", side: "right" },
+      ] },
+      {
+        type: "kicad",
+        id: "U2",
+        symbolId: "Custom:Advisory",
+        at: [500, 100],
+        symbolData,
+      },
+    ],
+  };
+  const result = CircuitDraw.materializeTopology(spec, {
+    nets: [{
+      id: "SUPPLY",
+      pins: [
+        { elementId: "U1", pin: "VCC" },
+        { elementId: "P1", pin: "1" },
+      ],
+    }],
+    unconnectedPins: [
+      { elementId: "U1", pin: "NC" },
+      { elementId: "J1", pin: "1" },
+      { elementId: "J1", pin: "2" },
+      { elementId: "U2", pin: "7" },
+    ],
+  });
+
+  assert.deepEqual(Array.from(result.errors), []);
+  assert.ok(result.warnings.some((warning) => warning.includes("U1.NC")));
+  assert.ok(result.warnings.some((warning) => warning.includes("J1.1")));
+  assert.ok(result.warnings.some((warning) => warning.includes("U2.7")));
+});
+
+test("node-first routing uses exact transformed pins for rotated and flipped KiCad symbols", () => {
+  const symbolData = {
+    id: "Custom:Header",
+    units: [{
+      unit: 1,
+      bodyStyle: 1,
+      pins: [
+        {
+          number: "1",
+          name: "A",
+          electricalType: "passive",
+          shape: "line",
+          point: [-30, 0],
+          bodyPoint: [-12, 0],
+          showName: true,
+          showNumber: true,
+        },
+        {
+          number: "2",
+          name: "B",
+          electricalType: "passive",
+          shape: "line",
+          point: [30, 0],
+          bodyPoint: [12, 0],
+          showName: true,
+          showNumber: true,
+        },
+      ],
+      graphics: [{
+        type: "rectangle",
+        points: [[-12, -16], [12, 16]],
+        strokeWidth: 2,
+        fillType: "background",
+      }],
+    }],
+  };
+  const spec = {
+    title: "Rotated KiCad pins",
+    elements: [
+      {
+        type: "kicad",
+        id: "U1",
+        symbolId: "Custom:Header",
+        at: [200, 200],
+        rotation: 90,
+        flip: true,
+        symbolData,
+      },
+      { type: "terminal", id: "P1", at: [100, 230] },
+      { type: "terminal", id: "P2", at: [300, 170] },
+    ],
+  };
+  const expectedPins = CircuitGeometry.getCircuitPins(spec.elements[0]);
+  assert.deepEqual(expectedPins, [
+    { name: "1", point: [200, 230] },
+    { name: "2", point: [200, 170] },
+  ]);
+
+  const result = CircuitDraw.materializeTopology(spec, {
+    nets: [
+      { id: "A", pins: [{ elementId: "U1", pin: "1" }, { elementId: "P1", pin: "1" }] },
+      { id: "B", pins: [{ elementId: "U1", pin: "2" }, { elementId: "P2", pin: "1" }] },
+    ],
+    unconnectedPins: [],
+  });
+  assert.deepEqual(Array.from(result.errors), []);
+  const wirePoints = result.spec.elements
+    .filter((element) => element.type === "wire")
+    .flatMap((wire) => wire.points);
+  assert.ok(wirePoints.some((point) => point[0] === 200 && point[1] === 230));
+  assert.ok(wirePoints.some((point) => point[0] === 200 && point[1] === 170));
+  assert.deepEqual(Array.from(CircuitDraw.validate(result.spec).errors), []);
+});
+
+test("topology validation keeps separate crossings distinct and junction branches joined", () => {
+  const crossingSpec = {
+    title: "Separate crossing nets",
+    elements: [
+      { type: "terminal", id: "A1", at: [0, 50] },
+      { type: "terminal", id: "A2", at: [100, 50] },
+      { type: "terminal", id: "B1", at: [50, 0] },
+      { type: "terminal", id: "B2", at: [50, 100] },
+      { type: "wire", id: "WA", points: [[0, 50], [100, 50]] },
+      { type: "wire", id: "WB", points: [[50, 0], [50, 100]] },
+      { type: "crossing", id: "X1", at: [50, 50] },
+    ],
+  };
+  const crossingTopology = {
+    nets: [
+      { id: "HORIZONTAL", pins: [{ elementId: "A1", pin: "1" }, { elementId: "A2", pin: "1" }] },
+      { id: "VERTICAL", pins: [{ elementId: "B1", pin: "1" }, { elementId: "B2", pin: "1" }] },
+    ],
+    unconnectedPins: [],
+  };
+  assert.deepEqual(
+    Array.from(CircuitDraw.validateTopology(crossingSpec, crossingTopology).errors),
+    [],
+  );
+  const crossingMembership = CircuitDraw.netlistWithMembership(crossingSpec, true).pinMembership;
+  const crossingNet = (elementId) => crossingMembership.find((member) =>
+    crossingSpec.elements[member.elementIndex].id === elementId,
+  )?.netKey;
+  assert.equal(crossingNet("A1"), crossingNet("A2"));
+  assert.equal(crossingNet("B1"), crossingNet("B2"));
+  assert.notEqual(crossingNet("A1"), crossingNet("B1"));
+
+  const junctionSpec = {
+    title: "Connected junction branch",
+    elements: [
+      { type: "terminal", id: "J1", at: [0, 50] },
+      { type: "terminal", id: "J2", at: [100, 50] },
+      { type: "terminal", id: "J3", at: [50, 0] },
+      { type: "wire", id: "W1", points: [[0, 50], [100, 50]] },
+      { type: "wire", id: "W2", points: [[50, 0], [50, 50]] },
+      { type: "junction", id: "JUNC1", x: 50, y: 50 },
+    ],
+  };
+  const junctionTopology = {
+    nets: [{
+      id: "BRANCH",
+      pins: [
+        { elementId: "J1", pin: "1" },
+        { elementId: "J2", pin: "1" },
+        { elementId: "J3", pin: "1" },
+      ],
+    }],
+    unconnectedPins: [],
+  };
+  assert.deepEqual(
+    Array.from(CircuitDraw.validateTopology(junctionSpec, junctionTopology).errors),
+    [],
+  );
+});
+
+test("historical coordinate-based CircuitSpecs remain directly renderable", () => {
+  const legacy = structuredClone(astableFlasher);
+  const validation = CircuitDraw.validate(legacy);
+  assert.deepEqual(Array.from(validation.errors), []);
+  assert.match(CircuitDraw.render(legacy), /^<svg/);
+  assert.equal(legacy.elements.some((element) => element.type === "topology"), false);
+});

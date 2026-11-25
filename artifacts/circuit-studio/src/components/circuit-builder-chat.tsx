@@ -27,11 +27,13 @@ import type {
   CircuitBuilderHistoryExcerpt,
   CircuitBuilderSuggestedAction,
   CircuitProposalReview,
+  CircuitBuildChatResponse,
   CircuitBuildChatInput,
   CircuitBuildChatMessage,
   CircuitBuilderRepairLessonInput,
   CircuitDesignBrief,
   CircuitSpec,
+  CircuitTopology,
   CircuitSymbolSearchItem,
 } from '@workspace/api-client-react';
 import type { CircuitComponentLibraryEntry } from '@workspace/circuit-geometry';
@@ -242,7 +244,12 @@ function normalizeBrief(value: Partial<CircuitDesignBrief> | undefined): Circuit
   };
 }
 
-function inspectProposal(spec: CircuitBuildChatInput['currentSpec']): {
+const topologyMaterializationErrors = new WeakMap<object, string[]>();
+
+function inspectProposal(
+  spec: CircuitBuildChatInput['currentSpec'],
+  topology?: CircuitTopology,
+): {
   svg: string;
   validation: ValidationReport;
   canRepair: boolean;
@@ -256,10 +263,26 @@ function inspectProposal(spec: CircuitBuildChatInput['currentSpec']): {
   }
   try {
     const circuitValidation = window.CircuitDraw.validate(spec, { requireConnectedWireEnds: true });
+    const topologyValidation = topology
+      ? window.CircuitDraw.validateTopology(spec, topology)
+      : { errors: [], warnings: [] };
+    const materializationErrors = topologyMaterializationErrors.get(spec as object) ?? [];
+    const topologyErrors = [...new Set([
+      ...(circuitValidation.topologyErrors ?? []),
+      ...topologyValidation.errors,
+      ...materializationErrors,
+    ])];
+    const topologyWarnings = [...new Set([
+      ...(circuitValidation.topologyWarnings ?? []),
+      ...topologyValidation.warnings,
+    ])];
     const layoutWarnings = window.CircuitDraw.layoutWarnings(spec);
     const validation = classifyProposalValidation({
       ...circuitValidation,
+      errors: [...new Set([...circuitValidation.errors, ...topologyErrors])],
       warnings: [...new Set([...circuitValidation.warnings, ...layoutWarnings])],
+      topologyErrors,
+      topologyWarnings,
     });
     if (validation.errors.length) return { svg: '', validation, canRepair: true };
     const svg = window.CircuitDraw.render(spec);
@@ -283,6 +306,54 @@ function inspectProposal(spec: CircuitBuildChatInput['currentSpec']): {
   }
 }
 
+function materializeProposalTopology(
+  response: CircuitBuildChatResponse,
+): CircuitBuildChatResponse {
+  const proposal = response.proposal;
+  if (!proposal?.spec || !proposal.topology || !window.CircuitDraw) return response;
+  const materialized = window.CircuitDraw.materializeTopology(
+    proposal.spec,
+    proposal.topology,
+  );
+  if (materialized.errors.length) {
+    topologyMaterializationErrors.set(materialized.spec as object, materialized.errors);
+  } else {
+    topologyMaterializationErrors.delete(materialized.spec as object);
+  }
+  return {
+    ...response,
+    proposal: { ...proposal, spec: materialized.spec },
+  };
+}
+
+function keepRejectedTopologyInRepairContext(
+  request: CircuitBuildChatInput,
+  topology?: CircuitTopology,
+): CircuitBuildChatInput {
+  if (!topology) return request;
+  const content = [
+    'Previous rejected node-first topology. Preserve these exact pin-to-net assignments unless the user requested a connectivity change:',
+    JSON.stringify(topology),
+  ].join('\n');
+  if (content.length > 2_800) return request;
+  return {
+    ...request,
+    history: [
+      ...(request.history ?? []),
+      { role: 'assistant' as const, content },
+    ].slice(-8),
+  };
+}
+
+function preserveTopologyMaterializationErrors(
+  source: CircuitSpec,
+  target: CircuitSpec,
+): CircuitSpec {
+  const errors = topologyMaterializationErrors.get(source as object);
+  if (errors?.length) topologyMaterializationErrors.set(target as object, errors);
+  return target;
+}
+
 function getConnectivitySignature(spec: CircuitSpec, allowStructuralErrors = false): string | null {
   if (!window.CircuitDraw) return null;
   try {
@@ -295,12 +366,12 @@ function getConnectivitySignature(spec: CircuitSpec, allowStructuralErrors = fal
   }
 }
 
-function inspectLayoutProposal(spec: CircuitSpec): {
+function inspectLayoutProposal(spec: CircuitSpec, topology?: CircuitTopology): {
   svg: string;
   validation: ValidationReport;
   canRepair: boolean;
 } {
-  const inspection = inspectProposal(spec);
+  const inspection = inspectProposal(spec, topology);
   if (!inspection.svg || !window.CircuitDraw) return inspection;
 
   const layoutFindings = window.CircuitDraw.layoutWarnings(spec)
@@ -1052,8 +1123,10 @@ export function CircuitBuilderChat({
           getConnectivitySignature(candidate as CircuitSpec),
         send: (workingRequest) => chatMutation.mutateAsync({ data: workingRequest }),
         getProposal: (response) => response.proposal?.spec ?? null,
-        inspectProposal: inspectLayoutProposal,
-        prepareResponse: (response) => {
+        inspectProposal: (candidate, response) =>
+          inspectLayoutProposal(candidate, response.proposal?.topology),
+        prepareResponse: (rawResponse) => {
+          const response = materializeProposalTopology(rawResponse);
           if (!response.proposal?.spec || !window.CircuitDraw) return response;
           const beforeConnectivity = getConnectivitySignature(response.proposal.spec, true);
           const autoFixed = window.CircuitDraw.autoFix(response.proposal.spec);
@@ -1063,7 +1136,16 @@ export function CircuitBuilderChat({
             !hasStablePinConnectivitySignature(beforeConnectivity, afterConnectivity)
           ) return response;
           return autoFixed.changes.length
-            ? { ...response, proposal: { ...response.proposal, spec: autoFixed.spec } }
+            ? {
+                ...response,
+                proposal: {
+                  ...response.proposal,
+                  spec: preserveTopologyMaterializationErrors(
+                    response.proposal.spec,
+                    autoFixed.spec,
+                  ),
+                },
+              }
             : response;
         },
         getProtectedCircuitSignature: (candidate) =>
@@ -1073,12 +1155,16 @@ export function CircuitBuilderChat({
             baseline as NonNullable<CircuitBuildChatInput['currentSpec']>,
             candidate as NonNullable<CircuitBuildChatInput['currentSpec']>,
           ),
-        makeRepairRequest: (response, validationFindings) => buildLayoutRepairRequest(
-          originalRequest,
-          latestBrief,
-          response.proposal?.spec ?? spec,
-          validationFindings,
-        ),
+        makeRepairRequest: (response, validationFindings) =>
+          keepRejectedTopologyInRepairContext(
+            buildLayoutRepairRequest(
+              originalRequest,
+              latestBrief,
+              response.proposal?.spec ?? spec,
+              validationFindings,
+            ),
+            response.proposal?.topology,
+          ),
         makeOutputRepairRequest: buildOutputRepairRequest,
         onResponse: (response) => {
           latestBrief = response.brief ?? latestBrief;
@@ -1907,21 +1993,32 @@ export function CircuitBuilderChat({
         signal: abortController.signal,
         send: (workingRequest) => chatMutation.mutateAsync({ data: workingRequest }),
         getProposal: (result) => result.proposal?.spec ?? null,
-        inspectProposal,
         prepareResponse: (result) => {
           const authorizedResult = enforceBuilderResponseMode(result, safeRequest.mode);
-          if (!authorizedResult.proposal?.spec || !window.CircuitDraw) return authorizedResult;
-          const beforeConnectivity = getConnectivitySignature(authorizedResult.proposal.spec, true);
-          const autoFixed = window.CircuitDraw.autoFix(authorizedResult.proposal.spec);
+          const topologyResult = materializeProposalTopology(authorizedResult);
+          if (!topologyResult.proposal?.spec || !window.CircuitDraw) return topologyResult;
+          const beforeConnectivity = getConnectivitySignature(topologyResult.proposal.spec, true);
+          const autoFixed = window.CircuitDraw.autoFix(topologyResult.proposal.spec);
           const afterConnectivity = getConnectivitySignature(autoFixed.spec, true);
           if (
             autoFixed.changes.length &&
             !hasStablePinConnectivitySignature(beforeConnectivity, afterConnectivity)
-          ) return authorizedResult;
+          ) return topologyResult;
           return autoFixed.changes.length
-            ? { ...authorizedResult, proposal: { ...authorizedResult.proposal, spec: autoFixed.spec } }
-            : authorizedResult;
+            ? {
+                ...topologyResult,
+                proposal: {
+                  ...topologyResult.proposal,
+                  spec: preserveTopologyMaterializationErrors(
+                    topologyResult.proposal.spec,
+                    autoFixed.spec,
+                  ),
+                },
+              }
+            : topologyResult;
         },
+        inspectProposal: (candidate, response) =>
+          inspectProposal(candidate, response.proposal?.topology),
         getConnectivitySignature: (candidate) =>
           getConnectivitySignature(candidate as CircuitSpec),
         initialProtectedSpec: protectedElementsBaseSpec ?? undefined,
@@ -1945,12 +2042,16 @@ export function CircuitBuilderChat({
             },
           };
         },
-        makeRepairRequest: (result, findings) => buildRepairRequest(
-          safeRequest,
-          latestBrief,
-          findings,
-          result.proposal?.spec ?? request.currentSpec,
-        ),
+        makeRepairRequest: (result, findings) =>
+          keepRejectedTopologyInRepairContext(
+            buildRepairRequest(
+              safeRequest,
+              latestBrief,
+              findings,
+              result.proposal?.spec ?? request.currentSpec,
+            ),
+            result.proposal?.topology,
+          ),
         makeOutputRepairRequest: buildOutputRepairRequest,
         onResponse: (result) => {
           latestBrief = result.brief ?? latestBrief;

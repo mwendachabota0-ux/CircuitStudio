@@ -1386,6 +1386,366 @@
     return { spec: fixed, changes: changes };
   }
 
+  function topologyPinName(pin, index) {
+    return pin.n === 'at' ? String(index + 1) : String(pin.n);
+  }
+
+  function topologyReferenceKey(elementId, pinName) {
+    return String(elementId) + '\u0000' + String(pinName);
+  }
+
+  function inspectTopologyContract(spec, topology) {
+    var errors = [], warnings = [];
+    var pinsByReference = Object.create(null);
+    var assignments = Object.create(null);
+    var netPins = [];
+    var elementsById = Object.create(null);
+
+    if (!spec || !Array.isArray(spec.elements)) {
+      return { errors: ['The topology has no usable component layout.'], warnings: [] };
+    }
+    if (!topology || !Array.isArray(topology.nets) || !Array.isArray(topology.unconnectedPins)) {
+      return { errors: ['The proposal is missing its explicit pin-to-net topology.'], warnings: [] };
+    }
+
+    spec.elements.forEach(function (element, elementIndex) {
+      if (!element || OTHER[element.type] || element.type === 'label' || element.type === 'box') return;
+      var pins;
+      try { pins = pinsOf(element); }
+      catch (_error) {
+        errors.push(elementName(element, elementIndex) + ' has no readable pin geometry.');
+        return;
+      }
+      if (!pins.length) return;
+      if (typeof element.id !== 'string' || !element.id.trim()) {
+        errors.push(elementName(element, elementIndex) + ' needs a stable id before pins can be assigned to nets.');
+        return;
+      }
+      if (elementsById[element.id]) {
+        errors.push('Component id "' + element.id + '" is used more than once.');
+        return;
+      }
+      elementsById[element.id] = element;
+      pins.forEach(function (pin, pinIndex) {
+        var name = topologyPinName(pin, pinIndex);
+        var refKey = topologyReferenceKey(element.id, name);
+        if (!pinsByReference[refKey]) pinsByReference[refKey] = [];
+        pinsByReference[refKey].push({
+          element: element,
+          elementId: element.id,
+          pinName: name,
+          sourcePinName: pin.n,
+          point: pin.p,
+          refKey: refKey
+        });
+      });
+    });
+
+    var seenNetIds = Object.create(null);
+    topology.nets.forEach(function (net, netIndex) {
+      if (!net || typeof net.id !== 'string' || !net.id.trim()) {
+        errors.push('Net ' + (netIndex + 1) + ' needs a non-empty name.');
+        netPins.push([]);
+        return;
+      }
+      if (seenNetIds[net.id]) errors.push('Net name "' + net.id + '" is used more than once.');
+      seenNetIds[net.id] = true;
+      if (!Array.isArray(net.pins) || net.pins.length < 2) {
+        errors.push('Net "' + net.id + '" must contain at least two distinct pins.');
+        netPins.push([]);
+        return;
+      }
+      var physicalPins = [], netSeen = Object.create(null);
+      net.pins.forEach(function (reference) {
+        if (!reference || typeof reference.elementId !== 'string' || typeof reference.pin !== 'string') {
+          errors.push('Net "' + net.id + '" contains an invalid pin reference.');
+          return;
+        }
+        var refKey = topologyReferenceKey(reference.elementId, reference.pin);
+        var matches = pinsByReference[refKey];
+        if (!matches || !matches.length) {
+          errors.push('Net "' + net.id + '" refers to missing pin ' + reference.elementId + '.' + reference.pin + '.');
+          return;
+        }
+        if (netSeen[refKey]) {
+          errors.push('Pin ' + reference.elementId + '.' + reference.pin + ' appears more than once in net "' + net.id + '".');
+          return;
+        }
+        netSeen[refKey] = true;
+        if (Object.prototype.hasOwnProperty.call(assignments, refKey)) {
+          errors.push('Pin ' + reference.elementId + '.' + reference.pin + ' is assigned to more than one topology entry.');
+          return;
+        }
+        assignments[refKey] = net.id;
+        physicalPins = physicalPins.concat(matches);
+      });
+      netPins.push(physicalPins);
+    });
+
+    topology.unconnectedPins.forEach(function (reference) {
+      if (!reference || typeof reference.elementId !== 'string' || typeof reference.pin !== 'string') {
+        errors.push('The topology contains an invalid intentionally-unused pin reference.');
+        return;
+      }
+      var refKey = topologyReferenceKey(reference.elementId, reference.pin);
+      var matches = pinsByReference[refKey];
+      if (!matches || !matches.length) {
+        errors.push('The topology marks missing pin ' + reference.elementId + '.' + reference.pin + ' as intentionally unused.');
+        return;
+      }
+      if (Object.prototype.hasOwnProperty.call(assignments, refKey)) {
+        errors.push('Pin ' + reference.elementId + '.' + reference.pin + ' is assigned to more than one topology entry.');
+        return;
+      }
+      assignments[refKey] = null;
+      matches.forEach(function (pin) {
+        if (!isAdvisoryUnconnectedPin(pin.element, pin.sourcePinName)) {
+          errors.push(
+            'Required pin ' + pin.elementId + '.' + pin.pinName +
+            ' cannot be intentionally left unconnected.',
+          );
+        } else {
+          warnings.push(
+            pin.elementId + '.' + pin.pinName + ' is intentionally unconnected.',
+          );
+        }
+      });
+    });
+
+    Object.keys(pinsByReference).forEach(function (refKey) {
+      if (!Object.prototype.hasOwnProperty.call(assignments, refKey)) {
+        var pin = pinsByReference[refKey][0];
+        errors.push('Pin ' + pin.elementId + '.' + pin.pinName + ' is missing from the topology.');
+      }
+    });
+
+    Object.keys(elementsById).forEach(function (elementId) {
+      var element = elementsById[elementId];
+      if (element.type !== 'relay') return;
+      var relayPins = pinsOf(element).map(function (pin, index) {
+        return { name: topologyPinName(pin, index), refKey: topologyReferenceKey(elementId, topologyPinName(pin, index)) };
+      });
+      ['COIL1', 'COIL2', 'COM'].forEach(function (requiredName) {
+        var requiredPin = relayPins.filter(function (pin) { return pin.name === requiredName; })[0];
+        if (requiredPin && assignments[requiredPin.refKey] == null) {
+          errors.push(elementId + '.' + requiredName + ' must be connected.');
+        }
+      });
+      var hasContact = relayPins.some(function (pin) {
+        return (pin.name === 'NC' || pin.name === 'NO') &&
+          Object.prototype.hasOwnProperty.call(assignments, pin.refKey) &&
+          assignments[pin.refKey] !== null;
+      });
+      if (!hasContact) errors.push(elementId + ' must connect at least one of NC or NO.');
+    });
+
+    var expectedGroups = [];
+    topology.nets.forEach(function (net, netIndex) {
+      var members = netPins[netIndex] || [];
+      if (members.length) expectedGroups.push(members.map(function (pin) { return pin.refKey; }));
+    });
+    topology.unconnectedPins.forEach(function (reference) {
+      if (!reference || typeof reference.elementId !== 'string' || typeof reference.pin !== 'string') return;
+      var matches = pinsByReference[topologyReferenceKey(reference.elementId, reference.pin)] || [];
+      matches.forEach(function (pin) { expectedGroups.push([pin.refKey]); });
+    });
+
+    return {
+      errors: [...new Set(errors)],
+      warnings: [...new Set(warnings)],
+      pinsByReference: pinsByReference,
+      netPins: netPins,
+      expectedGroups: expectedGroups
+    };
+  }
+
+  function canonicalTopologyGroups(groups) {
+    return groups.map(function (group) {
+      return group.slice().sort();
+    }).sort(function (left, right) {
+      return JSON.stringify(left).localeCompare(JSON.stringify(right));
+    });
+  }
+
+  function checkMaterializedTopology(spec, contract) {
+    if (!contract || contract.errors.length) return [];
+    var memberships;
+    try {
+      memberships = netlist(spec, true, true);
+    } catch (_error) {
+      return ['The generated wire geometry could not be compared with the declared topology.'];
+    }
+    var actualByNet = Object.create(null);
+    memberships.pinMembership.forEach(function (member) {
+      var element = spec.elements[member.elementIndex];
+      if (!element || typeof element.id !== 'string') return;
+      var referenceKey = topologyReferenceKey(element.id, member.pinName);
+      if (!actualByNet[member.netKey]) actualByNet[member.netKey] = [];
+      actualByNet[member.netKey].push(referenceKey);
+    });
+    var actualGroups = canonicalTopologyGroups(Object.keys(actualByNet).map(function (netKey) {
+      return actualByNet[netKey];
+    }));
+    var expectedGroups = canonicalTopologyGroups(contract.expectedGroups);
+    return JSON.stringify(actualGroups) === JSON.stringify(expectedGroups)
+      ? []
+      : ['The routed wires do not preserve the declared pin-to-net topology; a branch may be disconnected or two separate nets may have joined.'];
+  }
+
+  function topologyCrossings(spec) {
+    var wires = [];
+    spec.elements.forEach(function (element, index) {
+      if (!element || element.type !== 'wire' || !Array.isArray(element.points)) return;
+      for (var segmentIndex = 0; segmentIndex < element.points.length - 1; segmentIndex++) {
+        wires.push({
+          wireIndex: index,
+          netId: element.netId,
+          start: element.points[segmentIndex],
+          end: element.points[segmentIndex + 1]
+        });
+      }
+    });
+    var markerMap = Object.create(null), errors = [];
+    function record(point, type) {
+      var pointKey = key(point[0], point[1]);
+      if (!markerMap[pointKey]) markerMap[pointKey] = { point: point, type: type };
+      else if (markerMap[pointKey].type !== type) {
+        errors.push('The generated routes require both a junction and a non-connecting crossing at (' + point[0] + ', ' + point[1] + ').');
+      }
+    }
+    function within(value, first, second) {
+      return value >= Math.min(first, second) - 0.01 && value <= Math.max(first, second) + 0.01;
+    }
+    for (var firstIndex = 0; firstIndex < wires.length; firstIndex++) {
+      for (var secondIndex = firstIndex + 1; secondIndex < wires.length; secondIndex++) {
+        var first = wires[firstIndex], second = wires[secondIndex];
+        var firstHorizontal = Math.abs(first.start[1] - first.end[1]) < 0.01;
+        var secondHorizontal = Math.abs(second.start[1] - second.end[1]) < 0.01;
+        if (firstHorizontal === secondHorizontal) continue;
+        var horizontal = firstHorizontal ? first : second;
+        var vertical = firstHorizontal ? second : first;
+        var point = [vertical.start[0], horizontal.start[1]];
+        if (!within(point[0], horizontal.start[0], horizontal.end[0]) ||
+            !within(point[1], vertical.start[1], vertical.end[1])) continue;
+        var firstInterior = pointOnRouteSegment(point, first.start, first.end);
+        var secondInterior = pointOnRouteSegment(point, second.start, second.end);
+        if (first.netId !== second.netId && (firstInterior || secondInterior) && !(firstInterior && secondInterior)) {
+          errors.push('Routes for separate nets meet at an endpoint near (' + point[0] + ', ' + point[1] + ').');
+          continue;
+        }
+        if (first.netId === second.netId && (firstInterior || secondInterior)) {
+          record(point, 'junction');
+        } else if (first.netId !== second.netId && firstInterior && secondInterior) {
+          record(point, 'crossing');
+        }
+      }
+    }
+    var junctions = [], crossings = [];
+    Object.keys(markerMap).forEach(function (pointKey) {
+      var marker = markerMap[pointKey];
+      if (marker.type === 'junction') junctions.push({ type: 'junction', id: 'J' + (junctions.length + 1), x: marker.point[0], y: marker.point[1] });
+      else crossings.push({ type: 'crossing', id: 'X' + (crossings.length + 1), at: marker.point });
+    });
+    return { junctions: junctions, crossings: crossings, errors: [...new Set(errors)] };
+  }
+
+  function materializeTopology(spec, topology) {
+    var contract = inspectTopologyContract(spec, topology);
+    var base = JSON.parse(JSON.stringify(spec));
+    base.elements = base.elements.filter(function (element) {
+      return element && element.type !== 'wire' && element.type !== 'junction' && element.type !== 'crossing';
+    });
+    if (contract.errors.length) return { spec: base, errors: contract.errors, warnings: contract.warnings };
+
+    var routeCount = contract.netPins.reduce(function (total, pins) {
+      return total + Math.max(0, pins.length - 1);
+    }, 0);
+    if (routeCount > 300) {
+      return {
+        spec: base,
+        errors: ['This topology has too many pin connections to route in one proposal. Split it into smaller sections.'],
+        warnings: contract.warnings
+      };
+    }
+
+    var usedIds = Object.create(null);
+    base.elements.forEach(function (element) {
+      if (element && typeof element.id === 'string') usedIds[element.id] = true;
+    });
+    function nextId(prefix) {
+      var suffix = 1, candidate = prefix + suffix;
+      while (usedIds[candidate]) candidate = prefix + (++suffix);
+      usedIds[candidate] = true;
+      return candidate;
+    }
+
+    var bodies = routeBodies(base), routeErrors = [];
+    topology.nets.forEach(function (net, netIndex) {
+      var members = contract.netPins[netIndex] || [];
+      if (members.length < 2) return;
+      members = members.slice().sort(function (left, right) {
+        return left.refKey.localeCompare(right.refKey) ||
+          left.point[0] - right.point[0] || left.point[1] - right.point[1];
+      });
+      var root = members[0], bestDistance = Infinity;
+      members.forEach(function (candidate) {
+        var distance = members.reduce(function (sum, other) {
+          return sum + Math.abs(candidate.point[0] - other.point[0]) +
+            Math.abs(candidate.point[1] - other.point[1]);
+        }, 0);
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          root = candidate;
+        }
+      });
+
+      members.forEach(function (target) {
+        if (target === root || samePoint(root.point, target.point)) return;
+        var route = findOrthogonalRoute(
+          root.point,
+          target.point,
+          bodies,
+          routeTapPoints(base, -1, root.point, target.point),
+          routeWireSegments(base, -1),
+        );
+        if (!route || route.length < 2) {
+          routeErrors.push(
+            'Could not create a clear orthogonal route for net "' + net.id + '" between ' +
+            root.elementId + '.' + root.pinName + ' and ' +
+            target.elementId + '.' + target.pinName + '.',
+          );
+          return;
+        }
+        base.elements.push({
+          type: 'wire',
+          id: nextId('W'),
+          netId: net.id,
+          points: simplifyRoutePoints(route, [root.point, target.point])
+        });
+      });
+    });
+    if (routeErrors.length) return { spec: base, errors: [...new Set(routeErrors)], warnings: contract.warnings };
+
+    var routed = autoRouteWiresAroundBodies(base).spec;
+    var markers = topologyCrossings(routed);
+    if (markers.errors.length) return { spec: base, errors: markers.errors, warnings: contract.warnings };
+    markers.junctions.forEach(function (marker) {
+      marker.id = nextId('J');
+      routed.elements.push(marker);
+    });
+    markers.crossings.forEach(function (marker) {
+      marker.id = nextId('X');
+      routed.elements.push(marker);
+    });
+
+    var connectivityErrors = checkMaterializedTopology(routed, contract);
+    if (connectivityErrors.length) return { spec: base, errors: connectivityErrors, warnings: contract.warnings };
+    routed.elements.forEach(function (element) {
+      if (element && element.type === 'wire') delete element.netId;
+    });
+    return { spec: routed, errors: [], warnings: contract.warnings };
+  }
+
   function autoFix(spec) {
     if (!spec || typeof spec !== 'object' || !Array.isArray(spec.elements)) {
       return { spec: spec, changes: [] };
@@ -2381,6 +2741,14 @@
     validate: validate,
     layoutWarnings: layoutWarnings,
     autoFix: autoFix,
+    materializeTopology: materializeTopology,
+    validateTopology: function (spec, topology) {
+      var contract = inspectTopologyContract(spec, topology);
+      return {
+        errors: contract.errors.concat(checkMaterializedTopology(spec, contract)),
+        warnings: contract.warnings,
+      };
+    },
     netlist: netlist,
     netlistWithMembership: function (spec, allowStructuralErrors) {
       return netlist(spec, allowStructuralErrors, true);

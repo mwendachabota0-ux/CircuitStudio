@@ -239,7 +239,50 @@ export interface CircuitBuildChatInput {
   brief?: CircuitDesignBrief;
 }
 
+export interface CircuitPinReference {
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  elementId: string;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  pin: string;
+}
+
+export interface CircuitNet {
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  id: string;
+  /**
+     * @minItems 2
+     * @maxItems 1000
+     */
+  pins: CircuitPinReference[];
+}
+
+export interface CircuitTopology {
+  /** @maxItems 600 */
+  nets: CircuitNet[];
+  /** @maxItems 3000 */
+  unconnectedPins: CircuitPinReference[];
+}
+
 export interface CircuitBuildProposal {
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
+  summary: string;
+  spec: CircuitSpec;
+  topology: CircuitTopology;
+}
+
+export interface CircuitBuilderSavedProposal {
   /**
      * @minLength 1
      * @maxLength 500
@@ -609,7 +652,7 @@ export const CircuitBuilderRepairRecoveryStateRetryKind = {
 export interface CircuitBuilderRepairRecoveryState {
   version: CircuitBuilderRepairRecoveryStateVersion;
   status: CircuitBuilderRepairRecoveryStateStatus;
-  proposal?: CircuitBuildProposal;
+  proposal?: CircuitBuilderSavedProposal;
   proposalValidation?: CircuitBuilderRepairValidation;
   rejectedProposalSpec?: CircuitSpec;
   retryFeedback?: CircuitBuilderRepairRetryFeedback;

@@ -2930,6 +2930,15 @@ export declare const chatWithCircuitBuilderResponseProposalSpecElementsItemLabel
 export declare const chatWithCircuitBuilderResponseProposalSpecElementsItemLabelNudgeMax = 2;
 export declare const chatWithCircuitBuilderResponseProposalSpecElementsItemLabelAtMin = 2;
 export declare const chatWithCircuitBuilderResponseProposalSpecElementsItemLabelAtMax = 2;
+export declare const chatWithCircuitBuilderResponseProposalTopologyNetsItemIdMax = 128;
+export declare const chatWithCircuitBuilderResponseProposalTopologyNetsItemPinsItemElementIdMax = 128;
+export declare const chatWithCircuitBuilderResponseProposalTopologyNetsItemPinsItemPinMax = 128;
+export declare const chatWithCircuitBuilderResponseProposalTopologyNetsItemPinsMin = 2;
+export declare const chatWithCircuitBuilderResponseProposalTopologyNetsItemPinsMax = 1000;
+export declare const chatWithCircuitBuilderResponseProposalTopologyNetsMax = 600;
+export declare const chatWithCircuitBuilderResponseProposalTopologyUnconnectedPinsItemElementIdMax = 128;
+export declare const chatWithCircuitBuilderResponseProposalTopologyUnconnectedPinsItemPinMax = 128;
+export declare const chatWithCircuitBuilderResponseProposalTopologyUnconnectedPinsMax = 3000;
 export declare const chatWithCircuitBuilderResponseSuggestedActionsItemLabelMax = 90;
 export declare const chatWithCircuitBuilderResponseSuggestedActionsItemPromptMax = 1000;
 export declare const chatWithCircuitBuilderResponseSuggestedActionsItemReplyToMax = 300;
@@ -3409,6 +3418,67 @@ export declare const ChatWithCircuitBuilderResponse: zod.ZodObject<{
             width?: number | undefined;
             height?: number | undefined;
         }>;
+        topology: zod.ZodObject<{
+            nets: zod.ZodArray<zod.ZodObject<{
+                id: zod.ZodString;
+                pins: zod.ZodArray<zod.ZodObject<{
+                    elementId: zod.ZodString;
+                    pin: zod.ZodString;
+                }, "strip", zod.ZodTypeAny, {
+                    elementId: string;
+                    pin: string;
+                }, {
+                    elementId: string;
+                    pin: string;
+                }>, "many">;
+            }, "strip", zod.ZodTypeAny, {
+                id: string;
+                pins: {
+                    elementId: string;
+                    pin: string;
+                }[];
+            }, {
+                id: string;
+                pins: {
+                    elementId: string;
+                    pin: string;
+                }[];
+            }>, "many">;
+            unconnectedPins: zod.ZodArray<zod.ZodObject<{
+                elementId: zod.ZodString;
+                pin: zod.ZodString;
+            }, "strip", zod.ZodTypeAny, {
+                elementId: string;
+                pin: string;
+            }, {
+                elementId: string;
+                pin: string;
+            }>, "many">;
+        }, "strip", zod.ZodTypeAny, {
+            nets: {
+                id: string;
+                pins: {
+                    elementId: string;
+                    pin: string;
+                }[];
+            }[];
+            unconnectedPins: {
+                elementId: string;
+                pin: string;
+            }[];
+        }, {
+            nets: {
+                id: string;
+                pins: {
+                    elementId: string;
+                    pin: string;
+                }[];
+            }[];
+            unconnectedPins: {
+                elementId: string;
+                pin: string;
+            }[];
+        }>;
     }, "strip", zod.ZodTypeAny, {
         summary: string;
         spec: {
@@ -3477,6 +3547,19 @@ export declare const ChatWithCircuitBuilderResponse: zod.ZodObject<{
             width?: number | undefined;
             height?: number | undefined;
         };
+        topology: {
+            nets: {
+                id: string;
+                pins: {
+                    elementId: string;
+                    pin: string;
+                }[];
+            }[];
+            unconnectedPins: {
+                elementId: string;
+                pin: string;
+            }[];
+        };
     }, {
         summary: string;
         spec: {
@@ -3544,6 +3627,19 @@ export declare const ChatWithCircuitBuilderResponse: zod.ZodObject<{
             }[];
             width?: number | undefined;
             height?: number | undefined;
+        };
+        topology: {
+            nets: {
+                id: string;
+                pins: {
+                    elementId: string;
+                    pin: string;
+                }[];
+            }[];
+            unconnectedPins: {
+                elementId: string;
+                pin: string;
+            }[];
         };
     }>>;
     suggestedActions: zod.ZodOptional<zod.ZodArray<zod.ZodObject<{
@@ -3652,6 +3748,19 @@ export declare const ChatWithCircuitBuilderResponse: zod.ZodObject<{
             width?: number | undefined;
             height?: number | undefined;
         };
+        topology: {
+            nets: {
+                id: string;
+                pins: {
+                    elementId: string;
+                    pin: string;
+                }[];
+            }[];
+            unconnectedPins: {
+                elementId: string;
+                pin: string;
+            }[];
+        };
     } | undefined;
     suggestedActions?: {
         prompt: string;
@@ -3742,6 +3851,19 @@ export declare const ChatWithCircuitBuilderResponse: zod.ZodObject<{
             }[];
             width?: number | undefined;
             height?: number | undefined;
+        };
+        topology: {
+            nets: {
+                id: string;
+                pins: {
+                    elementId: string;
+                    pin: string;
+                }[];
+            }[];
+            unconnectedPins: {
+                elementId: string;
+                pin: string;
+            }[];
         };
     } | undefined;
     suggestedActions?: {

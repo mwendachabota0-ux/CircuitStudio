@@ -917,6 +917,17 @@ components:
           $ref: "#/components/schemas/CircuitTopology"
       required: [summary, spec, topology]
       additionalProperties: false
+    CircuitBuilderSavedProposal:
+      type: object
+      properties:
+        summary:
+          type: string
+          minLength: 1
+          maxLength: 500
+        spec:
+          $ref: "#/components/schemas/CircuitSpec"
+      required: [summary, spec]
+      additionalProperties: false
     CircuitPinReference:
       type: object
       properties:
@@ -1324,7 +1335,7 @@ components:
           type: string
           enum: [idle, running, staged, rejected]
         proposal:
-          $ref: "#/components/schemas/CircuitBuildProposal"
+          $ref: "#/components/schemas/CircuitBuilderSavedProposal"
         proposalValidation:
           $ref: "#/components/schemas/CircuitBuilderRepairValidation"
         rejectedProposalSpec:

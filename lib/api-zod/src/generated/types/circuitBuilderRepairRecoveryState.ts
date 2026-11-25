@@ -13,13 +13,13 @@ import type { CircuitBuilderRepairRecoveryStateStatus } from './circuitBuilderRe
 import type { CircuitBuilderRepairRecoveryStateVersion } from './circuitBuilderRepairRecoveryStateVersion';
 import type { CircuitBuilderRepairRetryFeedback } from './circuitBuilderRepairRetryFeedback';
 import type { CircuitBuilderRepairValidation } from './circuitBuilderRepairValidation';
-import type { CircuitBuildProposal } from './circuitBuildProposal';
+import type { CircuitBuilderSavedProposal } from './circuitBuilderSavedProposal';
 import type { CircuitSpec } from './circuitSpec';
 
 export interface CircuitBuilderRepairRecoveryState {
   version: CircuitBuilderRepairRecoveryStateVersion;
   status: CircuitBuilderRepairRecoveryStateStatus;
-  proposal?: CircuitBuildProposal;
+  proposal?: CircuitBuilderSavedProposal;
   proposalValidation?: CircuitBuilderRepairValidation;
   rejectedProposalSpec?: CircuitSpec;
   retryFeedback?: CircuitBuilderRepairRetryFeedback;

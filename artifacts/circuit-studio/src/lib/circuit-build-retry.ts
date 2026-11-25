@@ -676,7 +676,7 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
     initialRequest: TRequest;
     send: (request: TRequest) => Promise<TResponse>;
     getProposal: (response: TResponse) => TProposal | null | undefined;
-    inspectProposal: (proposal: TProposal) => TInspection;
+    inspectProposal: (proposal: TProposal, response: TResponse) => TInspection;
     prepareResponse?: (response: TResponse) => TResponse;
     initialProtectedSpec?: TProposal;
     getProtectedCircuitSignature?: (proposal: TProposal) => string;
@@ -982,7 +982,7 @@ export async function runCircuitBuildAttempts<TRequest, TResponse, TProposal, TI
       });
     }
 
-    const proposalInspection = options.inspectProposal(proposal);
+    const proposalInspection = options.inspectProposal(proposal, response);
     // Warnings are advisory layout notes. Structural and connectivity findings
     // consume repair attempts and must be cleared before a proposal is staged.
     let findings = proposalInspection.validation.errors;

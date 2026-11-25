@@ -12,7 +12,7 @@ import {
   reviewCircuit, useAskCircuitTutor, useSaveCircuitBuilderRepairLesson,
   useGetAiStatus, useGetAiUsage, useReviewCircuit, useSetAiKeySelection,
 } from '@workspace/api-client-react';
-import type { AiUsage, CircuitSpec as ApiCircuitSpec, TutorImageMimeType, TutorResponse } from '@workspace/api-client-react';
+import type { AiUsage, CircuitSpec as ApiCircuitSpec, CircuitTopology, TutorImageMimeType, TutorResponse } from '@workspace/api-client-react';
 import * as CircuitGeometry from '@workspace/circuit-geometry';
 import {
   ArrowDownRight, ArrowRight, Bell, BellOff, BellRing, Check, CheckCircle2, ChevronDown, ChevronUp, CircuitBoard,
@@ -59,8 +59,13 @@ type CircuitDrawRenderOptions = {
 type CircuitDrawApi = {
   render: (spec: CircuitSpec, options?: CircuitDrawRenderOptions) => string;
   validate: (spec: CircuitSpec, options?: { requireConnectedWireEnds?: boolean }) => ValidationReport;
+  validateTopology: (spec: CircuitSpec, topology: CircuitTopology) => ValidationReport;
   layoutWarnings: (spec: CircuitSpec) => string[];
   autoFix: (spec: CircuitSpec) => { spec: CircuitSpec; changes: string[] };
+  materializeTopology: (
+    spec: CircuitSpec,
+    topology: CircuitTopology,
+  ) => { spec: CircuitSpec; errors: string[]; warnings: string[] };
   netlist: (spec: CircuitSpec, allowStructuralErrors?: boolean) => {
     parts: Array<{ designator: string; type: string; value: string }>;
     nets: Array<{ name: string; pins: string[] }>;

@@ -726,6 +726,23 @@ export const chatWithCircuitBuilderResponseProposalSpecElementsItemLabelNudgeMax
 export const chatWithCircuitBuilderResponseProposalSpecElementsItemLabelAtMin = 2;
 export const chatWithCircuitBuilderResponseProposalSpecElementsItemLabelAtMax = 2;
 
+export const chatWithCircuitBuilderResponseProposalTopologyNetsItemIdMax = 128;
+
+export const chatWithCircuitBuilderResponseProposalTopologyNetsItemPinsItemElementIdMax = 128;
+
+export const chatWithCircuitBuilderResponseProposalTopologyNetsItemPinsItemPinMax = 128;
+
+export const chatWithCircuitBuilderResponseProposalTopologyNetsItemPinsMin = 2;
+export const chatWithCircuitBuilderResponseProposalTopologyNetsItemPinsMax = 1000;
+
+export const chatWithCircuitBuilderResponseProposalTopologyNetsMax = 600;
+
+export const chatWithCircuitBuilderResponseProposalTopologyUnconnectedPinsItemElementIdMax = 128;
+
+export const chatWithCircuitBuilderResponseProposalTopologyUnconnectedPinsItemPinMax = 128;
+
+export const chatWithCircuitBuilderResponseProposalTopologyUnconnectedPinsMax = 3000;
+
 export const chatWithCircuitBuilderResponseSuggestedActionsItemLabelMax = 90;
 
 export const chatWithCircuitBuilderResponseSuggestedActionsItemPromptMax = 1000;
@@ -822,6 +839,19 @@ export const ChatWithCircuitBuilderResponse = zod.object({
   "bold": zod.boolean().optional(),
   "muted": zod.boolean().optional()
 }))
+}),
+  "topology": zod.object({
+  "nets": zod.array(zod.object({
+  "id": zod.string().min(1).max(chatWithCircuitBuilderResponseProposalTopologyNetsItemIdMax),
+  "pins": zod.array(zod.object({
+  "elementId": zod.string().min(1).max(chatWithCircuitBuilderResponseProposalTopologyNetsItemPinsItemElementIdMax),
+  "pin": zod.string().min(1).max(chatWithCircuitBuilderResponseProposalTopologyNetsItemPinsItemPinMax)
+})).min(chatWithCircuitBuilderResponseProposalTopologyNetsItemPinsMin).max(chatWithCircuitBuilderResponseProposalTopologyNetsItemPinsMax)
+})).max(chatWithCircuitBuilderResponseProposalTopologyNetsMax),
+  "unconnectedPins": zod.array(zod.object({
+  "elementId": zod.string().min(1).max(chatWithCircuitBuilderResponseProposalTopologyUnconnectedPinsItemElementIdMax),
+  "pin": zod.string().min(1).max(chatWithCircuitBuilderResponseProposalTopologyUnconnectedPinsItemPinMax)
+})).max(chatWithCircuitBuilderResponseProposalTopologyUnconnectedPinsMax)
 })
 }).optional(),
   "suggestedActions": zod.array(zod.object({

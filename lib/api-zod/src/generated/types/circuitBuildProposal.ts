@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { CircuitSpec } from './circuitSpec';
+import type { CircuitTopology } from './circuitTopology';
 
 export interface CircuitBuildProposal {
   /**
@@ -14,4 +15,5 @@ export interface CircuitBuildProposal {
      */
   summary: string;
   spec: CircuitSpec;
+  topology: CircuitTopology;
 }

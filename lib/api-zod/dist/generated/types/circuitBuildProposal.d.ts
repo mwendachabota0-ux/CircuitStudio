@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { CircuitSpec } from './circuitSpec';
+import type { CircuitTopology } from './circuitTopology';
 export interface CircuitBuildProposal {
     /**
        * @minLength 1
@@ -13,5 +14,6 @@ export interface CircuitBuildProposal {
        */
     summary: string;
     spec: CircuitSpec;
+    topology: CircuitTopology;
 }
 //# sourceMappingURL=circuitBuildProposal.d.ts.map
